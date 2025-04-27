@@ -9,6 +9,6 @@ class HornetSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at']
 
     def validate_direction(self, value):
-        if not (0 <= value <= 365):
-            raise serializers.ValidationError("Direction must be between 0 and 365.")
+        if not (0 <= value <= 359):
+            raise serializers.ValidationError("Direction must be between 0 and 359.")
         return value
