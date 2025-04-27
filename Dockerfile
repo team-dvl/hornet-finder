@@ -13,6 +13,7 @@ COPY . .
 
 EXPOSE 8000
 
-RUN python manage.py collectstatic --noinput
+RUN python manage.py collectstatic --noinput && \
+	python manage.py migrate --noinput
 
 CMD ["gunicorn", "hornet_finder_api.wsgi:application", "--bind", "0.0.0.0:8000", "--access-logfile",  "-"]
