@@ -1,0 +1,11 @@
+name: hornet-finder
+
+services:
+  hornet-finder-api:
+    build: ./backend
+    container_name: hornet-finder-api
+    image: hornet-finder-api
+    env_file: ./backend.env
+    ports:
+      - "8000:8000"
+    tty: true

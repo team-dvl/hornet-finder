@@ -17,8 +17,8 @@ OR
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/mdevolde/hornet-finder-api.git
-cd hornet-finder-api
+git clone https://github.com/mdevolde/hornet-finder.git
+cd hornet-finder/backend
 ```
 
 2. Create a virtual environment:
@@ -53,8 +53,8 @@ python manage.py runserver
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/mdevolde/hornet-finder-api.git
-cd hornet-finder-api
+git clone https://github.com/mdevolde/hornet-finder.git
+cd hornet-finder/backend
 ```
 
 2. Build the Docker image:
