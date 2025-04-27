@@ -23,7 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-a9*a4_65wj#42w%!jw+$y^@ql2gm*0@bjsua88-!v^o)$nx)2w'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = True # Turn to True for development
 
 ALLOWED_HOSTS = []
 
@@ -58,6 +58,18 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',
     ],
 }
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': "Hornet Finder API",
+    'VERSION': 'v1',
+    'DESCRIPTION': "API for a hornet detection app.",
+    'SERVE_PUBLIC': False,
+    'OAS_VERSION': '3.1.1',
+}
+
+CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = 'Strict'
 
 ROOT_URLCONF = 'hornet_finder_api.urls'
 
@@ -114,7 +126,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Europe/Brussels'
 
 USE_I18N = True
 
