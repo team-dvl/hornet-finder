@@ -1,0 +1,16 @@
+[project]
+name = "hornet-finder-api"
+version = "0.1.0"
+description = "API for a hornet detection app."
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name="Martin Devolder", email="martin.devolder2@gmail.com" }]
+requires-python = ">=3.9"
+dependencies = [
+    "django",
+    "djangorestframework",
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
