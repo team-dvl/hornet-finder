@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -20,7 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-a9*a4_65wj#42w%!jw+$y^@ql2gm*0@bjsua88-!v^o)$nx)2w'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'unsafe-secret-key')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True # Turn to True for development
@@ -28,7 +29,7 @@ DEBUG = True # Turn to True for development
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    # TODO: Add your production domain here
+    os.environ.get('HOST'), # The host name of the reverse proxy (nginx) used in production
 ]
 
 
@@ -60,6 +61,9 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'hornet_finder_api.authentication.JWTBearerAuthentication', # Custom JWT Bearer authentication
     ],
 }
 

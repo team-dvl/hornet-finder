@@ -10,7 +10,8 @@ dependencies = [
     "django",
     "djangorestframework",
     "drf-spectacular",
-    "gurnicorn"
+    "gurnicorn",
+    "PyJWT"
 ]
 
 [build-system]
