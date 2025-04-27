@@ -33,6 +33,9 @@ urlpatterns = [
     # path('admin/', admin.site.urls),
     path('robots.txt', robots_txt),
     path('api/', include('hornet.urls')),
-    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
-    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
-] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT) if settings.DEBUG else []
+]
+
+if settings.DEBUG:
+    urlpatterns.append(path('api/schema/', SpectacularAPIView.as_view(), name='schema'))
+    urlpatterns.append(path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'))
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

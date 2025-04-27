@@ -25,7 +25,11 @@ SECRET_KEY = 'django-insecure-a9*a4_65wj#42w%!jw+$y^@ql2gm*0@bjsua88-!v^o)$nx)2w
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True # Turn to True for development
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    # TODO: Add your production domain here
+]
 
 
 # Application definition
@@ -71,15 +75,17 @@ CSRF_COOKIE_SECURE = True
 CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = 'Strict'
 
-if not DEBUG:
-    SECURE_SSL_REDIRECT = True
-    SECURE_HSTS_SECONDS = 31536000  # 1 an
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
-
-X_FRAME_OPTIONS = "DENY"
-
-SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+# Some security headers to consider if the reverse proxy is not handling them
+#
+# if not DEBUG:
+#     SECURE_SSL_REDIRECT = True
+#     SECURE_HSTS_SECONDS = 31536000  # 1 an
+#     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+#     SECURE_HSTS_PRELOAD = True
+#
+# X_FRAME_OPTIONS = "DENY"
+#
+# SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
 ROOT_URLCONF = 'hornet_finder_api.urls'
 
