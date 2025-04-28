@@ -174,4 +174,4 @@ cython_debug/
 .pypirc
 
 # Docker env file
-backend.env
+*.env

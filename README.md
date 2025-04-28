@@ -22,6 +22,16 @@ HOST=your_host_here
 KEYCLOAK_PUBLIC_KEY=your_keycloak_public_key_here
 ```
 
+3. Create a `keycloak.env` file at the root of the project with the following content:
+```env
+POSTGRES_DB: keycloak
+POSTGRES_PASSWORD=your_postgres_password_here
+POSTGRES_USER: keycloak
+KC_DB_PASSWORD=$POSTGRES_PASSWORD
+KC_BOOTSTRAP_ADMIN_PASSWORD=your_admin_password_here
+KC_HOSTNAME=your_keycloak_hostname_here (0.0.0.0:8080 for local testing)
+```
+
 ### Launching the app
 To launch the app, run the following command in the root directory of the project:
 ```bash

@@ -9,3 +9,22 @@ services:
     ports:
       - "8000:8000"
     tty: true
+
+  hornet-finder-keycloak-db:
+    image: postgres:latest
+    container_name: hornet-finder-keycloak-db
+    env_file: ./keycloak.env
+    volumes:
+      - keycloak-db:/var/lib/postgresql/data
+  hornet-finder-keycloak:
+    build: ./auth
+    container_name: hornet-finder-keycloak
+    image: hornet-finder-keycloak
+    env_file: ./keycloak.env
+    depends_on:
+      - hornet-finder-keycloak-db
+    ports:
+      - "8080:8080"
+  
+volumes:
+  keycloak-db:
