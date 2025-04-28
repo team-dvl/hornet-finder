@@ -17,7 +17,6 @@ Including another URLconf
 # from django.contrib import admin
 from django.http import HttpResponse, HttpRequest
 from django.urls import path, include
-from django.conf.urls.static import static
 from django.conf import settings
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
@@ -38,4 +37,3 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns.append(path('api/schema/', SpectacularAPIView.as_view(), name='schema'))
     urlpatterns.append(path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'))
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

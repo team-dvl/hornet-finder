@@ -24,6 +24,8 @@ services:
       - KEYCLOAK_PUBLIC_KEY=${KEYCLOAK_PUBLIC_KEY}
     depends_on:
       - hornet-finder-api-db
+    volumes:
+      - staticfiles:/app/staticfiles
 
   hornet-finder-keycloak-db:
     image: postgres:latest
@@ -55,6 +57,7 @@ services:
       - "80:80"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - staticfiles:/staticfiles
     depends_on:
       - hornet-finder-api
       - hornet-finder-keycloak
@@ -62,3 +65,4 @@ services:
 volumes:
   api-db:
   keycloak-db:
+  staticfiles:
