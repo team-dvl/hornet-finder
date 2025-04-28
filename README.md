@@ -17,6 +17,7 @@ cd hornet-finder
 
 2. Create a `.env` file at the root of the project with the following content:
 ```env
+DEBUG=False # Set to True for local testing
 DJANGO_SECRET_KEY=your_secret_key_here
 HOST=your_host_here
 DB_PASSWORD=your_db_password_here

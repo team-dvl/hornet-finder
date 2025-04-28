@@ -15,6 +15,7 @@ services:
     container_name: hornet-finder-api
     image: hornet-finder-api
     environment:
+      - DEBUG=${DEBUG}
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
       - HOST=${HOST}
       - DB_HOST=hornet-finder-api-db
