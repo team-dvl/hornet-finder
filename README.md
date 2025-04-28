@@ -20,6 +20,7 @@ cd hornet-finder
 DEBUG=False # Set to True for local testing
 DJANGO_SECRET_KEY=your_secret_key_here
 HOST=your_host_here
+PROXY_PORT=your_nginx_port_here # (e.g., 8080 for HTTP, 8443 for HTTPS)
 DB_PASSWORD=your_db_password_here
 KEYCLOAK_PUBLIC_KEY=your_keycloak_public_key_here
 KEYCLOAK_DB_PASSWORD=your_keycloak_db_password_here
@@ -32,4 +33,4 @@ To launch the app, run the following command in the root directory of the projec
 ```bash
 docker-compose up --build
 ```
-The app will be accessible at `http://localhost`.
+The app will be accessible at `http://localhost:${PROXY_PORT}`.
