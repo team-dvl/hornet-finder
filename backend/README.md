@@ -11,6 +11,8 @@ OR
 
 - Docker
 
+Be careful, to run the backend, you need to set up some environment variables. You can find them in the `hornet-finder-api` part of the [docker-compose](../docker-compose.yml) file.
+
 ### Deploy on Local Machine
 
 #### Installation
