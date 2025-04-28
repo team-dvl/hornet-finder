@@ -24,7 +24,9 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 def robots_txt(request: HttpRequest) -> HttpResponse:
     lines = [
         "User-agent: *",
-        "Disallow: /"
+        "Disallow: /api/",
+        "Disallow: /auth/",
+        "Disallow: /static/"
     ]
     return HttpResponse("\n".join(lines), content_type="text/plain")
 
