@@ -22,9 +22,6 @@ services:
       - DB_USER=hornet_finder
       - DB_PASSWORD=${DB_PASSWORD}
       - KEYCLOAK_PUBLIC_KEY=${KEYCLOAK_PUBLIC_KEY}
-    ports:
-      - "8000:8000"
-    tty: true
     depends_on:
       - hornet-finder-api-db
 
@@ -50,8 +47,17 @@ services:
       - KC_HOSTNAME=${KC_HOSTNAME}
     depends_on:
       - hornet-finder-keycloak-db
+  
+  nginx:
+    image: nginx:latest
+    container_name: hornet-finder-nginx
     ports:
-      - "8080:8080"
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - hornet-finder-api
+      - hornet-finder-keycloak
   
 volumes:
   api-db:

@@ -31,4 +31,4 @@ To launch the app, run the following command in the root directory of the projec
 ```bash
 docker-compose up --build
 ```
-The app will be accessible at `http://localhost:8000`.
+The app will be accessible at `http://localhost`.
