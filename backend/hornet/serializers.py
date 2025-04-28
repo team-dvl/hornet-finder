@@ -7,6 +7,12 @@ class HornetSerializer(serializers.ModelSerializer):
         model = Hornet
         fields = '__all__' 
         read_only_fields = ['id', 'created_at']
+        extra_kwargs = { # Adding this to make the validation limits understandable by the swagger
+            'direction': {
+                'min_value': 0,
+                'max_value': 359,
+            }
+        }
 
     def validate_direction(self, value):
         if not (0 <= value <= 359):
