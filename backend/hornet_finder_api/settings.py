@@ -116,8 +116,12 @@ WSGI_APPLICATION = 'hornet_finder_api.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'HOST': os.environ.get('DB_HOST'),
+        'NAME': os.environ.get('DB_NAME'),
+        'USER': os.environ.get('DB_USER'),
+        'PORT': 5432,
+        'PASSWORD': os.environ.get('DB_PASSWORD'),
     }
 }
 

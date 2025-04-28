@@ -19,8 +19,9 @@ cd hornet-finder
 ```env
 DJANGO_SECRET_KEY=your_secret_key_here
 HOST=your_host_here
+DB_PASSWORD=your_db_password_here
 KEYCLOAK_PUBLIC_KEY=your_keycloak_public_key_here
-POSTGRES_PASSWORD=your_postgres_password_here
+KEYCLOAK_DB_PASSWORD=your_keycloak_db_password_here
 KC_BOOTSTRAP_ADMIN_PASSWORD=your_admin_password_here
 KC_HOSTNAME=your_keycloak_hostname_here (0.0.0.0:8080 for local testing)
 ```
