@@ -7,5 +7,5 @@ if [ "$KC_HOSTNAME" = "0.0.0.0:8080" ]; then
 
 else
   echo "Starting in PROD mode..."
-  exec /opt/keycloak/bin/kc.sh start --optimized --http-enabled=true
+  exec /opt/keycloak/bin/kc.sh start --optimized --http-enabled=true --db-url-host hornet-finder-keycloak-db --db-username keycloak --db-password "$KC_DB_PASSWORD" --proxy-headers xforwarded
 fi
