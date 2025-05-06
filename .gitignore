@@ -178,3 +178,9 @@ cython_debug/
 
 # emacs backup files
 *~
+
+# vscode
+.vscode/
+
+# certbot
+certbot/
