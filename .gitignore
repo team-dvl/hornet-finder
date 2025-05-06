@@ -175,3 +175,12 @@ cython_debug/
 
 # Docker env file
 *.env
+
+# emacs backup files
+*~
+
+# vscode
+.vscode/
+
+# certbot
+certbot/

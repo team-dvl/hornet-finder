@@ -1,6 +1,33 @@
 name: hornet-finder
 
 services:
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint:
+      sh -c "certbot certonly --webroot --webroot-path=/var/www/certbot --email vlb79rzxd@relay.firefox.com --agree-tos --no-eff-email --non-interactive -d velutina.ovh -d auth.velutina.ovh -d www.velutina.ovh -d api.velutina.ovh -d app.velutina.ovh"
+
+    depends_on:
+      - nginx-certbot
+
+    profiles:
+      - gencert
+  
+  nginx-certbot:
+    image: nginx:latest
+    container_name: hornet-finder-nginx-certbot
+    ports:
+      - "${PROXY_PORT:-80}:80"
+    volumes:
+      - ./nginx/conf.d/certbot.conf:/etc/nginx/conf.d/certbot.conf:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot
+
+    profiles:
+      - gencert
+
   hornet-finder-api-db:
     image: postgres:latest
     container_name: hornet-finder-api-db
@@ -37,6 +64,7 @@ services:
       - POSTGRES_PASSWORD=${KEYCLOAK_DB_PASSWORD}
     volumes:
       - keycloak-db:/var/lib/postgresql/data
+
   hornet-finder-keycloak:
     build: ./auth
     container_name: hornet-finder-keycloak
@@ -56,13 +84,16 @@ services:
     container_name: hornet-finder-nginx
     ports:
       - "${PROXY_PORT:-80}:80"
+      - "443:443"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot
       - staticfiles:/staticfiles
     depends_on:
       - hornet-finder-api
       - hornet-finder-keycloak
-  
+
 volumes:
   api-db:
   keycloak-db:
