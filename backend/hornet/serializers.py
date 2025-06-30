@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Hornet, Nest, Apiary
+from hornet_finder_api.utils import user_exists
 
 
 class GPSValidationMixin:
@@ -11,6 +12,11 @@ class GPSValidationMixin:
     def validate_latitude(self, value: float) -> float:
         if not (-90 <= value <= 90):
             raise serializers.ValidationError("Latitude must be between -90 and 90 degrees.")
+        return value
+    
+    def validate_created_by(self, value: str) -> str:
+        if not user_exists(value):
+            raise serializers.ValidationError("User does not exist.")
         return value
 
 class HornetSerializer(GPSValidationMixin, serializers.ModelSerializer):
