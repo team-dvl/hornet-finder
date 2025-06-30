@@ -76,6 +76,8 @@ services:
       - KC_BOOTSTRAP_ADMIN_USERNAME=admin
       - KC_BOOTSTRAP_ADMIN_PASSWORD=${KC_BOOTSTRAP_ADMIN_PASSWORD}
       - KC_HOSTNAME=${KC_HOSTNAME}
+    volumes:
+      - ./auth/realm-export.json:/opt/keycloak/data/import/realm-export.json
     depends_on:
       - hornet-finder-keycloak-db
   
