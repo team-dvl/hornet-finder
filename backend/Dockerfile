@@ -1,6 +1,6 @@
 FROM python:3.13-alpine
 
-RUN apk update && apk upgrade --no-cache && apk add --no-cache bash netcat-openbsd
+RUN apk update && apk upgrade --no-cache && apk add --no-cache bash gdal netcat-openbsd
 
 WORKDIR /app
 

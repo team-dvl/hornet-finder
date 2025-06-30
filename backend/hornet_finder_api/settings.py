@@ -167,3 +167,7 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Ensure GDAL and GEOS is available for geospatial features
+GDAL_LIBRARY_PATH = '/usr/lib/libgdal.so.36'
+GEOS_LIBRARY_PATH = '/usr/lib/libgeos_c.so.1'

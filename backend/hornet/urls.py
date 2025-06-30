@@ -1,13 +1,14 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import HornetViewSet, NestViewSet, ApiaryViewSet
+from .views import HornetViewSet, NestViewSet, ApiaryViewSet, summary
 
 
 router = DefaultRouter()
-router.register(r'hornets', HornetViewSet)
-router.register(r'nests', NestViewSet)
-router.register(r'apiaries', ApiaryViewSet)
+router.register(r'hornets', HornetViewSet, basename='hornet')
+router.register(r'nests', NestViewSet, basename='nest')
+router.register(r'apiaries', ApiaryViewSet, basename='apiary')
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('summary/', summary, name='summary'),
 ]
