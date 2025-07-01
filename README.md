@@ -34,3 +34,11 @@ To launch the app, run the following command in the root directory of the projec
 docker-compose up --build
 ```
 The app will be accessible at `http://localhost:${PROXY_PORT}`.
+
+## Launching the frontend in development mode
+
+To run the frontend in development mode, follow these steps:
+```bash
+docker compose --profile dev build
+docker compose --profile dev up
+```

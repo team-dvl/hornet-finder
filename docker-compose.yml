@@ -81,6 +81,30 @@ services:
     depends_on:
       - hornet-finder-keycloak-db
   
+  hornet-finder-frontend:
+    build:
+      context: ./frontend
+    container_name: hornet-finder-frontend
+    image: hornet-finder-frontend
+    profiles: ["build-frontend"]
+    volumes:
+      - frontend-dist:/app/dist
+
+  hornet-finder-frontend-dev:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - HOST=0.0.0.0
+    command: npm run dev
+    profiles:
+      - dev
+
   nginx:
     image: nginx:latest
     container_name: hornet-finder-nginx
@@ -92,6 +116,7 @@ services:
       - ./certbot/conf:/etc/letsencrypt:ro
       - ./certbot/www:/var/www/certbot
       - staticfiles:/staticfiles
+      - frontend-dist:/usr/share/nginx/html:ro
     depends_on:
       - hornet-finder-api
       - hornet-finder-keycloak
@@ -100,3 +125,4 @@ volumes:
   api-db:
   keycloak-db:
   staticfiles:
+  frontend-dist:
