@@ -3,7 +3,7 @@ from django.contrib.gis.geos import Point
 from django.contrib.gis.db.models.functions import Distance
 
 from rest_framework import viewsets
-from rest_framework.decorators import action, api_view
+from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
@@ -20,19 +20,19 @@ class HornetViewSet(viewsets.ModelViewSet):
         responses={200: HornetSerializer(many=True)},
     )
     @action(detail=False, methods=['get'])
-    # @authentication_classes([JWTBearerAuthentication])
-    # @permission_classes([HasAnyRole.with_roles(['volunteer'])])
-    def my(self, request):
+    @authentication_classes([JWTBearerAuthentication]) # Enforce JWT authentication for this action
+    # @permission_classes([HasAnyRole.with_roles(['volunteer'])]) # Uncomment if you want to enforce role-based permission for this action
+    def my(self, request): # There will be a crash if this action is not decorated with @authentication_classes
         queryset = Hornet.objects.filter(created_by=request.user.username)
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
-    def get_authenticators(self):
-        if hasattr(self, 'action') and self.action == 'list':  # GET /hornet/
+    def get_authenticators(self): # This method is used here because we can not use the @authentication_classes decorator on the herited actions
+        if hasattr(self, 'action') and self.action == 'list':  # list is the default function for ModelViewSet who made a get on /hornets/ 
             return [JWTBearerAuthentication()]
         return super().get_authenticators()
 
-    def get_permissions(self):
+    def get_permissions(self): # This method is used here because we can not use the @permission_classes decorator on the herited actions
         if hasattr(self, 'action') and self.action == 'list':
             return [HasAnyRole(['volunteer'])]
         return super().get_permissions()
@@ -49,7 +49,8 @@ class ApiaryViewSet(viewsets.ModelViewSet):
         responses={200: ApiarySerializer(many=True)},
     )
     @action(detail=False, methods=['get'])
-    def my(self, request):
+    @authentication_classes([JWTBearerAuthentication]) # Enforce JWT authentication for this action
+    def my(self, request): # There will be a crash if this action is not decorated with @authentication_classes
         queryset = Apiary.objects.filter(created_by=request.user.username)
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)

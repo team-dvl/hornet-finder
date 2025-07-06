@@ -67,7 +67,7 @@ REST_FRAMEWORK = {
     ],
 }
 
-SPECTACULAR_SETTINGS = {
+SPECTACULAR_SETTINGS = { # WARNING: For routes with authentication, you must provide your Bearer token to make them appear in the swagger UI
     'TITLE': "Hornet Finder API",
     'VERSION': 'v1',
     'DESCRIPTION': "API for a hornet detection app.",

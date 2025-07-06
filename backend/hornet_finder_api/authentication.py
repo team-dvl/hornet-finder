@@ -1,7 +1,5 @@
 import jwt
-import os
 from typing import Tuple, Optional
-from django.urls import resolve
 from django.http.request import HttpRequest
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
@@ -11,6 +9,12 @@ from hornet_finder_api.utils import get_realm_public_key
 
 
 class JWTUser:
+    """
+    Represents a user authenticated via JWT token.
+    This class is used to create a user object from the token information.
+    It extracts the username and roles from the token info.
+    """
+
     def __init__(self, token_info):
         self.token_info = token_info
         self.username = token_info.get('email')
@@ -22,6 +26,12 @@ class JWTUser:
 
 
 class HasAnyRole(BasePermission):
+    """
+    Custom permission class that checks if the user has any of the required roles.
+    This class needs to be used with the `permission_classes` decorator in views.
+    Before the `permission_classes` decorator, it is necessary to use the `authentication_classes` decorator to have authenticated users.
+    """
+
     def __init__(self, roles):
         self.required_roles = roles
 
@@ -35,23 +45,24 @@ class HasAnyRole(BasePermission):
 
 class JWTBearerAuthentication(BaseAuthentication):
     """
-    Custom authentication class for JWT tokens. It checks if the token is valid and if the user has the required role to access the resource.
-    Each protected path is associated with a list of tuples, each tuple containing a method and a role required to access the resource.
-    The list of protected paths is defined in the PROTECTED_PATH dictionary.
+    Custom authentication class that uses JWT tokens for user authentication.
+    It retrieves the JWT token from the Authorization header, decodes it using the Keycloak public key.
+    If the token is valid, it creates a JWTUser object with the token information.
+    This class needs to be used with the `authentication_classes` decorator in views.
+    It can be used in conjunction with the `permission_classes` decorator to enforce role-based permissions.
     """
 
     KEYCLOAK_PUBLIC_KEY = None
 
-    def authenticate(self, request: HttpRequest) -> Optional[Tuple[dict, None]]:
+    def authenticate(self, request: HttpRequest) -> Optional[Tuple[JWTUser, dict]]:
         """
         Authenticate the user based on the JWT token provided in the Authorization header.
-        It checks if the token is valid and if the user has the required role to access the resource.
 
         :param request: The HTTP request object
         :type request: HttpRequest
-        :return: A tuple containing the token info and None (no user object is needed) if an authentication is needed, otherwise None
-        :rtype: Optional[Tuple[dict, None]]
-        :raises AuthenticationFailed: If the token is invalid or the user doesn't have the required role to access the resource
+        :return: A tuple containing the JWTUser object and the token information if authentication is successful, otherwise None
+        :rtype: Optional[Tuple[JWTUser, dict]]
+        :raises AuthenticationFailed: If the token is invalid
         """
         token = request.META.get('HTTP_AUTHORIZATION') # Retrieve the token from the Authorization header
         if not token:
