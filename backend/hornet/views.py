@@ -21,25 +21,47 @@ class HornetViewSet(viewsets.ModelViewSet):
     )
     @action(detail=False, methods=['get'])
     @authentication_classes([JWTBearerAuthentication]) # Enforce JWT authentication for this action
-    # @permission_classes([HasAnyRole.with_roles(['volunteer'])]) # Uncomment if you want to enforce role-based permission for this action
+    @permission_classes([HasAnyRole(['volunteer', 'beekeeper', 'admin'])]) # Enforce role-based permission for this action
     def my(self, request): # There will be a crash if this action is not decorated with @authentication_classes
         queryset = Hornet.objects.filter(created_by=request.user.username)
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
+    # No need permission to create a hornet, but only beekeepers and admins can list, and only admins can retrieve, update, partial_update and destroy them
     def get_authenticators(self): # This method is used here because we can not use the @authentication_classes decorator on the herited actions
-        if hasattr(self, 'action') and self.action == 'list':  # list is the default function for ModelViewSet who made a get on /hornets/ 
+        # list, create, retrieve, update, partial_update, destroy are the names of the actions that are automatically created by the ModelViewSet
+        # Each action corresponds to a method in the viewset, e.g. list corresponds to the GET /hornets/ endpoint.
+        # if hasattr(self, 'action') and self.action in ['list', 'retrieve', 'update', 'partial_update', 'destroy']:
+        if hasattr(self, 'action') and self.action in ['list']: # TODO: This is for dev but real permissions are in the line above
             return [JWTBearerAuthentication()]
         return super().get_authenticators()
 
     def get_permissions(self): # This method is used here because we can not use the @permission_classes decorator on the herited actions
         if hasattr(self, 'action') and self.action == 'list':
-            return [HasAnyRole(['volunteer'])]
+            # return [HasAnyRole(['beekeeper', 'admin'])]
+            return [HasAnyRole(['volunteer'])] # TODO: This is for dev but real permissions are in the line above
+
+        # elif hasattr(self, 'action') and self.action in ['retrieve', 'update', 'partial_update', 'destroy']:
+        #     return [HasAnyRole(['admin'])]
         return super().get_permissions()
+    
+    def perform_create(self, serializer): # This method is called when a new Hornet is created
+        # If the user is authenticated, we save the username as created_by, otherwise we save
+        if self.request.user and self.request.user.is_authenticated:
+            serializer.save(created_by=self.request.user.username)
+        else:
+            serializer.save(created_by=None)
 
 class NestViewSet(viewsets.ModelViewSet):
     queryset = Nest.objects.all()
     serializer_class = NestSerializer
+
+    # Only admins can interact with nests
+    # def get_authenticators(self):
+    #     return [JWTBearerAuthentication()]
+    
+    # def get_permissions(self):
+    #     return [HasAnyRole(['admin'])]
 
 class ApiaryViewSet(viewsets.ModelViewSet):
     queryset = Apiary.objects.all()
@@ -50,10 +72,20 @@ class ApiaryViewSet(viewsets.ModelViewSet):
     )
     @action(detail=False, methods=['get'])
     @authentication_classes([JWTBearerAuthentication]) # Enforce JWT authentication for this action
+    @permission_classes([HasAnyRole(['beekeeper', 'admin'])])
     def my(self, request): # There will be a crash if this action is not decorated with @authentication_classes
         queryset = Apiary.objects.filter(created_by=request.user.username)
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+    
+    # A beekeeper can create apiaries, but only admins can list, retrieve, update, partial_update and destroy them
+    # def get_authenticators(self):
+    #     return [JWTBearerAuthentication()]
+
+    # def get_permissions(self):
+    #     if hasattr(self, 'action') and self.action == 'create':
+    #         return [HasAnyRole(['beekeeper', 'admin'])]
+    #     return [HasAnyRole(['admin'])]
 
 @extend_schema(
     parameters=[
@@ -73,6 +105,8 @@ class ApiaryViewSet(viewsets.ModelViewSet):
     )},
 )
 @api_view(['GET'])
+# @authentication_classes([JWTBearerAuthentication])
+# @permission_classes([HasAnyRole(['volunteer', 'beekeeper', 'admin'])])
 def summary(request):
     lat = float(request.query_params.get('lat'))
     lon = float(request.query_params.get('lon'))
