@@ -30,20 +30,22 @@ function App() {
           <button onClick={() => void auth.removeUser()}>Log out</button>
       </div>
       );
-
-}
+  }
 
   return (
-    <Container fluid className="px-3">
-      <h2>Hornet Nest Finder</h2>
-      <p>Find and report hornet nests in your area.</p>
-    
-      <Row className="w-100">
-        <Col xs={12} className="w-100">
-          <CompassMap/>
-        </Col>
-      </Row>
-    </Container>
+    <>
+      <button onClick={() => void auth.signinRedirect()}>Log in</button>
+      <Container fluid className="px-3">
+        <h2>Hornet Nest Finder</h2>
+        <p>Find and report hornet nests in your area.</p>
+      
+        <Row className="w-100">
+          <Col xs={12} className="w-100">
+            <CompassMap/>
+          </Col>
+        </Row>
+      </Container>
+    </>
   )
 }
 
