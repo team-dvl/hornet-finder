@@ -5,13 +5,33 @@ from django.urls import resolve
 from django.http.request import HttpRequest
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.permissions import BasePermission
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from hornet_finder_api.utils import get_realm_public_key
 
 
-PROTECTED_PATH = {  # Keys are url names, defined in urls.py
-    
-}
+class JWTUser:
+    def __init__(self, token_info):
+        self.token_info = token_info
+        self.username = token_info.get('email')
+        self.roles = token_info.get('realm_access', {}).get('roles', [])
+
+    @property
+    def is_authenticated(self):
+        return True
+
+
+class HasAnyRole(BasePermission):
+    def __init__(self, roles):
+        self.required_roles = roles
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not getattr(user, 'is_authenticated', False):
+            return False
+
+        user_roles = getattr(user, 'roles', [])
+        return any(role in user_roles for role in self.required_roles)
 
 class JWTBearerAuthentication(BaseAuthentication):
     """
@@ -33,26 +53,17 @@ class JWTBearerAuthentication(BaseAuthentication):
         :rtype: Optional[Tuple[dict, None]]
         :raises AuthenticationFailed: If the token is invalid or the user doesn't have the required role to access the resource
         """
-        url_name = resolve(request.path_info).url_name # Get the url identifier, defined in urls.py, which is used as a key in the PROTECTED_PATH dictionary
-        if not (url_name in PROTECTED_PATH.keys() \
-                and any(request.method == method for method, _ in PROTECTED_PATH[url_name])):
-            # If the url is not in the PROTECTED_PATH dictionary or the method is not in the list of methods allowed for the url, return None (no authentication required)
-            return None
         token = request.META.get('HTTP_AUTHORIZATION') # Retrieve the token from the Authorization header
         if not token:
-            raise AuthenticationFailed("No token provided.")
+            return None
         try:
             if not self.KEYCLOAK_PUBLIC_KEY:  # If the public key is not set, retrieve it
                 self.KEYCLOAK_PUBLIC_KEY = get_realm_public_key()  # Get the public key of the Keycloak realm
-            public_key = self.KEYCLOAK_PUBLIC_KEY
-            token_info = jwt.decode(token.split()[1], public_key, algorithms=['RS256'], audience='account') # Decode the token using the public key
-            request.token_info = token_info # Store the token info in the request object (with some information about the user such as the roles)
-            if not any(request.method == method for method, role in PROTECTED_PATH[url_name]
-                    if role in token_info['realm_access']['roles']):
-                raise AuthenticationFailed("You don't have the required role to access this resource.") # Check if the user has the required role to access the resource
+            token_info = jwt.decode(token.split()[1], self.KEYCLOAK_PUBLIC_KEY, algorithms=['RS256'], audience='account') # Decode the token using the public key
+            user = JWTUser(token_info)  # Create a JWTUser object with the token info
+            return (user, token_info)
         except Exception as e:
             raise AuthenticationFailed("Invalid token. " + str(e)) # If the decoding of the token fails, raise an exception, indicating that the token is invalid
-        return (token_info, None) # Return the token info and None (no user object is needed)
     
 
 

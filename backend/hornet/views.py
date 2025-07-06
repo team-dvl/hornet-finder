@@ -9,6 +9,7 @@ from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParamet
 from drf_spectacular.types import OpenApiTypes
 from .models import Hornet, Nest, Apiary
 from .serializers import HornetSerializer, NestSerializer, ApiarySerializer
+from hornet_finder_api.authentication import JWTBearerAuthentication, HasAnyRole
 
 
 class HornetViewSet(viewsets.ModelViewSet):
@@ -19,11 +20,22 @@ class HornetViewSet(viewsets.ModelViewSet):
         responses={200: HornetSerializer(many=True)},
     )
     @action(detail=False, methods=['get'])
+    # @authentication_classes([JWTBearerAuthentication])
+    # @permission_classes([HasAnyRole.with_roles(['volunteer'])])
     def my(self, request):
-        sub = request.token_info['sub']
-        queryset = Hornet.objects.filter(created_by=sub)
+        queryset = Hornet.objects.filter(created_by=request.user.username)
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+
+    def get_authenticators(self):
+        if hasattr(self, 'action') and self.action == 'list':  # GET /hornet/
+            return [JWTBearerAuthentication()]
+        return super().get_authenticators()
+
+    def get_permissions(self):
+        if hasattr(self, 'action') and self.action == 'list':
+            return [HasAnyRole(['volunteer'])]
+        return super().get_permissions()
 
 class NestViewSet(viewsets.ModelViewSet):
     queryset = Nest.objects.all()
@@ -38,8 +50,7 @@ class ApiaryViewSet(viewsets.ModelViewSet):
     )
     @action(detail=False, methods=['get'])
     def my(self, request):
-        sub = request.token_info['sub']
-        queryset = Apiary.objects.filter(created_by=sub)
+        queryset = Apiary.objects.filter(created_by=request.user.username)
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 

@@ -37,7 +37,9 @@ def get_realm_public_key():
     :rtype: str
     """
     keycloak_openid = _get_keycloak_client()
-    return keycloak_openid.public_key()
+    public_key = keycloak_openid.public_key()
+    pem_public_key = "-----BEGIN PUBLIC KEY-----\n" + public_key + "\n-----END PUBLIC KEY-----"
+    return pem_public_key
 
 def user_exists(email: str) -> bool:
     """

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "react-bootstrap";
 import { MapContainer, TileLayer, useMap, Polygon } from "react-leaflet";
+import { useAuth } from "react-oidc-context";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import "leaflet/dist/leaflet.css";
 import "leaflet/dist/leaflet.js";
@@ -36,7 +37,7 @@ function computeTriangle(
   // Pointe du triangle
   const lat2 = Math.asin(
     Math.sin(lat1) * Math.cos(d) +
-      Math.cos(lat1) * Math.sin(d) * Math.cos(dirRad)
+    Math.cos(lat1) * Math.sin(d) * Math.cos(dirRad)
   );
   const lng2 =
     lng1 +
@@ -52,7 +53,7 @@ function computeTriangle(
 
   const latLeft = Math.asin(
     Math.sin(lat1) * Math.cos(d) +
-      Math.cos(lat1) * Math.sin(d) * Math.cos(leftDir)
+    Math.cos(lat1) * Math.sin(d) * Math.cos(leftDir)
   );
   const lngLeft =
     lng1 +
@@ -63,7 +64,7 @@ function computeTriangle(
 
   const latRight = Math.asin(
     Math.sin(lat1) * Math.cos(d) +
-      Math.cos(lat1) * Math.sin(d) * Math.cos(rightDir)
+    Math.cos(lat1) * Math.sin(d) * Math.cos(rightDir)
   );
   const lngRight =
     lng1 +
@@ -85,12 +86,20 @@ function computeTriangle(
 export default function InteractiveMap() {
   const [coordinates, setCoordinates] = useState<[number, number]>([50.491064, 4.884473]);
   const [hornets, setHornets] = useState<Hornet[]>([]);
+  const auth = useAuth();
 
   useEffect(() => {
-    fetch("/api/hornets")
-      .then((res) => res.json())
-      .then((data) => setHornets(data))
-      .catch((err) => console.error("Erreur chargement frelons :", err));
+    if (auth.isAuthenticated) {
+      fetch("/api/hornets", {
+        headers: {
+          "Authorization": `Bearer ${auth.user?.access_token}`,
+          "Content-Type": "application/json"
+        }
+      })
+        .then((res) => res.json())
+        .then((data) => setHornets(data))
+        .catch((err) => console.error("Erreur chargement frelons :", err));
+    }
   }, []);
 
   function LocateButton() {
