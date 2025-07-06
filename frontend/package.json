@@ -12,10 +12,12 @@
   "dependencies": {
     "bootstrap": "^5.3.5",
     "leaflet": "^1.9.0",
+    "oidc-client-ts": "^3.3.0",
     "react": "^19.0.0",
     "react-bootstrap": "^2.10.9",
     "react-dom": "^19.0.0",
-    "react-leaflet": "^5.0.0"
+    "react-leaflet": "^5.0.0",
+    "react-oidc-context": "^3.3.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.22.0",
