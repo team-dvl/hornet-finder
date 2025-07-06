@@ -1,8 +1,8 @@
 
 import './App.css'
 import { Col, Container, Row } from 'react-bootstrap'
-import CompassMap from './CompassMap'
 import { useAuth } from 'react-oidc-context';
+import InteractiveMap from './InteractiveMap';
 
 function App() {
 
@@ -23,25 +23,21 @@ function App() {
       return <div>Oops... {auth.error.name} caused {auth.error.message}</div>;
   }
 
-  if (auth.isAuthenticated) {
-      return (
-      <div>
-          Hello {auth.user?.profile.sub}{" "}
-          <button onClick={() => void auth.removeUser()}>Log out</button>
-      </div>
-      );
-  }
 
   return (
     <>
-      <button onClick={() => void auth.signinRedirect()}>Log in</button>
       <Container fluid className="px-3">
         <h2>Hornet Nest Finder</h2>
-        <p>Find and report hornet nests in your area.</p>
-      
+        <p>Find and report hornet nests in your area!</p>
+        { /* login button, display only if not authenticated */ }
+        { !auth.isAuthenticated && <button onClick={() => void auth.signinRedirect()}>Log in</button> }
+        { auth.isAuthenticated && <button onClick={() => void auth.signoutRedirect(
+          { post_logout_redirect_uri: window.location.origin }
+        )}>Log out {auth.user?.profile.name}</button> }
+        { auth.isAuthenticated && console.log(auth.user?.profile) }
         <Row className="w-100">
           <Col xs={12} className="w-100">
-            <CompassMap/>
+            <InteractiveMap/>
           </Col>
         </Row>
       </Container>
