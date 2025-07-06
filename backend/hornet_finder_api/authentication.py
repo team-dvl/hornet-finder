@@ -6,6 +6,7 @@ from django.http.request import HttpRequest
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
+from hornet_finder_api.utils import get_realm_public_key
 
 
 PROTECTED_PATH = {  # Keys are url names, defined in urls.py
@@ -18,6 +19,8 @@ class JWTBearerAuthentication(BaseAuthentication):
     Each protected path is associated with a list of tuples, each tuple containing a method and a role required to access the resource.
     The list of protected paths is defined in the PROTECTED_PATH dictionary.
     """
+
+    KEYCLOAK_PUBLIC_KEY = None
 
     def authenticate(self, request: HttpRequest) -> Optional[Tuple[dict, None]]:
         """
@@ -39,7 +42,9 @@ class JWTBearerAuthentication(BaseAuthentication):
         if not token:
             raise AuthenticationFailed("No token provided.")
         try:
-            public_key = os.environ.get('KEYCLOAK_PUBLIC_KEY')
+            if not self.KEYCLOAK_PUBLIC_KEY:  # If the public key is not set, retrieve it
+                self.KEYCLOAK_PUBLIC_KEY = get_realm_public_key()  # Get the public key of the Keycloak realm
+            public_key = self.KEYCLOAK_PUBLIC_KEY
             token_info = jwt.decode(token.split()[1], public_key, algorithms=['RS256'], audience='account') # Decode the token using the public key
             request.token_info = token_info # Store the token info in the request object (with some information about the user such as the roles)
             if not any(request.method == method for method, role in PROTECTED_PATH[url_name]

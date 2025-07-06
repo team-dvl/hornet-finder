@@ -28,12 +28,20 @@ class HornetSerializer(GPSValidationMixin, serializers.ModelSerializer):
             'direction': {
                 'min_value': 0,
                 'max_value': 359,
-            }
+            },
+            'duration': {
+                'min_value': 0,
+            },
         }
 
     def validate_direction(self, value: int) -> int:
         if not (0 <= value <= 359):
             raise serializers.ValidationError("Direction must be between 0 and 359.")
+        return value
+
+    def validate_duration(self, value: int) -> int:
+        if value < 0:
+            raise serializers.ValidationError("Duration must be a positive integer.")
         return value
 
 class NestSerializer(GPSValidationMixin, serializers.ModelSerializer):

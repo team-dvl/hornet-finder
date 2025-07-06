@@ -37,6 +37,7 @@ services:
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     volumes:
       - api-db:/var/lib/postgresql/data
+  
   hornet-finder-api:
     build: ./backend
     container_name: hornet-finder-api
@@ -49,9 +50,10 @@ services:
       - DB_NAME=hornet_finder
       - DB_USER=hornet_finder
       - DB_PASSWORD=${DB_PASSWORD}
-      - KEYCLOAK_PUBLIC_KEY=${KEYCLOAK_PUBLIC_KEY}
+      - KC_CLIENT_SECRET=${KC_CLIENT_SECRET}
     depends_on:
       - hornet-finder-api-db
+      - hornet-finder-keycloak
     volumes:
       - staticfiles:/app/staticfiles
 
@@ -120,6 +122,26 @@ services:
     depends_on:
       - hornet-finder-api
       - hornet-finder-keycloak
+
+  hornet-finder-vite-dev:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: hornet-finder-vite-dev
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://hornet-finder-api:8000/api/
+      - VITE_KEYCLOAK_URL=http://hornet-finder-keycloak:8080/
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - hornet-finder-api
+      - hornet-finder-keycloak
+    command: npm run dev -- --host 0.0.0.0 --port 5173
+    profiles:
+      - dev
 
 volumes:
   api-db:

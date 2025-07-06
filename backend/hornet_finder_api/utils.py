@@ -9,7 +9,7 @@ def _get_keycloak_client():
     :rtype: KeycloakOpenID
     """
     return KeycloakOpenID(
-        server_url=f"http://{os.getenv('KC_HOSTNAME')}",
+        server_url="http://hornet-finder-keycloak:8080/",
         client_id="hornet-api",
         realm_name="hornet-finder",
         client_secret_key=os.getenv("KC_CLIENT_SECRET")
@@ -23,7 +23,7 @@ def _get_keycloak_admin():
     :rtype: KeycloakAdmin
     """
     return KeycloakAdmin(
-        server_url=f"http://{os.getenv('KC_HOSTNAME')}",
+        server_url="http://hornet-finder-keycloak:8080/",
         realm_name="hornet-finder",
         client_id="hornet-api",
         client_secret_key=os.getenv("KC_CLIENT_SECRET")
