@@ -87,6 +87,9 @@ class ApiaryViewSet(viewsets.ModelViewSet):
     #         return [HasAnyRole(['beekeeper', 'admin'])]
     #     return [HasAnyRole(['admin'])]
 
+    # def perform_create(self, serializer): # This method is called when a new Apiary is created
+    #     serializer.save(created_by=self.request.user.username) # This will save the username of the user who created the apiary
+
 @extend_schema(
     parameters=[
         OpenApiParameter(name='lat', type=OpenApiTypes.FLOAT, location=OpenApiParameter.QUERY, description='Latitude of the center point'),
