@@ -46,11 +46,12 @@ class HornetViewSet(viewsets.ModelViewSet):
         return super().get_permissions()
     
     def perform_create(self, serializer): # This method is called when a new Hornet is created
-        # If the user is authenticated, we save the username as created_by, otherwise we save
+        # If the user is authenticated, we save the username as created_by, otherwise we save with None in order to avoid users who set the created_by field to an another user
+        # We set linked_nest to None because a nest must be linked to a hornet by editing the hornet after it is created, by an admin
         if self.request.user and self.request.user.is_authenticated:
-            serializer.save(created_by=self.request.user.username)
+            serializer.save(created_by=self.request.user.username, linked_nest=None)
         else:
-            serializer.save(created_by=None)
+            serializer.save(created_by=None, linked_nest=None)
 
 class NestViewSet(viewsets.ModelViewSet):
     queryset = Nest.objects.all()
