@@ -1,24 +1,22 @@
 import { Modal, Button, ListGroup, Badge } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
+import { jwtDecode } from 'jwt-decode';
 
 interface UserInfoModalProps {
   show: boolean;
   onHide: () => void;
 }
 
-// Function to decode JWT token
-function decodeJWT(token: string) {
-  try {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-    }).join(''));
-    return JSON.parse(jsonPayload);
-  } catch (error) {
-    console.error('Error decoding JWT:', error);
-    return null;
-  }
+// Interface for JWT claims structure
+interface JWTClaims {
+  exp: number;
+  realm_access?: {
+    roles: string[];
+  };
+  name?: string;
+  preferred_username?: string;
+  email?: string;
+  sub?: string;
 }
 
 export default function UserInfoModal({ show, onHide }: UserInfoModalProps) {
@@ -30,12 +28,16 @@ export default function UserInfoModal({ show, onHide }: UserInfoModalProps) {
 
   const profile = auth.user.profile;
   
-  // Decode the access token to get the claims
+  // Decode the access token using jwt-decode library
   const accessToken = auth.user.access_token;
-  const decodedToken = accessToken ? decodeJWT(accessToken) : null;
+  let decodedToken: JWTClaims | null = null;
   
-  console.log('Access token string:', accessToken);
-  console.log('Decoded token:', decodedToken);
+  try {
+    decodedToken = accessToken ? jwtDecode<JWTClaims>(accessToken) : null;
+  } catch (error) {
+    console.error('Error decoding JWT:', error);
+  }
+  
   
   // Extract roles from the decoded access token
   const realmAccess = decodedToken?.realm_access;
@@ -74,7 +76,13 @@ export default function UserInfoModal({ show, onHide }: UserInfoModalProps) {
           
           <ListGroup.Item className="d-flex justify-content-between align-items-center">
             <strong>Email:</strong>
-            <span>{profile.email || 'Non disponible'}</span>
+            {profile.email ? (
+              <a href={`mailto:${profile.email}`} className="text-decoration-none">
+                {profile.email}
+              </a>
+            ) : (
+              <span>Non disponible</span>
+            )}
           </ListGroup.Item>
           
           <ListGroup.Item className="d-flex justify-content-between align-items-start">
