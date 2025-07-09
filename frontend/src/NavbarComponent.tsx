@@ -8,7 +8,7 @@ export default function NavbarComponent() {
   const [showUserModal, setShowUserModal] = useState(false);
 
   return (
-    <Navbar bg="light" expand="lg" sticky="top" className="shadow-sm">
+    <Navbar bg="light" expand="lg" fixed="top" className="shadow-sm">
       <Container>
         <Navbar.Brand href="#" className="d-flex align-items-center">
           <span className="fw-bold">Hornet Nest Finder</span>

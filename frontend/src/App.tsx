@@ -43,7 +43,7 @@ function App() {
   return (
     <>
       <NavbarComponent />
-      <Container className="px-0">
+      <Container fluid className="px-0" style={{ paddingTop: "56px" }}>
         <Row className="g-0">
           <Col xs={12}>
             <InteractiveMap />
