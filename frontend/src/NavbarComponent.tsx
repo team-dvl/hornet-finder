@@ -11,14 +11,14 @@ export default function NavbarComponent() {
     <Navbar bg="light" expand="lg" fixed="top" className="shadow-sm">
       <Container>
         <Navbar.Brand href="#" className="d-flex align-items-center">
-          <span className="fw-bold">Hornet Nest Finder</span>
+          <span className="fw-bold">Velutina</span>
         </Navbar.Brand>
         
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         <Navbar.Collapse id="basic-navbar-nav">
           <Nav className="me-auto">
             <span className="navbar-text text-muted fst-italic">
-              Find and report hornet nests in your area!
+              Luttons ensemble contre le frelon asiatique !
             </span>
           </Nav>
           
@@ -29,7 +29,7 @@ export default function NavbarComponent() {
                 size="sm"
                 onClick={() => void auth.signinRedirect()}
               >
-                Log in
+                Connexion
               </Button>
             )}
             {auth.isAuthenticated && (
@@ -39,7 +39,7 @@ export default function NavbarComponent() {
                   onClick={() => setShowUserModal(true)}
                   style={{ color: 'inherit' }}
                 >
-                  Welcome, {auth.user?.profile.name}
+                  Bienvenue, {auth.user?.profile.name}
                 </button>
                 <Button 
                   variant="outline-secondary" 
@@ -48,7 +48,7 @@ export default function NavbarComponent() {
                     { post_logout_redirect_uri: window.location.origin }
                   )}
                 >
-                  Log out
+                  Déconnexion
                 </Button>
               </div>
             )}
