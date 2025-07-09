@@ -20,12 +20,14 @@ interface HornetsState {
   hornets: Hornet[];
   loading: boolean;
   error: string | null;
+  showReturnZones: boolean; // Toggle pour afficher/masquer les cônes de retour
 }
 
 const initialState: HornetsState = {
   hornets: [],
   loading: false,
   error: null,
+  showReturnZones: true, // Par défaut, les cônes sont affichés
 };
 
 // Thunk async pour récupérer les frelons
@@ -128,6 +130,10 @@ const hornetsSlice = createSlice({
     addHornet: (state, action) => {
       state.hornets.push(action.payload);
     },
+    // Toggle pour afficher/masquer les cônes de retour
+    toggleReturnZones: (state) => {
+      state.showReturnZones = !state.showReturnZones;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -185,6 +191,7 @@ const hornetsSlice = createSlice({
 export const selectHornets = (state: { hornets: HornetsState }) => state.hornets.hornets;
 export const selectHornetsLoading = (state: { hornets: HornetsState }) => state.hornets.loading;
 export const selectHornetsError = (state: { hornets: HornetsState }) => state.hornets.error;
+export const selectShowReturnZones = (state: { hornets: HornetsState }) => state.hornets.showReturnZones;
 
-export const { clearError, clearHornets, addHornet } = hornetsSlice.actions;
+export const { clearError, clearHornets, addHornet, toggleReturnZones } = hornetsSlice.actions;
 export default hornetsSlice.reducer;

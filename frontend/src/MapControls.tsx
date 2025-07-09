@@ -1,5 +1,7 @@
 import { Button, Alert, Spinner } from "react-bootstrap";
 import { useMap } from "react-leaflet";
+import { useAppDispatch, useAppSelector } from './store/hooks';
+import { toggleReturnZones, selectShowReturnZones } from './store/store';
 
 interface MapControlsProps {
   loading: boolean;
@@ -79,10 +81,37 @@ function ErrorAlert({ error, onClose }: { error: string | null; onClose: () => v
   );
 }
 
+function ToggleReturnZonesButton() {
+  const dispatch = useAppDispatch();
+  const showReturnZones = useAppSelector(selectShowReturnZones);
+
+  const handleToggle = () => {
+    dispatch(toggleReturnZones());
+  };
+
+  return (
+    <Button
+      onClick={handleToggle}
+      variant={showReturnZones ? "success" : "outline-secondary"}
+      size="sm"
+      className="position-absolute"
+      style={{
+        top: "10px",
+        right: "130px", // Positionné à gauche du bouton "Ma position"
+        zIndex: 1000,
+      }}
+      title={showReturnZones ? "Masquer les cônes de retour" : "Afficher les cônes de retour"}
+    >
+      {showReturnZones ? "🔺 Cônes" : "🔻 Cônes"}
+    </Button>
+  );
+}
+
 export default function MapControls({ loading, error, onLocationUpdate, onErrorUpdate }: MapControlsProps) {
   return (
     <>
       <LocateButton onLocationUpdate={onLocationUpdate} onErrorUpdate={onErrorUpdate} />
+      <ToggleReturnZonesButton />
       <LoadingIndicator loading={loading} />
       <ErrorAlert error={error} onClose={() => onErrorUpdate(null)} />
     </>

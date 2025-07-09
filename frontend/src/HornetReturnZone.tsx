@@ -1,6 +1,8 @@
 import { Polygon, Marker } from "react-leaflet";
 import { DivIcon } from "leaflet";
 import { Hornet } from './store/store';
+import { useAppSelector } from './store/hooks';
+import { selectShowReturnZones } from './store/store';
 
 interface HornetReturnZoneProps {
   hornet: Hornet;
@@ -103,6 +105,8 @@ export default function HornetReturnZone({
   angleDeg = 5,
   onClick
 }: HornetReturnZoneProps) {
+  const showReturnZones = useAppSelector(selectShowReturnZones);
+  
   // Calculer la longueur du cône basée sur la durée si elle n'est pas fournie explicitement
   const calculatedLength = lengthKm ?? calculateNestDistance(hornet.duration);
   
@@ -125,19 +129,21 @@ export default function HornetReturnZone({
 
   return (
     <>
-      <Polygon
-        positions={trianglePositions}
-        pathOptions={{
-          color: isBasedOnDuration ? "red" : "orange",
-          fillColor: isBasedOnDuration ? "red" : "orange",
-          fillOpacity: isBasedOnDuration ? 0.3 : 0.2,
-          weight: isBasedOnDuration ? 3 : 2,
-          dashArray: isBasedOnDuration ? undefined : "5, 5", // Ligne pointillée pour les estimations par défaut
-        }}
-        eventHandlers={{
-          click: handleClick,
-        }}
-      />
+      {showReturnZones && (
+        <Polygon
+          positions={trianglePositions}
+          pathOptions={{
+            color: isBasedOnDuration ? "red" : "orange",
+            fillColor: isBasedOnDuration ? "red" : "orange",
+            fillOpacity: isBasedOnDuration ? 0.3 : 0.2,
+            weight: isBasedOnDuration ? 3 : 2,
+            dashArray: isBasedOnDuration ? undefined : "5, 5", // Ligne pointillée pour les estimations par défaut
+          }}
+          eventHandlers={{
+            click: handleClick,
+          }}
+        />
+      )}
       
       <Marker
         position={[hornet.latitude, hornet.longitude]}
