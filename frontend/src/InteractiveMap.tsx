@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { Button } from "react-bootstrap";
+import { Button, Alert, Spinner } from "react-bootstrap";
 import { MapContainer, TileLayer, useMap, Polygon } from "react-leaflet";
-import { useAuth } from "react-oidc-context";
+import { useAuth } from 'react-oidc-context';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import "leaflet/dist/leaflet.css";
 import "leaflet/dist/leaflet.js";
@@ -9,14 +9,13 @@ import "leaflet/dist/leaflet.js";
 type Hornet = {
   latitude: number;
   longitude: number;
-  direction: number; // en degrés
+  direction: number;
 };
 
 function deg2rad(deg: number) {
   return deg * (Math.PI / 180);
 }
 
-// Calcule les sommets du triangle à partir d'une position, direction, longueur et angle
 function computeTriangle(
   lat: number,
   lng: number,
@@ -24,20 +23,15 @@ function computeTriangle(
   lengthKm = 3,
   angleDeg = 5
 ): [number, number][] {
-  // Rayon de la Terre en km
   const R = 6371;
-  // Direction en radians
   const dirRad = deg2rad(direction);
-
-  // Calcul du sommet (pointe du triangle)
-  const d = lengthKm / R; // distance angulaire
+  const d = lengthKm / R;
   const lat1 = deg2rad(lat);
   const lng1 = deg2rad(lng);
 
-  // Pointe du triangle
   const lat2 = Math.asin(
     Math.sin(lat1) * Math.cos(d) +
-    Math.cos(lat1) * Math.sin(d) * Math.cos(dirRad)
+      Math.cos(lat1) * Math.sin(d) * Math.cos(dirRad)
   );
   const lng2 =
     lng1 +
@@ -46,14 +40,13 @@ function computeTriangle(
       Math.cos(d) - Math.sin(lat1) * Math.sin(lat2)
     );
 
-  // Les deux bases du triangle (angle à gauche et à droite)
   const halfAngle = angleDeg / 2;
   const leftDir = deg2rad(direction - halfAngle);
   const rightDir = deg2rad(direction + halfAngle);
 
   const latLeft = Math.asin(
     Math.sin(lat1) * Math.cos(d) +
-    Math.cos(lat1) * Math.sin(d) * Math.cos(leftDir)
+      Math.cos(lat1) * Math.sin(d) * Math.cos(leftDir)
   );
   const lngLeft =
     lng1 +
@@ -64,7 +57,7 @@ function computeTriangle(
 
   const latRight = Math.asin(
     Math.sin(lat1) * Math.cos(d) +
-    Math.cos(lat1) * Math.sin(d) * Math.cos(rightDir)
+      Math.cos(lat1) * Math.sin(d) * Math.cos(rightDir)
   );
   const lngRight =
     lng1 +
@@ -73,7 +66,6 @@ function computeTriangle(
       Math.cos(d) - Math.sin(lat1) * Math.sin(latRight)
     );
 
-  // Retourne les sommets du triangle (base gauche, base droite, pointe, base gauche pour fermer)
   return [
     [lat * 1, lng * 1],
     [latLeft * (180 / Math.PI), lngLeft * (180 / Math.PI)],
@@ -86,19 +78,36 @@ function computeTriangle(
 export default function InteractiveMap() {
   const [coordinates, setCoordinates] = useState<[number, number]>([50.491064, 4.884473]);
   const [hornets, setHornets] = useState<Hornet[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const auth = useAuth();
 
   useEffect(() => {
     if (auth.isAuthenticated) {
+      setLoading(true);
+      setError(null);
+      
       fetch("/api/hornets", {
         headers: {
           "Authorization": `Bearer ${auth.user?.access_token}`,
           "Content-Type": "application/json"
         }
       })
-        .then((res) => res.json())
-        .then((data) => setHornets(data))
-        .catch((err) => console.error("Erreur chargement frelons :", err));
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          return res.json();
+        })
+        .then((data) => {
+          setHornets(data);
+          setLoading(false);
+        })
+        .catch((err) => {
+          console.error("Erreur chargement frelons :", err);
+          setError("Erreur lors du chargement des données");
+          setLoading(false);
+        });
     }
   }, [auth.isAuthenticated, auth.user?.access_token]);
 
@@ -115,10 +124,11 @@ export default function InteractiveMap() {
           },
           (error) => {
             console.error("Error fetching location:", error);
+            setError("Impossible d'obtenir votre position");
           }
         );
       } else {
-        console.error("Geolocation is not supported by this browser.");
+        setError("La géolocalisation n'est pas supportée");
       }
     };
 
@@ -126,8 +136,9 @@ export default function InteractiveMap() {
       <Button
         onClick={handleLocate}
         variant="primary"
+        size="sm"
+        className="position-absolute"
         style={{
-          position: "absolute",
           top: "10px",
           right: "10px",
           zIndex: 1000,
@@ -138,13 +149,42 @@ export default function InteractiveMap() {
     );
   }
 
+  function LoadingIndicator() {
+    if (!loading) return null;
+    
+    return (
+      <div className="position-absolute top-50 start-50 translate-middle" style={{ zIndex: 1001 }}>
+        <div className="d-flex align-items-center bg-white p-3 rounded shadow">
+          <Spinner animation="border" size="sm" className="me-2" />
+          <span>Chargement des données...</span>
+        </div>
+      </div>
+    );
+  }
+
+  function ErrorAlert() {
+    if (!error) return null;
+    
+    return (
+      <Alert 
+        variant="danger" 
+        className="position-absolute top-0 start-0 m-3"
+        style={{ zIndex: 1001, maxWidth: "300px" }}
+        dismissible
+        onClose={() => setError(null)}
+      >
+        {error}
+      </Alert>
+    );
+  }
+
   return (
-    <div style={{ width: "100%", position: "relative" }}>
+    <div className="position-relative w-100">
       <MapContainer
         center={coordinates}
         zoom={15}
         scrollWheelZoom={true}
-        style={{ height: "80vh" }}
+        style={{ height: "80vh", width: "100%" }}
       >
         <LocateButton />
         <TileLayer
@@ -163,6 +203,8 @@ export default function InteractiveMap() {
           />
         ))}
       </MapContainer>
+      <LoadingIndicator />
+      <ErrorAlert />
     </div>
   );
 }

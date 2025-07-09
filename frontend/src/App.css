@@ -1,6 +1,16 @@
-#root {
-  display: block;
+body {
   margin: 0;
-  padding: 2rem;
+  padding: 0;
+}
+
+#root {
+  margin: 0;
+  padding: 0;
+  display: block;
   width: 100%;
+}
+
+/* Styles pour la carte Leaflet */
+.leaflet-container {
+  font-family: inherit;
 }
