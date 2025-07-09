@@ -1,8 +1,11 @@
 import { Navbar, Nav, Button, Container } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
+import { useState } from 'react';
+import UserInfoModal from './UserInfoModal';
 
 export default function NavbarComponent() {
   const auth = useAuth();
+  const [showUserModal, setShowUserModal] = useState(false);
 
   return (
     <Navbar bg="light" expand="lg" sticky="top" className="shadow-sm">
@@ -31,9 +34,13 @@ export default function NavbarComponent() {
             )}
             {auth.isAuthenticated && (
               <div className="d-flex align-items-center">
-                <span className="navbar-text me-3">
+                <button
+                  className="btn btn-link p-0 text-decoration-none me-3"
+                  onClick={() => setShowUserModal(true)}
+                  style={{ color: 'inherit' }}
+                >
                   Welcome, {auth.user?.profile.name}
-                </span>
+                </button>
                 <Button 
                   variant="outline-secondary" 
                   size="sm"
@@ -48,6 +55,11 @@ export default function NavbarComponent() {
           </Nav>
         </Navbar.Collapse>
       </Container>
+      
+      <UserInfoModal 
+        show={showUserModal} 
+        onHide={() => setShowUserModal(false)} 
+      />
     </Navbar>
   );
 }
