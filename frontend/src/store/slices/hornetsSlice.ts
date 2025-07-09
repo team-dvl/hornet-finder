@@ -7,6 +7,8 @@ export interface Hornet {
   longitude: number;
   direction: number;
   duration?: number; // Durée en secondes entre retour au nid et réapparition
+  mark_color_1?: string; // Première couleur de marquage
+  mark_color_2?: string; // Deuxième couleur de marquage
   created_at?: string;
   updated_at?: string;
   user_id?: number;
@@ -76,6 +78,40 @@ export const updateHornetDuration = createAsyncThunk(
   }
 );
 
+// Thunk async pour mettre à jour les couleurs de marquage d'un frelon
+export const updateHornetColors = createAsyncThunk(
+  'hornets/updateHornetColors',
+  async ({ hornetId, markColor1, markColor2, accessToken }: { 
+    hornetId: number; 
+    markColor1: string; 
+    markColor2: string; 
+    accessToken: string 
+  }, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`/api/hornets/${hornetId}/`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          mark_color_1: markColor1, 
+          mark_color_2: markColor2 
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const updatedHornet = await response.json();
+      return { hornetId, updatedHornet } as { hornetId: number; updatedHornet: Hornet };
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Erreur lors de la mise à jour des couleurs');
+    }
+  }
+);
+
 // Slice pour les frelons
 const hornetsSlice = createSlice({
   name: 'hornets',
@@ -122,6 +158,23 @@ const hornetsSlice = createSlice({
         }
       })
       .addCase(updateHornetDuration.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      // Cas de updateHornetColors
+      .addCase(updateHornetColors.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateHornetColors.fulfilled, (state, action) => {
+        state.loading = false;
+        const { hornetId, updatedHornet } = action.payload;
+        const index = state.hornets.findIndex(hornet => hornet.id === hornetId);
+        if (index !== -1) {
+          state.hornets[index] = updatedHornet;
+        }
+      })
+      .addCase(updateHornetColors.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });

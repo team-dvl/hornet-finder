@@ -22,7 +22,7 @@ class GPSValidationMixin:
 class HornetSerializer(GPSValidationMixin, serializers.ModelSerializer):
     class Meta:
         model = Hornet
-        fields = ['id', 'longitude', 'latitude', 'direction', 'duration', 'created_at', 'created_by', 'linked_nest']
+        fields = ['id', 'longitude', 'latitude', 'direction', 'duration', 'mark_color_1', 'mark_color_2', 'created_at', 'created_by', 'linked_nest']
         read_only_fields = ['id', 'created_at']
         extra_kwargs = { # Adding this to make the validation limits understandable by the swagger
             'direction': {
@@ -43,6 +43,16 @@ class HornetSerializer(GPSValidationMixin, serializers.ModelSerializer):
         if value < 0:
             raise serializers.ValidationError("Duration must be a positive integer.")
         return value
+
+    def validate(self, data):
+        # Validation croisée pour les couleurs
+        mark_color_1 = data.get('mark_color_1', '')
+        mark_color_2 = data.get('mark_color_2', '')
+        
+        if mark_color_1 and mark_color_2 and mark_color_1 == mark_color_2:
+            raise serializers.ValidationError("Les deux marques de couleur ne peuvent pas être identiques.")
+        
+        return data
 
 class NestSerializer(GPSValidationMixin, serializers.ModelSerializer):
     class Meta:

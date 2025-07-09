@@ -1,13 +1,73 @@
-import { Modal, Button, ListGroup, Badge, Form, InputGroup, Alert } from 'react-bootstrap';
+import { Modal, Button, ListGroup, Badge, Form, InputGroup, Alert, Dropdown } from 'react-bootstrap';
 import { useState, useMemo } from 'react';
-import { Hornet, updateHornetDuration } from './store/store';
+import { Hornet, updateHornetDuration, updateHornetColors } from './store/store';
 import { useAppDispatch, useAppSelector } from './store/hooks';
 import { useUserPermissions } from './hooks/useUserPermissions';
+import { COLOR_OPTIONS, getColorLabel, getColorHex } from './utils/colors';
 
 interface HornetInfoPopupProps {
   show: boolean;
   onHide: () => void;
   hornet: Hornet | null;
+}
+
+// Composant pour un dropdown de couleur personnalisé
+interface ColorDropdownProps {
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  label: string;
+}
+
+function ColorDropdown({ value, onChange, disabled, label }: ColorDropdownProps) {
+  const selectedOption = COLOR_OPTIONS.find(option => option.value === value) || COLOR_OPTIONS[0];
+  
+  return (
+    <div>
+      <Form.Label className="small mb-1">{label}:</Form.Label>
+      <Dropdown>
+        <Dropdown.Toggle
+          variant="outline-secondary"
+          size="sm"
+          disabled={disabled}
+          className="d-flex align-items-center gap-2 w-100"
+          style={{ minWidth: '140px' }}
+        >
+          <div 
+            style={{
+              width: '16px',
+              height: '16px',
+              backgroundColor: getColorHex(selectedOption.value),
+              border: selectedOption.value === 'white' || selectedOption.value === '' ? '1px solid #ccc' : 'none',
+              borderRadius: '3px'
+            }}
+          ></div>
+          <span>{selectedOption.label}</span>
+        </Dropdown.Toggle>
+
+        <Dropdown.Menu style={{ maxHeight: '200px', overflowY: 'auto' }}>
+          {COLOR_OPTIONS.map(color => (
+            <Dropdown.Item
+              key={color.value}
+              onClick={() => onChange(color.value)}
+              className="d-flex align-items-center gap-2"
+            >
+              <div 
+                style={{
+                  width: '16px',
+                  height: '16px',
+                  backgroundColor: getColorHex(color.value),
+                  border: color.value === 'white' || color.value === '' ? '1px solid #ccc' : 'none',
+                  borderRadius: '3px'
+                }}
+              ></div>
+              <span>{color.label}</span>
+            </Dropdown.Item>
+          ))}
+        </Dropdown.Menu>
+      </Dropdown>
+    </div>
+  );
 }
 
 export default function HornetInfoPopup({ show, onHide, hornet }: HornetInfoPopupProps) {
@@ -25,6 +85,13 @@ export default function HornetInfoPopup({ show, onHide, hornet }: HornetInfoPopu
   const [editDuration, setEditDuration] = useState('');
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  
+  // États pour l'édition des couleurs
+  const [isEditingColors, setIsEditingColors] = useState(false);
+  const [editColor1, setEditColor1] = useState('');
+  const [editColor2, setEditColor2] = useState('');
+  const [colorUpdateError, setColorUpdateError] = useState<string | null>(null);
+  const [isUpdatingColors, setIsUpdatingColors] = useState(false);
 
   if (!currentHornet) {
     return null;
@@ -74,6 +141,51 @@ export default function HornetInfoPopup({ show, onHide, hornet }: HornetInfoPopu
 
   const formatDurationInput = (minutes: number) => {
     return (minutes * 60).toString();
+  };
+
+  // Fonctions pour gérer l'édition des couleurs
+  const handleColorsEditStart = () => {
+    setIsEditingColors(true);
+    setEditColor1(currentHornet.mark_color_1 || '');
+    setEditColor2(currentHornet.mark_color_2 || '');
+    setColorUpdateError(null);
+  };
+
+  const handleColorsEditCancel = () => {
+    setIsEditingColors(false);
+    setEditColor1('');
+    setEditColor2('');
+    setColorUpdateError(null);
+  };
+
+  const handleColorsEditSave = async () => {
+    if (!currentHornet.id || !accessToken) return;
+
+    // Validation : les deux couleurs ne peuvent pas être identiques si elles existent
+    if (editColor1 && editColor2 && editColor1 === editColor2) {
+      setColorUpdateError('Les deux marques de couleur ne peuvent pas être identiques.');
+      return;
+    }
+
+    setIsUpdatingColors(true);
+    setColorUpdateError(null);
+
+    try {
+      await dispatch(updateHornetColors({
+        hornetId: currentHornet.id,
+        markColor1: editColor1,
+        markColor2: editColor2,
+        accessToken
+      })).unwrap();
+
+      setIsEditingColors(false);
+      setEditColor1('');
+      setEditColor2('');
+    } catch (error) {
+      setColorUpdateError(error as string);
+    } finally {
+      setIsUpdatingColors(false);
+    }
   };
 
   // Formatter la date si disponible
@@ -251,6 +363,105 @@ export default function HornetInfoPopup({ show, onHide, hornet }: HornetInfoPopu
               {nestInfo.displayText}
             </span>
           </ListGroup.Item>
+          
+          <ListGroup.Item>
+            <div className="d-flex justify-content-between align-items-center mb-2">
+              <strong>Marquage couleur:</strong>
+              {canEdit && !isEditingColors && (
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  onClick={handleColorsEditStart}
+                  disabled={isUpdatingColors}
+                >
+                  {(currentHornet.mark_color_1 || currentHornet.mark_color_2) ? 'Modifier' : 'Ajouter'}
+                </Button>
+              )}
+            </div>
+            
+            {!isEditingColors ? (
+              <div className="d-flex gap-2 align-items-center">
+                {currentHornet.mark_color_1 ? (
+                  <div className="d-flex align-items-center gap-1">
+                    <div 
+                      style={{
+                        width: '20px',
+                        height: '20px',
+                        backgroundColor: getColorHex(currentHornet.mark_color_1),
+                        border: currentHornet.mark_color_1 === 'white' ? '1px solid #ccc' : 'none',
+                        borderRadius: '3px'
+                      }}
+                    ></div>
+                    <span className="small">{getColorLabel(currentHornet.mark_color_1)}</span>
+                  </div>
+                ) : null}
+                
+                {currentHornet.mark_color_2 ? (
+                  <div className="d-flex align-items-center gap-1">
+                    <div 
+                      style={{
+                        width: '20px',
+                        height: '20px',
+                        backgroundColor: getColorHex(currentHornet.mark_color_2),
+                        border: currentHornet.mark_color_2 === 'white' ? '1px solid #ccc' : 'none',
+                        borderRadius: '3px'
+                      }}
+                    ></div>
+                    <span className="small">{getColorLabel(currentHornet.mark_color_2)}</span>
+                  </div>
+                ) : null}
+                
+                {!currentHornet.mark_color_1 && !currentHornet.mark_color_2 && (
+                  <span className="text-muted">Aucun marquage</span>
+                )}
+              </div>
+            ) : (
+              <div className="d-flex flex-column gap-2">
+                <div className="d-flex gap-2">
+                  <ColorDropdown
+                    value={editColor1}
+                    onChange={setEditColor1}
+                    disabled={isUpdatingColors}
+                    label="Couleur 1"
+                  />
+                  
+                  <ColorDropdown
+                    value={editColor2}
+                    onChange={setEditColor2}
+                    disabled={isUpdatingColors}
+                    label="Couleur 2"
+                  />
+                </div>
+                
+                <div className="d-flex gap-2">
+                  <Button
+                    variant="success"
+                    size="sm"
+                    onClick={handleColorsEditSave}
+                    disabled={isUpdatingColors}
+                  >
+                    {isUpdatingColors ? 'Sauvegarde...' : 'Sauver'}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleColorsEditCancel}
+                    disabled={isUpdatingColors}
+                  >
+                    Annuler
+                  </Button>
+                </div>
+              </div>
+            )}
+          </ListGroup.Item>
+          
+          {colorUpdateError && (
+            <ListGroup.Item>
+              <Alert variant="danger" className="mb-0 py-2">
+                {colorUpdateError}
+              </Alert>
+            </ListGroup.Item>
+          )}
           
           {currentHornet.created_at && (
             <ListGroup.Item className="d-flex justify-content-between align-items-center">

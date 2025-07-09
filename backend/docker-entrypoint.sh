@@ -7,6 +7,7 @@ while ! nc -z "$DB_HOST" 5432; do
 done
 echo "PostgreSQL is up!"
 
+python manage.py migrate hornet 0002 --fake --noinput
 python manage.py migrate --noinput
 python manage.py collectstatic --noinput
 

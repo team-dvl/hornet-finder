@@ -1,4 +1,5 @@
-import { Polygon } from "react-leaflet";
+import { Polygon, Marker } from "react-leaflet";
+import { DivIcon } from "leaflet";
 import { Hornet } from './store/store';
 
 interface HornetReturnZoneProps {
@@ -25,6 +26,16 @@ function calculateNestDistance(duration?: number): number {
 
 function deg2rad(deg: number) {
   return deg * (Math.PI / 180);
+}
+
+// Créer une icône personnalisée pour le frelon
+function createHornetIcon(): DivIcon {
+  return new DivIcon({
+    html: '<div style="font-size: 20px; text-align: center; line-height: 1;">🐝</div>',
+    className: 'hornet-icon',
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+  });
 }
 
 function computeTriangle(
@@ -113,18 +124,28 @@ export default function HornetReturnZone({
   };
 
   return (
-    <Polygon
-      positions={trianglePositions}
-      pathOptions={{
-        color: isBasedOnDuration ? "red" : "orange",
-        fillColor: isBasedOnDuration ? "red" : "orange",
-        fillOpacity: isBasedOnDuration ? 0.3 : 0.2,
-        weight: isBasedOnDuration ? 3 : 2,
-        dashArray: isBasedOnDuration ? undefined : "5, 5", // Ligne pointillée pour les estimations par défaut
-      }}
-      eventHandlers={{
-        click: handleClick,
-      }}
-    />
+    <>
+      <Polygon
+        positions={trianglePositions}
+        pathOptions={{
+          color: isBasedOnDuration ? "red" : "orange",
+          fillColor: isBasedOnDuration ? "red" : "orange",
+          fillOpacity: isBasedOnDuration ? 0.3 : 0.2,
+          weight: isBasedOnDuration ? 3 : 2,
+          dashArray: isBasedOnDuration ? undefined : "5, 5", // Ligne pointillée pour les estimations par défaut
+        }}
+        eventHandlers={{
+          click: handleClick,
+        }}
+      />
+      
+      <Marker
+        position={[hornet.latitude, hornet.longitude]}
+        icon={createHornetIcon()}
+        eventHandlers={{
+          click: handleClick,
+        }}
+      />
+    </>
   );
 }
