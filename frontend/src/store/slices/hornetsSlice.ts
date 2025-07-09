@@ -7,10 +7,10 @@ export interface Hornet {
   longitude: number;
   direction: number;
   duration?: number; // Durée en secondes entre retour au nid et réapparition
-  // Ajouter d'autres champs retournés par l'API si nécessaire
   created_at?: string;
   updated_at?: string;
   user_id?: number;
+  created_by?: string; // Email de l'utilisateur qui a créé le frelon
 }
 
 // État initial du slice
@@ -50,6 +50,32 @@ export const fetchHornets = createAsyncThunk(
   }
 );
 
+// Thunk async pour mettre à jour la durée d'un frelon
+export const updateHornetDuration = createAsyncThunk(
+  'hornets/updateHornetDuration',
+  async ({ hornetId, duration, accessToken }: { hornetId: number; duration: number; accessToken: string }, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`/api/hornets/${hornetId}/`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ duration }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const updatedHornet = await response.json();
+      return { hornetId, updatedHornet } as { hornetId: number; updatedHornet: Hornet };
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Erreur lors de la mise à jour');
+    }
+  }
+);
+
 // Slice pour les frelons
 const hornetsSlice = createSlice({
   name: 'hornets',
@@ -79,6 +105,23 @@ const hornetsSlice = createSlice({
         state.hornets = action.payload;
       })
       .addCase(fetchHornets.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      // Cas de updateHornetDuration
+      .addCase(updateHornetDuration.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateHornetDuration.fulfilled, (state, action) => {
+        state.loading = false;
+        const { hornetId, updatedHornet } = action.payload;
+        const index = state.hornets.findIndex(hornet => hornet.id === hornetId);
+        if (index !== -1) {
+          state.hornets[index] = updatedHornet;
+        }
+      })
+      .addCase(updateHornetDuration.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });

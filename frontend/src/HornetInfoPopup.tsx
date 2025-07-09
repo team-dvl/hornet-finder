@@ -1,5 +1,8 @@
-import { Modal, Button, ListGroup, Badge } from 'react-bootstrap';
-import { Hornet } from './store/store';
+import { Modal, Button, ListGroup, Badge, Form, InputGroup, Alert } from 'react-bootstrap';
+import { useState, useMemo } from 'react';
+import { Hornet, updateHornetDuration } from './store/store';
+import { useAppDispatch, useAppSelector } from './store/hooks';
+import { useUserPermissions } from './hooks/useUserPermissions';
 
 interface HornetInfoPopupProps {
   show: boolean;
@@ -8,9 +11,70 @@ interface HornetInfoPopupProps {
 }
 
 export default function HornetInfoPopup({ show, onHide, hornet }: HornetInfoPopupProps) {
-  if (!hornet) {
+  const dispatch = useAppDispatch();
+  const { canEditHornet, accessToken } = useUserPermissions();
+  
+  // Récupérer les données mises à jour depuis le store Redux
+  const hornets = useAppSelector(state => state.hornets.hornets);
+  const currentHornet = useMemo(() => {
+    if (!hornet?.id) return hornet;
+    return hornets.find(h => h.id === hornet.id) || hornet;
+  }, [hornets, hornet]);
+  
+  const [isEditing, setIsEditing] = useState(false);
+  const [editDuration, setEditDuration] = useState('');
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  if (!currentHornet) {
     return null;
   }
+
+  const canEdit = canEditHornet(currentHornet);
+
+  const handleEditStart = () => {
+    setIsEditing(true);
+    setEditDuration(currentHornet.duration ? currentHornet.duration.toString() : '');
+    setUpdateError(null);
+  };
+
+  const handleEditCancel = () => {
+    setIsEditing(false);
+    setEditDuration('');
+    setUpdateError(null);
+  };
+
+  const handleEditSave = async () => {
+    if (!currentHornet.id || !accessToken) return;
+
+    const durationValue = parseInt(editDuration);
+    if (isNaN(durationValue) || durationValue <= 0) {
+      setUpdateError('Veuillez entrer une durée valide en secondes.');
+      return;
+    }
+
+    setIsUpdating(true);
+    setUpdateError(null);
+
+    try {
+      await dispatch(updateHornetDuration({
+        hornetId: currentHornet.id,
+        duration: durationValue,
+        accessToken
+      })).unwrap();
+
+      setIsEditing(false);
+      setEditDuration('');
+    } catch (error) {
+      setUpdateError(error as string);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const formatDurationInput = (minutes: number) => {
+    return (minutes * 60).toString();
+  };
 
   // Formatter la date si disponible
   const formatDate = (dateString?: string) => {
@@ -61,7 +125,7 @@ export default function HornetInfoPopup({ show, onHide, hornet }: HornetInfoPopu
     }
   };
 
-  const nestInfo = calculateNestDistance(hornet.duration);
+  const nestInfo = calculateNestDistance(currentHornet.duration);
 
   // Formater la durée en minutes et secondes
   const formatDuration = (seconds?: number) => {
@@ -85,32 +149,101 @@ export default function HornetInfoPopup({ show, onHide, hornet }: HornetInfoPopu
       
       <Modal.Body>
         <ListGroup variant="flush">
-          {hornet.id && (
+          {currentHornet.id && (
             <ListGroup.Item className="d-flex justify-content-between align-items-center">
               <strong>ID:</strong>
-              <Badge bg="secondary">{hornet.id}</Badge>
+              <Badge bg="secondary">{currentHornet.id}</Badge>
             </ListGroup.Item>
           )}
           
           <ListGroup.Item className="d-flex justify-content-between align-items-center">
             <strong>Position:</strong>
             <span className="text-end">
-              <div>Lat: {hornet.latitude.toFixed(6)}</div>
-              <div>Lng: {hornet.longitude.toFixed(6)}</div>
+              <div>Lat: {currentHornet.latitude.toFixed(6)}</div>
+              <div>Lng: {currentHornet.longitude.toFixed(6)}</div>
             </span>
           </ListGroup.Item>
           
           <ListGroup.Item className="d-flex justify-content-between align-items-center">
             <strong>Direction de vol:</strong>
-            <span>{getDirectionLabel(hornet.direction)}</span>
+            <span>{getDirectionLabel(currentHornet.direction)}</span>
           </ListGroup.Item>
           
           <ListGroup.Item className="d-flex justify-content-between align-items-center">
             <strong>Durée d'absence:</strong>
-            <span className={hornet.duration ? "text-info" : "text-muted"}>
-              {formatDuration(hornet.duration)}
-            </span>
+            <div className="d-flex align-items-center gap-2">
+              {!isEditing ? (
+                <>
+                  <span className={currentHornet.duration ? "text-info" : "text-muted"}>
+                    {formatDuration(currentHornet.duration)}
+                  </span>
+                  {canEdit && (
+                    <Button
+                      variant="outline-primary"
+                      size="sm"
+                      onClick={handleEditStart}
+                      disabled={isUpdating}
+                    >
+                      {currentHornet.duration ? 'Modifier' : 'Ajouter'}
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <div className="d-flex flex-column gap-2">
+                  <div className="d-flex align-items-center gap-2">
+                    <InputGroup size="sm" style={{ width: '120px' }}>
+                      <Form.Control
+                        type="number"
+                        value={editDuration}
+                        onChange={(e) => setEditDuration(e.target.value)}
+                        placeholder="Secondes"
+                        min="1"
+                      />
+                      <InputGroup.Text>s</InputGroup.Text>
+                    </InputGroup>
+                    <Button
+                      variant="success"
+                      size="sm"
+                      onClick={handleEditSave}
+                      disabled={isUpdating}
+                    >
+                      {isUpdating ? 'Sauvegarde...' : 'Sauver'}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleEditCancel}
+                      disabled={isUpdating}
+                    >
+                      Annuler
+                    </Button>
+                  </div>
+                  <div className="d-flex gap-1">
+                    <small className="text-muted me-2">Durées courantes:</small>
+                    {[1, 2, 5, 10, 15, 30].map(minutes => (
+                      <Button
+                        key={minutes}
+                        variant="outline-info"
+                        size="sm"
+                        onClick={() => setEditDuration(formatDurationInput(minutes))}
+                        disabled={isUpdating}
+                      >
+                        {minutes}min
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </ListGroup.Item>
+          
+          {updateError && (
+            <ListGroup.Item>
+              <Alert variant="danger" className="mb-0 py-2">
+                {updateError}
+              </Alert>
+            </ListGroup.Item>
+          )}
           
           <ListGroup.Item className="d-flex justify-content-between align-items-center">
             <strong>Distance estimée du nid:</strong>
@@ -119,28 +252,28 @@ export default function HornetInfoPopup({ show, onHide, hornet }: HornetInfoPopu
             </span>
           </ListGroup.Item>
           
-          {hornet.created_at && (
+          {currentHornet.created_at && (
             <ListGroup.Item className="d-flex justify-content-between align-items-center">
               <strong>Observé le:</strong>
               <span className="text-muted small">
-                {formatDate(hornet.created_at)}
+                {formatDate(currentHornet.created_at)}
               </span>
             </ListGroup.Item>
           )}
           
-          {hornet.updated_at && hornet.updated_at !== hornet.created_at && (
+          {currentHornet.updated_at && currentHornet.updated_at !== currentHornet.created_at && (
             <ListGroup.Item className="d-flex justify-content-between align-items-center">
               <strong>Mis à jour le:</strong>
               <span className="text-muted small">
-                {formatDate(hornet.updated_at)}
+                {formatDate(currentHornet.updated_at)}
               </span>
             </ListGroup.Item>
           )}
           
-          {hornet.user_id && (
+          {currentHornet.user_id && (
             <ListGroup.Item className="d-flex justify-content-between align-items-center">
               <strong>Rapporté par:</strong>
-              <Badge bg="info">Utilisateur #{hornet.user_id}</Badge>
+              <Badge bg="info">Utilisateur #{currentHornet.user_id}</Badge>
             </ListGroup.Item>
           )}
           

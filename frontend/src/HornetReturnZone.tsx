@@ -8,6 +8,21 @@ interface HornetReturnZoneProps {
   onClick?: (hornet: Hornet) => void;
 }
 
+// Calculer la distance estimée du nid basée sur la durée
+function calculateNestDistance(duration?: number): number {
+  if (!duration || duration <= 0) {
+    return 3; // Distance max par défaut: 3km
+  }
+  
+  // 100m par minute = 100m / 60s = 1.67m par seconde
+  const distanceInMeters = Math.round((duration / 60) * 100);
+  const maxDistance = 3000; // 3km max
+  const finalDistance = Math.min(distanceInMeters, maxDistance);
+  
+  // Convertir en kilomètres
+  return finalDistance / 1000;
+}
+
 function deg2rad(deg: number) {
   return deg * (Math.PI / 180);
 }
@@ -73,11 +88,23 @@ function computeTriangle(
 
 export default function HornetReturnZone({ 
   hornet,
-  lengthKm = 3, 
+  lengthKm, 
   angleDeg = 5,
   onClick
 }: HornetReturnZoneProps) {
-  const trianglePositions = computeTriangle(hornet.latitude, hornet.longitude, hornet.direction, lengthKm, angleDeg);
+  // Calculer la longueur du cône basée sur la durée si elle n'est pas fournie explicitement
+  const calculatedLength = lengthKm ?? calculateNestDistance(hornet.duration);
+  
+  // Déterminer si la longueur est basée sur une durée réelle ou par défaut
+  const isBasedOnDuration = Boolean(hornet.duration && hornet.duration > 0);
+  
+  const trianglePositions = computeTriangle(
+    hornet.latitude, 
+    hornet.longitude, 
+    hornet.direction, 
+    calculatedLength, 
+    angleDeg
+  );
 
   const handleClick = () => {
     if (onClick) {
@@ -89,10 +116,11 @@ export default function HornetReturnZone({
     <Polygon
       positions={trianglePositions}
       pathOptions={{
-        color: "red",
-        fillColor: "orange",
-        fillOpacity: 0.2,
-        weight: 2,
+        color: isBasedOnDuration ? "red" : "orange",
+        fillColor: isBasedOnDuration ? "red" : "orange",
+        fillOpacity: isBasedOnDuration ? 0.3 : 0.2,
+        weight: isBasedOnDuration ? 3 : 2,
+        dashArray: isBasedOnDuration ? undefined : "5, 5", // Ligne pointillée pour les estimations par défaut
       }}
       eventHandlers={{
         click: handleClick,
