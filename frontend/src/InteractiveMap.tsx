@@ -2,14 +2,18 @@ import { useState, useEffect } from "react";
 import { MapContainer, TileLayer } from "react-leaflet";
 import { useAuth } from 'react-oidc-context';
 import { useAppDispatch, useAppSelector, fetchHornets } from './store/store';
+import { Hornet } from './store/slices/hornetsSlice';
 import HornetReturnZone from './HornetReturnZone';
 import MapControls from './MapControls';
+import HornetInfoPopup from './HornetInfoPopup';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import "leaflet/dist/leaflet.css";
 import "leaflet/dist/leaflet.js";
 
 export default function InteractiveMap() {
   const [coordinates, setCoordinates] = useState<[number, number]>([50.491064, 4.884473]);
+  const [selectedHornet, setSelectedHornet] = useState<Hornet | null>(null);
+  const [showHornetModal, setShowHornetModal] = useState(false);
   const auth = useAuth();
   const dispatch = useAppDispatch();
   
@@ -22,6 +26,17 @@ export default function InteractiveMap() {
       dispatch(fetchHornets(auth.user.access_token));
     }
   }, [auth.isAuthenticated, auth.user?.access_token, dispatch]);
+
+  // Gestionnaire de clic sur une zone de frelon
+  const handleHornetClick = (hornet: Hornet) => {
+    setSelectedHornet(hornet);
+    setShowHornetModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowHornetModal(false);
+    setSelectedHornet(null);
+  };
 
   return (
     <div className="position-relative w-100">
@@ -43,12 +58,17 @@ export default function InteractiveMap() {
         {hornets.map((hornet, index) => (
           <HornetReturnZone
             key={hornet.id || index}
-            latitude={hornet.latitude}
-            longitude={hornet.longitude}
-            direction={hornet.direction}
+            hornet={hornet}
+            onClick={handleHornetClick}
           />
         ))}
       </MapContainer>
+      
+      <HornetInfoPopup
+        show={showHornetModal}
+        onHide={handleCloseModal}
+        hornet={selectedHornet}
+      />
     </div>
   );
 }

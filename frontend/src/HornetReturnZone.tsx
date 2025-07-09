@@ -1,11 +1,11 @@
 import { Polygon } from "react-leaflet";
+import { Hornet } from './store/store';
 
 interface HornetReturnZoneProps {
-  latitude: number;
-  longitude: number;
-  direction: number;
+  hornet: Hornet;
   lengthKm?: number;
   angleDeg?: number;
+  onClick?: (hornet: Hornet) => void;
 }
 
 function deg2rad(deg: number) {
@@ -72,13 +72,18 @@ function computeTriangle(
 }
 
 export default function HornetReturnZone({ 
-  latitude, 
-  longitude, 
-  direction, 
+  hornet,
   lengthKm = 3, 
-  angleDeg = 5 
+  angleDeg = 5,
+  onClick
 }: HornetReturnZoneProps) {
-  const trianglePositions = computeTriangle(latitude, longitude, direction, lengthKm, angleDeg);
+  const trianglePositions = computeTriangle(hornet.latitude, hornet.longitude, hornet.direction, lengthKm, angleDeg);
+
+  const handleClick = () => {
+    if (onClick) {
+      onClick(hornet);
+    }
+  };
 
   return (
     <Polygon
@@ -88,6 +93,9 @@ export default function HornetReturnZone({
         fillColor: "orange",
         fillOpacity: 0.2,
         weight: 2,
+      }}
+      eventHandlers={{
+        click: handleClick,
       }}
     />
   );

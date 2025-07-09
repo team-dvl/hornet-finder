@@ -6,6 +6,7 @@ export interface Hornet {
   latitude: number;
   longitude: number;
   direction: number;
+  duration?: number; // Durée en secondes entre retour au nid et réapparition
   // Ajouter d'autres champs retournés par l'API si nécessaire
   created_at?: string;
   updated_at?: string;
