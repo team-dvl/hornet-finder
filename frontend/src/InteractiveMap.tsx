@@ -1,53 +1,27 @@
 import { useState, useEffect } from "react";
 import { MapContainer, TileLayer } from "react-leaflet";
 import { useAuth } from 'react-oidc-context';
+import { useAppDispatch, useAppSelector, fetchHornets } from './store/store';
 import HornetReturnZone from './HornetReturnZone';
 import MapControls from './MapControls';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import "leaflet/dist/leaflet.css";
 import "leaflet/dist/leaflet.js";
 
-type Hornet = {
-  latitude: number;
-  longitude: number;
-  direction: number;
-};
-
 export default function InteractiveMap() {
   const [coordinates, setCoordinates] = useState<[number, number]>([50.491064, 4.884473]);
-  const [hornets, setHornets] = useState<Hornet[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const auth = useAuth();
+  const dispatch = useAppDispatch();
+  
+  // Sélectionner les données depuis le store Redux
+  const { hornets, loading, error } = useAppSelector((state) => state.hornets);
 
   useEffect(() => {
-    if (auth.isAuthenticated) {
-      setLoading(true);
-      setError(null);
-      
-      fetch("/api/hornets", {
-        headers: {
-          "Authorization": `Bearer ${auth.user?.access_token}`,
-          "Content-Type": "application/json"
-        }
-      })
-        .then((res) => {
-          if (!res.ok) {
-            throw new Error(`HTTP error! status: ${res.status}`);
-          }
-          return res.json();
-        })
-        .then((data) => {
-          setHornets(data);
-          setLoading(false);
-        })
-        .catch((err) => {
-          console.error("Erreur chargement frelons :", err);
-          setError("Erreur lors du chargement des données");
-          setLoading(false);
-        });
+    if (auth.isAuthenticated && auth.user?.access_token) {
+      // Utiliser le thunk pour récupérer les données
+      dispatch(fetchHornets(auth.user.access_token));
     }
-  }, [auth.isAuthenticated, auth.user?.access_token]);
+  }, [auth.isAuthenticated, auth.user?.access_token, dispatch]);
 
   return (
     <div className="position-relative w-100">
@@ -61,14 +35,14 @@ export default function InteractiveMap() {
           loading={loading}
           error={error}
           onLocationUpdate={setCoordinates}
-          onErrorUpdate={setError}
+          onErrorUpdate={() => {}} // Les erreurs sont maintenant gérées par Redux
         />
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         {hornets.map((hornet, index) => (
           <HornetReturnZone
-            key={index}
+            key={hornet.id || index}
             latitude={hornet.latitude}
             longitude={hornet.longitude}
             direction={hornet.direction}

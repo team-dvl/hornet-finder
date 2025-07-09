@@ -1,6 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { AuthProvider } from 'react-oidc-context'
+import { Provider } from 'react-redux'
+import { store } from './store'
 import './index.css'
 import App from './App'
 
@@ -12,8 +14,10 @@ const oidcConfig = {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthProvider {...oidcConfig}>
-      <App/>
-    </AuthProvider>
+    <Provider store={store}>
+      <AuthProvider {...oidcConfig}>
+        <App/>
+      </AuthProvider>
+    </Provider>
   </StrictMode>,
 )
