@@ -1,7 +1,8 @@
 import './App.css'
-import { Col, Container, Row, Button, Alert } from 'react-bootstrap'
+import { Col, Container, Row, Alert } from 'react-bootstrap'
 import { useAuth } from 'react-oidc-context';
 import InteractiveMap from './InteractiveMap';
+import NavbarComponent from './NavbarComponent';
 
 function App() {
   const auth = useAuth();
@@ -40,49 +41,16 @@ function App() {
   }
 
   return (
-    <Container fluid className="px-0">
-      <Container className="py-2">
-        <Row className="mb-2">
-          <Col>
-            <h2 className="mb-1">Hornet Nest Finder</h2>
-            <p className="text-muted fst-italic mb-2">
-              Find and report hornet nests in your area!
-            </p>
-          </Col>
-        </Row>
-        
-        <Row className="mb-2">
-          <Col>
-            {!auth.isAuthenticated && (
-              <Button 
-                variant="primary" 
-                onClick={() => void auth.signinRedirect()}
-              >
-                Log in
-              </Button>
-            )}
-            {auth.isAuthenticated && (
-              <Button 
-                variant="outline-secondary" 
-                onClick={() => void auth.signoutRedirect(
-                  { post_logout_redirect_uri: window.location.origin }
-                )}
-              >
-                Log out {auth.user?.profile.name}
-              </Button>
-            )}
-          </Col>
-        </Row>
-      </Container>
-      
-      <Container fluid className="px-0">
+    <>
+      <NavbarComponent />
+      <Container className="px-0">
         <Row className="g-0">
           <Col xs={12}>
             <InteractiveMap />
           </Col>
         </Row>
       </Container>
-    </Container>
+    </>
   );
 }
 
