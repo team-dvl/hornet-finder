@@ -34,7 +34,6 @@ function App() {
         { auth.isAuthenticated && <button onClick={() => void auth.signoutRedirect(
           { post_logout_redirect_uri: window.location.origin }
         )}>Log out {auth.user?.profile.name}</button> }
-        { auth.isAuthenticated && console.log(auth.user?.profile) }
         <Row className="w-100">
           <Col xs={12} className="w-100">
             <InteractiveMap/>

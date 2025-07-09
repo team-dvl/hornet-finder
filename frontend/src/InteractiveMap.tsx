@@ -100,7 +100,7 @@ export default function InteractiveMap() {
         .then((data) => setHornets(data))
         .catch((err) => console.error("Erreur chargement frelons :", err));
     }
-  }, []);
+  }, [auth.isAuthenticated, auth.user?.access_token]);
 
   function LocateButton() {
     const map = useMap();
