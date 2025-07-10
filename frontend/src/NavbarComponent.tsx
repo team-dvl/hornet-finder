@@ -12,7 +12,16 @@ export default function NavbarComponent({ onShowWelcome }: NavbarComponentProps)
   const [showUserModal, setShowUserModal] = useState(false);
 
   return (
-    <Navbar bg="light" expand="lg" fixed="top" className="shadow-sm">
+    <Navbar 
+      variant="light"
+      expand="lg" 
+      fixed="top" 
+      className="shadow-sm navbar-transparent"
+      onMouseEnter={(e) => e.currentTarget.classList.add('navbar-opaque')}
+      onMouseLeave={(e) => e.currentTarget.classList.remove('navbar-opaque')}
+      onFocus={(e) => e.currentTarget.classList.add('navbar-opaque')}
+      onBlur={(e) => e.currentTarget.classList.remove('navbar-opaque')}
+    >
       <Container>
         <Navbar.Brand href="#" className="d-flex align-items-center">
           <span className="fw-bold">Velutina</span>

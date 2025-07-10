@@ -8,9 +8,154 @@ body {
   padding: 0;
   display: block;
   width: 100%;
+  height: 100vh;
+}
+
+/* Carte en plein écran */
+.map-fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;
+}
+
+.map-fullscreen > div {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Navbar semi-transparente */
+.navbar.navbar-transparent {
+  background-color: rgba(248, 249, 250, 0.65) !important;
+  background-image: none !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px); /* Support Safari */
+  transition: background-color 0.3s ease, opacity 0.3s ease;
+  z-index: 1030;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.navbar.navbar-transparent.navbar-opaque,
+.navbar.navbar-transparent:hover,
+.navbar.navbar-transparent:focus-within {
+  background-color: rgba(248, 249, 250, 0.95) !important;
+  background-image: none !important;
+}
+
+/* Override Bootstrap navbar-light background */
+.navbar-light.navbar-transparent,
+.navbar.navbar-light.navbar-transparent {
+  background-color: rgba(248, 249, 250, 0.65) !important;
+  background-image: none !important;
+}
+
+/* Force transparent navbar even with Bootstrap overrides */
+.fixed-top.navbar-transparent {
+  background-color: rgba(248, 249, 250, 0.65) !important;
+  background-image: none !important;
 }
 
 /* Styles pour la carte Leaflet */
 .leaflet-container {
   font-family: inherit;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Correction simple pour iOS - prévenir le zoom lors du changement d'orientation */
+@media screen and (max-width: 768px) {
+  body {
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+/* Repositionner les contrôles de zoom Leaflet en bas à gauche */
+.leaflet-bottom.leaflet-left {
+  bottom: 20px !important;
+  left: 20px !important;
+}
+
+/* Masquer les contrôles de zoom en haut à gauche */
+.leaflet-top.leaflet-left .leaflet-control-zoom {
+  display: none !important;
+}
+
+/* S'assurer que seuls les contrôles en bas à gauche sont visibles */
+.leaflet-bottom.leaflet-left .leaflet-control-zoom {
+  display: block !important;
+}
+
+/* Styles responsive pour les contrôles de la carte */
+.map-controls-container {
+  position: absolute;
+  top: 70px; /* Ajustement pour la navbar transparente */
+  right: 10px;
+  left: 10px;
+  z-index: 1000;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+
+.map-control-button {
+  white-space: nowrap;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.map-control-button-icon {
+  font-size: 1.2em;
+  margin-right: 0.3rem;
+}
+
+/* Adaptation pour les petits écrans */
+@media (max-width: 576px) {
+  .map-controls-container {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+  }
+  
+  .map-control-button {
+    font-size: 0.75rem;
+    padding: 0.4rem;
+    min-width: 2.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .map-control-button-text {
+    display: none;
+  }
+  
+  .map-control-button-icon {
+    margin-right: 0 !important;
+    font-size: 1.1em;
+  }
+}
+
+/* Adaptation pour les écrans moyens en mode portrait */
+@media (max-width: 768px) and (orientation: portrait) {
+  .map-controls-container {
+    flex-wrap: wrap;
+    max-width: calc(100vw - 20px);
+  }
+  
+  .map-control-button {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.6rem;
+  }
+  
+  .map-control-button-icon {
+    font-size: 1.15em;
+  }
 }

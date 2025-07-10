@@ -1,10 +1,12 @@
+import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css'
-import { Col, Container, Row, Alert } from 'react-bootstrap'
+import { Container, Alert } from 'react-bootstrap'
 import { useState, useEffect } from 'react';
 import { useAuth } from 'react-oidc-context';
 import InteractiveMap from './InteractiveMap';
 import NavbarComponent from './NavbarComponent';
 import WelcomeModal from './WelcomeModal';
+import { initIOSViewportFix } from './utils/iosViewportFix';
 
 function App() {
   const auth = useAuth();
@@ -12,6 +14,9 @@ function App() {
 
   // Afficher le modal de bienvenue quand l'utilisateur n'est pas authentifié
   useEffect(() => {
+    // Initialiser la correction iOS pour le viewport
+    initIOSViewportFix();
+    
     if (!auth.isLoading && !auth.isAuthenticated && !auth.activeNavigator) {
       // Vérifier si l'utilisateur a déjà choisi de continuer sans connexion
       const hasDeclinedLogin = localStorage.getItem('hornet-finder-declined-login');
@@ -69,13 +74,9 @@ function App() {
   return (
     <>
       <NavbarComponent onShowWelcome={handleShowWelcomeModal} />
-      <Container fluid className="px-0" style={{ paddingTop: "56px" }}>
-        <Row className="g-0">
-          <Col xs={12}>
-            <InteractiveMap />
-          </Col>
-        </Row>
-      </Container>
+      <div className="map-fullscreen">
+        <InteractiveMap />
+      </div>
       
       <WelcomeModal 
         show={showWelcomeModal}

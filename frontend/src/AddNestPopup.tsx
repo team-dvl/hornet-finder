@@ -100,7 +100,7 @@ export default function AddNestPopup({ show, onHide, latitude, longitude, onSucc
     <Modal show={show} onHide={handleClose} centered>
       <Modal.Header closeButton>
         <Modal.Title>
-          <span className="me-2">🪣</span>
+          <span className="me-2">🏴</span>
           Ajouter un nid de frelon
         </Modal.Title>
       </Modal.Header>
@@ -174,7 +174,7 @@ export default function AddNestPopup({ show, onHide, latitude, longitude, onSucc
           </Button>
           <Button variant="danger" type="submit" disabled={loading}>
             {loading && <Spinner animation="border" size="sm" className="me-2" />}
-            🪣 Signaler le nid
+            🏴 Signaler le nid
           </Button>
         </Modal.Footer>
       </Form>

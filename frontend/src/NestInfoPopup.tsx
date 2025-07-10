@@ -20,7 +20,7 @@ export default function NestInfoPopup({ show, onHide, nest }: NestInfoPopupProps
     }
     return (
       <Badge bg="danger" className="ms-2">
-        🪣 Actif
+        🏴 Actif
       </Badge>
     );
   };
@@ -44,7 +44,7 @@ export default function NestInfoPopup({ show, onHide, nest }: NestInfoPopupProps
     <Modal show={show} onHide={onHide} centered>
       <Modal.Header closeButton>
         <Modal.Title>
-          🪣 Nid de frelon #{nest.id}
+          🏴 Nid de frelon #{nest.id}
           {getStatusBadge()}
           {getLocationBadge()}
         </Modal.Title>

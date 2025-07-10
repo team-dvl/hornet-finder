@@ -116,9 +116,16 @@ export default function WelcomeModal({ show, onHide }: WelcomeModalProps) {
       </Modal.Body>
       
       <Modal.Footer className="bg-light text-center justify-content-center">
-        <small className="text-muted">
-          Une initiative de <b>Vedrin s'abeille</b> pour la protection de la biodiversité locale
-        </small>
+        <div className="d-flex align-items-center justify-content-center">
+          <img 
+            src="/vsab-logo-transparent.png" 
+            alt="Logo Vedrin s'abeille" 
+            style={{ width: '40%', height: 'auto', marginRight: '12px' }}
+          />
+          <small className="text-muted">
+            Une initiative de <b>Vedrin s'abeille</b> pour la protection de la biodiversité locale
+          </small>
+        </div>
       </Modal.Footer>
     </Modal>
   );

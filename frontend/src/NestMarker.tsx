@@ -7,7 +7,7 @@ import { Nest } from './store/slices/nestsSlice';
 // Créer une icône personnalisée pour les nids
 const createNestIcon = (destroyed: boolean = false) => {
   const color = destroyed ? '#6c757d' : '#dc3545'; // Gris si détruit, rouge sinon
-  const symbol = destroyed ? '💀' : '🪣'; // Crâne si détruit, seau si actif
+  const symbol = destroyed ? '💀' : '🏴'; // Crâne si détruit, drapeau noir si actif
   
   const svg = `
     <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">

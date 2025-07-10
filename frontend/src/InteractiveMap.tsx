@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { MapContainer, TileLayer, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, useMapEvents, ZoomControl } from "react-leaflet";
 import { useAuth } from 'react-oidc-context';
 import { useAppDispatch, useAppSelector, fetchHornets, fetchHornetsPublic, fetchApiaries, fetchMyApiaries, selectShowApiaries, selectShowHornets, selectShowReturnZones, fetchNests, selectShowNests } from './store/store';
 import { useUserPermissions } from './hooks/useUserPermissions';
@@ -18,7 +18,6 @@ import AddItemSelector from './AddItemSelector';
 import AddHornetPopup from './AddHornetPopup';
 import AddApiaryPopup from './AddApiaryPopup';
 import AddNestPopup from './AddNestPopup';
-import 'bootstrap/dist/css/bootstrap.min.css';
 import "leaflet/dist/leaflet.css";
 import "leaflet/dist/leaflet.js";
 
@@ -210,12 +209,13 @@ export default function InteractiveMap() {
   };
 
   return (
-    <div className="position-relative w-100">
+    <div className="position-relative w-100 h-100">
       <MapContainer
         center={coordinates}
         zoom={15}
         scrollWheelZoom={true}
-        style={{ height: "80vh", width: "100%" }}
+        style={{ height: "100vh", width: "100%" }}
+        zoomControl={false} // Désactiver les contrôles par défaut
       >
         <MapControls 
           loading={loading}
@@ -228,6 +228,7 @@ export default function InteractiveMap() {
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        <ZoomControl position="bottomleft" />
         {showHornets && hornets.map((hornet, index) => (
           <HornetReturnZone
             key={hornet.id || index}

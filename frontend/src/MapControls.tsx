@@ -42,14 +42,11 @@ function LocateButton({ onLocationUpdate, onErrorUpdate }: {
       onClick={handleLocate}
       variant="primary"
       size="sm"
-      className="position-absolute map-control-button"
-      style={{
-        top: "10px",
-        right: "10px",
-        zIndex: 1000,
-      }}
+      className="map-control-button"
+      title="Centrer la carte sur ma position"
     >
-      Ma position
+      <span className="map-control-button-icon">📍</span>
+      <span className="map-control-button-text">Ma position</span>
     </Button>
   );
 }
@@ -58,7 +55,7 @@ function LoadingIndicator({ loading }: { loading: boolean }) {
   if (!loading) return null;
   
   return (
-    <div className="position-absolute top-50 start-50 translate-middle map-control-button" style={{ zIndex: 1001 }}>
+    <div className="position-absolute top-50 start-50 translate-middle" style={{ zIndex: 1001 }}>
       <div className="d-flex align-items-center bg-white p-3 rounded shadow">
         <Spinner animation="border" size="sm" className="me-2" />
         <span>Chargement des données...</span>
@@ -73,8 +70,12 @@ function ErrorAlert({ error, onClose }: { error: string | null; onClose: () => v
   return (
     <Alert 
       variant="danger" 
-      className="position-absolute top-0 start-0 m-3 map-control-button"
-      style={{ zIndex: 1001, maxWidth: "300px" }}
+      className="position-absolute start-0 m-3"
+      style={{ 
+        zIndex: 1001, 
+        maxWidth: "300px",
+        top: "60px" // Positionné sous les contrôles
+      }}
       dismissible
       onClose={onClose}
     >
@@ -83,7 +84,7 @@ function ErrorAlert({ error, onClose }: { error: string | null; onClose: () => v
   );
 }
 
-function HornetDisplayModeButton({ showApiariesButton, showNestsButton }: { showApiariesButton: boolean; showNestsButton: boolean }) {
+function HornetDisplayModeButton() {
   const dispatch = useAppDispatch();
   const displayMode = useAppSelector(selectDisplayMode);
 
@@ -97,7 +98,7 @@ function HornetDisplayModeButton({ showApiariesButton, showNestsButton }: { show
       case 'full':
         return {
           variant: 'success' as const,
-          icon: '🔺',
+          icon: '🔴',
           text: 'Frelons et zônes',
           title: 'Frelons et zônes de retour visibles - Cliquer pour masquer les zônes de retour'
         };
@@ -118,7 +119,7 @@ function HornetDisplayModeButton({ showApiariesButton, showNestsButton }: { show
       default:
         return {
           variant: 'success' as const,
-          icon: '🔺',
+          icon: '🔴',
           text: 'Tout',
           title: 'Mode par défaut'
         };
@@ -127,30 +128,16 @@ function HornetDisplayModeButton({ showApiariesButton, showNestsButton }: { show
 
   const config = getModeConfig();
 
-  // Calculer la position en fonction des boutons visibles
-  let rightPosition = "130px"; // Position par défaut (à côté de "Ma position")
-  if (showApiariesButton && showNestsButton) {
-    rightPosition = "370px"; // Loin à gauche si les deux boutons sont visibles
-  } else if (showApiariesButton || showNestsButton) {
-    rightPosition = "250px"; // Position moyenne si un seul bouton est visible
-  }
-
   return (
     <Button
       onClick={handleCycle}
       variant={config.variant}
       size="sm"
-      className="position-absolute map-control-button"
-      style={{
-        top: "10px",
-        right: rightPosition,
-        zIndex: 1000,
-        minWidth: "90px", // Largeur fixe pour éviter le repositionnement
-      }}
+      className="map-control-button"
       title={config.title}
     >
-      <span className="me-1">{config.icon}</span>
-      {config.text}
+      <span className="map-control-button-icon me-1">{config.icon}</span>
+      <span className="map-control-button-text">{config.text}</span>
     </Button>
   );
 }
@@ -168,15 +155,11 @@ function ToggleApiariesButton() {
       onClick={handleToggle}
       variant={showApiaries ? "warning" : "outline-secondary"}
       size="sm"
-      className="position-absolute map-control-button"
-      style={{
-        top: "10px",
-        right: "130px", // Positionné entre les cônes et "Ma position"
-        zIndex: 1000,
-      }}
+      className="map-control-button"
       title={showApiaries ? "Masquer les ruchers" : "Afficher les ruchers"}
     >
-      {showApiaries ? "🐝 Ruchers" : "🐝 Ruchers"}
+      <span className="map-control-button-icon">🍯</span>
+      <span className="map-control-button-text">Ruchers</span>
     </Button>
   );
 }
@@ -194,15 +177,11 @@ function ToggleNestsButton() {
       onClick={handleToggle}
       variant={showNests ? "danger" : "outline-secondary"}
       size="sm"
-      className="position-absolute map-control-button"
-      style={{
-        top: "10px",
-        right: "250px", // Positionné à côté du bouton ruchers
-        zIndex: 1000,
-      }}
+      className="map-control-button"
       title={showNests ? "Masquer les nids" : "Afficher les nids"}
     >
-      {showNests ? "🪣 Nids" : "🪣 Nids"}
+      <span className="map-control-button-icon">🏴</span>
+      <span className="map-control-button-text">Nids</span>
     </Button>
   );
 }
@@ -210,10 +189,12 @@ function ToggleNestsButton() {
 export default function MapControls({ loading, error, onLocationUpdate, onErrorUpdate, showApiariesButton = false, showNestsButton = false }: MapControlsProps) {
   return (
     <>
-      <LocateButton onLocationUpdate={onLocationUpdate} onErrorUpdate={onErrorUpdate} />
-      <HornetDisplayModeButton showApiariesButton={showApiariesButton} showNestsButton={showNestsButton} />
-      {showApiariesButton && <ToggleApiariesButton />}
-      {showNestsButton && <ToggleNestsButton />}
+      <div className="map-controls-container">
+        <LocateButton onLocationUpdate={onLocationUpdate} onErrorUpdate={onErrorUpdate} />
+        <HornetDisplayModeButton />
+        {showApiariesButton && <ToggleApiariesButton />}
+        {showNestsButton && <ToggleNestsButton />}
+      </div>
       <LoadingIndicator loading={loading} />
       <ErrorAlert error={error} onClose={() => onErrorUpdate(null)} />
     </>

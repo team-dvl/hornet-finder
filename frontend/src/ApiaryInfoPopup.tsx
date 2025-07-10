@@ -33,7 +33,7 @@ export default function ApiaryInfoPopup({ show, onHide, apiary }: ApiaryInfoPopu
     <Modal show={show} onHide={onHide} size="lg" centered>
       <Modal.Header closeButton>
         <Modal.Title>
-          🐝 Informations du Rucher #{apiary.id}
+          � Informations du Rucher #{apiary.id}
         </Modal.Title>
       </Modal.Header>
       
