@@ -97,7 +97,7 @@ function HornetDisplayModeButton() {
           variant: 'success' as const,
           icon: '🔺',
           text: 'Frelons et zônes',
-          title: 'Frelons et zones de retour visibles - Cliquer pour masquer les zônes de retour'
+          title: 'Frelons et zônes de retour visibles - Cliquer pour masquer les zônes de retour'
         };
       case 'hornets-only':
         return {
@@ -111,7 +111,7 @@ function HornetDisplayModeButton() {
           variant: 'outline-secondary' as const,
           icon: '👁️',
           text: 'Masqué',
-          title: 'Frelons et zones de retour masqués - Cliquer pour tout afficher'
+          title: 'Frelons et zônes de retour masqués - Cliquer pour tout afficher'
         };
       default:
         return {
