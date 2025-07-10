@@ -8,6 +8,7 @@ interface MapControlsProps {
   error: string | null;
   onLocationUpdate: (coordinates: [number, number]) => void;
   onErrorUpdate: (error: string | null) => void;
+  showApiariesButton?: boolean; // Nouveau prop pour contrôler l'affichage du bouton ruchers
 }
 
 function LocateButton({ onLocationUpdate, onErrorUpdate }: {
@@ -81,7 +82,7 @@ function ErrorAlert({ error, onClose }: { error: string | null; onClose: () => v
   );
 }
 
-function HornetDisplayModeButton() {
+function HornetDisplayModeButton({ showApiariesButton }: { showApiariesButton: boolean }) {
   const dispatch = useAppDispatch();
   const displayMode = useAppSelector(selectDisplayMode);
 
@@ -133,7 +134,7 @@ function HornetDisplayModeButton() {
       className="position-absolute map-control-button"
       style={{
         top: "10px",
-        right: "250px", // Positionné à gauche du bouton de ruchers
+        right: showApiariesButton ? "250px" : "130px", // Adjust position based on whether apiary button is shown
         zIndex: 1000,
         minWidth: "90px", // Largeur fixe pour éviter le repositionnement
       }}
@@ -171,12 +172,12 @@ function ToggleApiariesButton() {
   );
 }
 
-export default function MapControls({ loading, error, onLocationUpdate, onErrorUpdate }: MapControlsProps) {
+export default function MapControls({ loading, error, onLocationUpdate, onErrorUpdate, showApiariesButton = false }: MapControlsProps) {
   return (
     <>
       <LocateButton onLocationUpdate={onLocationUpdate} onErrorUpdate={onErrorUpdate} />
-      <HornetDisplayModeButton />
-      <ToggleApiariesButton />
+      <HornetDisplayModeButton showApiariesButton={showApiariesButton} />
+      {showApiariesButton && <ToggleApiariesButton />}
       <LoadingIndicator loading={loading} />
       <ErrorAlert error={error} onClose={() => onErrorUpdate(null)} />
     </>

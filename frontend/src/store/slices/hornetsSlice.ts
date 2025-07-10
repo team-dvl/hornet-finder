@@ -57,6 +57,29 @@ export const fetchHornets = createAsyncThunk(
   }
 );
 
+// Thunk async pour récupérer les frelons (public, sans authentification)
+export const fetchHornetsPublic = createAsyncThunk(
+  'hornets/fetchHornetsPublic',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await fetch('/api/hornets', {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data as Hornet[];
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Une erreur est survenue');
+    }
+  }
+);
+
 // Thunk async pour mettre à jour la durée d'un frelon
 export const updateHornetDuration = createAsyncThunk(
   'hornets/updateHornetDuration',
@@ -229,6 +252,19 @@ const hornetsSlice = createSlice({
         state.hornets = action.payload;
       })
       .addCase(fetchHornets.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      // Cas de fetchHornetsPublic
+      .addCase(fetchHornetsPublic.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchHornetsPublic.fulfilled, (state, action) => {
+        state.loading = false;
+        state.hornets = action.payload;
+      })
+      .addCase(fetchHornetsPublic.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })

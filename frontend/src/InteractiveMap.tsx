@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { MapContainer, TileLayer, useMapEvents } from "react-leaflet";
 import { useAuth } from 'react-oidc-context';
-import { useAppDispatch, useAppSelector, fetchHornets, fetchApiaries, fetchMyApiaries, selectShowApiaries, selectShowHornets, selectShowReturnZones } from './store/store';
+import { useAppDispatch, useAppSelector, fetchHornets, fetchHornetsPublic, fetchApiaries, fetchMyApiaries, selectShowApiaries, selectShowHornets, selectShowReturnZones } from './store/store';
 import { useUserPermissions } from './hooks/useUserPermissions';
 import { Hornet } from './store/slices/hornetsSlice';
 import { Apiary } from './store/slices/apiariesSlice';
@@ -69,11 +69,17 @@ export default function InteractiveMap() {
   const showReturnZones = useAppSelector(selectShowReturnZones);
 
   useEffect(() => {
+    // Récupérer les frelons (toujours, même pour les utilisateurs non authentifiés)
     if (auth.isAuthenticated && auth.user?.access_token) {
-      // Utiliser le thunk pour récupérer les données des frelons
+      // Utilisateur authentifié : récupérer avec le token
       dispatch(fetchHornets(auth.user.access_token));
-      
-      // Récupérer les ruchers selon les permissions de l'utilisateur
+    } else {
+      // Utilisateur non authentifié : récupérer sans token
+      dispatch(fetchHornetsPublic());
+    }
+
+    // Récupérer les ruchers seulement pour les utilisateurs authentifiés
+    if (auth.isAuthenticated && auth.user?.access_token) {
       if (isAdmin) {
         // Les admins peuvent voir tous les ruchers
         dispatch(fetchApiaries(auth.user.access_token));
@@ -166,6 +172,7 @@ export default function InteractiveMap() {
           error={error}
           onLocationUpdate={setCoordinates}
           onErrorUpdate={() => {}} // Les erreurs sont maintenant gérées par Redux
+          showApiariesButton={auth.isAuthenticated && (isAdmin || canAddApiary)}
         />
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -178,7 +185,7 @@ export default function InteractiveMap() {
             showReturnZone={showReturnZones}
           />
         ))}
-        {showApiaries && apiaries.map((apiary, index) => (
+        {showApiaries && auth.isAuthenticated && (isAdmin || canAddApiary) && apiaries.map((apiary, index) => (
           <ApiaryMarker
             key={apiary.id || index}
             apiary={apiary}

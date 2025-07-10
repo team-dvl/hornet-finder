@@ -32,17 +32,17 @@ class HornetViewSet(viewsets.ModelViewSet):
         # list, create, retrieve, update, partial_update, destroy are the names of the actions that are automatically created by the ModelViewSet
         # Each action corresponds to a method in the viewset, e.g. list corresponds to the GET /hornets/ endpoint.
         # if hasattr(self, 'action') and self.action in ['list', 'retrieve', 'update', 'partial_update', 'destroy']:
-        if hasattr(self, 'action') and self.action in ['list']: # TODO: This is for dev but real permissions are in the line above
+        # Allow public access to list action (viewing hornets)
+        if hasattr(self, 'action') and self.action in ['retrieve', 'update', 'partial_update', 'destroy']:
             return [JWTBearerAuthentication()]
         return super().get_authenticators()
 
     def get_permissions(self): # This method is used here because we can not use the @permission_classes decorator on the herited actions
+        # Allow public access to list action (viewing hornets)
         if hasattr(self, 'action') and self.action == 'list':
-            # return [HasAnyRole(['beekeeper', 'admin'])]
-            return [HasAnyRole(['volunteer'])] # TODO: This is for dev but real permissions are in the line above
-
-        # elif hasattr(self, 'action') and self.action in ['retrieve', 'update', 'partial_update', 'destroy']:
-        #     return [HasAnyRole(['admin'])]
+            return []  # No permission required for public access
+        elif hasattr(self, 'action') and self.action in ['retrieve', 'update', 'partial_update', 'destroy']:
+            return [HasAnyRole(['admin'])]
         return super().get_permissions()
     
     def perform_create(self, serializer): # This method is called when a new Hornet is created
