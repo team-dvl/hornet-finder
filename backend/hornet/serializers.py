@@ -57,16 +57,17 @@ class HornetSerializer(GPSValidationMixin, serializers.ModelSerializer):
 class NestSerializer(GPSValidationMixin, serializers.ModelSerializer):
     class Meta:
         model = Nest
-        fields = ['id', 'longitude', 'latitude', 'public_place', 'address', 'destroyed', 'destroyed_at', 'created_at', 'comments']
+        fields = ['id', 'longitude', 'latitude', 'public_place', 'address', 'destroyed', 'destroyed_at', 'created_at', 'created_by', 'comments']
         read_only_fields = ['id', 'created_at']
     
     def validate_address(self, value: str) -> str:
-        # Format: Street, number, Postal Code, City
-        if not value:
-            raise serializers.ValidationError("Address cannot be empty.")
-        parts = value.split(',')
-        if len(parts) != 4:
-            raise serializers.ValidationError("Address must contain street, number, postal code, and city.")
+        # Allow empty address
+        if not value or value.strip() == '':
+            return value
+        
+        if len(value) > 255:
+            raise serializers.ValidationError("Address must be 255 characters or less.")
+        
         return value
 
 class ApiarySerializer(GPSValidationMixin, serializers.ModelSerializer):

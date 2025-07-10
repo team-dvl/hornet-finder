@@ -11,6 +11,7 @@ import ApiaryMarker from './ApiaryMarker';
 import NestMarker from './NestMarker';
 import MapControls from './MapControls';
 import HornetInfoPopup from './HornetInfoPopup';
+import HornetReturnZoneInfoPopup from './HornetReturnZoneInfoPopup';
 import ApiaryInfoPopup from './ApiaryInfoPopup';
 import NestInfoPopup from './NestInfoPopup';
 import AddItemSelector from './AddItemSelector';
@@ -51,9 +52,12 @@ export default function InteractiveMap() {
   const [selectedHornet, setSelectedHornet] = useState<Hornet | null>(null);
   const [selectedApiary, setSelectedApiary] = useState<Apiary | null>(null);
   const [selectedNest, setSelectedNest] = useState<Nest | null>(null);
+  const [selectedReturnZoneHornet, setSelectedReturnZoneHornet] = useState<Hornet | null>(null);
+  const [returnZoneClickPosition, setReturnZoneClickPosition] = useState<{lat: number, lng: number} | null>(null);
   const [showHornetModal, setShowHornetModal] = useState(false);
   const [showApiaryModal, setShowApiaryModal] = useState(false);
   const [showNestModal, setShowNestModal] = useState(false);
+  const [showReturnZoneModal, setShowReturnZoneModal] = useState(false);
   
   // États pour la sélection d'éléments à ajouter
   const [showItemSelector, setShowItemSelector] = useState(false);
@@ -120,6 +124,17 @@ export default function InteractiveMap() {
     setShowNestModal(true);
   };
 
+  // Gestionnaire de clic sur une zone de retour
+  const handleReturnZoneClick = (hornet: Hornet, lat?: number, lng?: number) => {
+    setSelectedReturnZoneHornet(hornet);
+    if (lat !== undefined && lng !== undefined) {
+      setReturnZoneClickPosition({ lat, lng });
+    } else {
+      setReturnZoneClickPosition(null);
+    }
+    setShowReturnZoneModal(true);
+  };
+
   const handleCloseModal = () => {
     setShowHornetModal(false);
     setSelectedHornet(null);
@@ -135,6 +150,12 @@ export default function InteractiveMap() {
     setSelectedNest(null);
   };
 
+  const handleCloseReturnZoneModal = () => {
+    setShowReturnZoneModal(false);
+    setSelectedReturnZoneHornet(null);
+    setReturnZoneClickPosition(null);
+  };
+
   // Gestionnaire de clic sur la carte pour afficher le sélecteur d'éléments
   const handleMapClick = (lat: number, lng: number) => {
     // Vérifier si l'utilisateur peut ajouter quelque chose (y compris les nids pour les utilisateurs authentifiés)
@@ -145,6 +166,13 @@ export default function InteractiveMap() {
       setClickPosition({ lat, lng });
       setShowItemSelector(true);
     }
+  };
+
+  // Gestionnaire pour ajouter un élément à la position du frelon
+  const handleAddAtLocation = (lat: number, lng: number) => {
+    setClickPosition({ lat, lng });
+    setShowItemSelector(true);
+    setShowHornetModal(false); // Fermer la popup du frelon
   };
 
   // Gestionnaires pour la fermeture des modales
@@ -205,6 +233,7 @@ export default function InteractiveMap() {
             key={hornet.id || index}
             hornet={hornet}
             onClick={handleHornetClick}
+            onShowInfo={handleReturnZoneClick}
             showReturnZone={showReturnZones}
           />
         ))}
@@ -229,6 +258,7 @@ export default function InteractiveMap() {
         show={showHornetModal}
         onHide={handleCloseModal}
         hornet={selectedHornet}
+        onAddAtLocation={handleAddAtLocation}
       />
       
       <ApiaryInfoPopup
@@ -241,6 +271,14 @@ export default function InteractiveMap() {
         show={showNestModal}
         onHide={handleCloseNestModal}
         nest={selectedNest}
+      />
+      
+      <HornetReturnZoneInfoPopup
+        show={showReturnZoneModal}
+        onHide={handleCloseReturnZoneModal}
+        hornet={selectedReturnZoneHornet}
+        clickPosition={returnZoneClickPosition}
+        onAddAtLocation={handleAddAtLocation}
       />
       
       {showItemSelector && clickPosition && (

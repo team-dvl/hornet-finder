@@ -3,12 +3,14 @@ import { useState, useMemo } from 'react';
 import { Hornet, updateHornetDuration, updateHornetColors } from './store/store';
 import { useAppDispatch, useAppSelector } from './store/hooks';
 import { useUserPermissions } from './hooks/useUserPermissions';
+import { useAuth } from 'react-oidc-context';
 import { COLOR_OPTIONS, getColorLabel, getColorHex } from './utils/colors';
 
 interface HornetInfoPopupProps {
   show: boolean;
   onHide: () => void;
   hornet: Hornet | null;
+  onAddAtLocation?: (lat: number, lng: number) => void; // Nouvelle prop pour déclencher l'ajout
 }
 
 // Composant pour un dropdown de couleur personnalisé
@@ -70,9 +72,10 @@ function ColorDropdown({ value, onChange, disabled, label }: ColorDropdownProps)
   );
 }
 
-export default function HornetInfoPopup({ show, onHide, hornet }: HornetInfoPopupProps) {
+export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation }: HornetInfoPopupProps) {
   const dispatch = useAppDispatch();
-  const { canEditHornet, accessToken } = useUserPermissions();
+  const { canEditHornet, canAddHornet, canAddApiary, accessToken } = useUserPermissions();
+  const auth = useAuth();
   
   // Récupérer les données mises à jour depuis le store Redux
   const hornets = useAppSelector(state => state.hornets.hornets);
@@ -506,6 +509,15 @@ export default function HornetInfoPopup({ show, onHide, hornet }: HornetInfoPopu
       </Modal.Body>
       
       <Modal.Footer>
+        {auth.isAuthenticated && (canAddHornet || canAddApiary) && onAddAtLocation && hornet && (
+          <Button 
+            variant="outline-primary" 
+            onClick={() => onAddAtLocation(hornet.latitude, hornet.longitude)}
+            className="me-auto"
+          >
+            📍 Ajouter à cette position
+          </Button>
+        )}
         <Button variant="secondary" onClick={onHide}>
           Fermer
         </Button>

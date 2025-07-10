@@ -1,5 +1,6 @@
 import { Polygon, Marker } from "react-leaflet";
 import { DivIcon } from "leaflet";
+import * as L from "leaflet";
 import { Hornet } from './store/store';
 
 interface HornetReturnZoneProps {
@@ -8,6 +9,7 @@ interface HornetReturnZoneProps {
   angleDeg?: number;
   onClick?: (hornet: Hornet) => void;
   showReturnZone?: boolean; // Prop pour contrôler l'affichage de la zone de retour
+  onShowInfo?: (hornet: Hornet, lat?: number, lng?: number) => void; // Prop pour afficher les informations détaillées avec position cliquée
 }
 
 // Calculer la distance estimée du nid basée sur la durée
@@ -103,7 +105,8 @@ export default function HornetReturnZone({
   lengthKm, 
   angleDeg = 5,
   onClick,
-  showReturnZone = true // Par défaut, afficher la zone de retour
+  showReturnZone = true, // Par défaut, afficher la zone de retour
+  onShowInfo
 }: HornetReturnZoneProps) {
   // Calculer la longueur du cône basée sur la durée si elle n'est pas fournie explicitement
   const calculatedLength = lengthKm ?? calculateNestDistance(hornet.duration);
@@ -125,6 +128,16 @@ export default function HornetReturnZone({
     }
   };
 
+  const handleReturnZoneClick = (event: L.LeafletMouseEvent) => {
+    if (onShowInfo) {
+      // Capturer la position exacte du clic
+      const clickPosition = event.latlng;
+      onShowInfo(hornet, clickPosition.lat, clickPosition.lng);
+    } else if (onClick) {
+      onClick(hornet);
+    }
+  };
+
   return (
     <>
       {showReturnZone && (
@@ -138,7 +151,7 @@ export default function HornetReturnZone({
             dashArray: isBasedOnDuration ? undefined : "5, 5", // Ligne pointillée pour les estimations par défaut
           }}
           eventHandlers={{
-            click: handleClick,
+            click: handleReturnZoneClick,
           }}
         />
       )}
