@@ -40,7 +40,7 @@ function LocateButton({ onLocationUpdate, onErrorUpdate }: {
       onClick={handleLocate}
       variant="primary"
       size="sm"
-      className="position-absolute"
+      className="position-absolute map-control-button"
       style={{
         top: "10px",
         right: "10px",
@@ -56,7 +56,7 @@ function LoadingIndicator({ loading }: { loading: boolean }) {
   if (!loading) return null;
   
   return (
-    <div className="position-absolute top-50 start-50 translate-middle" style={{ zIndex: 1001 }}>
+    <div className="position-absolute top-50 start-50 translate-middle map-control-button" style={{ zIndex: 1001 }}>
       <div className="d-flex align-items-center bg-white p-3 rounded shadow">
         <Spinner animation="border" size="sm" className="me-2" />
         <span>Chargement des données...</span>
@@ -71,7 +71,7 @@ function ErrorAlert({ error, onClose }: { error: string | null; onClose: () => v
   return (
     <Alert 
       variant="danger" 
-      className="position-absolute top-0 start-0 m-3"
+      className="position-absolute top-0 start-0 m-3 map-control-button"
       style={{ zIndex: 1001, maxWidth: "300px" }}
       dismissible
       onClose={onClose}
@@ -94,7 +94,7 @@ function ToggleReturnZonesButton() {
       onClick={handleToggle}
       variant={showReturnZones ? "success" : "outline-secondary"}
       size="sm"
-      className="position-absolute"
+      className="position-absolute map-control-button"
       style={{
         top: "10px",
         right: "130px", // Positionné à gauche du bouton "Ma position"

@@ -25,6 +25,7 @@ export const useUserPermissions = () => {
       roles: [],
       isAdmin: false,
       canEditHornet: () => false,
+      canAddHornet: () => false,
     };
   }
 
@@ -60,12 +61,19 @@ export const useUserPermissions = () => {
     return hornet.created_by === userEmail;
   };
 
+  // Fonction pour vérifier si l'utilisateur peut ajouter des frelons
+  const canAddHornet = () => {
+    // Seuls les utilisateurs avec les rôles volunteer, beekeeper ou admin peuvent ajouter des frelons
+    return roles.includes('volunteer') || roles.includes('beekeeper') || roles.includes('admin');
+  };
+
   return {
     isAuthenticated: true,
     userEmail,
     roles,
     isAdmin,
     canEditHornet,
+    canAddHornet,
     accessToken,
   };
 };

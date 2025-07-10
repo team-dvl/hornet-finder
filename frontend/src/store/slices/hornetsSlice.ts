@@ -114,6 +114,73 @@ export const updateHornetColors = createAsyncThunk(
   }
 );
 
+// Thunk async pour créer un nouveau frelon
+export const createHornet = createAsyncThunk(
+  'hornets/createHornet',
+  async ({ 
+    latitude, 
+    longitude, 
+    direction, 
+    duration, 
+    mark_color_1, 
+    mark_color_2, 
+    accessToken 
+  }: { 
+    latitude: number; 
+    longitude: number; 
+    direction: number; 
+    duration?: number; 
+    mark_color_1?: string; 
+    mark_color_2?: string; 
+    accessToken: string 
+  }, { rejectWithValue }) => {
+    try {
+      const requestBody: {
+        latitude: number;
+        longitude: number;
+        direction: number;
+        duration?: number;
+        mark_color_1?: string;
+        mark_color_2?: string;
+      } = {
+        latitude,
+        longitude,
+        direction,
+      };
+
+      // Ajouter les champs optionnels seulement s'ils sont définis
+      if (duration !== undefined) {
+        requestBody.duration = duration;
+      }
+      if (mark_color_1) {
+        requestBody.mark_color_1 = mark_color_1;
+      }
+      if (mark_color_2) {
+        requestBody.mark_color_2 = mark_color_2;
+      }
+
+      const response = await fetch('/api/hornets/', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      }
+
+      const newHornet = await response.json();
+      return newHornet as Hornet;
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Erreur lors de la création du frelon');
+    }
+  }
+);
+
 // Slice pour les frelons
 const hornetsSlice = createSlice({
   name: 'hornets',
@@ -181,6 +248,19 @@ const hornetsSlice = createSlice({
         }
       })
       .addCase(updateHornetColors.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      // Cas de createHornet
+      .addCase(createHornet.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createHornet.fulfilled, (state, action) => {
+        state.loading = false;
+        state.hornets.push(action.payload);
+      })
+      .addCase(createHornet.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });
