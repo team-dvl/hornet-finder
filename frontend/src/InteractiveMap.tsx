@@ -1,13 +1,18 @@
 import { useState, useEffect } from "react";
 import { MapContainer, TileLayer, useMapEvents } from "react-leaflet";
 import { useAuth } from 'react-oidc-context';
-import { useAppDispatch, useAppSelector, fetchHornets } from './store/store';
+import { useAppDispatch, useAppSelector, fetchHornets, fetchApiaries, fetchMyApiaries, selectShowApiaries } from './store/store';
 import { useUserPermissions } from './hooks/useUserPermissions';
 import { Hornet } from './store/slices/hornetsSlice';
+import { Apiary } from './store/slices/apiariesSlice';
 import HornetReturnZone from './HornetReturnZone';
+import ApiaryMarker from './ApiaryMarker';
 import MapControls from './MapControls';
 import HornetInfoPopup from './HornetInfoPopup';
+import ApiaryInfoPopup from './ApiaryInfoPopup';
+import AddItemSelector from './AddItemSelector';
 import AddHornetPopup from './AddHornetPopup';
+import AddApiaryPopup from './AddApiaryPopup';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import "leaflet/dist/leaflet.css";
 import "leaflet/dist/leaflet.js";
@@ -40,25 +45,42 @@ function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number
 export default function InteractiveMap() {
   const [coordinates, setCoordinates] = useState<[number, number]>([50.491064, 4.884473]);
   const [selectedHornet, setSelectedHornet] = useState<Hornet | null>(null);
+  const [selectedApiary, setSelectedApiary] = useState<Apiary | null>(null);
   const [showHornetModal, setShowHornetModal] = useState(false);
+  const [showApiaryModal, setShowApiaryModal] = useState(false);
   
-  // États pour l'ajout de frelon
-  const [showAddHornetModal, setShowAddHornetModal] = useState(false);
+  // États pour la sélection d'éléments à ajouter
+  const [showItemSelector, setShowItemSelector] = useState(false);
   const [clickPosition, setClickPosition] = useState<{ lat: number; lng: number } | null>(null);
+  
+  // États pour l'ajout spécifique de chaque type
+  const [showAddHornetModal, setShowAddHornetModal] = useState(false);
+  const [showAddApiaryModal, setShowAddApiaryModal] = useState(false);
   
   const auth = useAuth();
   const dispatch = useAppDispatch();
-  const { canAddHornet } = useUserPermissions();
+  const { canAddHornet, canAddApiary, isAdmin } = useUserPermissions();
   
   // Sélectionner les données depuis le store Redux
   const { hornets, loading, error } = useAppSelector((state) => state.hornets);
+  const { apiaries } = useAppSelector((state) => state.apiaries);
+  const showApiaries = useAppSelector(selectShowApiaries);
 
   useEffect(() => {
     if (auth.isAuthenticated && auth.user?.access_token) {
-      // Utiliser le thunk pour récupérer les données
+      // Utiliser le thunk pour récupérer les données des frelons
       dispatch(fetchHornets(auth.user.access_token));
+      
+      // Récupérer les ruchers selon les permissions de l'utilisateur
+      if (isAdmin) {
+        // Les admins peuvent voir tous les ruchers
+        dispatch(fetchApiaries(auth.user.access_token));
+      } else if (canAddApiary) {
+        // Les apiculteurs peuvent voir leurs propres ruchers
+        dispatch(fetchMyApiaries(auth.user.access_token));
+      }
     }
-  }, [auth.isAuthenticated, auth.user?.access_token, dispatch]);
+  }, [auth.isAuthenticated, auth.user?.access_token, dispatch, isAdmin, canAddApiary]);
 
   // Gestionnaire de clic sur une zone de frelon
   const handleHornetClick = (hornet: Hornet) => {
@@ -66,28 +88,67 @@ export default function InteractiveMap() {
     setShowHornetModal(true);
   };
 
+  // Gestionnaire de clic sur un rucher
+  const handleApiaryClick = (apiary: Apiary) => {
+    setSelectedApiary(apiary);
+    setShowApiaryModal(true);
+  };
+
   const handleCloseModal = () => {
     setShowHornetModal(false);
     setSelectedHornet(null);
   };
 
-  // Gestionnaire de clic sur la carte pour ajouter un frelon
+  const handleCloseApiaryModal = () => {
+    setShowApiaryModal(false);
+    setSelectedApiary(null);
+  };
+
+  // Gestionnaire de clic sur la carte pour afficher le sélecteur d'éléments
   const handleMapClick = (lat: number, lng: number) => {
-    // Seuls les utilisateurs autorisés peuvent ajouter des frelons
-    if (canAddHornet()) {
+    // Vérifier si l'utilisateur peut ajouter quelque chose
+    const canAddSomething = canAddHornet || canAddApiary;
+    
+    if (canAddSomething) {
       setClickPosition({ lat, lng });
-      setShowAddHornetModal(true);
+      setShowItemSelector(true);
     }
   };
 
-  const handleCloseAddModal = () => {
-    setShowAddHornetModal(false);
+  // Gestionnaires pour la fermeture des modales
+  const handleCloseItemSelector = () => {
+    setShowItemSelector(false);
     setClickPosition(null);
+  };
+
+  const handleCloseAddModals = () => {
+    setShowAddHornetModal(false);
+    setShowAddApiaryModal(false);
+    setClickPosition(null);
+  };
+
+  // Gestionnaires de sélection d'éléments
+  const handleSelectHornet = () => {
+    setShowItemSelector(false);
+    setShowAddHornetModal(true);
+  };
+
+  const handleSelectApiary = () => {
+    setShowItemSelector(false);
+    setShowAddApiaryModal(true);
+  };
+
+  const handleSelectNest = () => {
+    // Pour l'instant, juste fermer le sélecteur
+    setShowItemSelector(false);
+    setClickPosition(null);
+    // TODO: Implémenter l'ajout de nid plus tard
+    console.log('Ajout de nid - fonctionnalité à implémenter');
   };
 
   const handleAddSuccess = () => {
     // Optionnel : afficher un message de succès ou recharger les données
-    console.log('Frelon ajouté avec succès !');
+    console.log('Élément ajouté avec succès !');
   };
 
   return (
@@ -114,6 +175,13 @@ export default function InteractiveMap() {
             onClick={handleHornetClick}
           />
         ))}
+        {showApiaries && apiaries.map((apiary, index) => (
+          <ApiaryMarker
+            key={apiary.id || index}
+            apiary={apiary}
+            onClick={handleApiaryClick}
+          />
+        ))}
         <MapClickHandler onMapClick={handleMapClick} />
       </MapContainer>
       
@@ -122,10 +190,39 @@ export default function InteractiveMap() {
         onHide={handleCloseModal}
         hornet={selectedHornet}
       />
+      
+      <ApiaryInfoPopup
+        show={showApiaryModal}
+        onHide={handleCloseApiaryModal}
+        apiary={selectedApiary}
+      />
+      
+      {showItemSelector && clickPosition && (
+        <AddItemSelector
+          show={showItemSelector}
+          onHide={handleCloseItemSelector}
+          latitude={clickPosition.lat}
+          longitude={clickPosition.lng}
+          onSelectHornet={handleSelectHornet}
+          onSelectApiary={handleSelectApiary}
+          onSelectNest={handleSelectNest}
+        />
+      )}
+      
       {showAddHornetModal && clickPosition && (
         <AddHornetPopup
           show={showAddHornetModal}
-          onHide={handleCloseAddModal}
+          onHide={handleCloseAddModals}
+          latitude={clickPosition.lat}
+          longitude={clickPosition.lng}
+          onSuccess={handleAddSuccess}
+        />
+      )}
+
+      {showAddApiaryModal && clickPosition && (
+        <AddApiaryPopup
+          show={showAddApiaryModal}
+          onHide={handleCloseAddModals}
           latitude={clickPosition.lat}
           longitude={clickPosition.lng}
           onSuccess={handleAddSuccess}

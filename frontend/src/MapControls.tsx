@@ -1,7 +1,7 @@
 import { Button, Alert, Spinner } from "react-bootstrap";
 import { useMap } from "react-leaflet";
 import { useAppDispatch, useAppSelector } from './store/hooks';
-import { toggleReturnZones, selectShowReturnZones } from './store/store';
+import { toggleReturnZones, selectShowReturnZones, toggleApiaries, selectShowApiaries } from './store/store';
 
 interface MapControlsProps {
   loading: boolean;
@@ -97,7 +97,7 @@ function ToggleReturnZonesButton() {
       className="position-absolute map-control-button"
       style={{
         top: "10px",
-        right: "130px", // Positionné à gauche du bouton "Ma position"
+        right: "250px", // Positionné à gauche du bouton de ruchers
         zIndex: 1000,
       }}
       title={showReturnZones ? "Masquer les cônes de retour" : "Afficher les cônes de retour"}
@@ -107,11 +107,38 @@ function ToggleReturnZonesButton() {
   );
 }
 
+function ToggleApiariesButton() {
+  const dispatch = useAppDispatch();
+  const showApiaries = useAppSelector(selectShowApiaries);
+
+  const handleToggle = () => {
+    dispatch(toggleApiaries());
+  };
+
+  return (
+    <Button
+      onClick={handleToggle}
+      variant={showApiaries ? "warning" : "outline-secondary"}
+      size="sm"
+      className="position-absolute map-control-button"
+      style={{
+        top: "10px",
+        right: "130px", // Positionné entre les cônes et "Ma position"
+        zIndex: 1000,
+      }}
+      title={showApiaries ? "Masquer les ruchers" : "Afficher les ruchers"}
+    >
+      {showApiaries ? "🐝 Ruchers" : "🐝 Ruchers"}
+    </Button>
+  );
+}
+
 export default function MapControls({ loading, error, onLocationUpdate, onErrorUpdate }: MapControlsProps) {
   return (
     <>
       <LocateButton onLocationUpdate={onLocationUpdate} onErrorUpdate={onErrorUpdate} />
       <ToggleReturnZonesButton />
+      <ToggleApiariesButton />
       <LoadingIndicator loading={loading} />
       <ErrorAlert error={error} onClose={() => onErrorUpdate(null)} />
     </>

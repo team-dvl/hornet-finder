@@ -1,10 +1,11 @@
 import { configureStore } from '@reduxjs/toolkit';
 import hornetsReducer from './slices/hornetsSlice.js';
+import apiariesReducer from './slices/apiariesSlice.js';
 
 export const store = configureStore({
   reducer: {
     hornets: hornetsReducer,
-    // Ici on peut ajouter d'autres slices plus tard
+    apiaries: apiariesReducer,
   },
 });
 
