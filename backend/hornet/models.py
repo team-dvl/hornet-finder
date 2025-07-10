@@ -42,10 +42,11 @@ class Nest(models.Model):
     longitude = models.FloatField()
     latitude = models.FloatField()
     public_place = models.BooleanField(default=False)
-    address = models.CharField(max_length=255)
+    address = models.CharField(max_length=255, blank=True, default='')  # Allow empty address
     destroyed = models.BooleanField(default=False)
     destroyed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.CharField(max_length=255, null=True, blank=True)  # Add created_by field
     comments = models.TextField(null=True, blank=True)
 
 class Apiary(models.Model):

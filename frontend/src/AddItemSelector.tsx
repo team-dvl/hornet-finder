@@ -90,18 +90,17 @@ export default function AddItemSelector({
             <Col md={12}>
               <Card className="h-100 border-2 border-danger">
                 <Card.Body className="text-center">
-                  <div className="mb-3" style={{ fontSize: '3rem' }}>🏴</div>
+                  <div className="mb-3" style={{ fontSize: '3rem' }}>🪣</div>
                   <Card.Title>Nid de frelons</Card.Title>
                   <Card.Text className="text-muted">
-                    Localiser un nid de frelons asiatiques découvert
+                    Signaler un nid de frelons asiatiques découvert
                   </Card.Text>
                   <Button 
                     variant="danger" 
                     onClick={onSelectNest}
                     className="w-100"
-                    disabled
                   >
-                    Ajouter un nid <small>(bientôt disponible)</small>
+                    Signaler un nid
                   </Button>
                 </Card.Body>
               </Card>

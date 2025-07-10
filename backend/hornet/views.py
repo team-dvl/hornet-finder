@@ -57,12 +57,19 @@ class NestViewSet(viewsets.ModelViewSet):
     queryset = Nest.objects.all()
     serializer_class = NestSerializer
 
-    # Only admins can interact with nests
-    # def get_authenticators(self):
-    #     return [JWTBearerAuthentication()]
+    # Volunteers, beekeepers and admins can create and list nests, but only admins can retrieve, update, partial_update and destroy them
+    def get_authenticators(self):
+        # Require authentication for all nest operations
+        return [JWTBearerAuthentication()]
     
-    # def get_permissions(self):
-    #     return [HasAnyRole(['admin'])]
+    def get_permissions(self):
+        if hasattr(self, 'action') and self.action in ['list', 'create']:
+            return [HasAnyRole(['volunteer', 'beekeeper', 'admin'])]
+        return [HasAnyRole(['admin'])]
+    
+    def perform_create(self, serializer):
+        # Save the username of the user who created the nest
+        serializer.save(created_by=self.request.user.username)
 
 class ApiaryViewSet(viewsets.ModelViewSet):
     queryset = Apiary.objects.all()

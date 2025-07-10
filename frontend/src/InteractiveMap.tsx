@@ -1,18 +1,22 @@
 import { useState, useEffect } from "react";
 import { MapContainer, TileLayer, useMapEvents } from "react-leaflet";
 import { useAuth } from 'react-oidc-context';
-import { useAppDispatch, useAppSelector, fetchHornets, fetchHornetsPublic, fetchApiaries, fetchMyApiaries, selectShowApiaries, selectShowHornets, selectShowReturnZones } from './store/store';
+import { useAppDispatch, useAppSelector, fetchHornets, fetchHornetsPublic, fetchApiaries, fetchMyApiaries, selectShowApiaries, selectShowHornets, selectShowReturnZones, fetchNests, selectShowNests } from './store/store';
 import { useUserPermissions } from './hooks/useUserPermissions';
 import { Hornet } from './store/slices/hornetsSlice';
 import { Apiary } from './store/slices/apiariesSlice';
+import { Nest } from './store/slices/nestsSlice';
 import HornetReturnZone from './HornetReturnZone';
 import ApiaryMarker from './ApiaryMarker';
+import NestMarker from './NestMarker';
 import MapControls from './MapControls';
 import HornetInfoPopup from './HornetInfoPopup';
 import ApiaryInfoPopup from './ApiaryInfoPopup';
+import NestInfoPopup from './NestInfoPopup';
 import AddItemSelector from './AddItemSelector';
 import AddHornetPopup from './AddHornetPopup';
 import AddApiaryPopup from './AddApiaryPopup';
+import AddNestPopup from './AddNestPopup';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import "leaflet/dist/leaflet.css";
 import "leaflet/dist/leaflet.js";
@@ -46,8 +50,10 @@ export default function InteractiveMap() {
   const [coordinates, setCoordinates] = useState<[number, number]>([50.491064, 4.884473]);
   const [selectedHornet, setSelectedHornet] = useState<Hornet | null>(null);
   const [selectedApiary, setSelectedApiary] = useState<Apiary | null>(null);
+  const [selectedNest, setSelectedNest] = useState<Nest | null>(null);
   const [showHornetModal, setShowHornetModal] = useState(false);
   const [showApiaryModal, setShowApiaryModal] = useState(false);
+  const [showNestModal, setShowNestModal] = useState(false);
   
   // États pour la sélection d'éléments à ajouter
   const [showItemSelector, setShowItemSelector] = useState(false);
@@ -56,6 +62,7 @@ export default function InteractiveMap() {
   // États pour l'ajout spécifique de chaque type
   const [showAddHornetModal, setShowAddHornetModal] = useState(false);
   const [showAddApiaryModal, setShowAddApiaryModal] = useState(false);
+  const [showAddNestModal, setShowAddNestModal] = useState(false);
   
   const auth = useAuth();
   const dispatch = useAppDispatch();
@@ -64,9 +71,11 @@ export default function InteractiveMap() {
   // Sélectionner les données depuis le store Redux
   const { hornets, loading, error } = useAppSelector((state) => state.hornets);
   const { apiaries } = useAppSelector((state) => state.apiaries);
+  const { nests } = useAppSelector((state) => state.nests);
   const showApiaries = useAppSelector(selectShowApiaries);
   const showHornets = useAppSelector(selectShowHornets);
   const showReturnZones = useAppSelector(selectShowReturnZones);
+  const showNests = useAppSelector(selectShowNests);
 
   useEffect(() => {
     // Récupérer les frelons (toujours, même pour les utilisateurs non authentifiés)
@@ -78,8 +87,11 @@ export default function InteractiveMap() {
       dispatch(fetchHornetsPublic());
     }
 
-    // Récupérer les ruchers seulement pour les utilisateurs authentifiés
+    // Récupérer les ruchers et nids seulement pour les utilisateurs authentifiés
     if (auth.isAuthenticated && auth.user?.access_token) {
+      // Récupérer les nids (disponibles pour tous les utilisateurs authentifiés)
+      dispatch(fetchNests(auth.user.access_token));
+      
       if (isAdmin) {
         // Les admins peuvent voir tous les ruchers
         dispatch(fetchApiaries(auth.user.access_token));
@@ -102,6 +114,12 @@ export default function InteractiveMap() {
     setShowApiaryModal(true);
   };
 
+  // Gestionnaire de clic sur un nid
+  const handleNestClick = (nest: Nest) => {
+    setSelectedNest(nest);
+    setShowNestModal(true);
+  };
+
   const handleCloseModal = () => {
     setShowHornetModal(false);
     setSelectedHornet(null);
@@ -112,10 +130,16 @@ export default function InteractiveMap() {
     setSelectedApiary(null);
   };
 
+  const handleCloseNestModal = () => {
+    setShowNestModal(false);
+    setSelectedNest(null);
+  };
+
   // Gestionnaire de clic sur la carte pour afficher le sélecteur d'éléments
   const handleMapClick = (lat: number, lng: number) => {
-    // Vérifier si l'utilisateur peut ajouter quelque chose
-    const canAddSomething = canAddHornet || canAddApiary;
+    // Vérifier si l'utilisateur peut ajouter quelque chose (y compris les nids pour les utilisateurs authentifiés)
+    const canAddNest = auth.isAuthenticated; // Tous les utilisateurs authentifiés peuvent ajouter des nids
+    const canAddSomething = canAddHornet || canAddApiary || canAddNest;
     
     if (canAddSomething) {
       setClickPosition({ lat, lng });
@@ -132,6 +156,7 @@ export default function InteractiveMap() {
   const handleCloseAddModals = () => {
     setShowAddHornetModal(false);
     setShowAddApiaryModal(false);
+    setShowAddNestModal(false);
     setClickPosition(null);
   };
 
@@ -147,11 +172,8 @@ export default function InteractiveMap() {
   };
 
   const handleSelectNest = () => {
-    // Pour l'instant, juste fermer le sélecteur
     setShowItemSelector(false);
-    setClickPosition(null);
-    // TODO: Implémenter l'ajout de nid plus tard
-    console.log('Ajout de nid - fonctionnalité à implémenter');
+    setShowAddNestModal(true);
   };
 
   const handleAddSuccess = () => {
@@ -173,6 +195,7 @@ export default function InteractiveMap() {
           onLocationUpdate={setCoordinates}
           onErrorUpdate={() => {}} // Les erreurs sont maintenant gérées par Redux
           showApiariesButton={auth.isAuthenticated && (isAdmin || canAddApiary)}
+          showNestsButton={auth.isAuthenticated} // Tous les utilisateurs authentifiés peuvent voir les nids
         />
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -192,6 +215,13 @@ export default function InteractiveMap() {
             onClick={handleApiaryClick}
           />
         ))}
+        {showNests && auth.isAuthenticated && nests.map((nest, index) => (
+          <NestMarker
+            key={nest.id || index}
+            nest={nest}
+            onClick={handleNestClick}
+          />
+        ))}
         <MapClickHandler onMapClick={handleMapClick} />
       </MapContainer>
       
@@ -205,6 +235,12 @@ export default function InteractiveMap() {
         show={showApiaryModal}
         onHide={handleCloseApiaryModal}
         apiary={selectedApiary}
+      />
+      
+      <NestInfoPopup
+        show={showNestModal}
+        onHide={handleCloseNestModal}
+        nest={selectedNest}
       />
       
       {showItemSelector && clickPosition && (
@@ -232,6 +268,16 @@ export default function InteractiveMap() {
       {showAddApiaryModal && clickPosition && (
         <AddApiaryPopup
           show={showAddApiaryModal}
+          onHide={handleCloseAddModals}
+          latitude={clickPosition.lat}
+          longitude={clickPosition.lng}
+          onSuccess={handleAddSuccess}
+        />
+      )}
+
+      {showAddNestModal && clickPosition && (
+        <AddNestPopup
+          show={showAddNestModal}
           onHide={handleCloseAddModals}
           latitude={clickPosition.lat}
           longitude={clickPosition.lng}

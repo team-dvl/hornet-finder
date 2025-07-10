@@ -1,14 +1,15 @@
 import { Button, Alert, Spinner } from "react-bootstrap";
 import { useMap } from "react-leaflet";
 import { useAppDispatch, useAppSelector } from './store/hooks';
-import { cycleDisplayMode, selectDisplayMode, toggleApiaries, selectShowApiaries } from './store/store';
+import { cycleDisplayMode, selectDisplayMode, toggleApiaries, selectShowApiaries, toggleNests, selectShowNests } from './store/store';
 
 interface MapControlsProps {
   loading: boolean;
   error: string | null;
   onLocationUpdate: (coordinates: [number, number]) => void;
   onErrorUpdate: (error: string | null) => void;
-  showApiariesButton?: boolean; // Nouveau prop pour contrôler l'affichage du bouton ruchers
+  showApiariesButton?: boolean; // Bouton pour contrôler l'affichage des ruchers
+  showNestsButton?: boolean; // Bouton pour contrôler l'affichage des nids
 }
 
 function LocateButton({ onLocationUpdate, onErrorUpdate }: {
@@ -82,7 +83,7 @@ function ErrorAlert({ error, onClose }: { error: string | null; onClose: () => v
   );
 }
 
-function HornetDisplayModeButton({ showApiariesButton }: { showApiariesButton: boolean }) {
+function HornetDisplayModeButton({ showApiariesButton, showNestsButton }: { showApiariesButton: boolean; showNestsButton: boolean }) {
   const dispatch = useAppDispatch();
   const displayMode = useAppSelector(selectDisplayMode);
 
@@ -126,6 +127,14 @@ function HornetDisplayModeButton({ showApiariesButton }: { showApiariesButton: b
 
   const config = getModeConfig();
 
+  // Calculer la position en fonction des boutons visibles
+  let rightPosition = "130px"; // Position par défaut (à côté de "Ma position")
+  if (showApiariesButton && showNestsButton) {
+    rightPosition = "370px"; // Loin à gauche si les deux boutons sont visibles
+  } else if (showApiariesButton || showNestsButton) {
+    rightPosition = "250px"; // Position moyenne si un seul bouton est visible
+  }
+
   return (
     <Button
       onClick={handleCycle}
@@ -134,7 +143,7 @@ function HornetDisplayModeButton({ showApiariesButton }: { showApiariesButton: b
       className="position-absolute map-control-button"
       style={{
         top: "10px",
-        right: showApiariesButton ? "250px" : "130px", // Adjust position based on whether apiary button is shown
+        right: rightPosition,
         zIndex: 1000,
         minWidth: "90px", // Largeur fixe pour éviter le repositionnement
       }}
@@ -172,12 +181,39 @@ function ToggleApiariesButton() {
   );
 }
 
-export default function MapControls({ loading, error, onLocationUpdate, onErrorUpdate, showApiariesButton = false }: MapControlsProps) {
+function ToggleNestsButton() {
+  const dispatch = useAppDispatch();
+  const showNests = useAppSelector(selectShowNests);
+
+  const handleToggle = () => {
+    dispatch(toggleNests());
+  };
+
+  return (
+    <Button
+      onClick={handleToggle}
+      variant={showNests ? "danger" : "outline-secondary"}
+      size="sm"
+      className="position-absolute map-control-button"
+      style={{
+        top: "10px",
+        right: "250px", // Positionné à côté du bouton ruchers
+        zIndex: 1000,
+      }}
+      title={showNests ? "Masquer les nids" : "Afficher les nids"}
+    >
+      {showNests ? "🪣 Nids" : "🪣 Nids"}
+    </Button>
+  );
+}
+
+export default function MapControls({ loading, error, onLocationUpdate, onErrorUpdate, showApiariesButton = false, showNestsButton = false }: MapControlsProps) {
   return (
     <>
       <LocateButton onLocationUpdate={onLocationUpdate} onErrorUpdate={onErrorUpdate} />
-      <HornetDisplayModeButton showApiariesButton={showApiariesButton} />
+      <HornetDisplayModeButton showApiariesButton={showApiariesButton} showNestsButton={showNestsButton} />
       {showApiariesButton && <ToggleApiariesButton />}
+      {showNestsButton && <ToggleNestsButton />}
       <LoadingIndicator loading={loading} />
       <ErrorAlert error={error} onClose={() => onErrorUpdate(null)} />
     </>
