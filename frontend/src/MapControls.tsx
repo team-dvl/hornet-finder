@@ -1,7 +1,7 @@
 import { Button, Alert, Spinner } from "react-bootstrap";
 import { useMap } from "react-leaflet";
 import { useAppDispatch, useAppSelector } from './store/hooks';
-import { toggleReturnZones, selectShowReturnZones, toggleApiaries, selectShowApiaries } from './store/store';
+import { cycleHornetDisplayMode, selectHornetDisplayMode, HornetDisplayMode, toggleApiaries, selectShowApiaries } from './store/store';
 
 interface MapControlsProps {
   loading: boolean;
@@ -81,18 +81,54 @@ function ErrorAlert({ error, onClose }: { error: string | null; onClose: () => v
   );
 }
 
-function ToggleReturnZonesButton() {
+function HornetDisplayModeButton() {
   const dispatch = useAppDispatch();
-  const showReturnZones = useAppSelector(selectShowReturnZones);
+  const displayMode = useAppSelector(selectHornetDisplayMode);
 
-  const handleToggle = () => {
-    dispatch(toggleReturnZones());
+  const handleCycle = () => {
+    dispatch(cycleHornetDisplayMode());
   };
+
+  // Configuration des états d'affichage
+  const getDisplayConfig = (mode: HornetDisplayMode) => {
+    switch (mode) {
+      case HornetDisplayMode.FULL:
+        return {
+          variant: "success" as const,
+          icon: "🔺",
+          label: "Zones de vol",
+          title: "Frelons et zones visibles - Cliquer pour masquer les zones"
+        };
+      case HornetDisplayMode.HORNETS_ONLY:
+        return {
+          variant: "warning" as const,
+          icon: "🐝",
+          label: "Frelons",
+          title: "Frelons uniquement - Cliquer pour tout masquer"
+        };
+      case HornetDisplayMode.HIDDEN:
+        return {
+          variant: "outline-secondary" as const,
+          icon: "👁️",
+          label: "Masqué",
+          title: "Tout masqué - Cliquer pour tout afficher"
+        };
+      default:
+        return {
+          variant: "outline-secondary" as const,
+          icon: "❓",
+          label: "Inconnu",
+          title: "État inconnu"
+        };
+    }
+  };
+
+  const config = getDisplayConfig(displayMode);
 
   return (
     <Button
-      onClick={handleToggle}
-      variant={showReturnZones ? "success" : "outline-secondary"}
+      onClick={handleCycle}
+      variant={config.variant}
       size="sm"
       className="position-absolute map-control-button"
       style={{
@@ -100,9 +136,10 @@ function ToggleReturnZonesButton() {
         right: "250px", // Positionné à gauche du bouton de ruchers
         zIndex: 1000,
       }}
-      title={showReturnZones ? "Masquer les cônes de retour" : "Afficher les cônes de retour"}
+      title={config.title}
     >
-      {showReturnZones ? "🔺 Cônes" : "🔻 Cônes"}
+      <span className="me-1">{config.icon}</span>
+      {config.label}
     </Button>
   );
 }
@@ -137,7 +174,7 @@ export default function MapControls({ loading, error, onLocationUpdate, onErrorU
   return (
     <>
       <LocateButton onLocationUpdate={onLocationUpdate} onErrorUpdate={onErrorUpdate} />
-      <ToggleReturnZonesButton />
+      <HornetDisplayModeButton />
       <ToggleApiariesButton />
       <LoadingIndicator loading={loading} />
       <ErrorAlert error={error} onClose={() => onErrorUpdate(null)} />

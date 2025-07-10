@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { MapContainer, TileLayer, useMapEvents } from "react-leaflet";
 import { useAuth } from 'react-oidc-context';
-import { useAppDispatch, useAppSelector, fetchHornets, fetchApiaries, fetchMyApiaries, selectShowApiaries } from './store/store';
+import { useAppDispatch, useAppSelector, fetchHornets, fetchApiaries, fetchMyApiaries, selectShowApiaries, selectShowHornets, selectShowReturnZones } from './store/store';
 import { useUserPermissions } from './hooks/useUserPermissions';
 import { Hornet } from './store/slices/hornetsSlice';
 import { Apiary } from './store/slices/apiariesSlice';
@@ -65,6 +65,8 @@ export default function InteractiveMap() {
   const { hornets, loading, error } = useAppSelector((state) => state.hornets);
   const { apiaries } = useAppSelector((state) => state.apiaries);
   const showApiaries = useAppSelector(selectShowApiaries);
+  const showHornets = useAppSelector(selectShowHornets);
+  const showReturnZones = useAppSelector(selectShowReturnZones);
 
   useEffect(() => {
     if (auth.isAuthenticated && auth.user?.access_token) {
@@ -168,11 +170,12 @@ export default function InteractiveMap() {
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        {hornets.map((hornet, index) => (
+        {showHornets && hornets.map((hornet, index) => (
           <HornetReturnZone
             key={hornet.id || index}
             hornet={hornet}
             onClick={handleHornetClick}
+            showReturnZone={showReturnZones}
           />
         ))}
         {showApiaries && apiaries.map((apiary, index) => (

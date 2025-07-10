@@ -9,6 +9,7 @@ interface HornetReturnZoneProps {
   lengthKm?: number;
   angleDeg?: number;
   onClick?: (hornet: Hornet) => void;
+  showReturnZone?: boolean; // Nouvelle prop pour contrôler l'affichage de la zone
 }
 
 // Calculer la distance estimée du nid basée sur la durée
