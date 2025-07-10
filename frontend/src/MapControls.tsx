@@ -1,7 +1,7 @@
 import { Button, Alert, Spinner } from "react-bootstrap";
 import { useMap } from "react-leaflet";
 import { useAppDispatch, useAppSelector } from './store/hooks';
-import { cycleHornetDisplayMode, selectHornetDisplayMode, HornetDisplayMode, toggleApiaries, selectShowApiaries } from './store/store';
+import { cycleDisplayMode, selectDisplayMode, toggleApiaries, selectShowApiaries } from './store/store';
 
 interface MapControlsProps {
   loading: boolean;
@@ -83,47 +83,47 @@ function ErrorAlert({ error, onClose }: { error: string | null; onClose: () => v
 
 function HornetDisplayModeButton() {
   const dispatch = useAppDispatch();
-  const displayMode = useAppSelector(selectHornetDisplayMode);
+  const displayMode = useAppSelector(selectDisplayMode);
 
   const handleCycle = () => {
-    dispatch(cycleHornetDisplayMode());
+    dispatch(cycleDisplayMode());
   };
 
-  // Configuration des états d'affichage
-  const getDisplayConfig = (mode: HornetDisplayMode) => {
-    switch (mode) {
-      case HornetDisplayMode.FULL:
+  // Configuration des états du bouton
+  const getModeConfig = () => {
+    switch (displayMode) {
+      case 'full':
         return {
-          variant: "success" as const,
-          icon: "🔺",
-          label: "Zones de vol",
-          title: "Frelons et zones visibles - Cliquer pour masquer les zones"
+          variant: 'success' as const,
+          icon: '🔺',
+          text: 'Frelons et zônes',
+          title: 'Frelons et zones de retour visibles - Cliquer pour masquer les zônes de retour'
         };
-      case HornetDisplayMode.HORNETS_ONLY:
+      case 'hornets-only':
         return {
-          variant: "warning" as const,
-          icon: "🐝",
-          label: "Frelons",
-          title: "Frelons uniquement - Cliquer pour tout masquer"
+          variant: 'warning' as const,
+          icon: '🐝',
+          text: 'Frelons',
+          title: 'Seuls les frelons sont visibles - Cliquer pour tout masquer'
         };
-      case HornetDisplayMode.HIDDEN:
+      case 'hidden':
         return {
-          variant: "outline-secondary" as const,
-          icon: "👁️",
-          label: "Masqué",
-          title: "Tout masqué - Cliquer pour tout afficher"
+          variant: 'outline-secondary' as const,
+          icon: '👁️',
+          text: 'Masqué',
+          title: 'Frelons et zones de retour masqués - Cliquer pour tout afficher'
         };
       default:
         return {
-          variant: "outline-secondary" as const,
-          icon: "❓",
-          label: "Inconnu",
-          title: "État inconnu"
+          variant: 'success' as const,
+          icon: '🔺',
+          text: 'Tout',
+          title: 'Mode par défaut'
         };
     }
   };
 
-  const config = getDisplayConfig(displayMode);
+  const config = getModeConfig();
 
   return (
     <Button
@@ -135,11 +135,12 @@ function HornetDisplayModeButton() {
         top: "10px",
         right: "250px", // Positionné à gauche du bouton de ruchers
         zIndex: 1000,
+        minWidth: "90px", // Largeur fixe pour éviter le repositionnement
       }}
       title={config.title}
     >
       <span className="me-1">{config.icon}</span>
-      {config.label}
+      {config.text}
     </Button>
   );
 }

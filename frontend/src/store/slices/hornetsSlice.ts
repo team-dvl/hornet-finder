@@ -1,11 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
-// Énumération pour les modes d'affichage des frelons
-export enum HornetDisplayMode {
-  FULL = 'full',        // Frelons + zones de retour visibles
-  HORNETS_ONLY = 'hornets_only', // Frelons visibles, zones cachées
-  HIDDEN = 'hidden'     // Tout caché
-}
+// Types pour les modes d'affichage des frelons
+export type HornetDisplayMode = 'full' | 'hornets-only' | 'hidden';
 
 // Types pour les données de frelon
 export interface Hornet {
@@ -27,14 +23,14 @@ interface HornetsState {
   hornets: Hornet[];
   loading: boolean;
   error: string | null;
-  displayMode: HornetDisplayMode; // Mode d'affichage à 3 états
+  displayMode: HornetDisplayMode; // Mode d'affichage des frelons et zones
 }
 
 const initialState: HornetsState = {
   hornets: [],
   loading: false,
   error: null,
-  displayMode: HornetDisplayMode.FULL, // Par défaut, tout est affiché
+  displayMode: 'full', // Par défaut, tout est affiché (frelons + zones)
 };
 
 // Thunk async pour récupérer les frelons
@@ -204,20 +200,20 @@ const hornetsSlice = createSlice({
     addHornet: (state, action) => {
       state.hornets.push(action.payload);
     },
-    // Cycle entre les 3 modes d'affichage des frelons
-    cycleHornetDisplayMode: (state) => {
+    // Cycle entre les 3 modes d'affichage : full -> hornets-only -> hidden -> full
+    cycleDisplayMode: (state) => {
       switch (state.displayMode) {
-        case HornetDisplayMode.FULL:
-          state.displayMode = HornetDisplayMode.HORNETS_ONLY;
+        case 'full':
+          state.displayMode = 'hornets-only';
           break;
-        case HornetDisplayMode.HORNETS_ONLY:
-          state.displayMode = HornetDisplayMode.HIDDEN;
+        case 'hornets-only':
+          state.displayMode = 'hidden';
           break;
-        case HornetDisplayMode.HIDDEN:
-          state.displayMode = HornetDisplayMode.FULL;
+        case 'hidden':
+          state.displayMode = 'full';
           break;
         default:
-          state.displayMode = HornetDisplayMode.FULL;
+          state.displayMode = 'full';
       }
     },
   },
@@ -290,13 +286,14 @@ const hornetsSlice = createSlice({
 export const selectHornets = (state: { hornets: HornetsState }) => state.hornets.hornets;
 export const selectHornetsLoading = (state: { hornets: HornetsState }) => state.hornets.loading;
 export const selectHornetsError = (state: { hornets: HornetsState }) => state.hornets.error;
-export const selectHornetDisplayMode = (state: { hornets: HornetsState }) => state.hornets.displayMode;
+export const selectDisplayMode = (state: { hornets: HornetsState }) => state.hornets.displayMode;
 
-// Sélecteurs dérivés pour la compatibilité et la facilité d'utilisation
-export const selectShowReturnZones = (state: { hornets: HornetsState }) => 
-  state.hornets.displayMode === HornetDisplayMode.FULL;
+// Sélecteurs dérivés pour faciliter l'utilisation
 export const selectShowHornets = (state: { hornets: HornetsState }) => 
-  state.hornets.displayMode !== HornetDisplayMode.HIDDEN;
+  state.hornets.displayMode !== 'hidden';
 
-export const { clearError, clearHornets, addHornet, cycleHornetDisplayMode } = hornetsSlice.actions;
+export const selectShowReturnZones = (state: { hornets: HornetsState }) => 
+  state.hornets.displayMode === 'full';
+
+export const { clearError, clearHornets, addHornet, cycleDisplayMode } = hornetsSlice.actions;
 export default hornetsSlice.reducer;

@@ -1,15 +1,13 @@
 import { Polygon, Marker } from "react-leaflet";
 import { DivIcon } from "leaflet";
 import { Hornet } from './store/store';
-import { useAppSelector } from './store/hooks';
-import { selectShowReturnZones } from './store/store';
 
 interface HornetReturnZoneProps {
   hornet: Hornet;
   lengthKm?: number;
   angleDeg?: number;
   onClick?: (hornet: Hornet) => void;
-  showReturnZone?: boolean; // Nouvelle prop pour contrôler l'affichage de la zone
+  showReturnZone?: boolean; // Prop pour contrôler l'affichage de la zone de retour
 }
 
 // Calculer la distance estimée du nid basée sur la durée
@@ -104,10 +102,9 @@ export default function HornetReturnZone({
   hornet,
   lengthKm, 
   angleDeg = 5,
-  onClick
+  onClick,
+  showReturnZone = true // Par défaut, afficher la zone de retour
 }: HornetReturnZoneProps) {
-  const showReturnZones = useAppSelector(selectShowReturnZones);
-  
   // Calculer la longueur du cône basée sur la durée si elle n'est pas fournie explicitement
   const calculatedLength = lengthKm ?? calculateNestDistance(hornet.duration);
   
@@ -130,7 +127,7 @@ export default function HornetReturnZone({
 
   return (
     <>
-      {showReturnZones && (
+      {showReturnZone && (
         <Polygon
           positions={trianglePositions}
           pathOptions={{

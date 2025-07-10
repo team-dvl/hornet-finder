@@ -4,10 +4,9 @@ export type { RootState, AppDispatch } from './index';
 export { useAppDispatch, useAppSelector } from './hooks';
 
 // Export des actions et thunks du slice hornets
-export { fetchHornets, updateHornetDuration, updateHornetColors, createHornet, clearError, clearHornets, cycleHornetDisplayMode } from './slices/hornetsSlice';
-export { selectShowReturnZones, selectShowHornets, selectHornetDisplayMode } from './slices/hornetsSlice';
-export type { Hornet } from './slices/hornetsSlice';
-export { HornetDisplayMode } from './slices/hornetsSlice';
+export { fetchHornets, updateHornetDuration, updateHornetColors, createHornet, clearError, clearHornets, cycleDisplayMode } from './slices/hornetsSlice';
+export { selectShowReturnZones, selectShowHornets, selectDisplayMode } from './slices/hornetsSlice';
+export type { Hornet, HornetDisplayMode } from './slices/hornetsSlice';
 
 // Export des actions et thunks du slice apiaries
 export { fetchApiaries, fetchMyApiaries, createApiary, clearError as clearApiariesError, clearApiaries, toggleApiaries } from './slices/apiariesSlice';
