@@ -1,11 +1,37 @@
 import './App.css'
 import { Col, Container, Row, Alert } from 'react-bootstrap'
+import { useState, useEffect } from 'react';
 import { useAuth } from 'react-oidc-context';
 import InteractiveMap from './InteractiveMap';
 import NavbarComponent from './NavbarComponent';
+import WelcomeModal from './WelcomeModal';
 
 function App() {
   const auth = useAuth();
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+
+  // Afficher le modal de bienvenue quand l'utilisateur n'est pas authentifié
+  useEffect(() => {
+    if (!auth.isLoading && !auth.isAuthenticated && !auth.activeNavigator) {
+      // Vérifier si l'utilisateur a déjà choisi de continuer sans connexion
+      const hasDeclinedLogin = localStorage.getItem('hornet-finder-declined-login');
+      if (!hasDeclinedLogin) {
+        setShowWelcomeModal(true);
+      }
+    } else {
+      setShowWelcomeModal(false);
+    }
+  }, [auth.isLoading, auth.isAuthenticated, auth.activeNavigator]);
+
+  const handleCloseWelcomeModal = () => {
+    setShowWelcomeModal(false);
+    // Sauvegarder le choix de l'utilisateur pour ne pas réafficher le modal
+    localStorage.setItem('hornet-finder-declined-login', 'true');
+  };
+
+  const handleShowWelcomeModal = () => {
+    setShowWelcomeModal(true);
+  };
 
   switch (auth.activeNavigator) {
     case "signinSilent":
@@ -42,7 +68,7 @@ function App() {
 
   return (
     <>
-      <NavbarComponent />
+      <NavbarComponent onShowWelcome={handleShowWelcomeModal} />
       <Container fluid className="px-0" style={{ paddingTop: "56px" }}>
         <Row className="g-0">
           <Col xs={12}>
@@ -50,6 +76,11 @@ function App() {
           </Col>
         </Row>
       </Container>
+      
+      <WelcomeModal 
+        show={showWelcomeModal}
+        onHide={handleCloseWelcomeModal}
+      />
     </>
   );
 }

@@ -3,7 +3,11 @@ import { useAuth } from 'react-oidc-context';
 import { useState } from 'react';
 import UserInfoModal from './UserInfoModal';
 
-export default function NavbarComponent() {
+interface NavbarComponentProps {
+  onShowWelcome?: () => void;
+}
+
+export default function NavbarComponent({ onShowWelcome }: NavbarComponentProps) {
   const auth = useAuth();
   const [showUserModal, setShowUserModal] = useState(false);
 
@@ -24,13 +28,26 @@ export default function NavbarComponent() {
           
           <Nav>
             {!auth.isAuthenticated && (
-              <Button 
-                variant="primary" 
-                size="sm"
-                onClick={() => void auth.signinRedirect()}
-              >
-                Connexion
-              </Button>
+              <div className="d-flex gap-2">
+                {onShowWelcome && (
+                  <Button 
+                    variant="outline-info" 
+                    size="sm"
+                    onClick={onShowWelcome}
+                    className="me-2"
+                  >
+                    <span className="me-1">ℹ️</span>
+                    À propos
+                  </Button>
+                )}
+                <Button 
+                  variant="primary" 
+                  size="sm"
+                  onClick={() => void auth.signinRedirect()}
+                >
+                  Connexion
+                </Button>
+              </div>
             )}
             {auth.isAuthenticated && (
               <div className="d-flex align-items-center">
