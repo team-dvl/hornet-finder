@@ -1,4 +1,4 @@
-import { Marker, Popup } from 'react-leaflet';
+import { Marker } from 'react-leaflet';
 import { DivIcon } from 'leaflet';
 import { Apiary } from './store/slices/apiariesSlice';
 
@@ -31,15 +31,6 @@ const createApiaryIcon = (infestationLevel: 1 | 2 | 3) => {
   });
 };
 
-const getInfestationText = (level: 1 | 2 | 3): string => {
-  switch (level) {
-    case 1: return 'Infestation faible';
-    case 2: return 'Infestation modérée';
-    case 3: return 'Infestation élevée';
-    default: return 'Niveau inconnu';
-  }
-};
-
 interface ApiaryMarkerProps {
   apiary: Apiary;
   onClick?: (apiary: Apiary) => void;
@@ -59,59 +50,6 @@ export default function ApiaryMarker({ apiary, onClick }: ApiaryMarkerProps) {
       eventHandlers={{
         click: handleMarkerClick,
       }}
-    >
-      <Popup>
-        <div className="p-2" style={{ minWidth: '200px' }}>
-          <h6 className="mb-2 text-center">
-            🐝 Rucher #{apiary.id}
-          </h6>
-          
-          <div className="mb-2">
-            <strong>Niveau d'infestation :</strong>
-            <div 
-              className="badge ms-2 px-2 py-1"
-              style={{ 
-                backgroundColor: getInfestationColor(apiary.infestation_level),
-                color: 'white'
-              }}
-            >
-              {getInfestationText(apiary.infestation_level)}
-            </div>
-          </div>
-          
-          <div className="mb-2">
-            <strong>Coordonnées :</strong>
-            <div className="small text-muted">
-              Lat: {apiary.latitude.toFixed(6)}
-              <br />
-              Lng: {apiary.longitude.toFixed(6)}
-            </div>
-          </div>
-          
-          {apiary.comments && (
-            <div className="mb-2">
-              <strong>Commentaires :</strong>
-              <div className="small">{apiary.comments}</div>
-            </div>
-          )}
-          
-          {apiary.created_at && (
-            <div className="mb-2">
-              <strong>Créé le :</strong>
-              <div className="small text-muted">
-                {new Date(apiary.created_at).toLocaleDateString('fr-FR')}
-              </div>
-            </div>
-          )}
-          
-          {apiary.created_by && (
-            <div>
-              <strong>Créé par :</strong>
-              <div className="small text-muted">{apiary.created_by}</div>
-            </div>
-          )}
-        </div>
-      </Popup>
-    </Marker>
+    />
   );
 }
