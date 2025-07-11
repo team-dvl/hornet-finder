@@ -7,15 +7,23 @@ import InteractiveMap from './InteractiveMap';
 import NavbarComponent from './NavbarComponent';
 import WelcomeModal from './WelcomeModal';
 import { initIOSViewportFix } from './utils/iosViewportFix';
+import { useUrlCleaner } from './utils/urlCleaner';
+import { setupPWAAuthMonitoring } from './utils/pwaAuth';
 
 function App() {
   const auth = useAuth();
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
 
+  // Nettoyer automatiquement l'URL après authentification (pour PWA)
+  useUrlCleaner(auth.isAuthenticated);
+
   // Afficher le modal de bienvenue quand l'utilisateur n'est pas authentifié
   useEffect(() => {
     // Initialiser la correction iOS pour le viewport
     initIOSViewportFix();
+    
+    // Initialiser le monitoring PWA pour l'authentification
+    setupPWAAuthMonitoring();
     
     if (!auth.isLoading && !auth.isAuthenticated && !auth.activeNavigator) {
       // Vérifier si l'utilisateur a déjà choisi de continuer sans connexion
@@ -62,10 +70,25 @@ function App() {
   }
 
   if (auth.error) {
+    // Si erreur d'authentification (ex: token expiré), nettoyer et rediriger
+    console.warn('Erreur d\'authentification:', auth.error);
+    
+    // Nettoyer l'URL si elle contient des paramètres OAuth invalides
+    if (window.location.search.includes('code=') || window.location.search.includes('state=')) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    
     return (
       <Container className="d-flex justify-content-center align-items-center vh-100">
-        <Alert variant="danger">
-          Oops... {auth.error.name} caused {auth.error.message}
+        <Alert variant="warning" className="text-center">
+          <h5>Session expirée</h5>
+          <p>Votre session a expiré. Veuillez recharger la page pour vous reconnecter.</p>
+          <button 
+            className="btn btn-primary"
+            onClick={() => window.location.reload()}
+          >
+            Recharger la page
+          </button>
         </Alert>
       </Container>
     );
