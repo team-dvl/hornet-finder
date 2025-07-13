@@ -10,6 +10,8 @@ interface MapControlsProps {
   onErrorUpdate: (error: string | null) => void;
   showApiariesButton?: boolean; // Bouton pour contrôler l'affichage des ruchers
   showNestsButton?: boolean; // Bouton pour contrôler l'affichage des nids
+  onQuickHornetCapture?: () => void; // Nouvelle prop pour la capture rapide
+  canAddHornet?: boolean; // Pour vérifier si l'utilisateur peut ajouter des frelons
 }
 
 function LocateButton({ onLocationUpdate, onErrorUpdate }: {
@@ -186,12 +188,72 @@ function ToggleNestsButton() {
   );
 }
 
-export default function MapControls({ loading, error, onLocationUpdate, onErrorUpdate, showApiariesButton = false, showNestsButton = false }: MapControlsProps) {
+function QuickHornetCaptureButton({ onQuickCapture, canAddHornet }: { 
+  onQuickCapture: () => void; 
+  canAddHornet: boolean;
+}) {
+  // Vérifier si les APIs nécessaires sont supportées
+  const isSupported = () => {
+    return navigator.geolocation && window.DeviceOrientationEvent;
+  };
+
+  // Détecter iOS PWA
+  const isIOSPWA = () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (window.navigator as any).standalone === true;
+  };
+
+  const handleClick = () => {
+    if (canAddHornet && isSupported()) {
+      onQuickCapture();
+    }
+  };
+
+  const supported = isSupported();
+  const isEnabled = canAddHornet && supported;
+  const isPWA = isIOSPWA();
+
+  return (
+    <Button
+      onClick={handleClick}
+      variant={isEnabled ? "success" : "outline-secondary"}
+      size="sm"
+      className="map-control-button"
+      disabled={!isEnabled}
+      title={
+        !canAddHornet 
+          ? "Vous devez être connecté pour ajouter un frelon"
+          : !supported 
+          ? "Votre appareil ne supporte pas la capture automatique" 
+          : isPWA
+          ? "Capture rapide avec boussole (iOS PWA) - Permissions requises"
+          : "Capture rapide avec boussole - Position et direction automatiques"
+      }
+    >
+      <span className="map-control-button-icon">🧭</span>
+      <span className="map-control-button-text">Frelon{isPWA ? ' PWA' : ''}</span>
+    </Button>
+  );
+}
+
+export default function MapControls({ 
+  loading, 
+  error, 
+  onLocationUpdate, 
+  onErrorUpdate, 
+  showApiariesButton = false, 
+  showNestsButton = false,
+  onQuickHornetCapture,
+  canAddHornet = false
+}: MapControlsProps) {
   return (
     <>
       <div className="map-controls-container">
         <LocateButton onLocationUpdate={onLocationUpdate} onErrorUpdate={onErrorUpdate} />
         <HornetDisplayModeButton />
+        {onQuickHornetCapture && (
+          <QuickHornetCaptureButton onQuickCapture={onQuickHornetCapture} canAddHornet={canAddHornet} />
+        )}
         {showApiariesButton && <ToggleApiariesButton />}
         {showNestsButton && <ToggleNestsButton />}
       </div>

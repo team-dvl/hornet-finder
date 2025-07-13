@@ -12,6 +12,9 @@ declare global {
       prototype: DeviceOrientationEvent;
     };
   }
+  interface Navigator {
+    standalone?: boolean;
+  }
 }
 
 interface CompassCaptureProps {
@@ -57,12 +60,21 @@ export default function CompassCapture({
         // Demander la permission pour l'orientation sur iOS
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const permission = await (DeviceOrientationEvent as any).requestPermission();
-          if (permission !== 'granted') {
-            setError('Permission d\'orientation refusée. Veuillez l\'activer dans les paramètres.');
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const permission = await (DeviceOrientationEvent as any).requestPermission();
+            if (permission !== 'granted') {
+              setError('Permission d\'orientation refusée. Sur iOS, veuillez aller dans Réglages > Safari > Mouvement et Orientation et activer l\'accès.');
+              return;
+            }
+            orientationPermissionRef.current = true;
+          } catch (permissionError) {
+            console.error('Erreur de permission orientation:', permissionError);
+            setError('Impossible de demander la permission d\'orientation. Assurez-vous que votre appareil supporte cette fonctionnalité.');
             return;
           }
+        } else {
+          // Pour les appareils non-iOS, on suppose que la permission est accordée
           orientationPermissionRef.current = true;
         }
 
@@ -77,46 +89,74 @@ export default function CompassCapture({
             },
             (error) => {
               console.error('Erreur de géolocalisation:', error);
-              setError('Impossible d\'obtenir la position. Vérifiez les permissions de géolocalisation.');
+              let errorMessage = 'Impossible d\'obtenir la position. ';
+              switch (error.code) {
+                case error.PERMISSION_DENIED:
+                  errorMessage += 'Permission de géolocalisation refusée.';
+                  break;
+                case error.POSITION_UNAVAILABLE:
+                  errorMessage += 'Position non disponible.';
+                  break;
+                case error.TIMEOUT:
+                  errorMessage += 'Timeout de géolocalisation.';
+                  break;
+                default:
+                  errorMessage += 'Erreur inconnue.';
+                  break;
+              }
+              setError(errorMessage);
             },
             {
               enableHighAccuracy: true,
-              timeout: 10000,
-              maximumAge: 1000
+              timeout: 15000, // Augmenter le timeout pour iOS PWA
+              maximumAge: 5000 // Augmenter l'âge maximum
             }
           );
         }
 
-        // Démarrer l'écoute de l'orientation
-        const handleOrientation = (event: DeviceOrientationEvent) => {
-          if (event.alpha !== null) {
-            // alpha donne la direction de la boussole (0-360°)
-            // On ajuste pour que 0° soit le nord géographique
-            let direction = event.alpha;
-            
-            // Sur iOS, il faut parfois ajuster l'orientation
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            if (typeof (event as any).webkitCompassHeading === 'number') {
+        // Démarrer l'écoute de l'orientation avec un délai pour iOS PWA
+        const startOrientationTracking = () => {
+          const handleOrientation = (event: DeviceOrientationEvent) => {
+            if (event.alpha !== null) {
+              // alpha donne la direction de la boussole (0-360°)
+              // On ajuste pour que 0° soit le nord géographique
+              let direction = event.alpha;
+              
+              // Sur iOS, il faut parfois ajuster l'orientation
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              direction = (event as any).webkitCompassHeading;
+              if (typeof (event as any).webkitCompassHeading === 'number') {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                direction = (event as any).webkitCompassHeading;
+              }
+              
+              setHeading(Math.round(direction));
             }
-            
-            setHeading(Math.round(direction));
-          }
+          };
+
+          window.addEventListener('deviceorientation', handleOrientation, true);
+
+          // Nettoyer les event listeners lors du démontage
+          return () => {
+            window.removeEventListener('deviceorientation', handleOrientation, true);
+            if (watchIdRef.current !== null) {
+              navigator.geolocation.clearWatch(watchIdRef.current);
+            }
+          };
         };
 
-        window.addEventListener('deviceorientation', handleOrientation);
+        // Pour iOS PWA, attendre un peu avant de démarrer l'écoute d'orientation
+        const isIOSPWA = window.navigator.standalone === true;
+        if (isIOSPWA) {
+          setTimeout(startOrientationTracking, 500);
+        } else {
+          startOrientationTracking();
+        }
 
-        // Nettoyer les event listeners lors du démontage
-        return () => {
-          window.removeEventListener('deviceorientation', handleOrientation);
-          if (watchIdRef.current !== null) {
-            navigator.geolocation.clearWatch(watchIdRef.current);
-          }
-        };
+        return startOrientationTracking;
+
       } catch (err) {
         console.error('Erreur lors du démarrage du suivi:', err);
-        setError('Erreur lors de l\'accès aux capteurs de l\'appareil.');
+        setError('Erreur lors de l\'accès aux capteurs de l\'appareil. Sur iOS PWA, certaines fonctionnalités peuvent être limitées.');
       }
     };
 
@@ -180,6 +220,24 @@ export default function CompassCapture({
         {error && (
           <Alert variant="danger" className="mb-3">
             {error}
+            {/* Bouton pour réessayer les permissions sur iOS */}
+            {error.includes('Permission') && (
+              <div className="mt-2">
+                <Button 
+                  variant="outline-primary" 
+                  size="sm"
+                  onClick={() => {
+                    setError(null);
+                    // Force un nouveau cycle de permissions
+                    if (show && isSupported) {
+                      window.location.reload();
+                    }
+                  }}
+                >
+                  🔄 Réessayer
+                </Button>
+              </div>
+            )}
           </Alert>
         )}
         

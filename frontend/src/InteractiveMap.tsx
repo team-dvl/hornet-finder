@@ -18,6 +18,7 @@ import AddItemSelector from './AddItemSelector';
 import AddHornetPopup from './AddHornetPopup';
 import AddApiaryPopup from './AddApiaryPopup';
 import AddNestPopup from './AddNestPopup';
+import CompassCapture from './CompassCapture';
 import "leaflet/dist/leaflet.css";
 import "leaflet/dist/leaflet.js";
 
@@ -66,6 +67,12 @@ export default function InteractiveMap() {
   const [showAddHornetModal, setShowAddHornetModal] = useState(false);
   const [showAddApiaryModal, setShowAddApiaryModal] = useState(false);
   const [showAddNestModal, setShowAddNestModal] = useState(false);
+  
+  // États pour la capture rapide avec boussole
+  const [showCompassCapture, setShowCompassCapture] = useState(false);
+  const [compassCapturedDirection, setCompassCapturedDirection] = useState<number | null>(null);
+  const [compassCapturedPosition, setCompassCapturedPosition] = useState<{ lat: number; lng: number } | null>(null);
+  const [pendingHornetData, setPendingHornetData] = useState<{ lat: number; lng: number; direction: number } | null>(null);
   
   const auth = useAuth();
   const dispatch = useAppDispatch();
@@ -185,6 +192,9 @@ export default function InteractiveMap() {
     setShowAddApiaryModal(false);
     setShowAddNestModal(false);
     setClickPosition(null);
+    // Réinitialiser la direction capturée par la boussole
+    setCompassCapturedDirection(null);
+    setPendingHornetData(null);
   };
 
   // Gestionnaires de sélection d'éléments
@@ -208,6 +218,62 @@ export default function InteractiveMap() {
     console.log('Élément ajouté avec succès !');
   };
 
+  // Gestionnaire pour la capture rapide avec boussole
+  const handleQuickHornetCapture = () => {
+    // Obtenir la position actuelle pour la capture
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setCompassCapturedPosition({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+          setShowCompassCapture(true);
+        },
+        (error) => {
+          console.error('Erreur de géolocalisation:', error);
+          // En cas d'erreur, utiliser la position actuelle de la carte
+          setCompassCapturedPosition({
+            lat: coordinates[0],
+            lng: coordinates[1]
+          });
+          setShowCompassCapture(true);
+        }
+      );
+    } else {
+      // Fallback sur la position actuelle de la carte
+      setCompassCapturedPosition({
+        lat: coordinates[0],
+        lng: coordinates[1]
+      });
+      setShowCompassCapture(true);
+    }
+  };
+
+  // Gestionnaire pour la capture de direction
+  const handleCompassDirectionCapture = (direction: number) => {
+    // Stocker toutes les données nécessaires pour le frelon
+    if (compassCapturedPosition) {
+      setPendingHornetData({
+        lat: compassCapturedPosition.lat,
+        lng: compassCapturedPosition.lng,
+        direction: direction
+      });
+      setClickPosition(compassCapturedPosition);
+    }
+    
+    setCompassCapturedDirection(direction);
+    setShowCompassCapture(false);
+    setShowAddHornetModal(true);
+  };
+
+  // Gestionnaire pour fermer la capture de boussole
+  const handleCloseCompassCapture = () => {
+    setShowCompassCapture(false);
+    setCompassCapturedDirection(null);
+    setCompassCapturedPosition(null);
+  };
+
   return (
     <div className="position-relative w-100 h-100">
       <MapContainer
@@ -224,6 +290,8 @@ export default function InteractiveMap() {
           onErrorUpdate={() => {}} // Les erreurs sont maintenant gérées par Redux
           showApiariesButton={auth.isAuthenticated && (isAdmin || canAddApiary)}
           showNestsButton={auth.isAuthenticated} // Tous les utilisateurs authentifiés peuvent voir les nids
+          onQuickHornetCapture={handleQuickHornetCapture}
+          canAddHornet={canAddHornet}
         />
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -301,6 +369,7 @@ export default function InteractiveMap() {
           latitude={clickPosition.lat}
           longitude={clickPosition.lng}
           onSuccess={handleAddSuccess}
+          initialDirection={pendingHornetData?.direction || compassCapturedDirection} // Utiliser pendingHornetData en priorité
         />
       )}
 
@@ -323,6 +392,15 @@ export default function InteractiveMap() {
           onSuccess={handleAddSuccess}
         />
       )}
+
+      {/* Modal de capture de direction avec boussole */}
+      <CompassCapture
+        show={showCompassCapture}
+        onHide={handleCloseCompassCapture}
+        onCapture={handleCompassDirectionCapture}
+        initialLatitude={compassCapturedPosition?.lat}
+        initialLongitude={compassCapturedPosition?.lng}
+      />
     </div>
   );
 }

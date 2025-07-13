@@ -1,5 +1,5 @@
 import { Modal, Button, Form, Alert, Row, Col } from 'react-bootstrap';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createHornet } from './store/store';
 import { useAppDispatch } from './store/hooks';
 import { useUserPermissions } from './hooks/useUserPermissions';
@@ -12,6 +12,7 @@ interface AddHornetPopupProps {
   latitude: number;
   longitude: number;
   onSuccess?: () => void;
+  initialDirection?: number | null; // Direction capturée par la boussole
 }
 
 interface ColorDropdownProps {
@@ -55,12 +56,19 @@ function ColorDropdown({ value, onChange, disabled, label }: ColorDropdownProps)
   );
 }
 
-export default function AddHornetPopup({ show, onHide, latitude, longitude, onSuccess }: AddHornetPopupProps) {
+export default function AddHornetPopup({ 
+  show, 
+  onHide, 
+  latitude, 
+  longitude, 
+  onSuccess, 
+  initialDirection 
+}: AddHornetPopupProps) {
   const dispatch = useAppDispatch();
   const { accessToken } = useUserPermissions();
   
   // États du formulaire
-  const [direction, setDirection] = useState('');
+  const [direction, setDirection] = useState(initialDirection ? initialDirection.toString() : '');
   const [duration, setDuration] = useState('');
   const [markColor1, setMarkColor1] = useState('');
   const [markColor2, setMarkColor2] = useState('');
@@ -79,6 +87,13 @@ export default function AddHornetPopup({ show, onHide, latitude, longitude, onSu
     setError(null);
     setValidated(false);
   };
+
+  // Mettre à jour la direction quand initialDirection change
+  useEffect(() => {
+    if (initialDirection !== null && initialDirection !== undefined) {
+      setDirection(initialDirection.toString());
+    }
+  }, [initialDirection]);
 
   const handleClose = () => {
     resetForm();
