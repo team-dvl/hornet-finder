@@ -4,6 +4,7 @@ import { createHornet } from './store/store';
 import { useAppDispatch } from './store/hooks';
 import { useUserPermissions } from './hooks/useUserPermissions';
 import { COLOR_OPTIONS, getColorLabel, getColorHex } from './utils/colors';
+import CompassCapture from './CompassCapture';
 
 interface AddHornetPopupProps {
   show: boolean;
@@ -68,6 +69,7 @@ export default function AddHornetPopup({ show, onHide, latitude, longitude, onSu
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validated, setValidated] = useState(false);
+  const [showCompass, setShowCompass] = useState(false);
 
   const resetForm = () => {
     setDirection('');
@@ -81,6 +83,29 @@ export default function AddHornetPopup({ show, onHide, latitude, longitude, onSu
   const handleClose = () => {
     resetForm();
     onHide();
+  };
+
+  // Vérifier si l'appareil supporte la boussole
+  const isCompassSupported = () => {
+    return typeof DeviceOrientationEvent !== 'undefined' && 
+           navigator.geolocation &&
+           ('requestPermission' in DeviceOrientationEvent || 'ondeviceorientation' in window);
+  };
+
+  // Ouvrir le dialogue de capture de direction
+  const handleOpenCompass = () => {
+    setShowCompass(true);
+  };
+
+  // Callback quand la direction est capturée
+  const handleCompassCapture = (capturedDirection: number) => {
+    setDirection(capturedDirection.toString());
+    setShowCompass(false);
+  };
+
+  // Fermer le dialogue de boussole
+  const handleCompassClose = () => {
+    setShowCompass(false);
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -159,13 +184,14 @@ export default function AddHornetPopup({ show, onHide, latitude, longitude, onSu
   };
 
   return (
-    <Modal show={show} onHide={handleClose} centered>
-      <Modal.Header closeButton>
-        <Modal.Title>
-          <span className="me-2">🐝</span>
-          Ajouter un nouveau frelon
-        </Modal.Title>
-      </Modal.Header>
+    <>
+      <Modal show={show} onHide={handleClose} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <span className="me-2">🐝</span>
+            Ajouter un nouveau frelon
+          </Modal.Title>
+        </Modal.Header>
       
       <Form noValidate validated={validated} onSubmit={handleSubmit}>
         <Modal.Body>
@@ -194,21 +220,37 @@ export default function AddHornetPopup({ show, onHide, latitude, longitude, onSu
                   <strong>Direction de vol *</strong>
                   {direction && getDirectionLabel(parseInt(direction))}
                 </Form.Label>
-                <Form.Control
-                  type="number"
-                  value={direction}
-                  onChange={(e) => setDirection(e.target.value)}
-                  placeholder="Direction en degrés (0-359)"
-                  min="0"
-                  max="359"
-                  required
-                  disabled={isSubmitting}
-                />
+                <div className="d-flex gap-2">
+                  <Form.Control
+                    type="number"
+                    value={direction}
+                    onChange={(e) => setDirection(e.target.value)}
+                    placeholder="Direction en degrés (0-359)"
+                    min="0"
+                    max="359"
+                    required
+                    disabled={isSubmitting}
+                    style={{ flex: 1 }}
+                  />
+                  {isCompassSupported() && (
+                    <Button
+                      variant="outline-primary"
+                      onClick={handleOpenCompass}
+                      disabled={isSubmitting}
+                      title="Capturer la direction avec la boussole"
+                    >
+                      🧭
+                    </Button>
+                  )}
+                </div>
                 <Form.Control.Feedback type="invalid">
                   Veuillez entrer une direction valide entre 0 et 359 degrés.
                 </Form.Control.Feedback>
                 <Form.Text className="text-muted">
                   0° = Nord, 90° = Est, 180° = Sud, 270° = Ouest
+                  {isCompassSupported() && (
+                    <><br/>💡 Utilisez le bouton boussole pour une capture automatique</>
+                  )}
                 </Form.Text>
               </Form.Group>
             </Col>
@@ -291,5 +333,15 @@ export default function AddHornetPopup({ show, onHide, latitude, longitude, onSu
         </Modal.Footer>
       </Form>
     </Modal>
+    
+    {/* Dialogue de capture de direction par la boussole */}
+    <CompassCapture 
+      show={showCompass} 
+      onHide={handleCompassClose} 
+      onCapture={handleCompassCapture}
+      initialLatitude={latitude}
+      initialLongitude={longitude}
+    />
+    </>
   );
 }
