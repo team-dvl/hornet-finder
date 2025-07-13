@@ -129,6 +129,56 @@ export const createApiary = createAsyncThunk(
   }
 );
 
+// Thunk async pour mettre à jour un rucher
+export const updateApiary = createAsyncThunk(
+  'apiaries/updateApiary',
+  async ({ 
+    id,
+    infestation_level, 
+    comments, 
+    accessToken 
+  }: { 
+    id: number;
+    infestation_level?: number; 
+    comments?: string; 
+    accessToken: string 
+  }, { rejectWithValue }) => {
+    try {
+      const requestBody: {
+        infestation_level?: number;
+        comments?: string;
+      } = {};
+
+      // Ajouter les champs à mettre à jour seulement s'ils sont définis
+      if (infestation_level !== undefined) {
+        requestBody.infestation_level = infestation_level;
+      }
+      if (comments !== undefined) {
+        requestBody.comments = comments;
+      }
+
+      const response = await fetch(`/api/apiaries/${id}/`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      }
+
+      const updatedApiary = await response.json();
+      return updatedApiary as Apiary;
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Erreur lors de la mise à jour du rucher');
+    }
+  }
+);
+
 // Slice pour les ruchers
 const apiariesSlice = createSlice({
   name: 'apiaries',
@@ -185,6 +235,22 @@ const apiariesSlice = createSlice({
       .addCase(createApiary.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+      })
+      // Cas de updateApiary
+      .addCase(updateApiary.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateApiary.fulfilled, (state, action) => {
+        state.loading = false;
+        const index = state.apiaries.findIndex(apiary => apiary.id === action.payload.id);
+        if (index !== -1) {
+          state.apiaries[index] = action.payload;
+        }
+      })
+      .addCase(updateApiary.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
       });
   },
 });
@@ -194,6 +260,10 @@ export const selectApiaries = (state: { apiaries: ApiariesState }) => state.apia
 export const selectApiariesLoading = (state: { apiaries: ApiariesState }) => state.apiaries.loading;
 export const selectApiariesError = (state: { apiaries: ApiariesState }) => state.apiaries.error;
 export const selectShowApiaries = (state: { apiaries: ApiariesState }) => state.apiaries.showApiaries;
+
+// Sélecteur pour récupérer un rucher par ID
+export const selectApiaryById = (state: { apiaries: ApiariesState }, id: number | undefined) => 
+  id ? state.apiaries.apiaries.find(apiary => apiary.id === id) : null;
 
 export const { clearError, clearApiaries, toggleApiaries } = apiariesSlice.actions;
 export default apiariesSlice.reducer;

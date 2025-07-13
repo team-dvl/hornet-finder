@@ -1,5 +1,5 @@
 import { Modal, Button, Form, Alert } from 'react-bootstrap';
-import { useState } from 'react';
+import { useState } from 'rea          🍯 Informations du Rucher #{currentApiary.id}t';
 import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from 'react-oidc-context';
 import { Apiary, updateApiary, selectApiaryById } from './store/slices/apiariesSlice';
@@ -89,7 +89,7 @@ export default function ApiaryInfoPopup({ show, onHide, apiary }: ApiaryInfoPopu
     <Modal show={show} onHide={onHide} size="lg" centered>
       <Modal.Header closeButton>
         <Modal.Title>
-          🍯 Informations du Rucher #{currentApiary.id}
+          � Informations du Rucher #{apiary.id}
         </Modal.Title>
       </Modal.Header>
       
@@ -99,10 +99,10 @@ export default function ApiaryInfoPopup({ show, onHide, apiary }: ApiaryInfoPopu
             <div className="col-md-6">
               <h6 className="fw-bold">Localisation</h6>
               <div className="mb-2">
-                <strong>Latitude :</strong> {currentApiary.latitude.toFixed(6)}
+                <strong>Latitude :</strong> {apiary.latitude.toFixed(6)}
               </div>
               <div className="mb-2">
-                <strong>Longitude :</strong> {currentApiary.longitude.toFixed(6)}
+                <strong>Longitude :</strong> {apiary.longitude.toFixed(6)}
               </div>
             </div>
             
@@ -127,12 +127,12 @@ export default function ApiaryInfoPopup({ show, onHide, apiary }: ApiaryInfoPopu
                     <span 
                       className="badge px-3 py-2"
                       style={{ 
-                        backgroundColor: getInfestationColor(currentApiary.infestation_level),
+                        backgroundColor: getInfestationColor(apiary.infestation_level),
                         color: 'white',
                         fontSize: '0.9rem'
                       }}
                     >
-                      {getInfestationText(currentApiary.infestation_level)}
+                      {getInfestationText(apiary.infestation_level)}
                     </span>
                   </div>
                 ) : (
@@ -177,12 +177,12 @@ export default function ApiaryInfoPopup({ show, onHide, apiary }: ApiaryInfoPopu
             </div>
           </div>
           
-          {currentApiary.comments && (
+          {apiary.comments && (
             <div className="row mb-3">
               <div className="col-12">
                 <h6 className="fw-bold">Commentaires</h6>
                 <div className="border rounded p-3 bg-light">
-                  {currentApiary.comments}
+                  {apiary.comments}
                 </div>
               </div>
             </div>
@@ -190,11 +190,11 @@ export default function ApiaryInfoPopup({ show, onHide, apiary }: ApiaryInfoPopu
           
           <div className="row">
             <div className="col-md-6">
-              {currentApiary.created_at && (
+              {apiary.created_at && (
                 <div className="mb-2">
                   <strong>Date de création :</strong>
                   <div className="text-muted">
-                    {new Date(currentApiary.created_at).toLocaleDateString('fr-FR', {
+                    {new Date(apiary.created_at).toLocaleDateString('fr-FR', {
                       year: 'numeric',
                       month: 'long',
                       day: 'numeric',
@@ -207,10 +207,10 @@ export default function ApiaryInfoPopup({ show, onHide, apiary }: ApiaryInfoPopu
             </div>
             
             <div className="col-md-6">
-              {currentApiary.created_by && (
+              {apiary.created_by && (
                 <div className="mb-2">
                   <strong>Créé par :</strong>
-                  <div className="text-muted">{currentApiary.created_by}</div>
+                  <div className="text-muted">{apiary.created_by}</div>
                 </div>
               )}
             </div>

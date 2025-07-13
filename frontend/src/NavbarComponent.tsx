@@ -60,13 +60,14 @@ export default function NavbarComponent({ onShowWelcome }: NavbarComponentProps)
             )}
             {auth.isAuthenticated && (
               <div className="d-flex align-items-center">
-                <button
-                  className="btn btn-link p-0 text-decoration-none me-3"
+                <Button
+                  variant="outline-primary"
+                  size="sm"
                   onClick={() => setShowUserModal(true)}
-                  style={{ color: 'inherit' }}
+                  className="me-3"
                 >
                   Bienvenue, {auth.user?.profile.name}
-                </button>
+                </Button>
                 <Button 
                   variant="outline-secondary" 
                   size="sm"

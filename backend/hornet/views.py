@@ -87,16 +87,16 @@ class ApiaryViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
     
     # A beekeeper can create apiaries, but only admins can list, retrieve, update, partial_update and destroy them
-    # def get_authenticators(self):
-    #     return [JWTBearerAuthentication()]
+    def get_authenticators(self):
+        return [JWTBearerAuthentication()]
 
-    # def get_permissions(self):
-    #     if hasattr(self, 'action') and self.action == 'create':
-    #         return [HasAnyRole(['beekeeper', 'admin'])]
-    #     return [HasAnyRole(['admin'])]
+    def get_permissions(self):
+        if hasattr(self, 'action') and self.action == 'create':
+            return [HasAnyRole(['beekeeper', 'admin'])]
+        return [HasAnyRole(['admin'])]
 
-    # def perform_create(self, serializer): # This method is called when a new Apiary is created
-    #     serializer.save(created_by=self.request.user.username) # This will save the username of the user who created the apiary
+    def perform_create(self, serializer): # This method is called when a new Apiary is created
+        serializer.save(created_by=self.request.user.username) # This will save the username of the user who created the apiary
 
 @extend_schema(
     parameters=[

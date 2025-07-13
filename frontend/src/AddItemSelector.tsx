@@ -30,7 +30,7 @@ export default function AddItemSelector({
       <Modal.Header closeButton>
         <Modal.Title>
           <span className="me-2">📍</span>
-          Que souhaitez-vous ajouter ?
+          Que souhaitez-vous ajouter ici?
         </Modal.Title>
       </Modal.Header>
       
@@ -48,7 +48,7 @@ export default function AddItemSelector({
             <Col md={12}>
               <Card className="h-100 border-2 border-warning">
                 <Card.Body className="text-center">
-                  <div className="mb-3" style={{ fontSize: '3rem' }}>🏠</div>
+                  <div className="mb-3" style={{ fontSize: '3rem' }}>🐝</div>
                   <Card.Title>Frelon asiatique</Card.Title>
                   <Card.Text className="text-muted">
                     Signaler l'observation d'un frelon asiatique avec sa direction de vol
@@ -69,7 +69,7 @@ export default function AddItemSelector({
             <Col md={12}>
               <Card className="h-100 border-2 border-success">
                 <Card.Body className="text-center">
-                  <div className="mb-3" style={{ fontSize: '3rem' }}>�</div>
+                  <div className="mb-3" style={{ fontSize: '3rem' }}>🍯</div>
                   <Card.Title>Rucher</Card.Title>
                   <Card.Text className="text-muted">
                     Enregistrer l'emplacement d'un rucher et son niveau d'infestation
