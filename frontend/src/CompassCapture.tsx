@@ -144,7 +144,7 @@ export default function CompassCapture({
 
   // Convertir les degrés en point cardinal pour affichage
   const getDirectionLabel = (degrees: number) => {
-    const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    const directions = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
     const index = Math.round(degrees / 45) % 8;
     return directions[index];
   };
@@ -212,70 +212,100 @@ export default function CompassCapture({
           <div className="bg-primary rounded-circle d-flex justify-content-center align-items-center" 
                style={{ width: '200px', height: '200px', position: 'relative' }}>
             
-            {/* Marqueurs de direction */}
-            <div className="position-absolute" style={{ top: '10px', left: '50%', transform: 'translateX(-50%)', color: 'white', fontWeight: 'bold' }}>
-              N
-            </div>
-            <div className="position-absolute" style={{ right: '10px', top: '50%', transform: 'translateY(-50%)', color: 'white', fontWeight: 'bold' }}>
-              E
-            </div>
-            <div className="position-absolute" style={{ bottom: '10px', left: '50%', transform: 'translateX(-50%)', color: 'white', fontWeight: 'bold' }}>
-              S
-            </div>
-            <div className="position-absolute" style={{ left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'white', fontWeight: 'bold' }}>
-              W
+            {/* Marqueurs de direction - rosace qui pivote avec le nord */}
+            <div 
+              className="position-absolute"
+              style={{ 
+                width: '100%', 
+                height: '100%',
+                transform: heading !== null ? `rotate(${-heading}deg)` : 'none',
+                transformOrigin: 'center'
+              }}
+            >
+              {/* Points cardinaux principaux */}
+              <div className="position-absolute" style={{ top: '10px', left: '50%', transform: 'translateX(-50%)', color: 'white', fontWeight: 'bold', fontSize: '14px' }}>
+                N
+              </div>
+              <div className="position-absolute" style={{ right: '10px', top: '50%', transform: 'translateY(-50%)', color: 'white', fontWeight: 'bold', fontSize: '14px' }}>
+                E
+              </div>
+              <div className="position-absolute" style={{ bottom: '10px', left: '50%', transform: 'translateX(-50%)', color: 'white', fontWeight: 'bold', fontSize: '14px' }}>
+                S
+              </div>
+              <div className="position-absolute" style={{ left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'white', fontWeight: 'bold', fontSize: '14px' }}>
+                O
+              </div>
+              
+              {/* Points cardinaux intermédiaires */}
+              <div className="position-absolute" style={{ top: '35px', right: '35px', color: 'white', fontWeight: 'bold', fontSize: '12px' }}>
+                NE
+              </div>
+              <div className="position-absolute" style={{ bottom: '35px', right: '35px', color: 'white', fontWeight: 'bold', fontSize: '12px' }}>
+                SE
+              </div>
+              <div className="position-absolute" style={{ bottom: '35px', left: '35px', color: 'white', fontWeight: 'bold', fontSize: '12px' }}>
+                SO
+              </div>
+              <div className="position-absolute" style={{ top: '35px', left: '35px', color: 'white', fontWeight: 'bold', fontSize: '12px' }}>
+                NO
+              </div>
             </div>
 
-            {/* Flèche de référence (toujours pointée vers le haut) */}
+            {/* Flèche du nord géographique */}
+            {heading !== null && (
+              <div 
+                className="position-absolute d-flex flex-column align-items-center"
+                style={{ 
+                  color: '#ffff00',
+                  transform: `rotate(${-heading}deg)`,
+                  transformOrigin: 'center',
+                  zIndex: 1
+                }}
+              >
+                <div style={{ 
+                  width: '0', 
+                  height: '0', 
+                  borderLeft: '15px solid transparent',
+                  borderRight: '15px solid transparent',
+                  borderBottom: '40px solid #ffff00',
+                  marginBottom: '5px',
+                  filter: 'drop-shadow(1px 1px 1px black) drop-shadow(-1px -1px 1px black) drop-shadow(1px -1px 1px black) drop-shadow(-1px 1px 1px black)'
+                }}></div>
+                <div style={{ 
+                  width: '6px', 
+                  height: '60px', 
+                  backgroundColor: '#ffff00',
+                  filter: 'drop-shadow(1px 1px 1px black) drop-shadow(-1px -1px 1px black) drop-shadow(1px -1px 1px black) drop-shadow(-1px 1px 1px black)'
+                }}></div>
+              </div>
+            )}
+
+            {/* Flèche de direction de l'appareil (toujours pointée vers le haut) */}
             <div className="position-absolute d-flex flex-column align-items-center" 
-                 style={{ color: 'white' }}>
+                 style={{ color: 'white', zIndex: 2 }}>
               <div style={{ 
                 width: '0', 
                 height: '0', 
                 borderLeft: '15px solid transparent',
                 borderRight: '15px solid transparent',
                 borderBottom: '40px solid white',
-                marginBottom: '5px'
+                marginBottom: '5px',
+                filter: 'drop-shadow(1px 1px 1px black) drop-shadow(-1px -1px 1px black) drop-shadow(1px -1px 1px black) drop-shadow(-1px 1px 1px black)'
               }}></div>
               <div style={{ 
                 width: '6px', 
                 height: '60px', 
-                backgroundColor: 'white' 
+                backgroundColor: 'white',
+                filter: 'drop-shadow(1px 1px 1px black) drop-shadow(-1px -1px 1px black) drop-shadow(1px -1px 1px black) drop-shadow(-1px 1px 1px black)'
               }}></div>
             </div>
-
-            {/* Flèche de direction de l'appareil */}
-            {heading !== null && (
-              <div 
-                className="position-absolute d-flex flex-column align-items-center"
-                style={{ 
-                  color: '#ffff00',
-                  transform: `rotate(${heading}deg)`,
-                  transformOrigin: 'center'
-                }}
-              >
-                <div style={{ 
-                  width: '0', 
-                  height: '0', 
-                  borderLeft: '10px solid transparent',
-                  borderRight: '10px solid transparent',
-                  borderBottom: '30px solid #ffff00',
-                  marginBottom: '3px'
-                }}></div>
-                <div style={{ 
-                  width: '4px', 
-                  height: '40px', 
-                  backgroundColor: '#ffff00' 
-                }}></div>
-              </div>
-            )}
           </div>
         </div>
 
         <div className="text-center mt-3">
           <p className="text-muted small">
-            <strong>Flèche blanche :</strong> Référence (Nord)<br/>
-            <strong>Flèche jaune :</strong> Direction de votre appareil
+            <strong>Flèche blanche :</strong> Direction de votre appareil<br/>
+            <strong>Flèche jaune :</strong> Nord géographique
           </p>
           <p className="text-muted small">
             Orientez votre appareil dans la direction du vol du frelon, puis capturez.
