@@ -72,6 +72,8 @@ export default function CompassCapture({
             (position) => {
               setLatitude(position.coords.latitude);
               setLongitude(position.coords.longitude);
+              // Réinitialiser l'erreur si la position est obtenue avec succès
+              setError(null);
             },
             (error) => {
               console.error('Erreur de géolocalisation:', error);
