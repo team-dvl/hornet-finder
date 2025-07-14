@@ -204,34 +204,34 @@ function QuickHornetCaptureButton({ onQuickCapture, canAddHornet }: {
   };
 
   const handleClick = () => {
-    if (canAddHornet && isSupported()) {
+    if (isSupported()) {
       onQuickCapture();
     }
   };
 
   const supported = isSupported();
-  const isEnabled = canAddHornet && supported;
   const isPWA = isIOSPWA();
 
   return (
     <Button
       onClick={handleClick}
-      variant={isEnabled ? "success" : "outline-secondary"}
+      variant="primary"
       size="sm"
       className="map-control-button"
-      disabled={!isEnabled}
+      disabled={!supported}
+      style={{ backgroundColor: '#6f42c1', borderColor: '#6f42c1' }}
       title={
-        !canAddHornet 
-          ? "Vous devez être connecté pour ajouter un frelon"
-          : !supported 
+        !supported 
           ? "Votre appareil ne supporte pas la capture automatique" 
+          : !canAddHornet
+          ? "Cliquer pour vous connecter et ajouter un frelon"
           : isPWA
           ? "Capture rapide avec boussole (iOS PWA) - Permissions requises"
           : "Capture rapide avec boussole - Position et direction automatiques"
       }
     >
-      <span className="map-control-button-icon">🧭</span>
-      <span className="map-control-button-text">Frelon{isPWA ? ' PWA' : ''}</span>
+      <span className="map-control-button-icon">🎯</span>
+      <span className="map-control-button-text">Encoder{isPWA ? ' PWA' : ''}</span>
     </Button>
   );
 }

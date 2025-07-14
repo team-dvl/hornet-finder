@@ -193,7 +193,7 @@ export default function CompassCapture({
     return (
       <Modal show={show} onHide={handleClose} centered>
         <Modal.Header closeButton>
-          <Modal.Title>🧭 Capture de direction</Modal.Title>
+          <Modal.Title>🎯 Capture de direction</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Alert variant="warning">
@@ -213,7 +213,7 @@ export default function CompassCapture({
   return (
     <Modal show={show} onHide={handleClose} centered size="lg">
       <Modal.Header closeButton>
-        <Modal.Title>🧭 Capture de direction</Modal.Title>
+        <Modal.Title>🎯 Capture de direction</Modal.Title>
       </Modal.Header>
       
       <Modal.Body>

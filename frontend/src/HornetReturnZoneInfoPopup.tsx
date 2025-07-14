@@ -15,7 +15,7 @@ interface HornetReturnZoneInfoPopupProps {
 // Calculer la distance estimée du nid basée sur la durée
 function calculateNestDistance(duration?: number): number {
   if (!duration || duration <= 0) {
-    return 3; // Distance max par défaut: 3km
+    return 2; // Distance max par défaut: 2km
   }
   
   // 100m par minute = 100m / 60s = 1.67m par seconde
@@ -133,7 +133,7 @@ export default function HornetReturnZoneInfoPopup({
             {!isBasedOnDuration && (
               <div className="mt-3">
                 <small className="text-muted">
-                  ⚠️ Cette zone est une estimation par défaut (3km max). 
+                  ⚠️ Cette zone est une estimation par défaut (2km max). 
                   Pour une zone plus précise, ajoutez la durée de vol mesurée.
                 </small>
               </div>

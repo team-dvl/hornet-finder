@@ -15,7 +15,7 @@ interface HornetReturnZoneProps {
 // Calculer la distance estimée du nid basée sur la durée
 function calculateNestDistance(duration?: number): number {
   if (!duration || duration <= 0) {
-    return 3; // Distance max par défaut: 3km
+    return 2; // Distance max par défaut: 2km
   }
   
   // 100m par minute = 100m / 60s = 1.67m par seconde
@@ -45,7 +45,7 @@ function computeTriangle(
   lat: number,
   lng: number,
   direction: number,
-  lengthKm = 3,
+  lengthKm = 2,
   angleDeg = 5
 ): [number, number][] {
   const R = 6371;
@@ -144,8 +144,8 @@ export default function HornetReturnZone({
         <Polygon
           positions={trianglePositions}
           pathOptions={{
-            color: isBasedOnDuration ? "red" : "orange",
-            fillColor: isBasedOnDuration ? "red" : "orange",
+            color: "red",
+            fillColor: "red",
             fillOpacity: isBasedOnDuration ? 0.3 : 0.2,
             weight: isBasedOnDuration ? 3 : 2,
             dashArray: isBasedOnDuration ? undefined : "5, 5", // Ligne pointillée pour les estimations par défaut

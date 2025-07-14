@@ -254,7 +254,7 @@ export default function AddHornetPopup({
                       disabled={isSubmitting}
                       title="Capturer la direction avec la boussole"
                     >
-                      🧭
+                      🎯
                     </Button>
                   )}
                 </div>
@@ -264,7 +264,7 @@ export default function AddHornetPopup({
                 <Form.Text className="text-muted">
                   0° = Nord, 90° = Est, 180° = Sud, 270° = Ouest
                   {isCompassSupported() && (
-                    <><br/>💡 Utilisez le bouton boussole pour une capture automatique</>
+                    <><br/>💡 Utilisez le bouton cible pour une capture automatique</>
                   )}
                 </Form.Text>
               </Form.Group>

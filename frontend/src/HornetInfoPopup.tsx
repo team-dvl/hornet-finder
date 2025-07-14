@@ -214,9 +214,9 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation 
   const calculateNestDistance = (duration?: number) => {
     if (!duration || duration <= 0) {
       return {
-        distance: 3000, // Distance max par défaut: 3km
+        distance: 2000, // Distance max par défaut: 2km
         isEstimated: false,
-        displayText: "3 km (distance maximale par défaut)"
+        displayText: "2 km (distance maximale par défaut)"
       };
     }
     
@@ -501,7 +501,7 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation 
                   calculée d&apos;après la durée d&apos;absence observée (100m par minute d&apos;absence).
                 </>
               ) : (
-                <> La zone s&apos;étend sur la distance maximale de 3 km avec un angle de dispersion de 5°.</>
+                <> La zone s&apos;étend sur la distance maximale de 2 km avec un angle de dispersion de 5°.</>
               )}
             </div>
           </ListGroup.Item>

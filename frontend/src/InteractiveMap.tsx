@@ -220,6 +220,13 @@ export default function InteractiveMap() {
 
   // Gestionnaire pour la capture rapide avec boussole
   const handleQuickHornetCapture = () => {
+    // Vérifier d'abord si l'utilisateur est authentifié
+    if (!auth.isAuthenticated) {
+      // Rediriger vers l'authentification
+      auth.signinRedirect();
+      return;
+    }
+
     // Obtenir la position actuelle pour la capture
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
