@@ -1,7 +1,6 @@
 import { Button, Alert, Spinner } from "react-bootstrap";
 import { useMap } from "react-leaflet";
-import { useAppDispatch, useAppSelector } from './store/hooks';
-import { cycleDisplayMode, selectDisplayMode, toggleApiaries, selectShowApiaries, toggleNests, selectShowNests } from './store/store';
+import LayerControls from './LayerControls';
 
 interface MapControlsProps {
   loading: boolean;
@@ -86,108 +85,6 @@ function ErrorAlert({ error, onClose }: { error: string | null; onClose: () => v
   );
 }
 
-function HornetDisplayModeButton() {
-  const dispatch = useAppDispatch();
-  const displayMode = useAppSelector(selectDisplayMode);
-
-  const handleCycle = () => {
-    dispatch(cycleDisplayMode());
-  };
-
-  // Configuration des états du bouton
-  const getModeConfig = () => {
-    switch (displayMode) {
-      case 'full':
-        return {
-          variant: 'success' as const,
-          icon: '🔴',
-          text: 'Frelons et zônes',
-          title: 'Frelons et zônes de retour visibles - Cliquer pour masquer les zônes de retour'
-        };
-      case 'hornets-only':
-        return {
-          variant: 'warning' as const,
-          icon: '🐝',
-          text: 'Frelons',
-          title: 'Seuls les frelons sont visibles - Cliquer pour tout masquer'
-        };
-      case 'hidden':
-        return {
-          variant: 'outline-secondary' as const,
-          icon: '👁️',
-          text: 'Masqué',
-          title: 'Frelons et zônes de retour masqués - Cliquer pour tout afficher'
-        };
-      default:
-        return {
-          variant: 'success' as const,
-          icon: '🔴',
-          text: 'Tout',
-          title: 'Mode par défaut'
-        };
-    }
-  };
-
-  const config = getModeConfig();
-
-  return (
-    <Button
-      onClick={handleCycle}
-      variant={config.variant}
-      size="sm"
-      className="map-control-button"
-      title={config.title}
-    >
-      <span className="map-control-button-icon me-1">{config.icon}</span>
-      <span className="map-control-button-text">{config.text}</span>
-    </Button>
-  );
-}
-
-function ToggleApiariesButton() {
-  const dispatch = useAppDispatch();
-  const showApiaries = useAppSelector(selectShowApiaries);
-
-  const handleToggle = () => {
-    dispatch(toggleApiaries());
-  };
-
-  return (
-    <Button
-      onClick={handleToggle}
-      variant={showApiaries ? "warning" : "outline-secondary"}
-      size="sm"
-      className="map-control-button"
-      title={showApiaries ? "Masquer les ruchers" : "Afficher les ruchers"}
-    >
-      <span className="map-control-button-icon">🍯</span>
-      <span className="map-control-button-text">Ruchers</span>
-    </Button>
-  );
-}
-
-function ToggleNestsButton() {
-  const dispatch = useAppDispatch();
-  const showNests = useAppSelector(selectShowNests);
-
-  const handleToggle = () => {
-    dispatch(toggleNests());
-  };
-
-  return (
-    <Button
-      onClick={handleToggle}
-      variant={showNests ? "danger" : "outline-secondary"}
-      size="sm"
-      className="map-control-button"
-      title={showNests ? "Masquer les nids" : "Afficher les nids"}
-    >
-      <span className="map-control-button-icon">🏴</span>
-      <span className="map-control-button-text">Nids</span>
-    </Button>
-  );
-}
-
 function QuickHornetCaptureButton({ onQuickCapture, canAddHornet }: { 
   onQuickCapture: () => void; 
   canAddHornet: boolean;
@@ -250,12 +147,13 @@ export default function MapControls({
     <>
       <div className="map-controls-container">
         <LocateButton onLocationUpdate={onLocationUpdate} onErrorUpdate={onErrorUpdate} />
-        <HornetDisplayModeButton />
+        <LayerControls 
+          showApiariesButton={showApiariesButton}
+          showNestsButton={showNestsButton}
+        />
         {onQuickHornetCapture && (
           <QuickHornetCaptureButton onQuickCapture={onQuickHornetCapture} canAddHornet={canAddHornet} />
         )}
-        {showApiariesButton && <ToggleApiariesButton />}
-        {showNestsButton && <ToggleNestsButton />}
       </div>
       <LoadingIndicator loading={loading} />
       <ErrorAlert error={error} onClose={() => onErrorUpdate(null)} />
