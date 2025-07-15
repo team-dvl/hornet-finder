@@ -9,7 +9,7 @@ import { Nest } from './store/slices/nestsSlice';
 import HornetReturnZone from './HornetReturnZone';
 import ApiaryMarker from './ApiaryMarker';
 import NestMarker from './NestMarker';
-import MapControls from './MapControls';
+import MapControlsContainer from './components/map-controls';
 import HornetInfoPopup from './HornetInfoPopup';
 import HornetReturnZoneInfoPopup from './HornetReturnZoneInfoPopup';
 import ApiaryInfoPopup from './ApiaryInfoPopup';
@@ -290,7 +290,7 @@ export default function InteractiveMap() {
         style={{ height: "100vh", width: "100%" }}
         zoomControl={false} // Désactiver les contrôles par défaut
       >
-        <MapControls 
+        <MapControlsContainer 
           loading={loading}
           error={error}
           onLocationUpdate={setCoordinates}

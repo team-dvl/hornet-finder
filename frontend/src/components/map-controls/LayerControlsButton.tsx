@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { Button, Overlay, ListGroup, Popover } from 'react-bootstrap';
-import { useAppDispatch, useAppSelector } from './store/hooks';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { useAuth } from 'react-oidc-context';
 import {
   cycleDisplayMode,
@@ -9,17 +9,17 @@ import {
   selectShowApiaries,
   toggleNests,
   selectShowNests
-} from './store/store';
+} from '../../store/store';
 
-interface LayerControlsProps {
+interface LayerControlsButtonProps {
   showApiariesButton?: boolean;
   showNestsButton?: boolean;
 }
 
-export default function LayerControls({ 
+export default function LayerControlsButton({ 
   showApiariesButton = false, 
   showNestsButton = false 
-}: LayerControlsProps) {
+}: LayerControlsButtonProps) {
   const [showPopover, setShowPopover] = useState(false);
   const target = useRef(null);
   
@@ -95,14 +95,15 @@ export default function LayerControls({
         size="sm"
         className="map-control-button"
         title="Gérer les couches affichées"
+        style={{ opacity: 0.7, borderRadius: '12px', backgroundColor: '#287745' }}
       >
         <img 
-          src="/layers.png" 
-          alt="Couches" 
+          src="/layers-200px.png" 
+          alt="layers" 
           style={{ 
-            width: '16px', 
-            height: '16px',
-            filter: hasActiveLayers ? 'brightness(0) invert(1)' : 'none'
+            width: '1.8em', 
+            height: '1.8em',
+            filter: hasActiveLayers ? 'brightness(1.2) contrast(1.1)' : 'none'
           }} 
         />
         <span className="map-control-button-text ms-1">Couches</span>

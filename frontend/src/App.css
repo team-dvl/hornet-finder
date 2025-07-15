@@ -103,6 +103,20 @@ body {
   align-items: flex-start;
 }
 
+/* Affichage en pile verticale quand le texte est visible (écrans moyens/grands) */
+@media (min-width: 577px) {
+  .map-controls-container {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+  }
+  
+  .map-control-button {
+    min-width: 140px;
+    width: 140px;
+  }
+}
+
 .map-control-button {
   white-space: nowrap;
   font-size: 0.875rem;
@@ -140,6 +154,12 @@ body {
   .map-control-button-icon {
     margin-right: 0 !important;
     font-size: 1.1em;
+  }
+  
+  /* Taille spécifique pour l'image layers en mode petit écran */
+  .map-control-button img {
+    width: 1.8em !important;
+    height: 1.8em !important;
   }
 }
 
