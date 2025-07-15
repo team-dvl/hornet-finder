@@ -39,7 +39,6 @@ src/
 │   │   ├── AddHornetPopup.tsx
 │   │   ├── AddNestPopup.tsx
 │   │   ├── ApiaryInfoPopup.tsx
-│   │   ├── ApiaryInfoPopup_new.tsx
 │   │   ├── HornetInfoPopup.tsx
 │   │   ├── HornetReturnZoneInfoPopup.tsx
 │   │   ├── NestInfoPopup.tsx
