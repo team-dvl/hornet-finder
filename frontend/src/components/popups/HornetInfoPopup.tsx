@@ -1,10 +1,10 @@
 import { Modal, Button, ListGroup, Badge, Form, InputGroup, Alert, Dropdown } from 'react-bootstrap';
 import { useState, useMemo } from 'react';
-import { Hornet, updateHornetDuration, updateHornetColors } from './store/store';
-import { useAppDispatch, useAppSelector } from './store/hooks';
-import { useUserPermissions } from './hooks/useUserPermissions';
+import { Hornet, updateHornetDuration, updateHornetColors } from '../../store/store';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useAuth } from 'react-oidc-context';
-import { COLOR_OPTIONS, getColorLabel, getColorHex } from './utils/colors';
+import { COLOR_OPTIONS, getColorLabel, getColorHex } from '../../utils/colors';
 
 interface HornetInfoPopupProps {
   show: boolean;

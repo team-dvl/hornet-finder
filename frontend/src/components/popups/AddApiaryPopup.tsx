@@ -1,8 +1,8 @@
 import { Modal, Button, Form, Alert, Row, Col } from 'react-bootstrap';
 import { useState } from 'react';
-import { createApiary } from './store/store';
-import { useAppDispatch } from './store/hooks';
-import { useUserPermissions } from './hooks/useUserPermissions';
+import { createApiary } from '../../store/store';
+import { useAppDispatch } from '../../store/hooks';
+import { useUserPermissions } from '../../hooks/useUserPermissions';
 
 interface AddApiaryPopupProps {
   show: boolean;

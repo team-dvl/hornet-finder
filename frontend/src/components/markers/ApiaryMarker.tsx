@@ -1,6 +1,6 @@
 import { Marker } from 'react-leaflet';
 import { DivIcon } from 'leaflet';
-import { Apiary } from './store/slices/apiariesSlice';
+import { Apiary } from '../../store/slices/apiariesSlice';
 
 // Couleurs selon le niveau d'infestation
 const getInfestationColor = (level: 1 | 2 | 3): string => {

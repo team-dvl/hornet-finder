@@ -1,10 +1,10 @@
 import { Modal, Button, Form, Alert, Row, Col } from 'react-bootstrap';
 import { useState, useEffect } from 'react';
-import { createHornet } from './store/store';
-import { useAppDispatch } from './store/hooks';
-import { useUserPermissions } from './hooks/useUserPermissions';
-import { COLOR_OPTIONS, getColorLabel, getColorHex } from './utils/colors';
-import CompassCapture from './CompassCapture';
+import { createHornet } from '../../store/store';
+import { useAppDispatch } from '../../store/hooks';
+import { useUserPermissions } from '../../hooks/useUserPermissions';
+import { COLOR_OPTIONS, getColorLabel, getColorHex } from '../../utils/colors';
+import CompassCapture from '../map/CompassCapture';
 
 interface AddHornetPopupProps {
   show: boolean;

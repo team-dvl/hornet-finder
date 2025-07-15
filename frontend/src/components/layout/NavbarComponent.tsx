@@ -1,7 +1,7 @@
 import { Navbar, Nav, Button, Container } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
 import { useState } from 'react';
-import UserInfoModal from './UserInfoModal';
+import UserInfoModal from '../modals/UserInfoModal';
 
 interface NavbarComponentProps {
   onShowWelcome?: () => void;

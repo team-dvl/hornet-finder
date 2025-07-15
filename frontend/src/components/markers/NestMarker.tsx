@@ -2,7 +2,7 @@ import { Marker } from 'react-leaflet';
 import { DivIcon } from 'leaflet';
 import * as L from 'leaflet';
 import { useRef } from 'react';
-import { Nest } from './store/slices/nestsSlice';
+import { Nest } from '../../store/slices/nestsSlice';
 
 // Créer une icône personnalisée pour les nids
 const createNestIcon = (destroyed: boolean = false) => {

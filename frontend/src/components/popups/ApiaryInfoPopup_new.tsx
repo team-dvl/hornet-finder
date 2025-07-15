@@ -2,9 +2,9 @@ import { Modal, Button, Form, Alert } from 'react-bootstrap';
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from 'react-oidc-context';
-import { Apiary, updateApiary, selectApiaryById } from './store/slices/apiariesSlice';
-import { useUserPermissions } from './hooks/useUserPermissions';
-import { AppDispatch, RootState } from './store/store';
+import { Apiary, updateApiary, selectApiaryById } from '../../store/slices/apiariesSlice';
+import { useUserPermissions } from '../../hooks/useUserPermissions';
+import { AppDispatch, RootState } from '../../store/store';
 
 // Couleurs selon le niveau d'infestation
 const getInfestationColor = (level: 1 | 2 | 3): string => {

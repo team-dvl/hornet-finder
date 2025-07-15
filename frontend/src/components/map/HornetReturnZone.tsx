@@ -1,7 +1,7 @@
 import { Polygon, Marker } from "react-leaflet";
 import { DivIcon } from "leaflet";
 import * as L from "leaflet";
-import { Hornet } from './store/store';
+import { Hornet } from '../../store/store';
 
 interface HornetReturnZoneProps {
   hornet: Hornet;

@@ -1,8 +1,8 @@
 import { Modal, Button, ListGroup, Badge } from 'react-bootstrap';
-import { Hornet } from './store/store';
-import { useUserPermissions } from './hooks/useUserPermissions';
+import { Hornet } from '../../store/store';
+import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useAuth } from 'react-oidc-context';
-import { getColorLabel } from './utils/colors';
+import { getColorLabel } from '../../utils/colors';
 
 interface HornetReturnZoneInfoPopupProps {
   show: boolean;

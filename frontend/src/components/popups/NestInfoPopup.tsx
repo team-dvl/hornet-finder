@@ -1,5 +1,5 @@
 import { Modal, Badge } from 'react-bootstrap';
-import { Nest } from './store/store';
+import { Nest } from '../../store/store';
 
 interface NestInfoPopupProps {
   show: boolean;

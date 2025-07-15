@@ -1,5 +1,5 @@
 import { Modal, Button, Card, Row, Col } from 'react-bootstrap';
-import { useUserPermissions } from './hooks/useUserPermissions';
+import { useUserPermissions } from '../../hooks/useUserPermissions';
 
 interface AddItemSelectorProps {
   show: boolean;

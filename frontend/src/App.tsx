@@ -3,9 +3,9 @@ import './App.css'
 import { Container, Alert } from 'react-bootstrap'
 import { useState, useEffect } from 'react';
 import { useAuth } from 'react-oidc-context';
-import InteractiveMap from './InteractiveMap';
-import NavbarComponent from './NavbarComponent';
-import WelcomeModal from './WelcomeModal';
+import { InteractiveMap } from './components/map';
+import { NavbarComponent } from './components/layout';
+import { WelcomeModal } from './components/modals';
 import { initIOSViewportFix } from './utils/iosViewportFix';
 import { useUrlCleaner } from './utils/urlCleaner';
 import { setupPWAAuthMonitoring } from './utils/pwaAuth';

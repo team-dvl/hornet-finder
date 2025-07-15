@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Modal, Button, Form, Alert, Spinner } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
-import { useAppDispatch } from './store/hooks';
-import { createNest } from './store/store';
+import { useAppDispatch } from '../../store/hooks';
+import { createNest } from '../../store/store';
 
 interface AddNestPopupProps {
   show: boolean;
