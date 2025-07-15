@@ -42,8 +42,6 @@ export default function UserInfoModal({ show, onHide }: UserInfoModalProps) {
   // Extract roles from the decoded access token
   const realmAccess = decodedToken?.realm_access;
   const realmRoles = realmAccess?.roles || [];
-  
-  console.log('Realm access from decoded token:', realmAccess);
 
   // Filter relevant roles  
   const roles = realmRoles.filter((role: string) => 
@@ -53,8 +51,6 @@ export default function UserInfoModal({ show, onHide }: UserInfoModalProps) {
   );
   
   const tokenExpiry = decodedToken?.exp;
-
-  console.log('Extracted roles:', roles);
 
   return (
     <Modal show={show} onHide={onHide} centered>
