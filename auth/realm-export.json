@@ -1,6 +1,8 @@
 {
   "id": "0a2b88de-ad3d-4820-af60-8397202b8049",
   "realm": "hornet-finder",
+  "displayName": "Velutina",
+  "displayNameHtml": "",
   "notBefore": 0,
   "defaultSignatureAlgorithm": "RS256",
   "revokeRefreshToken": false,
@@ -27,13 +29,13 @@
   "oauth2DevicePollingInterval": 5,
   "enabled": true,
   "sslRequired": "external",
-  "registrationAllowed": false,
+  "registrationAllowed": true,
   "registrationEmailAsUsername": true,
-  "rememberMe": false,
-  "verifyEmail": false,
-  "loginWithEmailAllowed": false,
+  "rememberMe": true,
+  "verifyEmail": true,
+  "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
-  "resetPasswordAllowed": false,
+  "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
   "bruteForceProtected": false,
   "permanentLockout": false,
@@ -286,21 +288,21 @@
             "client": {
               "realm-management": [
                 "view-identity-providers",
-                "manage-users",
                 "manage-clients",
-                "manage-authorization",
+                "manage-users",
                 "impersonation",
+                "manage-authorization",
                 "query-clients",
                 "create-client",
                 "view-clients",
                 "view-realm",
                 "query-groups",
-                "view-authorization",
-                "manage-realm",
                 "manage-identity-providers",
-                "view-users",
-                "view-events",
+                "manage-realm",
+                "view-authorization",
                 "query-users",
+                "view-events",
+                "view-users",
                 "manage-events",
                 "query-realms"
               ]
@@ -331,6 +333,7 @@
       ],
       "security-admin-console": [],
       "hornet-api": [],
+      "hornet-app-dev": [],
       "admin-cli": [],
       "account-console": [],
       "broker": [
@@ -788,7 +791,7 @@
       "name": "hornet-app",
       "description": "",
       "rootUrl": "https://velutina.ovh",
-      "adminUrl": "https://auth.velutina.ovh/",
+      "adminUrl": "",
       "baseUrl": "",
       "surrogateAuthRequired": false,
       "enabled": true,
@@ -830,6 +833,77 @@
         "acr.loa.map": "{}",
         "require.pushed.authorization.requests": "false",
         "tls.client.certificate.bound.access.tokens": "false",
+        "display.on.consent.screen": "false",
+        "request.object.encryption.enc": "any",
+        "token.response.type.bearer.lower-case": "false"
+      },
+      "authenticationFlowBindingOverrides": {},
+      "fullScopeAllowed": true,
+      "nodeReRegistrationTimeout": -1,
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "roles",
+        "profile",
+        "basic",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "organization",
+        "offline_access",
+        "microprofile-jwt"
+      ]
+    },
+    {
+      "id": "df67e082-88f6-4425-9876-d6c1efb1884a",
+      "clientId": "hornet-app-dev",
+      "name": "hornet-app-dev",
+      "description": "",
+      "rootUrl": "https://dev.velutina.ovh",
+      "adminUrl": "",
+      "baseUrl": "",
+      "surrogateAuthRequired": false,
+      "enabled": true,
+      "alwaysDisplayInConsole": false,
+      "clientAuthenticatorType": "client-secret",
+      "redirectUris": [
+        "https://dev.velutina.ovh/*"
+      ],
+      "webOrigins": [
+        "+"
+      ],
+      "notBefore": 0,
+      "bearerOnly": false,
+      "consentRequired": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "publicClient": true,
+      "frontchannelLogout": true,
+      "protocol": "openid-connect",
+      "attributes": {
+        "request.object.signature.alg": "any",
+        "request.object.encryption.alg": "any",
+        "client.introspection.response.allow.jwt.claim.enabled": "false",
+        "standard.token.exchange.enabled": "false",
+        "post.logout.redirect.uris": "+",
+        "frontchannel.logout.session.required": "true",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "backchannel.logout.revoke.offline.tokens": "false",
+        "use.refresh.tokens": "true",
+        "realm_client": "false",
+        "oidc.ciba.grant.enabled": "false",
+        "client.use.lightweight.access.token.enabled": "false",
+        "backchannel.logout.session.required": "true",
+        "request.object.required": "not required",
+        "client_credentials.use_refresh_token": "false",
+        "access.token.header.type.rfc9068": "false",
+        "tls.client.certificate.bound.access.tokens": "false",
+        "require.pushed.authorization.requests": "false",
+        "acr.loa.map": "{}",
         "display.on.consent.screen": "false",
         "request.object.encryption.enc": "any",
         "token.response.type.bearer.lower-case": "false"
@@ -1682,17 +1756,18 @@
   "smtpServer": {
     "debug": "false",
     "replyToDisplayName": "",
-    "starttls": "true",
+    "starttls": "false",
     "auth": "true",
     "envelopeFrom": "",
     "ssl": "true",
     "password": "**********",
-    "host": "",
+    "port": "465",
+    "host": "ssl0.ovh.net",
     "replyTo": "",
-    "from": "",
+    "from": "4p6z9k4bj@mozmail.com",
     "fromDisplayName": "Hornet-Finder",
     "authType": "basic",
-    "user": ""
+    "user": "admin@velutina.ovh"
   },
   "loginTheme": "keycloak.v2",
   "accountTheme": "",
@@ -1713,16 +1788,20 @@
       "providerId": "google",
       "enabled": true,
       "updateProfileFirstLoginMode": "on",
-      "trustEmail": false,
+      "trustEmail": true,
       "storeToken": false,
       "addReadTokenRoleOnCreate": false,
       "authenticateByDefault": false,
       "linkOnly": false,
       "hideOnLogin": false,
       "config": {
+        "acceptsPromptNoneForwardFromClient": "false",
+        "clientId": "220472679472-ihuvg6gr5gubv3l5gmjnehul7i8eihvt.apps.googleusercontent.com",
+        "disableUserInfo": "false",
+        "filteredByClaim": "false",
         "syncMode": "LEGACY",
         "clientSecret": "**********",
-        "clientId": "220472679472-jol0sdrf0tv1l70uaqatdm85cl7etgo5.apps.googleusercontent.com"
+        "caseSensitiveOriginalUsername": "false"
       }
     }
   ],
@@ -1761,14 +1840,14 @@
         "subComponents": {},
         "config": {
           "allowed-protocol-mapper-types": [
-            "oidc-usermodel-attribute-mapper",
             "oidc-address-mapper",
+            "oidc-usermodel-property-mapper",
+            "oidc-sha256-pairwise-sub-mapper",
+            "saml-role-list-mapper",
             "saml-user-property-mapper",
             "saml-user-attribute-mapper",
-            "oidc-usermodel-property-mapper",
-            "saml-role-list-mapper",
             "oidc-full-name-mapper",
-            "oidc-sha256-pairwise-sub-mapper"
+            "oidc-usermodel-attribute-mapper"
           ]
         }
       },
@@ -1788,14 +1867,14 @@
         "subComponents": {},
         "config": {
           "allowed-protocol-mapper-types": [
-            "oidc-full-name-mapper",
-            "saml-role-list-mapper",
-            "oidc-usermodel-attribute-mapper",
             "oidc-usermodel-property-mapper",
+            "oidc-full-name-mapper",
             "saml-user-attribute-mapper",
-            "saml-user-property-mapper",
+            "oidc-usermodel-attribute-mapper",
             "oidc-address-mapper",
-            "oidc-sha256-pairwise-sub-mapper"
+            "oidc-sha256-pairwise-sub-mapper",
+            "saml-role-list-mapper",
+            "saml-user-property-mapper"
           ]
         }
       },
@@ -2637,8 +2716,11 @@
     "realmReusableOtpCode": "false",
     "cibaExpiresIn": "120",
     "oauth2DeviceCodeLifespan": "600",
+    "saml.signature.algorithm": "",
     "parRequestUriLifespan": "60",
     "clientSessionMaxLifespan": "0",
+    "frontendUrl": "",
+    "acr.loa.map": "{}",
     "darkMode": "false"
   },
   "keycloakVersion": "26.2.5",
