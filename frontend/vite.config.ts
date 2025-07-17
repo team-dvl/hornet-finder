@@ -40,14 +40,11 @@ export default defineConfig({
     strictPort: true,
     hmr: {
       protocol: 'wss',
-      host: 'velutina.ovh',
+      host: 'dev.velutina.ovh',
       clientPort: 443,
     },
     allowedHosts: [
-      'velutina.ovh',
-      'www.velutina.ovh',
-      'api.velutina.ovh',
-      'app.velutina.ovh',
+      'dev.velutina.ovh',
       'auth.velutina.ovh',
     ],
   },

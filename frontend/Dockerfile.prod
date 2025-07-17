@@ -1,0 +1,21 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copier package.json et package-lock.json
+COPY package*.json ./
+
+# Installer les dépendances
+RUN npm ci --only=production=false
+
+# Copier le code source
+COPY . .
+
+# Définir l'environnement de production
+ENV NODE_ENV=production
+
+# Builder l'application avec les variables de production
+RUN npm run build
+
+# Copier les fichiers buildés dans le volume
+CMD ["sh", "-c", "cp -r dist/* /app/dist/"]

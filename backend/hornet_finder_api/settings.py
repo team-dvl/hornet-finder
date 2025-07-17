@@ -30,6 +30,7 @@ ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     os.environ.get('HOST'), # The host name of the reverse proxy (nginx) used in production
+    os.environ.get('DEV_HOST') # The host name for development
 ]
 
 
@@ -148,7 +149,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'fr-be'
 
 TIME_ZONE = 'Europe/Brussels'
 

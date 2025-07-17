@@ -7,7 +7,7 @@ services:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
     entrypoint:
-      sh -c "certbot certonly --webroot --webroot-path=/var/www/certbot --email vlb79rzxd@relay.firefox.com --agree-tos --no-eff-email --non-interactive -d velutina.ovh -d auth.velutina.ovh -d www.velutina.ovh -d api.velutina.ovh -d app.velutina.ovh"
+      sh -c "certbot certonly --webroot --webroot-path=/var/www/certbot --email vlb79rzxd@relay.firefox.com --agree-tos --no-eff-email --non-interactive -d velutina.ovh -d auth.velutina.ovh -d www.velutina.ovh -d dev.velutina.ovh -d prod.velutina.ovh"
 
     depends_on:
       - nginx-certbot
@@ -46,6 +46,7 @@ services:
       - DEBUG=${DEBUG}
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
       - HOST=${HOST}
+      - DEV_HOST=${DEV_HOST}
       - DB_HOST=hornet-finder-api-db
       - DB_NAME=hornet_finder
       - DB_USER=hornet_finder
@@ -83,7 +84,6 @@ services:
     depends_on:
       - hornet-finder-keycloak-db
   
-
   nginx:
     image: nginx:latest
     container_name: hornet-finder-nginx
@@ -91,7 +91,9 @@ services:
       - "${PROXY_PORT:-80}:80"
       - "443:443"
     volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/conf.d/auth.conf:/etc/nginx/conf.d/auth.conf:ro
+      - ./nginx/conf.d/prod.conf:/etc/nginx/conf.d/prod.conf:ro
+      - ./nginx/conf.d/dev.conf:/etc/nginx/conf.d/dev.conf:ro
       - ./certbot/conf:/etc/letsencrypt:ro
       - ./certbot/www:/var/www/certbot
       - staticfiles:/staticfiles
@@ -108,8 +110,9 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_URL=http://hornet-finder-api:8000/api/
-      - VITE_KEYCLOAK_URL=http://hornet-finder-keycloak:8080/
+      # ✅ URLs accessibles depuis le navigateur
+      - VITE_API_URL=https://dev.velutina.ovh/api/
+      - VITE_KEYCLOAK_URL=https://auth.velutina.ovh/
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -119,6 +122,20 @@ services:
     command: npm run dev -- --host 0.0.0.0 --port 5173
     profiles:
       - dev
+
+  hornet-finder-frontend-build:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: hornet-finder-frontend-build
+    environment:
+      - VITE_API_URL=https://velutina.ovh/api/
+      - VITE_KEYCLOAK_URL=https://auth.velutina.ovh/
+    volumes:
+      - frontend-dist:/app/dist
+    command: npm run build
+    profiles:
+      - build-frontend
 
 volumes:
   api-db:
