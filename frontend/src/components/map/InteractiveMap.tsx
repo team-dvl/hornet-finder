@@ -48,6 +48,12 @@ function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number
   return null;
 }
 
+// Fonction utilitaire pour détecter les appareils mobiles
+const isMobile = () => {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+         (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
+};
+
 export default function InteractiveMap() {
   const [coordinates, setCoordinates] = useState<[number, number]>([50.491064, 4.884473]);
   const [selectedHornet, setSelectedHornet] = useState<Hornet | null>(null);
@@ -166,6 +172,11 @@ export default function InteractiveMap() {
 
   // Gestionnaire de clic sur la carte pour afficher le sélecteur d'éléments
   const handleMapClick = (lat: number, lng: number) => {
+    // Désactiver l'ajout d'objets sur mobile
+    if (isMobile()) {
+      return;
+    }
+    
     // Vérifier si l'utilisateur peut ajouter quelque chose (y compris les nids pour les utilisateurs authentifiés)
     const canAddNest = auth.isAuthenticated; // Tous les utilisateurs authentifiés peuvent ajouter des nids
     const canAddSomething = canAddHornet || canAddApiary || canAddNest;
