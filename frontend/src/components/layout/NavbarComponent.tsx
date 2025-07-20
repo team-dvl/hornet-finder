@@ -2,6 +2,7 @@ import { Navbar, Nav, Button, Container } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
 import { useState } from 'react';
 import UserInfoModal from '../modals/UserInfoModal';
+import CompassCapture from '../map/CompassCapture';
 
 interface NavbarComponentProps {
   onShowWelcome?: () => void;
@@ -10,6 +11,22 @@ interface NavbarComponentProps {
 export default function NavbarComponent({ onShowWelcome }: NavbarComponentProps) {
   const auth = useAuth();
   const [showUserModal, setShowUserModal] = useState(false);
+  const [showCompassTest, setShowCompassTest] = useState(false);
+
+  // Gestionnaire pour le test de boussole
+  const handleCompassTest = () => {
+    setShowCompassTest(true);
+  };
+
+  const handleCompassTestCapture = (direction: number) => {
+    console.log('🎯 Direction capturée (test):', direction);
+    setShowCompassTest(false);
+    // Ne fait rien d'autre - c'est juste un test
+  };
+
+  const handleCompassTestClose = () => {
+    setShowCompassTest(false);
+  };
 
   return (
     <Navbar 
@@ -50,6 +67,15 @@ export default function NavbarComponent({ onShowWelcome }: NavbarComponentProps)
                   </Button>
                 )}
                 <Button 
+                  variant="outline-warning" 
+                  size="sm"
+                  onClick={handleCompassTest}
+                  className="me-2"
+                  title="Tester la capture de direction par boussole"
+                >
+                  🎯 Test
+                </Button>
+                <Button 
                   variant="primary" 
                   size="sm"
                   onClick={() => void auth.signinRedirect()}
@@ -86,6 +112,13 @@ export default function NavbarComponent({ onShowWelcome }: NavbarComponentProps)
       <UserInfoModal 
         show={showUserModal} 
         onHide={() => setShowUserModal(false)} 
+      />
+      
+      {/* Dialogue de test de boussole */}
+      <CompassCapture 
+        show={showCompassTest} 
+        onHide={handleCompassTestClose} 
+        onCapture={handleCompassTestCapture}
       />
     </Navbar>
   );

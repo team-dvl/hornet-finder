@@ -11,10 +11,21 @@ declare global {
       new (type: string, eventInitDict?: DeviceOrientationEventInit): DeviceOrientationEvent;
       prototype: DeviceOrientationEvent;
     };
+    AbsoluteOrientationSensor?: {
+      new (options?: { frequency?: number }): AbsoluteOrientationSensor;
+    };
   }
   interface Navigator {
     standalone?: boolean;
   }
+}
+
+interface AbsoluteOrientationSensor extends EventTarget {
+  quaternion: number[] | null;
+  start(): void;
+  stop(): void;
+  addEventListener(type: 'reading', listener: () => void): void;
+  addEventListener(type: 'error', listener: (event: Event) => void): void;
 }
 
 interface CompassCaptureProps {
@@ -39,6 +50,8 @@ export default function CompassCapture({
   const [isSupported, setIsSupported] = useState(true);
   const watchIdRef = useRef<number | null>(null);
   const orientationPermissionRef = useRef<boolean>(false);
+  const sensorRef = useRef<AbsoluteOrientationSensor | null>(null);
+  const orientationListenerRef = useRef<((event: DeviceOrientationEvent) => void) | null>(null);
 
   // Vérifier si les APIs sont supportées
   useEffect(() => {
@@ -116,28 +129,107 @@ export default function CompassCapture({
 
         // Démarrer l'écoute de l'orientation avec un délai pour iOS PWA
         const startOrientationTracking = () => {
-          const handleOrientation = (event: DeviceOrientationEvent) => {
-            if (event.alpha !== null) {
-              // alpha donne la direction de la boussole (0-360°)
-              // On ajuste pour que 0° soit le nord géographique
-              let direction = event.alpha;
-              
-              // Sur iOS, il faut parfois ajuster l'orientation
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              if (typeof (event as any).webkitCompassHeading === 'number') {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                direction = (event as any).webkitCompassHeading;
-              }
-              
-              setHeading(Math.round(direction));
+          const isAndroid = /Android/.test(navigator.userAgent);
+
+          // Fonction pour convertir quaternion en heading (yaw)
+          const quaternionToHeading = (q: number[]): number => {
+            const [x, y, z, w] = q;
+            // Calculer le yaw (rotation autour de l'axe Z) depuis le quaternion
+            const yaw = Math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z));
+            // Convertir en degrés
+            let degrees = (yaw * 180) / Math.PI;
+            // Sur Android, inverser l'angle (360 - angle)
+            if (isAndroid) {
+              degrees = 360 - degrees;
             }
+            // Normaliser entre 0-359
+            degrees = ((degrees % 360) + 360) % 360;
+            return degrees;
           };
 
-          window.addEventListener('deviceorientation', handleOrientation, true);
+          // Essayer d'utiliser AbsoluteOrientationSensor sur Android si disponible
+          if (isAndroid && window.AbsoluteOrientationSensor) {
+            const checkSensorPermissions = async () => {
+              try {
+                // Vérifier les permissions pour les capteurs
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const permissionStatus = await (navigator as any).permissions?.query({ name: 'accelerometer' });
+                if (permissionStatus?.state === 'granted' || permissionStatus?.state === 'prompt') {
+                  const sensor = new window.AbsoluteOrientationSensor!({ frequency: 10 });
+                  sensorRef.current = sensor;
+                  
+                  sensor.addEventListener('reading', () => {
+                    if (sensor.quaternion) {
+                      const heading = quaternionToHeading(sensor.quaternion);
+                      setHeading(Math.round(heading));
+                    }
+                  });
+                  
+                  sensor.addEventListener('error', (event: Event) => {
+                    console.error('AbsoluteOrientationSensor error:', event);
+                    setError('Erreur du capteur AbsoluteOrientationSensor. Votre appareil Android ne supporte pas cette fonctionnalité de manière fiable.');
+                  });
+                  
+                  sensor.start();
+                  return;
+                } else {
+                  setError('Permissions des capteurs refusées. L\'application a besoin d\'accéder aux capteurs de mouvement pour fonctionner sur Android.');
+                }
+              } catch (error) {
+                console.log('AbsoluteOrientationSensor non disponible:', error);
+                setError('AbsoluteOrientationSensor non supporté. Votre appareil Android ne supporte pas cette fonctionnalité nécessaire pour la capture de direction.');
+              }
+            };
+            
+            checkSensorPermissions();
+          } else if (isAndroid) {
+            // Android sans AbsoluteOrientationSensor
+            setError('Votre appareil Android ne supporte pas AbsoluteOrientationSensor, nécessaire pour la capture de direction précise.');
+          } else {
+            // iOS : utiliser DeviceOrientationEvent
+            startDeviceOrientationTracking();
+          }
+
+          function startDeviceOrientationTracking() {
+            // Fonction uniquement pour iOS
+            const handleOrientation = (event: DeviceOrientationEvent) => {
+              if (event.alpha !== null) {
+                let direction = event.alpha;
+                
+                // Sur iOS, utiliser webkitCompassHeading si disponible
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                if (typeof (event as any).webkitCompassHeading === 'number') {
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  direction = (event as any).webkitCompassHeading;
+                }
+                
+                // Normaliser entre 0-359
+                direction = ((direction % 360) + 360) % 360;
+                
+                setHeading(Math.round(direction));
+              }
+            };
+
+            // Stocker la référence du listener pour pouvoir le nettoyer
+            orientationListenerRef.current = handleOrientation;
+            window.addEventListener('deviceorientation', handleOrientation, true);
+          }
 
           // Nettoyer les event listeners lors du démontage
           return () => {
-            window.removeEventListener('deviceorientation', handleOrientation, true);
+            // Arrêter le sensor si il est actif
+            if (sensorRef.current) {
+              sensorRef.current.stop();
+              sensorRef.current = null;
+            }
+            
+            // Nettoyer le listener DeviceOrientation si il existe
+            if (orientationListenerRef.current) {
+              window.removeEventListener('deviceorientation', orientationListenerRef.current, true);
+              orientationListenerRef.current = null;
+            }
+            
+            // Nettoyer la géolocalisation
             if (watchIdRef.current !== null) {
               navigator.geolocation.clearWatch(watchIdRef.current);
             }
@@ -165,6 +257,18 @@ export default function CompassCapture({
 
   // Nettoyer lors de la fermeture
   const handleClose = () => {
+    // Arrêter le sensor si il est actif
+    if (sensorRef.current) {
+      sensorRef.current.stop();
+      sensorRef.current = null;
+    }
+    
+    // Nettoyer le listener DeviceOrientation si il existe
+    if (orientationListenerRef.current) {
+      window.removeEventListener('deviceorientation', orientationListenerRef.current, true);
+      orientationListenerRef.current = null;
+    }
+    
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
