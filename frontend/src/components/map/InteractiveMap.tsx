@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { MapContainer, TileLayer, useMapEvents, ZoomControl } from "react-leaflet";
+import { Modal, Spinner } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
 import { useAppDispatch, useAppSelector, fetchHornets, fetchHornetsPublic, fetchApiaries, fetchMyApiaries, selectShowApiaries, selectShowHornets, selectShowReturnZones, fetchNests, selectShowNests } from '../../store/store';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
@@ -70,6 +71,7 @@ export default function InteractiveMap() {
   
   // États pour la capture rapide avec boussole
   const [showCompassCapture, setShowCompassCapture] = useState(false);
+  const [showGeolocationSpinner, setShowGeolocationSpinner] = useState(false);
   const [compassCapturedDirection, setCompassCapturedDirection] = useState<number | null>(null);
   const [compassCapturedPosition, setCompassCapturedPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [pendingHornetData, setPendingHornetData] = useState<{ lat: number; lng: number; direction: number } | null>(null);
@@ -215,7 +217,6 @@ export default function InteractiveMap() {
 
   const handleAddSuccess = () => {
     // Optionnel : afficher un message de succès ou recharger les données
-    console.log('Élément ajouté avec succès !');
   };
 
   // Gestionnaire pour la capture rapide avec boussole
@@ -229,12 +230,18 @@ export default function InteractiveMap() {
 
     // Obtenir la position actuelle pour la capture
     if (navigator.geolocation) {
+      // Afficher le spinner de géolocalisation
+      setShowGeolocationSpinner(true);
+      
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setCompassCapturedPosition({
             lat: position.coords.latitude,
             lng: position.coords.longitude
           });
+          
+          // Masquer le spinner et afficher la capture de boussole
+          setShowGeolocationSpinner(false);
           setShowCompassCapture(true);
         },
         (error) => {
@@ -244,6 +251,9 @@ export default function InteractiveMap() {
             lat: coordinates[0],
             lng: coordinates[1]
           });
+          
+          // Masquer le spinner et afficher la capture de boussole
+          setShowGeolocationSpinner(false);
           setShowCompassCapture(true);
         }
       );
@@ -279,6 +289,11 @@ export default function InteractiveMap() {
     setShowCompassCapture(false);
     setCompassCapturedDirection(null);
     setCompassCapturedPosition(null);
+  };
+
+  // Gestionnaire pour fermer le spinner de géolocalisation
+  const handleCloseGeolocationSpinner = () => {
+    setShowGeolocationSpinner(false);
   };
 
   return (
@@ -408,6 +423,27 @@ export default function InteractiveMap() {
         initialLatitude={compassCapturedPosition?.lat}
         initialLongitude={compassCapturedPosition?.lng}
       />
+
+      {/* Modal de géolocalisation en cours */}
+      <Modal 
+        show={showGeolocationSpinner} 
+        onHide={handleCloseGeolocationSpinner}
+        centered
+        backdrop="static"
+        keyboard={false}
+      >
+        <Modal.Body className="text-center p-4">
+          <Spinner animation="border" role="status" className="me-3">
+            <span className="visually-hidden">Chargement...</span>
+          </Spinner>
+          <div className="mt-3">
+            <strong>Géolocalisation en cours...</strong>
+            <div className="text-muted mt-1">
+              Veuillez patienter, ça peut parfois prendre 30 secondes ! 😅
+            </div>
+          </div>
+        </Modal.Body>
+      </Modal>
     </div>
   );
 }
