@@ -1,5 +1,12 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
+// Interface pour les paramètres de géolocalisation
+export interface GeolocationParams {
+  lat: number;
+  lon: number;
+  radius?: number;
+}
+
 // Types pour les données de rucher
 export interface Apiary {
   id?: number;
@@ -29,9 +36,18 @@ const initialState: ApiariesState = {
 // Thunk async pour récupérer les ruchers
 export const fetchApiaries = createAsyncThunk(
   'apiaries/fetchApiaries',
-  async (accessToken: string, { rejectWithValue }) => {
+  async ({ accessToken, geolocation }: { 
+    accessToken: string; 
+    geolocation: GeolocationParams 
+  }, { rejectWithValue }) => {
     try {
-      const response = await fetch('/api/apiaries', {
+      const params = new URLSearchParams({
+        lat: geolocation.lat.toString(),
+        lon: geolocation.lon.toString(),
+        ...(geolocation.radius && { radius: geolocation.radius.toString() })
+      });
+
+      const response = await fetch(`/api/apiaries?${params}`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',

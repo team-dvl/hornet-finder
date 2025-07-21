@@ -4,6 +4,7 @@ import { Modal, Spinner } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
 import { useAppDispatch, useAppSelector, fetchHornets, fetchHornetsPublic, fetchApiaries, fetchMyApiaries, selectShowApiaries, selectShowHornets, selectShowReturnZones, fetchNests, selectShowNests } from '../../store/store';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
+import { useGeolocation } from '../../hooks/useGeolocation';
 import { Hornet } from '../../store/slices/hornetsSlice';
 import { Apiary } from '../../store/slices/apiariesSlice';
 import { Nest } from '../../store/slices/nestsSlice';
@@ -56,6 +57,12 @@ const isMobile = () => {
 
 export default function InteractiveMap() {
   const [coordinates, setCoordinates] = useState<[number, number]>([50.491064, 4.884473]);
+  
+  // État pour la géolocalisation de l'utilisateur
+  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
+  const [geolocationError, setGeolocationError] = useState<string | null>(null);
+  const [searchRadius, setSearchRadius] = useState<number>(5);
+  
   const [selectedHornet, setSelectedHornet] = useState<Hornet | null>(null);
   const [selectedApiary, setSelectedApiary] = useState<Apiary | null>(null);
   const [selectedNest, setSelectedNest] = useState<Nest | null>(null);
@@ -95,30 +102,91 @@ export default function InteractiveMap() {
   const showReturnZones = useAppSelector(selectShowReturnZones);
   const showNests = useAppSelector(selectShowNests);
 
+  // Gérer la géolocalisation de l'utilisateur
   useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lon: position.coords.longitude,
+          });
+          setGeolocationError(null);
+        },
+        (error) => {
+          let errorMessage = "Impossible d'obtenir votre position";
+          
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = "Permission de géolocalisation refusée";
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = "Position non disponible";
+              break;
+            case error.TIMEOUT:
+              errorMessage = "Timeout de géolocalisation";
+              break;
+          }
+          
+          setGeolocationError(errorMessage);
+          // Position par défaut (centre de la France)
+          setUserLocation({ lat: 46.227638, lon: 2.213749 });
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 60000,
+        }
+      );
+    } else {
+      setGeolocationError("La géolocalisation n'est pas supportée");
+      // Position par défaut (centre de la France)
+      setUserLocation({ lat: 46.227638, lon: 2.213749 });
+    }
+  }, []);
+
+  // Charger les données quand la géolocalisation est disponible
+  useEffect(() => {
+    if (!userLocation) return; // Attendre que la géolocalisation soit disponible
+
+    const geolocationParams = {
+      lat: userLocation.lat,
+      lon: userLocation.lon,
+      radius: searchRadius,
+    };
+
     // Récupérer les frelons (toujours, même pour les utilisateurs non authentifiés)
     if (auth.isAuthenticated && auth.user?.access_token) {
       // Utilisateur authentifié : récupérer avec le token
-      dispatch(fetchHornets(auth.user.access_token));
+      dispatch(fetchHornets({ 
+        accessToken: auth.user.access_token, 
+        geolocation: geolocationParams 
+      }));
     } else {
       // Utilisateur non authentifié : récupérer sans token
-      dispatch(fetchHornetsPublic());
+      dispatch(fetchHornetsPublic(geolocationParams));
     }
 
     // Récupérer les ruchers et nids seulement pour les utilisateurs authentifiés
     if (auth.isAuthenticated && auth.user?.access_token) {
       // Récupérer les nids (disponibles pour tous les utilisateurs authentifiés)
-      dispatch(fetchNests(auth.user.access_token));
+      dispatch(fetchNests({ 
+        accessToken: auth.user.access_token, 
+        geolocation: geolocationParams 
+      }));
       
       if (isAdmin) {
         // Les admins peuvent voir tous les ruchers
-        dispatch(fetchApiaries(auth.user.access_token));
+        dispatch(fetchApiaries({ 
+          accessToken: auth.user.access_token, 
+          geolocation: geolocationParams 
+        }));
       } else if (canAddApiary) {
-        // Les apiculteurs peuvent voir leurs propres ruchers
+        // Les apiculteurs peuvent voir leurs propres ruchers (pas de filtrage géographique pour 'my')
         dispatch(fetchMyApiaries(auth.user.access_token));
       }
     }
-  }, [auth.isAuthenticated, auth.user?.access_token, dispatch, isAdmin, canAddApiary]);
+  }, [userLocation, searchRadius, auth.isAuthenticated, auth.user?.access_token, dispatch, isAdmin, canAddApiary]);
 
   // Gestionnaire de clic sur une zone de frelon
   const handleHornetClick = (hornet: Hornet) => {
@@ -325,6 +393,9 @@ export default function InteractiveMap() {
           showNestsButton={auth.isAuthenticated} // Tous les utilisateurs authentifiés peuvent voir les nids
           onQuickHornetCapture={handleQuickHornetCapture}
           canAddHornet={canAddHornet}
+          searchRadius={searchRadius}
+          onRadiusChange={setSearchRadius}
+          isAdmin={isAdmin}
         />
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -455,6 +526,25 @@ export default function InteractiveMap() {
           </div>
         </Modal.Body>
       </Modal>
+
+      {/* Notification d'erreur de géolocalisation */}
+      {geolocationError && (
+        <div 
+          className="position-absolute top-0 start-50 translate-middle-x mt-3 alert alert-warning alert-dismissible fade show"
+          style={{ zIndex: 1001, maxWidth: '90%' }}
+          role="alert"
+        >
+          <strong>Géolocalisation :</strong> {geolocationError}
+          <br />
+          <small>Utilisation d'une position par défaut. Les données affichées couvrent un rayon de 5km.</small>
+          <button 
+            type="button" 
+            className="btn-close" 
+            onClick={() => setGeolocationError(null)}
+            aria-label="Close"
+          ></button>
+        </div>
+      )}
     </div>
   );
 }

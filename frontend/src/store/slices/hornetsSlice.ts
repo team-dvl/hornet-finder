@@ -3,6 +3,13 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 // Types pour les modes d'affichage des frelons
 export type HornetDisplayMode = 'full' | 'hornets-only' | 'hidden';
 
+// Interface pour les paramètres de géolocalisation
+export interface GeolocationParams {
+  lat: number;
+  lon: number;
+  radius?: number;
+}
+
 // Types pour les données de frelon
 export interface Hornet {
   id?: number;
@@ -33,12 +40,21 @@ const initialState: HornetsState = {
   displayMode: 'full', // Par défaut, tout est affiché (frelons + zones)
 };
 
-// Thunk async pour récupérer les frelons
+// Thunk async pour récupérer les frelons avec authentification
 export const fetchHornets = createAsyncThunk(
   'hornets/fetchHornets',
-  async (accessToken: string, { rejectWithValue }) => {
+  async ({ accessToken, geolocation }: { 
+    accessToken: string; 
+    geolocation: GeolocationParams 
+  }, { rejectWithValue }) => {
     try {
-      const response = await fetch('/api/hornets', {
+      const params = new URLSearchParams({
+        lat: geolocation.lat.toString(),
+        lon: geolocation.lon.toString(),
+        ...(geolocation.radius && { radius: geolocation.radius.toString() })
+      });
+
+      const response = await fetch(`/api/hornets?${params}`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
@@ -60,9 +76,15 @@ export const fetchHornets = createAsyncThunk(
 // Thunk async pour récupérer les frelons (public, sans authentification)
 export const fetchHornetsPublic = createAsyncThunk(
   'hornets/fetchHornetsPublic',
-  async (_, { rejectWithValue }) => {
+  async (geolocation: GeolocationParams, { rejectWithValue }) => {
     try {
-      const response = await fetch('/api/hornets', {
+      const params = new URLSearchParams({
+        lat: geolocation.lat.toString(),
+        lon: geolocation.lon.toString(),
+        ...(geolocation.radius && { radius: geolocation.radius.toString() })
+      });
+
+      const response = await fetch(`/api/hornets?${params}`, {
         headers: {
           'Content-Type': 'application/json',
         },

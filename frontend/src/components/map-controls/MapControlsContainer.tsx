@@ -1,6 +1,7 @@
 import LocateButton from './LocateButton';
 import LayerControlsButton from './LayerControlsButton';
 import QuickCaptureButton from './QuickCaptureButton';
+import RadiusControl from './RadiusControl';
 import { LoadingIndicator, ErrorAlert } from './MapFeedback';
 
 interface MapControlsContainerProps {
@@ -12,6 +13,9 @@ interface MapControlsContainerProps {
   showNestsButton?: boolean;
   onQuickHornetCapture?: () => void;
   canAddHornet?: boolean;
+  searchRadius?: number;
+  onRadiusChange?: (radius: number) => void;
+  isAdmin?: boolean;
 }
 
 export default function MapControlsContainer({ 
@@ -22,7 +26,10 @@ export default function MapControlsContainer({
   showApiariesButton = false, 
   showNestsButton = false,
   onQuickHornetCapture,
-  canAddHornet = false
+  canAddHornet = false,
+  searchRadius = 5,
+  onRadiusChange,
+  isAdmin = false
 }: MapControlsContainerProps) {
   return (
     <>
@@ -31,6 +38,13 @@ export default function MapControlsContainer({
           onLocationUpdate={onLocationUpdate} 
           onErrorUpdate={onErrorUpdate} 
         />
+        {onRadiusChange && (
+          <RadiusControl 
+            currentRadius={searchRadius}
+            onRadiusChange={onRadiusChange}
+            maxRadius={isAdmin ? 20 : 5}
+          />
+        )}
         <LayerControlsButton 
           showApiariesButton={showApiariesButton}
           showNestsButton={showNestsButton}
