@@ -38,7 +38,7 @@ export default function WelcomeModal({ show, onHide }: WelcomeModalProps) {
                 Plateforme collaborative de surveillance du frelon asiatique
               </h4>
               <p className="lead text-muted">
-                Rejoignez la communauté scientifique et citoyenne dans la lutte 
+                Rejoignez la communauté citoyenne dans la lutte 
                 contre <em><a href="https://fr.wikipedia.org/wiki/Vespa_velutina" target='_blank'>Vespa Velutina</a></em> pour protéger nos pollinisateurs.
               </p>
             </Col>
@@ -63,7 +63,7 @@ export default function WelcomeModal({ show, onHide }: WelcomeModalProps) {
               <div style={{ fontSize: '3rem', color: '#dc3545' }}>⚡</div>
               <h6 className="mt-2">Agir</h6>
               <p className="small text-muted">
-                Contribuez à la lutte contre l'invasion des frelons asiatiques
+                Repérez les nids et informez les apiculteurs locaux pour une destruction rapide
               </p>
             </Col>
           </Row>
@@ -89,7 +89,7 @@ export default function WelcomeModal({ show, onHide }: WelcomeModalProps) {
               <p className="text-muted small mb-3">
                 Cette plateforme nécessite une authentification pour garantir la qualité des données.
                 <br />
-                Contactez votre coordinateur local pour obtenir un accès.
+                Apiculteurs: Contactez-nous via <a href="mailto:vedrinsabeille@gmail.com">vedrin.sabeille@gmail.com</a> pour un accès privilégié.
               </p>
               <div className="d-grid gap-2 d-md-flex justify-content-md-center">
                 <Button
