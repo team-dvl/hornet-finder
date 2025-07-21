@@ -207,6 +207,37 @@ export const createHornet = createAsyncThunk(
   }
 );
 
+// Thunk async pour supprimer un frelon
+export const deleteHornet = createAsyncThunk(
+  'hornets/deleteHornet',
+  async ({ 
+    hornetId, 
+    accessToken 
+  }: { 
+    hornetId: number; 
+    accessToken: string 
+  }, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`/api/hornets/${hornetId}/`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      }
+
+      return hornetId;
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Une erreur est survenue lors de la suppression');
+    }
+  }
+);
+
 // Slice pour les frelons
 const hornetsSlice = createSlice({
   name: 'hornets',
@@ -312,6 +343,20 @@ const hornetsSlice = createSlice({
         state.hornets.push(action.payload);
       })
       .addCase(createHornet.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      // Cas de deleteHornet
+      .addCase(deleteHornet.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteHornet.fulfilled, (state, action) => {
+        state.loading = false;
+        const hornetId = action.payload;
+        state.hornets = state.hornets.filter(hornet => hornet.id !== hornetId);
+      })
+      .addCase(deleteHornet.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });

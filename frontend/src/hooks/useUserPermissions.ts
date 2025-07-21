@@ -2,6 +2,8 @@ import { useAuth } from 'react-oidc-context';
 import { jwtDecode } from 'jwt-decode';
 import { useMemo, useCallback } from 'react';
 import { Hornet } from '../store/store';
+import { Nest } from '../store/slices/nestsSlice';
+import { Apiary } from '../store/slices/apiariesSlice';
 
 // Interface pour les claims JWT
 interface JWTClaims {
@@ -57,6 +59,39 @@ export const useUserPermissions = () => {
     return hornet.created_by === userEmail;
   }, [isAdmin, userEmail, auth.user]);
 
+  // Fonction pour vérifier si l'utilisateur peut supprimer un frelon
+  const canDeleteHornet = useCallback((hornet: Hornet) => {
+    if (!hornet || !userEmail || !auth.user) return false;
+    
+    // Admin peut toujours supprimer
+    if (isAdmin) return true;
+    
+    // Propriétaire peut supprimer ses propres frelons
+    return hornet.created_by === userEmail;
+  }, [isAdmin, userEmail, auth.user]);
+
+  // Fonction pour vérifier si l'utilisateur peut supprimer un nid
+  const canDeleteNest = useCallback((nest: Nest) => {
+    if (!nest || !userEmail || !auth.user) return false;
+    
+    // Admin peut toujours supprimer
+    if (isAdmin) return true;
+    
+    // Propriétaire peut supprimer ses propres nids
+    return nest.created_by === userEmail;
+  }, [isAdmin, userEmail, auth.user]);
+
+  // Fonction pour vérifier si l'utilisateur peut supprimer un rucher
+  const canDeleteApiary = useCallback((apiary: Apiary) => {
+    if (!apiary || !userEmail || !auth.user) return false;
+    
+    // Admin peut toujours supprimer
+    if (isAdmin) return true;
+    
+    // Propriétaire peut supprimer ses propres ruchers
+    return apiary.created_by === userEmail;
+  }, [isAdmin, userEmail, auth.user]);
+
   // Mémoriser si l'utilisateur peut ajouter des frelons
   const canAddHornet = useMemo(() => {
     if (!auth.user) return false;
@@ -78,6 +113,9 @@ export const useUserPermissions = () => {
       roles: [],
       isAdmin: false,
       canEditHornet: () => false,
+      canDeleteHornet: () => false,
+      canDeleteNest: () => false,
+      canDeleteApiary: () => false,
       canAddHornet: false,
       canAddApiary: false,
     };
@@ -89,6 +127,9 @@ export const useUserPermissions = () => {
     roles,
     isAdmin,
     canEditHornet,
+    canDeleteHornet,
+    canDeleteNest,
+    canDeleteApiary,
     canAddHornet,
     canAddApiary,
     accessToken,

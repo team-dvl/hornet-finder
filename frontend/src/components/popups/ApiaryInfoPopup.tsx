@@ -2,9 +2,10 @@ import { Modal, Button, Form, Alert } from 'react-bootstrap';
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from 'react-oidc-context';
-import { Apiary, updateApiary, selectApiaryById } from '../../store/slices/apiariesSlice';
+import { Apiary, updateApiary, selectApiaryById, deleteApiary } from '../../store/slices/apiariesSlice';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { AppDispatch, RootState } from '../../store/store';
+import { DeleteConfirmationModal } from '../modals';
 
 // Couleurs selon le niveau d'infestation
 const getInfestationColor = (level: 1 | 2 | 3): string => {
@@ -34,11 +35,16 @@ interface ApiaryInfoPopupProps {
 export default function ApiaryInfoPopup({ show, onHide, apiary }: ApiaryInfoPopupProps) {
   const dispatch = useDispatch<AppDispatch>();
   const auth = useAuth();
-  const { canAddApiary } = useUserPermissions(); // Les apiculteurs peuvent modifier leurs ruchers
+  const { canAddApiary, canDeleteApiary, accessToken } = useUserPermissions(); // Les apiculteurs peuvent modifier leurs ruchers
   const [isEditing, setIsEditing] = useState(false);
   const [editInfestationLevel, setEditInfestationLevel] = useState<1 | 2 | 3>(1);
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
+
+  // États pour la suppression
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Récupérer le rucher mis à jour depuis Redux si on a un ID, sinon utiliser la prop
   const updatedApiary = useSelector((state: RootState) => 
@@ -49,6 +55,28 @@ export default function ApiaryInfoPopup({ show, onHide, apiary }: ApiaryInfoPopu
   const currentApiary = updatedApiary || apiary;
 
   if (!currentApiary) return null;
+
+  // Logique de suppression
+  const handleDelete = async () => {
+    if (!currentApiary?.id || !accessToken) return;
+    
+    setIsDeleting(true);
+    setDeleteError(null);
+    
+    try {
+      await dispatch(deleteApiary({ 
+        apiaryId: currentApiary.id, 
+        accessToken 
+      })).unwrap();
+      
+      setShowDeleteModal(false);
+      onHide(); // Fermer le popup principal
+    } catch (error) {
+      setDeleteError(error as string);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Vérifier si l'utilisateur peut éditer ce rucher (apiculteur qui l'a créé ou admin)
   const canEdit = canAddApiary && auth.user?.profile?.email === currentApiary.created_by;
@@ -219,10 +247,33 @@ export default function ApiaryInfoPopup({ show, onHide, apiary }: ApiaryInfoPopu
       </Modal.Body>
       
       <Modal.Footer>
+        {/* Bouton de suppression pour les administrateurs et propriétaires */}
+        {auth.isAuthenticated && canDeleteApiary(currentApiary) && (
+          <Button 
+            variant="outline-danger" 
+            onClick={() => setShowDeleteModal(true)}
+            className="me-auto"
+          >
+            <i className="fas fa-trash me-1"></i>
+            Supprimer
+          </Button>
+        )}
+        
         <Button variant="secondary" onClick={onHide}>
           Fermer
         </Button>
       </Modal.Footer>
+      
+      {/* Modal de confirmation de suppression */}
+      <DeleteConfirmationModal
+        show={showDeleteModal}
+        onHide={() => setShowDeleteModal(false)}
+        onConfirm={handleDelete}
+        itemName={`rucher #${currentApiary.id}`}
+        itemType="rucher"
+        isDeleting={isDeleting}
+        deleteError={deleteError}
+      />
     </Modal>
   );
 }

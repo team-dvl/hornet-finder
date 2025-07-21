@@ -179,6 +179,37 @@ export const updateApiary = createAsyncThunk(
   }
 );
 
+// Thunk async pour supprimer un rucher
+export const deleteApiary = createAsyncThunk(
+  'apiaries/deleteApiary',
+  async ({ 
+    apiaryId, 
+    accessToken 
+  }: { 
+    apiaryId: number; 
+    accessToken: string 
+  }, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`/api/apiaries/${apiaryId}/`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      }
+
+      return apiaryId;
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Une erreur est survenue lors de la suppression');
+    }
+  }
+);
+
 // Slice pour les ruchers
 const apiariesSlice = createSlice({
   name: 'apiaries',
@@ -249,6 +280,20 @@ const apiariesSlice = createSlice({
         }
       })
       .addCase(updateApiary.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      // Cas de deleteApiary
+      .addCase(deleteApiary.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteApiary.fulfilled, (state, action) => {
+        state.loading = false;
+        const apiaryId = action.payload;
+        state.apiaries = state.apiaries.filter(apiary => apiary.id !== apiaryId);
+      })
+      .addCase(deleteApiary.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });

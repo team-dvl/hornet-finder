@@ -1,5 +1,11 @@
-import { Modal, Badge } from 'react-bootstrap';
-import { Nest } from '../../store/store';
+import { Modal, Badge, Button } from 'react-bootstrap';
+import { useState } from 'react';
+import { useDispatch } from 'react-redux';
+import { useAuth } from 'react-oidc-context';
+import { Nest, deleteNest } from '../../store/slices/nestsSlice';
+import { useUserPermissions } from '../../hooks/useUserPermissions';
+import { DeleteConfirmationModal } from '../modals';
+import { AppDispatch } from '../../store/store';
 
 interface NestInfoPopupProps {
   show: boolean;
@@ -8,7 +14,38 @@ interface NestInfoPopupProps {
 }
 
 export default function NestInfoPopup({ show, onHide, nest }: NestInfoPopupProps) {
+  const dispatch = useDispatch<AppDispatch>();
+  const auth = useAuth();
+  const { canDeleteNest, accessToken } = useUserPermissions();
+  
+  // États pour la suppression
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   if (!nest) return null;
+
+  // Logique de suppression
+  const handleDelete = async () => {
+    if (!nest?.id || !accessToken) return;
+    
+    setIsDeleting(true);
+    setDeleteError(null);
+    
+    try {
+      await dispatch(deleteNest({ 
+        nestId: nest.id, 
+        accessToken 
+      })).unwrap();
+      
+      setShowDeleteModal(false);
+      onHide(); // Fermer le popup principal
+    } catch (error) {
+      setDeleteError(error as string);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const getStatusBadge = () => {
     if (nest.destroyed) {
@@ -98,6 +135,35 @@ export default function NestInfoPopup({ show, onHide, nest }: NestInfoPopupProps
           </div>
         )}
       </Modal.Body>
+      
+      <Modal.Footer>
+        {/* Bouton de suppression pour les administrateurs et propriétaires */}
+        {auth.isAuthenticated && canDeleteNest(nest) && (
+          <Button 
+            variant="outline-danger" 
+            onClick={() => setShowDeleteModal(true)}
+            className="me-auto"
+          >
+            <i className="fas fa-trash me-1"></i>
+            Supprimer
+          </Button>
+        )}
+        
+        <Button variant="secondary" onClick={onHide}>
+          Fermer
+        </Button>
+      </Modal.Footer>
+      
+      {/* Modal de confirmation de suppression */}
+      <DeleteConfirmationModal
+        show={showDeleteModal}
+        onHide={() => setShowDeleteModal(false)}
+        onConfirm={handleDelete}
+        itemName={`nid #${nest.id}`}
+        itemType="nid"
+        isDeleting={isDeleting}
+        deleteError={deleteError}
+      />
     </Modal>
   );
 }

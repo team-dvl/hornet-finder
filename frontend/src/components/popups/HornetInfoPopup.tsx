@@ -1,10 +1,11 @@
 import { Modal, Button, ListGroup, Badge, Form, InputGroup, Alert, Dropdown } from 'react-bootstrap';
 import { useState, useMemo } from 'react';
-import { Hornet, updateHornetDuration, updateHornetColors } from '../../store/store';
+import { Hornet, updateHornetDuration, updateHornetColors, deleteHornet } from '../../store/store';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useAuth } from 'react-oidc-context';
 import { COLOR_OPTIONS, getColorLabel, getColorHex } from '../../utils/colors';
+import { DeleteConfirmationModal } from '../modals';
 
 interface HornetInfoPopupProps {
   show: boolean;
@@ -74,7 +75,7 @@ function ColorDropdown({ value, onChange, disabled, label }: ColorDropdownProps)
 
 export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation }: HornetInfoPopupProps) {
   const dispatch = useAppDispatch();
-  const { canEditHornet, canAddHornet, canAddApiary, accessToken } = useUserPermissions();
+  const { canEditHornet, canDeleteHornet, canAddHornet, canAddApiary, accessToken } = useUserPermissions();
   const auth = useAuth();
   
   // Récupérer les données mises à jour depuis le store Redux
@@ -96,9 +97,36 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation 
   const [colorUpdateError, setColorUpdateError] = useState<string | null>(null);
   const [isUpdatingColors, setIsUpdatingColors] = useState(false);
 
+  // États pour la suppression
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   if (!currentHornet) {
     return null;
   }
+
+  // Logique de suppression
+  const handleDelete = async () => {
+    if (!currentHornet?.id || !accessToken) return;
+    
+    setIsDeleting(true);
+    setDeleteError(null);
+    
+    try {
+      await dispatch(deleteHornet({ 
+        hornetId: currentHornet.id, 
+        accessToken 
+      })).unwrap();
+      
+      setShowDeleteModal(false);
+      onHide(); // Fermer le popup principal
+    } catch (error) {
+      setDeleteError(error as string);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const canEdit = canEditHornet(currentHornet);
 
@@ -518,10 +546,34 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation 
             📍 Ajouter à cette position
           </Button>
         )}
+        
+        {/* Bouton de suppression pour les administrateurs et propriétaires */}
+        {auth.isAuthenticated && canDeleteHornet(currentHornet) && (
+          <Button 
+            variant="outline-danger" 
+            onClick={() => setShowDeleteModal(true)}
+            className="me-2"
+          >
+            <i className="fas fa-trash me-1"></i>
+            Supprimer
+          </Button>
+        )}
+        
         <Button variant="secondary" onClick={onHide}>
           Fermer
         </Button>
       </Modal.Footer>
+      
+      {/* Modal de confirmation de suppression */}
+      <DeleteConfirmationModal
+        show={showDeleteModal}
+        onHide={() => setShowDeleteModal(false)}
+        onConfirm={handleDelete}
+        itemName={`frelon #${currentHornet.id}`}
+        itemType="frelon"
+        isDeleting={isDeleting}
+        deleteError={deleteError}
+      />
     </Modal>
   );
 }

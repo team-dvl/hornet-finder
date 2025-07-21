@@ -116,6 +116,37 @@ export const createNest = createAsyncThunk(
   }
 );
 
+// Thunk async pour supprimer un nid
+export const deleteNest = createAsyncThunk(
+  'nests/deleteNest',
+  async ({ 
+    nestId, 
+    accessToken 
+  }: { 
+    nestId: number; 
+    accessToken: string 
+  }, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`/api/nests/${nestId}/`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      }
+
+      return nestId;
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Une erreur est survenue lors de la suppression');
+    }
+  }
+);
+
 // Slice pour les nids
 const nestsSlice = createSlice({
   name: 'nests',
@@ -162,6 +193,20 @@ const nestsSlice = createSlice({
         state.nests.push(action.payload);
       })
       .addCase(createNest.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      // Cas de deleteNest
+      .addCase(deleteNest.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteNest.fulfilled, (state, action) => {
+        state.loading = false;
+        const nestId = action.payload;
+        state.nests = state.nests.filter(nest => nest.id !== nestId);
+      })
+      .addCase(deleteNest.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });
