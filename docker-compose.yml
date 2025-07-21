@@ -29,7 +29,7 @@ services:
       - gencert
 
   hornet-finder-api-db:
-    image: postgres:latest
+    build: ./postgis
     container_name: hornet-finder-api-db
     environment:
       - POSTGRES_DB=hornet_finder

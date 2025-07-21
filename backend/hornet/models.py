@@ -1,7 +1,22 @@
 from django.db import models
+from django.contrib.gis.db import models as geomodels
+from django.contrib.gis.geos import Point
 
 
-class Hornet(models.Model):
+class GeolocatedModel(models.Model):
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    point = geomodels.PointField(geography=True, srid=4326, null=True, blank=True)
+
+    class Meta:
+        abstract = True  # No table will be created for this model
+
+    def save(self, *args, **kwargs):
+        if self.latitude is not None and self.longitude is not None:
+            self.point = Point(self.longitude, self.latitude, srid=4326)
+        super().save(*args, **kwargs)
+
+class Hornet(GeolocatedModel):
     COLOR_CHOICES = [
         ('', 'Aucune couleur'),
         ('red', 'Rouge'),
@@ -21,8 +36,6 @@ class Hornet(models.Model):
     ]
     
     id = models.AutoField(primary_key=True)
-    longitude = models.FloatField()
-    latitude = models.FloatField()
     direction = models.IntegerField()
     duration = models.IntegerField(null=True, blank=True)
     mark_color_1 = models.CharField(max_length=20, choices=COLOR_CHOICES, blank=True, default='')
@@ -37,10 +50,8 @@ class Hornet(models.Model):
             from django.core.exceptions import ValidationError
             raise ValidationError("Les deux marques de couleur ne peuvent pas être identiques.")
 
-class Nest(models.Model):
+class Nest(GeolocatedModel):
     id = models.AutoField(primary_key=True)
-    longitude = models.FloatField()
-    latitude = models.FloatField()
     public_place = models.BooleanField(default=False)
     address = models.CharField(max_length=255, blank=True, default='')  # Allow empty address
     destroyed = models.BooleanField(default=False)
@@ -49,7 +60,7 @@ class Nest(models.Model):
     created_by = models.CharField(max_length=255, null=True, blank=True)  # Add created_by field
     comments = models.TextField(null=True, blank=True)
 
-class Apiary(models.Model):
+class Apiary(GeolocatedModel):
     INFESTATION_LEVEL_CHOICES = [
         (1, "Light"),
         (2, "Medium"),
@@ -57,8 +68,6 @@ class Apiary(models.Model):
     ]
     
     id = models.AutoField(primary_key=True)
-    longitude = models.FloatField()
-    latitude = models.FloatField()
     infestation_level = models.IntegerField(choices=INFESTATION_LEVEL_CHOICES)
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.CharField(max_length=255, null=True, blank=True)
