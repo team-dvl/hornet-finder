@@ -3,6 +3,7 @@ import { Hornet } from '../../store/store';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useAuth } from 'react-oidc-context';
 import { getColorLabel } from '../../utils/colors';
+import { HORNET_RETURN_ZONE_ANGLE_DEG, HORNET_FLIGHT_SPEED_M_PER_MIN, HORNET_RETURN_ZONE_ABSOLUTE_MAX_DISTANCE_M } from '../../utils/constants';
 
 interface HornetReturnZoneInfoPopupProps {
   show: boolean;
@@ -18,10 +19,9 @@ function calculateNestDistance(duration?: number): number {
     return 2; // Distance max par défaut: 2km
   }
   
-  // 100m par minute = 100m / 60s = 1.67m par seconde
-  const distanceInMeters = Math.round((duration / 60) * 100);
-  const maxDistance = 3000; // 3km max
-  const finalDistance = Math.min(distanceInMeters, maxDistance);
+  // Calcul basé sur la vitesse du frelon
+  const distanceInMeters = Math.round((duration / 60) * HORNET_FLIGHT_SPEED_M_PER_MIN);
+  const finalDistance = Math.min(distanceInMeters, HORNET_RETURN_ZONE_ABSOLUTE_MAX_DISTANCE_M);
   
   // Convertir en kilomètres
   return finalDistance / 1000;
@@ -126,7 +126,7 @@ export default function HornetReturnZoneInfoPopup({
               
               <ListGroup.Item className="d-flex justify-content-between">
                 <span>Angle de vol:</span>
-                <span>5°</span>
+                <span>{HORNET_RETURN_ZONE_ANGLE_DEG}°</span>
               </ListGroup.Item>
             </ListGroup>
             

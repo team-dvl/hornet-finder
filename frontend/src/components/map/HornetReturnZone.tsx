@@ -2,6 +2,12 @@ import { Polygon, Marker } from "react-leaflet";
 import { DivIcon } from "leaflet";
 import * as L from "leaflet";
 import { Hornet } from '../../store/store';
+import { 
+  HORNET_RETURN_ZONE_ANGLE_DEG, 
+  HORNET_RETURN_ZONE_MAX_DISTANCE_KM,
+  HORNET_RETURN_ZONE_ABSOLUTE_MAX_DISTANCE_M,
+  HORNET_FLIGHT_SPEED_M_PER_MIN
+} from '../../utils/constants';
 
 interface HornetReturnZoneProps {
   hornet: Hornet;
@@ -15,13 +21,12 @@ interface HornetReturnZoneProps {
 // Calculer la distance estimée du nid basée sur la durée
 function calculateNestDistance(duration?: number): number {
   if (!duration || duration <= 0) {
-    return 2; // Distance max par défaut: 2km
+    return HORNET_RETURN_ZONE_MAX_DISTANCE_KM; // Distance max par défaut: 2km
   }
   
-  // 100m par minute = 100m / 60s = 1.67m par seconde
-  const distanceInMeters = Math.round((duration / 60) * 100);
-  const maxDistance = 3000; // 3km max
-  const finalDistance = Math.min(distanceInMeters, maxDistance);
+  // Calcul basé sur la vitesse du frelon
+  const distanceInMeters = Math.round((duration / 60) * HORNET_FLIGHT_SPEED_M_PER_MIN);
+  const finalDistance = Math.min(distanceInMeters, HORNET_RETURN_ZONE_ABSOLUTE_MAX_DISTANCE_M);
   
   // Convertir en kilomètres
   return finalDistance / 1000;
@@ -45,8 +50,8 @@ function computeTriangle(
   lat: number,
   lng: number,
   direction: number,
-  lengthKm = 2,
-  angleDeg = 5
+  lengthKm = HORNET_RETURN_ZONE_MAX_DISTANCE_KM,
+  angleDeg = HORNET_RETURN_ZONE_ANGLE_DEG
 ): [number, number][] {
   const R = 6371;
   const dirRad = deg2rad(direction);
@@ -103,7 +108,7 @@ function computeTriangle(
 export default function HornetReturnZone({ 
   hornet,
   lengthKm, 
-  angleDeg = 5,
+  angleDeg = HORNET_RETURN_ZONE_ANGLE_DEG,
   onClick,
   showReturnZone = true, // Par défaut, afficher la zone de retour
   onShowInfo

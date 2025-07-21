@@ -6,6 +6,7 @@ import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useAuth } from 'react-oidc-context';
 import { COLOR_OPTIONS, getColorLabel, getColorHex } from '../../utils/colors';
 import { DeleteConfirmationModal } from '../modals';
+import { HORNET_RETURN_ZONE_ANGLE_DEG, HORNET_FLIGHT_SPEED_M_PER_MIN, HORNET_RETURN_ZONE_ABSOLUTE_MAX_DISTANCE_M } from '../../utils/constants';
 
 interface HornetInfoPopupProps {
   show: boolean;
@@ -248,10 +249,9 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation 
       };
     }
     
-    // 100m par minute = 100m / 60s = 1.67m par seconde
-    const distanceInMeters = Math.round((duration / 60) * 100);
-    const maxDistance = 3000; // 3km max
-    const finalDistance = Math.min(distanceInMeters, maxDistance);
+    // Calcul basé sur la vitesse du frelon
+    const distanceInMeters = Math.round((duration / 60) * HORNET_FLIGHT_SPEED_M_PER_MIN);
+    const finalDistance = Math.min(distanceInMeters, HORNET_RETURN_ZONE_ABSOLUTE_MAX_DISTANCE_M);
     
     if (finalDistance < 1000) {
       return {
@@ -525,11 +525,11 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation 
               Cette zone triangulaire représente la direction probable du nid du frelon basée sur sa direction de vol observée.
               {nestInfo.isEstimated ? (
                 <>
-                  {' '}La zone s&apos;étend sur {nestInfo.distance < 1000 ? `${nestInfo.distance} m` : `${(nestInfo.distance / 1000).toFixed(1)} km`} avec un angle de dispersion de 5°, 
-                  calculée d&apos;après la durée d&apos;absence observée (100m par minute d&apos;absence).
+                  {' '}La zone s&apos;étend sur {nestInfo.distance < 1000 ? `${nestInfo.distance} m` : `${(nestInfo.distance / 1000).toFixed(1)} km`} avec un angle de dispersion de {HORNET_RETURN_ZONE_ANGLE_DEG}°, 
+                  calculée d&apos;après la durée d&apos;absence observée ({HORNET_FLIGHT_SPEED_M_PER_MIN}m par minute d&apos;absence).
                 </>
               ) : (
-                <> La zone s&apos;étend sur la distance maximale de 2 km avec un angle de dispersion de 5°.</>
+                <> La zone s&apos;étend sur la distance maximale de 2 km avec un angle de dispersion de {HORNET_RETURN_ZONE_ANGLE_DEG}°.</>
               )}
             </div>
           </ListGroup.Item>
