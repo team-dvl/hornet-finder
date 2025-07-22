@@ -1,6 +1,13 @@
-import { Navbar, Nav, Button, Container } from 'react-bootstrap';
+import { Navbar, Nav, Button, Container, Spinner } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
 import { useState } from 'react';
+import { useAppSelector } from '../../store/hooks';
+import { 
+  selectGeolocationLoading,
+  selectApiariesLoading, 
+  selectNestsLoading,
+  selectHornetsLoading 
+} from '../../store/store';
 import UserInfoModal from '../modals/UserInfoModal';
 import CompassCapture from '../map/CompassCapture';
 
@@ -12,6 +19,15 @@ export default function NavbarComponent({ onShowWelcome }: NavbarComponentProps)
   const auth = useAuth();
   const [showUserModal, setShowUserModal] = useState(false);
   const [showCompassTest, setShowCompassTest] = useState(false);
+
+  // États de chargement des données
+  const isGeolocationLoading = useAppSelector(selectGeolocationLoading);
+  const isApiariesLoading = useAppSelector(selectApiariesLoading);
+  const isNestsLoading = useAppSelector(selectNestsLoading);
+  const isHornetsLoading = useAppSelector(selectHornetsLoading);
+  
+  // Afficher le spinner si au moins une des données est en cours de chargement
+  const isDataLoading = isGeolocationLoading || isApiariesLoading || isNestsLoading || isHornetsLoading;
 
   // Gestionnaire pour le test de boussole
   const handleCompassTest = () => {
@@ -42,6 +58,15 @@ export default function NavbarComponent({ onShowWelcome }: NavbarComponentProps)
       <Container>
         <Navbar.Brand href="#" className="d-flex align-items-center">
           <span className="fw-bold">Velutina</span>
+          {isDataLoading && (
+            <Spinner 
+              animation="border" 
+              size="sm" 
+              className="ms-2" 
+              role="status"
+              aria-label="Chargement des données..."
+            />
+          )}
         </Navbar.Brand>
         
         <Navbar.Toggle aria-controls="basic-navbar-nav" />

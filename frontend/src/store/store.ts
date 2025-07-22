@@ -5,7 +5,7 @@ export { useAppDispatch, useAppSelector } from './hooks';
 
 // Export des actions et thunks du slice hornets
 export { fetchHornets, fetchHornetsPublic, updateHornetDuration, updateHornetColors, createHornet, deleteHornet, clearError, clearHornets, cycleDisplayMode } from './slices/hornetsSlice';
-export { selectShowReturnZones, selectShowHornets, selectDisplayMode } from './slices/hornetsSlice';
+export { selectShowReturnZones, selectShowHornets, selectDisplayMode, selectHornetsLoading } from './slices/hornetsSlice';
 export type { Hornet, HornetDisplayMode, GeolocationParams } from './slices/hornetsSlice';
 
 // Export des actions et thunks du slice apiaries
@@ -17,3 +17,8 @@ export type { Apiary } from './slices/apiariesSlice';
 export { fetchNests, createNest, deleteNest, clearError as clearNestsError, clearNests, toggleNests } from './slices/nestsSlice';
 export { selectNests, selectNestsLoading, selectNestsError, selectShowNests } from './slices/nestsSlice';
 export type { Nest } from './slices/nestsSlice';
+
+// Export des actions et selectors du slice map
+export { setMapCenter, setZoom, setGeolocationLoading, setGeolocationError, setIsAdmin, updateMapViewport, initializeGeolocation, setLastFetchedArea } from './slices/mapSlice';
+export { selectMapCenter, selectZoom, selectSearchRadius, selectGeolocationLoading, selectGeolocationError, selectIsInitialized, selectIsAdmin, selectLastFetchedArea } from './slices/mapSlice';
+export type { MapPosition, MapState, MapBounds } from './slices/mapSlice';

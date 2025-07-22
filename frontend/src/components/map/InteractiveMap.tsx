@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import { MapContainer, TileLayer, useMapEvents, ZoomControl } from "react-leaflet";
 import { Modal, Spinner } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
-import { useAppDispatch, useAppSelector, fetchHornets, fetchHornetsPublic, fetchApiaries, fetchMyApiaries, selectShowApiaries, selectShowHornets, selectShowReturnZones, fetchNests, selectShowNests } from '../../store/store';
+import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowHornets, selectShowReturnZones, selectShowNests, initializeGeolocation, selectMapCenter, selectGeolocationError, setGeolocationError, setIsAdmin } from '../../store/store';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
-import { useGeolocation } from '../../hooks/useGeolocation';
+import { useMapDataFetching } from '../../hooks/useMapDataFetching';
 import { Hornet } from '../../store/slices/hornetsSlice';
 import { Apiary } from '../../store/slices/apiariesSlice';
 import { Nest } from '../../store/slices/nestsSlice';
@@ -12,6 +12,7 @@ import HornetReturnZone from './HornetReturnZone';
 import ApiaryMarker from '../markers/ApiaryMarker';
 import NestMarker from '../markers/NestMarker';
 import MapControlsContainer from '../map-controls';
+import MapEventHandler from './MapEventHandler';
 import HornetInfoPopup from '../popups/HornetInfoPopup';
 import HornetReturnZoneInfoPopup from '../popups/HornetReturnZoneInfoPopup';
 import ApiaryInfoPopup from '../popups/ApiaryInfoPopup';
@@ -56,12 +57,30 @@ const isMobile = () => {
 };
 
 export default function InteractiveMap() {
-  const [coordinates, setCoordinates] = useState<[number, number]>([50.491064, 4.884473]);
+  const dispatch = useAppDispatch();
+  const auth = useAuth();
+  const { isAdmin, canAddApiary, canAddHornet } = useUserPermissions();
   
-  // État pour la géolocalisation de l'utilisateur
-  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
-  const [geolocationError, setGeolocationError] = useState<string | null>(null);
-  const [searchRadius, setSearchRadius] = useState<number>(5);
+  // Redux state
+  const mapCenter = useAppSelector(selectMapCenter);
+  const geolocationError = useAppSelector(selectGeolocationError);
+  
+  // Initialiser la géolocalisation en premier
+  useEffect(() => {
+    console.log('Initializing geolocation...');
+    dispatch(initializeGeolocation());
+  }, [dispatch]);
+  
+  // Use custom hook for data fetching seulement après l'initialisation
+  useMapDataFetching();
+  
+  // Set admin status in Redux on mount
+  useEffect(() => {
+    dispatch(setIsAdmin(isAdmin));
+  }, [dispatch, isAdmin]);
+  
+  // Local state pour la carte
+  const [coordinates, setCoordinates] = useState<[number, number]>([mapCenter.latitude, mapCenter.longitude]);
   
   const [selectedHornet, setSelectedHornet] = useState<Hornet | null>(null);
   const [selectedApiary, setSelectedApiary] = useState<Apiary | null>(null);
@@ -89,12 +108,8 @@ export default function InteractiveMap() {
   const [compassCapturedPosition, setCompassCapturedPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [pendingHornetData, setPendingHornetData] = useState<{ lat: number; lng: number; direction: number } | null>(null);
   
-  const auth = useAuth();
-  const dispatch = useAppDispatch();
-  const { canAddHornet, canAddApiary, isAdmin } = useUserPermissions();
-  
   // Sélectionner les données depuis le store Redux
-  const { hornets, loading, error } = useAppSelector((state) => state.hornets);
+  const { hornets, error } = useAppSelector((state) => state.hornets);
   const { apiaries } = useAppSelector((state) => state.apiaries);
   const { nests } = useAppSelector((state) => state.nests);
   const showApiaries = useAppSelector(selectShowApiaries);
@@ -102,91 +117,10 @@ export default function InteractiveMap() {
   const showReturnZones = useAppSelector(selectShowReturnZones);
   const showNests = useAppSelector(selectShowNests);
 
-  // Gérer la géolocalisation de l'utilisateur
+  // Sync coordinates with map center
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lon: position.coords.longitude,
-          });
-          setGeolocationError(null);
-        },
-        (error) => {
-          let errorMessage = "Impossible d'obtenir votre position";
-          
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              errorMessage = "Permission de géolocalisation refusée";
-              break;
-            case error.POSITION_UNAVAILABLE:
-              errorMessage = "Position non disponible";
-              break;
-            case error.TIMEOUT:
-              errorMessage = "Timeout de géolocalisation";
-              break;
-          }
-          
-          setGeolocationError(errorMessage);
-          // Position par défaut (centre de la France)
-          setUserLocation({ lat: 46.227638, lon: 2.213749 });
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 60000,
-        }
-      );
-    } else {
-      setGeolocationError("La géolocalisation n'est pas supportée");
-      // Position par défaut (centre de la France)
-      setUserLocation({ lat: 46.227638, lon: 2.213749 });
-    }
-  }, []);
-
-  // Charger les données quand la géolocalisation est disponible
-  useEffect(() => {
-    if (!userLocation) return; // Attendre que la géolocalisation soit disponible
-
-    const geolocationParams = {
-      lat: userLocation.lat,
-      lon: userLocation.lon,
-      radius: searchRadius,
-    };
-
-    // Récupérer les frelons (toujours, même pour les utilisateurs non authentifiés)
-    if (auth.isAuthenticated && auth.user?.access_token) {
-      // Utilisateur authentifié : récupérer avec le token
-      dispatch(fetchHornets({ 
-        accessToken: auth.user.access_token, 
-        geolocation: geolocationParams 
-      }));
-    } else {
-      // Utilisateur non authentifié : récupérer sans token
-      dispatch(fetchHornetsPublic(geolocationParams));
-    }
-
-    // Récupérer les ruchers et nids seulement pour les utilisateurs authentifiés
-    if (auth.isAuthenticated && auth.user?.access_token) {
-      // Récupérer les nids (disponibles pour tous les utilisateurs authentifiés)
-      dispatch(fetchNests({ 
-        accessToken: auth.user.access_token, 
-        geolocation: geolocationParams 
-      }));
-      
-      if (isAdmin) {
-        // Les admins peuvent voir tous les ruchers
-        dispatch(fetchApiaries({ 
-          accessToken: auth.user.access_token, 
-          geolocation: geolocationParams 
-        }));
-      } else if (canAddApiary) {
-        // Les apiculteurs peuvent voir leurs propres ruchers (pas de filtrage géographique pour 'my')
-        dispatch(fetchMyApiaries(auth.user.access_token));
-      }
-    }
-  }, [userLocation, searchRadius, auth.isAuthenticated, auth.user?.access_token, dispatch, isAdmin, canAddApiary]);
+    setCoordinates([mapCenter.latitude, mapCenter.longitude]);
+  }, [mapCenter]);
 
   // Gestionnaire de clic sur une zone de frelon
   const handleHornetClick = (hornet: Hornet) => {
@@ -385,7 +319,6 @@ export default function InteractiveMap() {
         zoomControl={false} // Désactiver les contrôles par défaut
       >
         <MapControlsContainer 
-          loading={loading}
           error={error}
           onLocationUpdate={setCoordinates}
           onErrorUpdate={() => {}} // Les erreurs sont maintenant gérées par Redux
@@ -393,10 +326,8 @@ export default function InteractiveMap() {
           showNestsButton={auth.isAuthenticated} // Tous les utilisateurs authentifiés peuvent voir les nids
           onQuickHornetCapture={handleQuickHornetCapture}
           canAddHornet={canAddHornet}
-          searchRadius={searchRadius}
-          onRadiusChange={setSearchRadius}
-          isAdmin={isAdmin}
         />
+        <MapEventHandler />
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
@@ -540,7 +471,7 @@ export default function InteractiveMap() {
           <button 
             type="button" 
             className="btn-close" 
-            onClick={() => setGeolocationError(null)}
+            onClick={() => dispatch(setGeolocationError(null))}
             aria-label="Close"
           ></button>
         </div>
