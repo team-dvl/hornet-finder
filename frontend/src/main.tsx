@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { AuthProvider } from 'react-oidc-context'
+import { WebStorageStateStore } from 'oidc-client-ts'
 import { Provider } from 'react-redux'
 import { store } from './store'
 import './index.css'
@@ -23,6 +24,11 @@ const getOidcConfig = () => {
     scope: 'openid profile email',
     loadUserInfo: true,
     filterProtocolClaims: true,
+    // Stockage persistant pour éviter la perte de session sur mobile
+    userStore: new WebStorageStateStore({ store: window.localStorage }),
+    // Durée de vie plus longue des tokens
+    accessTokenExpiringNotificationTime: 120, // 2 minutes avant expiration
+    // Gestion des événements de cycle de vie
     onSigninCallback: () => {
       // Nettoyer l'URL après connexion réussie
       window.history.replaceState({}, document.title, window.location.pathname);
@@ -34,9 +40,11 @@ const getOidcConfig = () => {
     return {
       ...baseConfig,
       client_id: 'hornet-app-dev',
-      automaticSilentRenew: false, // Désactiver en dev pour éviter les interruptions
+      automaticSilentRenew: true, // Activé aussi en dev pour tester
       monitorSession: true, // Activer pour debug
       checkSessionInterval: 30000, // Vérification plus fréquente
+      // Stocker aussi en localStorage en dev
+      userStore: new WebStorageStateStore({ store: window.localStorage }),
     };
   } else {
     // Configuration pour la production
@@ -45,6 +53,8 @@ const getOidcConfig = () => {
       automaticSilentRenew: true,
       monitorSession: false, // Évite les problèmes en arrière-plan
       checkSessionInterval: 60000, // Vérification moins fréquente
+      // Configuration mobile optimisée
+      silentRequestTimeoutInSeconds: 30, // Timeout plus long pour mobile
     };
   }
 };

@@ -9,6 +9,7 @@ import { WelcomeModal } from './components/modals';
 import { initIOSViewportFix } from './utils/iosViewportFix';
 import { useUrlCleaner } from './utils/urlCleaner';
 import { setupPWAAuthMonitoring } from './utils/pwaAuth';
+import { useMobileSessionPersistence } from './hooks/useMobileSessionPersistence';
 
 function App() {
   const auth = useAuth();
@@ -16,6 +17,9 @@ function App() {
 
   // Nettoyer automatiquement l'URL après authentification (pour PWA)
   useUrlCleaner(auth.isAuthenticated);
+  
+  // Gestion de la persistance de session mobile
+  useMobileSessionPersistence();
 
   // Afficher le modal de bienvenue quand l'utilisateur n'est pas authentifié
   useEffect(() => {
