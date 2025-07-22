@@ -57,7 +57,9 @@ export default function NavbarComponent({ onShowWelcome }: NavbarComponentProps)
     >
       <Container>
         <Navbar.Brand href="#" className="d-flex align-items-center">
-          <span className="fw-bold">Velutina</span>
+            <span className="fw-bold">
+            Velutina{import.meta.env.DEV && ' DEV'}
+            </span>
           {isDataLoading && (
             <Spinner 
               animation="border" 
