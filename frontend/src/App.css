@@ -94,13 +94,13 @@ body {
   position: absolute;
   top: 70px; /* Ajustement pour la navbar transparente */
   right: 10px;
-  left: 10px;
   z-index: 1000;
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
   justify-content: flex-end;
   align-items: flex-start;
+  pointer-events: none; /* Permettre aux clics de passer à travers le conteneur */
 }
 
 /* Affichage en pile verticale quand le texte est visible (écrans moyens/grands) */
@@ -121,6 +121,7 @@ body {
   white-space: nowrap;
   font-size: 0.875rem;
   flex-shrink: 0;
+  pointer-events: auto; /* Réactiver les événements de pointeur pour les boutons */
 }
 
 .map-control-button-icon {
