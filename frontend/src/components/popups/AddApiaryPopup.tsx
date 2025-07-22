@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { createApiary } from '../../store/store';
 import { useAppDispatch } from '../../store/hooks';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
+import CoordinateInput from '../common/CoordinateInput';
 
 interface AddApiaryPopupProps {
   show: boolean;
@@ -106,13 +107,22 @@ export default function AddApiaryPopup({ show, onHide, latitude, longitude, onSu
 
           <Row className="mb-3">
             <Col>
-              <Form.Group>
-                <Form.Label><strong>Position</strong></Form.Label>
-                <div className="bg-light p-2 rounded small">
-                  <div>Latitude: {latitude.toFixed(6)}</div>
-                  <div>Longitude: {longitude.toFixed(6)}</div>
-                </div>
-              </Form.Group>
+              <div className="d-flex flex-column gap-3">
+                <CoordinateInput
+                  label="Latitude"
+                  value={latitude}
+                  onChange={() => {}} // Ne sera pas appelé en mode lecture seule
+                  readOnly={true}
+                  precision={6}
+                />
+                <CoordinateInput
+                  label="Longitude"
+                  value={longitude}
+                  onChange={() => {}} // Ne sera pas appelé en mode lecture seule
+                  readOnly={true}
+                  precision={6}
+                />
+              </div>
             </Col>
           </Row>
 

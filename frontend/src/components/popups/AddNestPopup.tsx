@@ -3,6 +3,7 @@ import { Modal, Button, Form, Alert, Spinner } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
 import { useAppDispatch } from '../../store/hooks';
 import { createNest } from '../../store/store';
+import CoordinateInput from '../common/CoordinateInput';
 
 interface AddNestPopupProps {
   show: boolean;
@@ -113,11 +114,21 @@ export default function AddNestPopup({ show, onHide, latitude, longitude, onSucc
           )}
 
           <div className="mb-3">
-            <strong>Coordonnées :</strong>
-            <div className="text-muted small">
-              Latitude: {latitude.toFixed(6)}
-              <br />
-              Longitude: {longitude.toFixed(6)}
+            <div className="d-flex flex-column gap-3">
+              <CoordinateInput
+                label="Latitude"
+                value={latitude}
+                onChange={() => {}} // Ne sera pas appelé en mode lecture seule
+                readOnly={true}
+                precision={6}
+              />
+              <CoordinateInput
+                label="Longitude"
+                value={longitude}
+                onChange={() => {}} // Ne sera pas appelé en mode lecture seule
+                readOnly={true}
+                precision={6}
+              />
             </div>
           </div>
 

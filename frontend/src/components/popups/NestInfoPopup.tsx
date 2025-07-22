@@ -6,6 +6,7 @@ import { Nest, deleteNest } from '../../store/slices/nestsSlice';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { DeleteConfirmationModal } from '../modals';
 import { AppDispatch } from '../../store/store';
+import CoordinateInput from '../common/CoordinateInput';
 
 interface NestInfoPopupProps {
   show: boolean;
@@ -89,10 +90,21 @@ export default function NestInfoPopup({ show, onHide, nest }: NestInfoPopupProps
       <Modal.Body>
         <div className="mb-3">
           <strong>Coordonnées :</strong>
-          <div className="text-muted small">
-            Latitude: {nest.latitude.toFixed(6)}
-            <br />
-            Longitude: {nest.longitude.toFixed(6)}
+          <div className="mt-2">
+            <CoordinateInput
+              label="Latitude"
+              value={nest.latitude}
+              onChange={() => {}} // Read-only
+              labelPosition="horizontal"
+              readOnly
+            />
+            <CoordinateInput
+              label="Longitude"
+              value={nest.longitude}
+              onChange={() => {}} // Read-only
+              labelPosition="horizontal"
+              readOnly
+            />
           </div>
         </div>
 

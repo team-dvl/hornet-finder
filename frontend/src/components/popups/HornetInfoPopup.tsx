@@ -7,6 +7,7 @@ import { useAuth } from 'react-oidc-context';
 import { COLOR_OPTIONS, getColorLabel, getColorHex } from '../../utils/colors';
 import { DeleteConfirmationModal } from '../modals';
 import { HORNET_RETURN_ZONE_ANGLE_DEG, HORNET_FLIGHT_SPEED_M_PER_MIN, HORNET_RETURN_ZONE_ABSOLUTE_MAX_DISTANCE_M } from '../../utils/constants';
+import CoordinateInput from '../common/CoordinateInput';
 
 interface HornetInfoPopupProps {
   show: boolean;
@@ -299,12 +300,25 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation 
             </ListGroup.Item>
           )}
           
-          <ListGroup.Item className="d-flex justify-content-between align-items-center">
-            <strong>Position:</strong>
-            <span className="text-end">
-              <div>Lat: {currentHornet.latitude.toFixed(6)}</div>
-              <div>Lng: {currentHornet.longitude.toFixed(6)}</div>
-            </span>
+          <ListGroup.Item>
+            <div className="d-flex flex-column gap-3">
+              <CoordinateInput
+                label="Latitude"
+                value={currentHornet.latitude}
+                onChange={() => {}} // Ne sera pas appelé en mode lecture seule
+                readOnly={true}
+                precision={6}
+                labelPosition="horizontal"
+              />
+              <CoordinateInput
+                label="Longitude"
+                value={currentHornet.longitude}
+                onChange={() => {}} // Ne sera pas appelé en mode lecture seule
+                readOnly={true}
+                precision={6}
+                labelPosition="horizontal"
+              />
+            </div>
           </ListGroup.Item>
           
           <ListGroup.Item className="d-flex justify-content-between align-items-center">

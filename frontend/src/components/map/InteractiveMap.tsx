@@ -174,8 +174,13 @@ export default function InteractiveMap() {
 
   // Gestionnaire de clic sur la carte pour afficher le sélecteur d'éléments
   const handleMapClick = (lat: number, lng: number) => {
-    // Désactiver l'ajout d'objets sur mobile
-    if (isMobile()) {
+    // Vérifier d'abord si l'utilisateur est authentifié
+    if (!auth.isAuthenticated) {
+      return;
+    }
+    
+    // Sur mobile, seuls les admins peuvent ajouter des éléments
+    if (isMobile() && !isAdmin) {
       return;
     }
     
@@ -213,18 +218,30 @@ export default function InteractiveMap() {
   };
 
   // Gestionnaires de sélection d'éléments
-  const handleSelectHornet = () => {
+  const handleSelectHornet = (lat?: number, lng?: number) => {
     setShowItemSelector(false);
+    // Mettre à jour la position si des coordonnées sont fournies (admin)
+    if (lat !== undefined && lng !== undefined) {
+      setClickPosition({ lat, lng });
+    }
     setShowAddHornetModal(true);
   };
 
-  const handleSelectApiary = () => {
+  const handleSelectApiary = (lat?: number, lng?: number) => {
     setShowItemSelector(false);
+    // Mettre à jour la position si des coordonnées sont fournies (admin)
+    if (lat !== undefined && lng !== undefined) {
+      setClickPosition({ lat, lng });
+    }
     setShowAddApiaryModal(true);
   };
 
-  const handleSelectNest = () => {
+  const handleSelectNest = (lat?: number, lng?: number) => {
     setShowItemSelector(false);
+    // Mettre à jour la position si des coordonnées sont fournies (admin)
+    if (lat !== undefined && lng !== undefined) {
+      setClickPosition({ lat, lng });
+    }
     setShowAddNestModal(true);
   };
 

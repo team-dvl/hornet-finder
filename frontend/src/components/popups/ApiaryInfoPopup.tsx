@@ -6,6 +6,7 @@ import { Apiary, updateApiary, selectApiaryById, deleteApiary } from '../../stor
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { AppDispatch, RootState } from '../../store/store';
 import { DeleteConfirmationModal } from '../modals';
+import CoordinateInput from '../common/CoordinateInput';
 
 // Couleurs selon le niveau d'infestation
 const getInfestationColor = (level: 1 | 2 | 3): string => {
@@ -127,10 +128,22 @@ export default function ApiaryInfoPopup({ show, onHide, apiary }: ApiaryInfoPopu
             <div className="col-md-6">
               <h6 className="fw-bold">Localisation</h6>
               <div className="mb-2">
-                <strong>Latitude :</strong> {currentApiary.latitude.toFixed(6)}
+                <CoordinateInput
+                  label="Latitude"
+                  value={currentApiary.latitude}
+                  onChange={() => {}} // Read-only
+                  labelPosition="horizontal"
+                  readOnly
+                />
               </div>
               <div className="mb-2">
-                <strong>Longitude :</strong> {currentApiary.longitude.toFixed(6)}
+                <CoordinateInput
+                  label="Longitude"
+                  value={currentApiary.longitude}
+                  onChange={() => {}} // Read-only
+                  labelPosition="horizontal"
+                  readOnly
+                />
               </div>
             </div>
             

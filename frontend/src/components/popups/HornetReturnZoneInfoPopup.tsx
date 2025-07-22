@@ -4,6 +4,7 @@ import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useAuth } from 'react-oidc-context';
 import { getColorLabel } from '../../utils/colors';
 import { HORNET_RETURN_ZONE_ANGLE_DEG, HORNET_FLIGHT_SPEED_M_PER_MIN, HORNET_RETURN_ZONE_ABSOLUTE_MAX_DISTANCE_M } from '../../utils/constants';
+import CoordinateInput from '../common/CoordinateInput';
 
 interface HornetReturnZoneInfoPopupProps {
   show: boolean;
@@ -59,18 +60,44 @@ export default function HornetReturnZoneInfoPopup({
           <div className="col-md-6">
             <h6>Informations du frelon</h6>
             <ListGroup variant="flush">
-              <ListGroup.Item className="d-flex justify-content-between">
+              <ListGroup.Item className="d-flex justify-content-between align-items-center">
                 <span>Position du frelon:</span>
-                <span>{hornet.latitude.toFixed(6)}, {hornet.longitude.toFixed(6)}</span>
+                <div style={{ maxWidth: '200px' }}>
+                  <CoordinateInput
+                    label=""
+                    value={hornet.latitude}
+                    onChange={() => {}}
+                    readOnly
+                  />
+                  <CoordinateInput
+                    label=""
+                    value={hornet.longitude}
+                    onChange={() => {}}
+                    readOnly
+                  />
+                </div>
               </ListGroup.Item>
               
               {isClickedPosition && (
-                <ListGroup.Item className="d-flex justify-content-between">
-                  <span>Position cliquée:</span>
-                  <span>
-                    {displayPosition.lat.toFixed(6)}, {displayPosition.lng.toFixed(6)}
-                    <Badge bg="primary" className="ms-2">📍</Badge>
-                  </span>
+                <ListGroup.Item>
+                  <div className="d-flex flex-column gap-3">
+                    <CoordinateInput
+                      label="Latitude"
+                      value={displayPosition.lat}
+                      onChange={() => {}} // Ne sera pas appelé en mode lecture seule
+                      readOnly={true}
+                      precision={6}
+                      labelPosition="horizontal"
+                    />
+                    <CoordinateInput
+                      label="Longitude"
+                      value={displayPosition.lng}
+                      onChange={() => {}} // Ne sera pas appelé en mode lecture seule
+                      readOnly={true}
+                      precision={6}
+                      labelPosition="horizontal"
+                    />
+                  </div>
                 </ListGroup.Item>
               )}
               
@@ -147,9 +174,25 @@ export default function HornetReturnZoneInfoPopup({
               <strong>Ajouter un élément à cette position:</strong>
             </p>
             <div className="d-flex flex-column gap-2">
-              <div className="small text-muted">
-                📍 Coordonnées: {displayPosition.lat.toFixed(6)}, {displayPosition.lng.toFixed(6)}
-                {isClickedPosition && <Badge bg="primary" className="ms-2">Position cliquée</Badge>}
+              <div className="small text-muted d-flex align-items-center gap-2">
+                📍 Coordonnées:
+                <div style={{ minWidth: '120px' }}>
+                  <CoordinateInput
+                    label=""
+                    value={displayPosition.lat}
+                    onChange={() => {}}
+                    readOnly
+                  />
+                </div>
+                <div style={{ minWidth: '120px' }}>
+                  <CoordinateInput
+                    label=""
+                    value={displayPosition.lng}
+                    onChange={() => {}}
+                    readOnly
+                  />
+                </div>
+                {isClickedPosition && <Badge bg="primary">Position cliquée</Badge>}
               </div>
               <Button
                 variant="primary"

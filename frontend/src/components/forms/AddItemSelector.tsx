@@ -1,14 +1,16 @@
 import { Modal, Button, Card, Row, Col } from 'react-bootstrap';
+import { useState, useEffect } from 'react';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
+import CoordinateInput from '../common/CoordinateInput';
 
 interface AddItemSelectorProps {
   show: boolean;
   onHide: () => void;
   latitude: number;
   longitude: number;
-  onSelectHornet: () => void;
-  onSelectApiary: () => void;
-  onSelectNest: () => void;
+  onSelectHornet: (lat?: number, lng?: number) => void;
+  onSelectApiary: (lat?: number, lng?: number) => void;
+  onSelectNest: (lat?: number, lng?: number) => void;
 }
 
 export default function AddItemSelector({ 
@@ -20,10 +22,45 @@ export default function AddItemSelector({
   onSelectApiary, 
   onSelectNest 
 }: AddItemSelectorProps) {
-  const { canAddHornet, canAddApiary, roles } = useUserPermissions();
+  const { canAddHornet, canAddApiary, roles, isAdmin } = useUserPermissions();
+  
+  // État local pour les coordonnées éditables (pour les admins)
+  const [editableLat, setEditableLat] = useState(latitude);
+  const [editableLng, setEditableLng] = useState(longitude);
   
   // Vérifier si l'utilisateur peut ajouter des nids (pour l'instant, tous les utilisateurs authentifiés)
   const canAddNest = roles.length > 0;
+
+  // Réinitialiser les coordonnées éditables quand les props changent
+  useEffect(() => {
+    setEditableLat(latitude);
+    setEditableLng(longitude);
+  }, [latitude, longitude]);
+
+  // Fonctions pour gérer les sélections avec les coordonnées modifiées
+  const handleSelectHornet = () => {
+    if (isAdmin) {
+      onSelectHornet(editableLat, editableLng);
+    } else {
+      onSelectHornet();
+    }
+  };
+
+  const handleSelectApiary = () => {
+    if (isAdmin) {
+      onSelectApiary(editableLat, editableLng);
+    } else {
+      onSelectApiary();
+    }
+  };
+
+  const handleSelectNest = () => {
+    if (isAdmin) {
+      onSelectNest(editableLat, editableLng);
+    } else {
+      onSelectNest();
+    }
+  };
 
   return (
     <Modal show={show} onHide={onHide} centered>
@@ -37,10 +74,52 @@ export default function AddItemSelector({
       <Modal.Body>
         <div className="mb-3">
           <strong>Position sélectionnée :</strong>
-          <div className="bg-light p-2 rounded small mt-1">
-            <div>Latitude: {latitude.toFixed(6)}</div>
-            <div>Longitude: {longitude.toFixed(6)}</div>
-          </div>
+          {isAdmin ? (
+            <div className="mt-2">
+              <div className="d-flex flex-column gap-3">
+                <CoordinateInput
+                  label="Latitude"
+                  value={editableLat}
+                  onChange={setEditableLat}
+                  placeholder="Latitude"
+                  precision={6}
+                  labelPosition="horizontal"
+                />
+                <CoordinateInput
+                  label="Longitude"
+                  value={editableLng}
+                  onChange={setEditableLng}
+                  placeholder="Longitude"
+                  precision={6}
+                  labelPosition="horizontal"
+                />
+              </div>
+              <small className="text-muted mt-2 d-block">
+                En tant qu'administrateur, vous pouvez modifier ces coordonnées
+              </small>
+            </div>
+          ) : (
+            <div className="mt-2">
+              <div className="d-flex flex-column gap-3">
+                <CoordinateInput
+                  label="Latitude"
+                  value={latitude}
+                  onChange={() => {}} // Ne sera pas appelé en mode lecture seule
+                  readOnly={true}
+                  precision={6}
+                  labelPosition="horizontal"
+                />
+                <CoordinateInput
+                  label="Longitude"
+                  value={longitude}
+                  onChange={() => {}} // Ne sera pas appelé en mode lecture seule
+                  readOnly={true}
+                  precision={6}
+                  labelPosition="horizontal"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         <Row className="g-3">
@@ -55,7 +134,7 @@ export default function AddItemSelector({
                   </Card.Text>
                   <Button 
                     variant="warning" 
-                    onClick={onSelectHornet}
+                    onClick={handleSelectHornet}
                     className="w-100"
                   >
                     Ajouter un frelon
@@ -76,7 +155,7 @@ export default function AddItemSelector({
                   </Card.Text>
                   <Button 
                     variant="success" 
-                    onClick={onSelectApiary}
+                    onClick={handleSelectApiary}
                     className="w-100"
                   >
                     Ajouter un rucher
@@ -97,7 +176,7 @@ export default function AddItemSelector({
                   </Card.Text>
                   <Button 
                     variant="danger" 
-                    onClick={onSelectNest}
+                    onClick={handleSelectNest}
                     className="w-100"
                   >
                     Signaler un nid
