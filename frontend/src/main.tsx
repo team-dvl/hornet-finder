@@ -45,9 +45,12 @@ const getOidcConfig = () => {
       checkSessionInterval: 30000, // Vérification plus fréquente
       // Stocker aussi en localStorage en dev
       userStore: new WebStorageStateStore({ store: window.localStorage }),
+      // Configuration de renouvellement optimisée pour dev
+      silentRequestTimeoutInSeconds: 20,
+      accessTokenExpiringNotificationTime: 300, // 5 minutes en dev pour tester
     };
   } else {
-    // Configuration pour la production
+    // Configuration pour la production - optimisée mobile
     return {
       ...baseConfig,
       automaticSilentRenew: true,
@@ -55,6 +58,9 @@ const getOidcConfig = () => {
       checkSessionInterval: 60000, // Vérification moins fréquente
       // Configuration mobile optimisée
       silentRequestTimeoutInSeconds: 30, // Timeout plus long pour mobile
+      accessTokenExpiringNotificationTime: 600, // 10 minutes avant expiration
+      // Gestion des erreurs de renouvellement
+      automaticSilentRenewIntervalInSeconds: 300, // Essayer de renouveler toutes les 5 minutes si échec
     };
   }
 };

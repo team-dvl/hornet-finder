@@ -9,6 +9,7 @@ import {
   selectHornetsLoading 
 } from '../../store/store';
 import UserInfoModal from '../modals/UserInfoModal';
+import TokenStatusBadge from '../debug/TokenStatusBadge';
 
 
 interface NavbarComponentProps {
@@ -96,12 +97,15 @@ export default function NavbarComponent({ onShowWelcome }: NavbarComponentProps)
                 >
                   Bienvenue, {auth.user?.profile.name}
                 </Button>
+                {/* Badge de diagnostic des tokens - uniquement en développement */}
+                {import.meta.env.DEV && <TokenStatusBadge />}
                 <Button 
                   variant="outline-secondary" 
                   size="sm"
                   onClick={() => void auth.signoutRedirect(
                     { post_logout_redirect_uri: window.location.origin }
                   )}
+                  className="ms-2"
                 >
                   Déconnexion
                 </Button>
