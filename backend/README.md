@@ -1,73 +1,89 @@
-# hornet-finder-api
-API for a hornet detection app.
+# Hornet Finder API
 
-## Getting Started
-This project is a RESTful API built with Django and Django REST Framework. It provides endpoints for managing hornet detection data.
+A RESTful API built with Django and Django REST Framework for managing hornet detection data, including hornets, nests, and apiaries with geospatial capabilities.
 
-### Prerequisites
-- Python 3.9 or higher
+## Features
 
-OR
+- **Hornet Tracking**: Record hornet sightings with location, direction, duration, and color markings
+- **Nest Management**: Track hornet nests with location, status, and destruction records
+- **Apiary Monitoring**: Monitor beehive infestation levels with geospatial data
+- **Geospatial Support**: PostGIS integration for location-based queries and analysis
+- **JWT Authentication**: Secure API access with JSON Web Token authentication
+- **API Documentation**: Interactive Swagger/OpenAPI documentation
+- **RESTful Design**: Full CRUD operations with standard HTTP methods
 
-- Docker
+## Technology Stack
 
-Be careful, to run the backend, you need to set up some environment variables. You can find them in the `hornet-finder-api` part of the [docker-compose](../docker-compose.yml) file.
+- **Framework**: Django 5.2+ with Django REST Framework
+- **Database**: PostgreSQL with PostGIS extension
+- **Authentication**: JWT Bearer token authentication with Keycloak integration
+- **Documentation**: drf-spectacular (OpenAPI 3.1.1)
+- **Server**: Gunicorn WSGI server
+- **Python**: 3.9+
 
-### Deploy on Local Machine
+## API Endpoints
 
-#### Installation
+### Core Resources
 
-1. Clone the repository:
-```bash
-git clone https://github.com/mdevolde/hornet-finder.git
-cd hornet-finder/backend
-```
+- `GET|POST /api/hornets/` - List all hornets or create a new hornet sighting
+- `GET|PUT|PATCH|DELETE /api/hornets/{id}/` - Retrieve, update, or delete a specific hornet
+- `GET|POST /api/nests/` - List all nests or create a new nest record
+- `GET|PUT|PATCH|DELETE /api/nests/{id}/` - Retrieve, update, or delete a specific nest
+- `GET|POST /api/apiaries/` - List all apiaries or create a new apiary record
+- `GET|PUT|PATCH|DELETE /api/apiaries/{id}/` - Retrieve, update, or delete a specific apiary
 
-2. Create a virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-```
+### Documentation
 
-3. Install the required packages:
-```bash
-pip install -r requirements.txt
-```
+- `GET /api/docs/` - Interactive Swagger UI documentation (development only)
+- `GET /api/schema/` - OpenAPI schema (development only)
 
-#### Running the Project
+## Data Models
 
-1. Apply migrations:
-```bash
-python manage.py migrate
-```
+### Hornet
+- Location (latitude, longitude, PostGIS point)
+- Direction of flight
+- Duration of observation
+- Color markings (up to 2 colors)
+- Creation timestamp and author
+- Optional link to related nest
 
-2. Run with gunicorn (for production, if you do this don't do the next step):
-```bash
-gunicorn hornet_finder_api.wsgi:application --bind 0.0.0.0:8000 --access-logfile -
-```
+### Nest
+- Location (latitude, longitude, PostGIS point)
+- Public/private place indicator
+- Address information
+- Destruction status and timestamp
+- Creation timestamp and author
+- Comments
 
-3. Run with Django's development server (for development, if you do this don't do the previous step):
-```bash
-python manage.py runserver
-```
+### Apiary
+- Location (latitude, longitude, PostGIS point)
+- Infestation level (Light, Medium, High)
+- Creation timestamp and author
+- Comments
 
-### Deploy on Docker
+## Environment Variables
 
-1. Clone the repository:
-```bash
-git clone https://github.com/mdevolde/hornet-finder.git
-cd hornet-finder/backend
-```
+The application requires several environment variables to be configured. These are typically set in the Docker Compose configuration:
 
-2. Build the Docker image:
-```bash
-docker build -t hornet-finder-api .
-```
+- `DJANGO_SECRET_KEY` - Django secret key for cryptographic signing
+- `DEBUG` - Enable/disable debug mode (default: False)
+- `DATABASE_*` - PostgreSQL database connection settings
+- `KEYCLOAK_*` - Keycloak authentication server configuration
 
-3. Run the Docker container:
-```bash
-docker run -d -p 8000:8000 hornet-finder-api
-```
+Refer to the main project's [docker-compose.yml](../docker-compose.yml) file for the complete list of required environment variables.
 
-### Accessing the API documentation
-The API documentation is available at `/api/docs/` when the server is running.
+## Development
+
+Use the Docker Compose configuration in the project root for deployment (the backend must be linked with another services like Keycloak and PostgreSQL).
+
+## Authentication
+
+The API uses JWT Bearer token authentication integrated with Keycloak. To access protected endpoints:
+
+1. Obtain a JWT token from the Keycloak authentication server
+2. Include the token in the Authorization header: `Authorization: Bearer <token>`
+3. For API documentation access, use the "Authorize" button in Swagger UI
+
+## License
+
+This project is licensed under the terms specified in the [LICENSE](LICENSE) file.
