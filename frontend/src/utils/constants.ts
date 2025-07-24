@@ -46,3 +46,30 @@ export const DEFAULT_MAX_SEARCH_RADIUS_KM = 5;
  * Utilisé pour initialiser la vue de la carte
  */
 export const DEFAULT_ZOOMFACTOR = 15;
+
+/**
+ * Zoom maximum autorisé sur la carte
+ * Utilisé pour permettre un zoom très rapproché pour séparer les objets superposés
+ * Utilise l'interpolation au-delà du zoom natif 18 d'OpenStreetMap
+ */
+export const MAX_ZOOM = 21;
+
+/**
+ * Zoom natif maximum des tuiles OpenStreetMap
+ * Au-delà de cette valeur, Leaflet interpolera les tuiles existantes
+ */
+export const MAX_NATIVE_ZOOM = 18;
+
+/**
+ * Distance en pixels pour considérer qu'il y a chevauchement d'objets sur la carte
+ * Utilisé dans le système de détection de chevauchement pour déterminer
+ * si plusieurs objets sont superposés au même endroit
+ */
+export const OVERLAP_THRESHOLD_PIXELS = 50;
+
+/**
+ * Zoom minimum requis pour tenter de séparer automatiquement les objets superposés
+ * Si le zoom actuel est inférieur à cette valeur, le système tente un zoom automatique
+ * pour séparer les objets, sinon il affiche le dialogue de sélection
+ */
+export const MIN_ZOOM_TO_SEPARATE = 18;

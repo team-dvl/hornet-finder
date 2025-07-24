@@ -4,6 +4,7 @@ import { Hornet } from '../store/slices/hornetsSlice';
 import { Apiary } from '../store/slices/apiariesSlice';
 import { Nest } from '../store/slices/nestsSlice';
 import { MapObject, MapObjectType } from '../components/map/types';
+import { OVERLAP_THRESHOLD_PIXELS, MIN_ZOOM_TO_SEPARATE } from '../utils/constants';
 
 interface UseOverlapDetectionProps {
   map: Map | null;
@@ -20,9 +21,6 @@ interface OverlapDetectionResult {
   objects: MapObject[];
   canZoomToSeparate: boolean;
 }
-
-const OVERLAP_THRESHOLD_PIXELS = 50; // Distance en pixels pour considérer un chevauchement
-const MIN_ZOOM_TO_SEPARATE = 18; // Zoom minimum pour tenter de séparer les objets
 
 export const useOverlapDetection = ({
   map,

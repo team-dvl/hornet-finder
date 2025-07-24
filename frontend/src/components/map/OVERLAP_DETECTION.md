@@ -78,8 +78,14 @@ enum MapObjectType {
 
 ### Constantes ajustables
 
+Les constantes de configuration sont centralisées dans `src/utils/constants.ts` :
+
 - `OVERLAP_THRESHOLD_PIXELS = 50` : Distance en pixels pour considérer un chevauchement
 - `MIN_ZOOM_TO_SEPARATE = 18` : Zoom minimum pour tenter de séparer les objets
+- `MAX_ZOOM = 21` : Zoom maximum autorisé sur la carte (avec interpolation)
+- `MAX_NATIVE_ZOOM = 18` : Zoom natif maximum des tuiles OpenStreetMap
+
+Ces valeurs peuvent être facilement ajustées selon les besoins de l'application.
 
 ## Intégration
 

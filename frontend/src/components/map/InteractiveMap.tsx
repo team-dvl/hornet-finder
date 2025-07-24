@@ -6,6 +6,7 @@ import { Map } from 'leaflet';
 import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowHornets, selectShowReturnZones, selectShowNests, initializeGeolocation, selectMapCenter, selectGeolocationError, setGeolocationError, setIsAdmin } from '../../store/store';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useMapDataFetching } from '../../hooks/useMapDataFetching';
+import { MAX_ZOOM, MAX_NATIVE_ZOOM } from '../../utils/constants';
 import { Hornet } from '../../store/slices/hornetsSlice';
 import { Apiary } from '../../store/slices/apiariesSlice';
 import { Nest } from '../../store/slices/nestsSlice';
@@ -366,6 +367,7 @@ export default function InteractiveMap() {
       <MapContainer
         center={coordinates}
         zoom={15}
+        maxZoom={MAX_ZOOM}
         scrollWheelZoom={true}
         style={{ height: "100vh", width: "100%" }}
         zoomControl={false} // Désactiver les contrôles par défaut
@@ -383,6 +385,9 @@ export default function InteractiveMap() {
         <MapEventHandler />
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          maxZoom={MAX_ZOOM}
+          maxNativeZoom={MAX_NATIVE_ZOOM}
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
         <ZoomControl position="bottomleft" />
         {showHornets && hornets.map((hornet, index) => (
