@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
-import { MapContainer, TileLayer, useMapEvents, ZoomControl } from "react-leaflet";
+import { useState, useEffect, useRef } from "react";
+import { MapContainer, TileLayer, ZoomControl } from "react-leaflet";
 import { Modal, Spinner } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
+import { Map } from 'leaflet';
 import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowHornets, selectShowReturnZones, selectShowNests, initializeGeolocation, selectMapCenter, selectGeolocationError, setGeolocationError, setIsAdmin } from '../../store/store';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useMapDataFetching } from '../../hooks/useMapDataFetching';
@@ -22,33 +23,13 @@ import AddHornetPopup from '../popups/AddHornetPopup';
 import AddApiaryPopup from '../popups/AddApiaryPopup';
 import AddNestPopup from '../popups/AddNestPopup';
 import CompassCapture from './CompassCapture';
+import SmartMapClickHandler from './SmartMapClickHandler';
+import OverlapDialog from './OverlapDialog';
+import MapRefHandler from './MapRefHandler';
+import { useSmartClickHandlers } from '../../hooks/useSmartClickHandlers';
+import { MapObject } from './types';
 import "leaflet/dist/leaflet.css";
 import "leaflet/dist/leaflet.js";
-
-// Composant pour gérer les clics sur la carte
-function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number) => void }) {
-  useMapEvents({
-    click: (e) => {
-      // Vérifier si le clic provient d'un élément avec une classe leaflet-interactive
-      // Ces éléments incluent les polygones, marqueurs, etc.
-      const target = e.originalEvent?.target as HTMLElement;
-      if (target && (
-        target.classList.contains('leaflet-interactive') ||
-        target.closest('.leaflet-interactive') ||
-        target.classList.contains('leaflet-marker-icon') ||
-        target.closest('.leaflet-marker-icon') ||
-        target.classList.contains('map-control-button') ||
-        target.closest('.map-control-button')
-      )) {
-        // Le clic provient d'un élément interactif, ne pas déclencher l'ajout
-        return;
-      }
-      
-      onMapClick(e.latlng.lat, e.latlng.lng);
-    },
-  });
-  return null;
-}
 
 // Fonction utilitaire pour détecter les appareils mobiles
 const isMobile = () => {
@@ -108,6 +89,11 @@ export default function InteractiveMap() {
   const [compassCapturedPosition, setCompassCapturedPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [pendingHornetData, setPendingHornetData] = useState<{ lat: number; lng: number; direction: number } | null>(null);
   
+  // États pour le dialogue de chevauchement
+  const [showOverlapDialog, setShowOverlapDialog] = useState(false);
+  const [overlappingObjects, setOverlappingObjects] = useState<MapObject[]>([]);
+  const [overlapPosition, setOverlapPosition] = useState<{ lat: number; lng: number } | null>(null);
+  
   // Sélectionner les données depuis le store Redux
   const { hornets, error } = useAppSelector((state) => state.hornets);
   const { apiaries } = useAppSelector((state) => state.apiaries);
@@ -116,6 +102,14 @@ export default function InteractiveMap() {
   const showHornets = useAppSelector(selectShowHornets);
   const showReturnZones = useAppSelector(selectShowReturnZones);
   const showNests = useAppSelector(selectShowNests);
+
+  // Référence vers la carte Leaflet
+  const mapRef = useRef<Map | null>(null);
+
+  // Fonction pour stocker la référence de la carte
+  const handleMapReady = (map: Map) => {
+    mapRef.current = map;
+  };
 
   // Sync coordinates with map center
   useEffect(() => {
@@ -150,6 +144,47 @@ export default function InteractiveMap() {
     }
     setShowReturnZoneModal(true);
   };
+
+  // Gestionnaires de clic intelligents avec détection de chevauchement
+  const handleShowOverlapDialog = (objects: MapObject[], position: { lat: number; lng: number }) => {
+    setOverlappingObjects(objects);
+    setOverlapPosition(position);
+    setShowOverlapDialog(true);
+  };
+
+  const handleObjectSelection = (object: MapObject) => {
+    switch (object.type) {
+      case 'hornet':
+        handleHornetClick(object.data as Hornet);
+        break;
+      case 'apiary':
+        handleApiaryClick(object.data as Apiary);
+        break;
+      case 'nest':
+        handleNestClick(object.data as Nest);
+        break;
+    }
+  };
+
+  const handleCloseOverlapDialog = () => {
+    setShowOverlapDialog(false);
+    setOverlappingObjects([]);
+    setOverlapPosition(null);
+  };
+
+  const { handleSmartHornetClick, handleSmartApiaryClick, handleSmartNestClick } = useSmartClickHandlers({
+    map: mapRef.current,
+    hornets,
+    apiaries,
+    nests,
+    showHornets,
+    showApiaries,
+    showNests,
+    onShowOverlapDialog: handleShowOverlapDialog,
+    onHornetClick: handleHornetClick,
+    onApiaryClick: handleApiaryClick,
+    onNestClick: handleNestClick
+  });
 
   const handleCloseModal = () => {
     setShowHornetModal(false);
@@ -344,6 +379,7 @@ export default function InteractiveMap() {
           onQuickHornetCapture={handleQuickHornetCapture}
           canAddHornet={canAddHornet}
         />
+        <MapRefHandler onMapReady={handleMapReady} />
         <MapEventHandler />
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -353,7 +389,7 @@ export default function InteractiveMap() {
           <HornetReturnZone
             key={hornet.id || index}
             hornet={hornet}
-            onClick={handleHornetClick}
+            onClick={handleSmartHornetClick}
             onShowInfo={handleReturnZoneClick}
             showReturnZone={showReturnZones}
           />
@@ -362,17 +398,28 @@ export default function InteractiveMap() {
           <ApiaryMarker
             key={apiary.id || index}
             apiary={apiary}
-            onClick={handleApiaryClick}
+            onClick={handleSmartApiaryClick}
           />
         ))}
         {showNests && auth.isAuthenticated && nests.map((nest, index) => (
           <NestMarker
             key={nest.id || index}
             nest={nest}
-            onClick={handleNestClick}
+            onClick={handleSmartNestClick}
           />
         ))}
-        <MapClickHandler onMapClick={handleMapClick} />
+        <SmartMapClickHandler
+          hornets={hornets}
+          apiaries={apiaries}
+          nests={nests}
+          showHornets={showHornets}
+          showApiaries={showApiaries}
+          showNests={showNests}
+          onHornetClick={handleHornetClick}
+          onApiaryClick={handleApiaryClick}
+          onNestClick={handleNestClick}
+          onMapClick={handleMapClick}
+        />
       </MapContainer>
       
       <HornetInfoPopup
@@ -492,6 +539,17 @@ export default function InteractiveMap() {
             aria-label="Close"
           ></button>
         </div>
+      )}
+
+      {/* Dialogue de sélection d'objets superposés */}
+      {showOverlapDialog && overlapPosition && (
+        <OverlapDialog
+          show={showOverlapDialog}
+          onHide={handleCloseOverlapDialog}
+          objects={overlappingObjects}
+          onSelectObject={handleObjectSelection}
+          position={overlapPosition}
+        />
       )}
     </div>
   );
