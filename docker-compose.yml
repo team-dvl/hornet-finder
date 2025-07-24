@@ -94,6 +94,7 @@ services:
       - ./nginx/conf.d/auth.conf:/etc/nginx/conf.d/auth.conf:ro
       - ./nginx/conf.d/prod.conf:/etc/nginx/conf.d/prod.conf:ro
       - ./nginx/conf.d/dev.conf:/etc/nginx/conf.d/dev.conf:ro
+      - ./nginx/conf.d/security-headers.conf:/etc/nginx/conf.d/security-headers.conf:ro
       - ./certbot/conf:/etc/letsencrypt:ro
       - ./certbot/www:/var/www/certbot
       - staticfiles:/staticfiles
