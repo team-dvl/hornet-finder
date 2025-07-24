@@ -30,7 +30,6 @@ export default function CoordinateInput({
   const [decimalValue, setDecimalValue] = useState(value.toString());
   const [dmsValue, setDmsValue] = useState<DMSCoordinates>({ degrees: 0, minutes: 0, seconds: 0 });
   const isInternalChange = useRef(false);
-  const [copySuccess, setCopySuccess] = useState(false);
 
   // Convertir décimal vers DMS
   const decimalToDMS = (decimal: number): DMSCoordinates => {
@@ -89,25 +88,6 @@ export default function CoordinateInput({
     setDecimalValue(decimalResult.toFixed(precision));
     isInternalChange.current = true;
     onChange(decimalResult);
-  };
-
-  // Fonction pour copier les coordonnées
-  const handleCopy = async () => {
-    try {
-      let textToCopy = '';
-      if (inputMode === 'decimal') {
-        textToCopy = value.toFixed(precision);
-      } else {
-        textToCopy = `${dmsValue.degrees}° ${dmsValue.minutes}′ ${dmsValue.seconds.toFixed(2)}″`;
-      }
-      
-      await navigator.clipboard.writeText(textToCopy);
-      setCopySuccess(true);
-      setTimeout(() => setCopySuccess(false), 2000);
-    } catch (err) {
-      // Fallback pour les navigateurs qui ne supportent pas l'API clipboard
-      console.warn('Échec de la copie:', err);
-    }
   };
 
   // Fonction pour parser les coordonnées DMS à partir de texte
@@ -191,64 +171,33 @@ export default function CoordinateInput({
   // Mode lecture seule
   if (readOnly) {
     const readOnlyControls = (
-      <div className="d-flex align-items-start">
-        <InputGroup style={{ width: 'auto', maxWidth: 'fit-content' }}>
-          <Button
-            variant="outline-secondary"
-            size="sm"
-            onClick={toggleInputMode}
-            style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-            title={inputMode === 'decimal' ? 'Afficher en degrés-minutes-secondes' : 'Afficher en décimal'}
-          >
-            {inputMode === 'decimal' ? 'dec' : 'dms'}
-          </Button>
-          
-          {inputMode === 'decimal' ? (
-            <div className="bg-light p-2 rounded small d-flex align-items-center" style={{ minWidth: '140px' }}>
-              {value.toFixed(precision)}
-            </div>
-          ) : (
-            <>
-              {/* Version horizontale pour écrans suffisamment larges */}
-              <div className="d-flex flex-nowrap gap-1 d-none d-sm-flex">
-                <div className="bg-light p-1 rounded small d-flex align-items-center" style={{ width: '55px', fontSize: '0.875rem' }}>
-                  {dmsValue.degrees}°
-                </div>
-                <div className="bg-light p-1 rounded small d-flex align-items-center" style={{ width: '60px', fontSize: '0.875rem' }}>
-                  {dmsValue.minutes}′
-                </div>
-                <div className="bg-light p-1 rounded small d-flex align-items-center" style={{ width: '85px', fontSize: '0.875rem' }}>
-                  {dmsValue.seconds.toFixed(2)}″
-                </div>
-              </div>
-              
-              {/* Version verticale pour petits écrans */}
-              <div className="d-flex flex-column gap-1 d-sm-none">
-                <div className="bg-light p-2 rounded small" style={{ width: '100px' }}>
-                  {dmsValue.degrees}° (Degrés)
-                </div>
-                <div className="bg-light p-2 rounded small" style={{ width: '100px' }}>
-                  {dmsValue.minutes}′ (Minutes)
-                </div>
-                <div className="bg-light p-2 rounded small" style={{ width: '100px' }}>
-                  {dmsValue.seconds.toFixed(2)}″ (Secondes)
-                </div>
-              </div>
-            </>
-          )}
-          
-          <Button
-            variant="outline-secondary"
-            size="sm"
-            onClick={handleCopy}
-            title="Copier les coordonnées"
-            style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-          >
-            {copySuccess ? '✓' : '📋'}
-          </Button>
-        </InputGroup>
-        {/* Ressort invisible pour pousser le contenu vers la gauche */}
-        <div style={{ flex: 1 }}></div>
+      <div className="d-flex align-items-center gap-2">
+        <Button
+          variant="outline-secondary"
+          size="sm"
+          onClick={toggleInputMode}
+          style={{ 
+            fontSize: '0.75rem', 
+            padding: '0.15rem ',
+            minWidth: '35px'
+          }}
+          title={inputMode === 'decimal' ? 'Afficher en degrés-minutes-secondes' : 'Afficher en décimal'}
+        >
+          {inputMode === 'decimal' ? 'dec' : 'dms'}
+        </Button>
+        
+        <span 
+          className="user-select-all text-monospace"
+          style={{ 
+            fontSize: '0.875rem',
+            cursor: 'text'
+          }}
+        >
+          {inputMode === 'decimal' 
+            ? value.toFixed(precision)
+            : `${dmsValue.degrees}° ${dmsValue.minutes}′ ${dmsValue.seconds.toFixed(2)}″`
+          }
+        </span>
       </div>
     );
 
@@ -271,7 +220,11 @@ export default function CoordinateInput({
           variant="outline-secondary"
           size="sm"
           onClick={toggleInputMode}
-          style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+          style={{ 
+            fontSize: '0.75rem', 
+            padding: '0.25rem 0.5rem',
+            minWidth: '40px'
+          }}
           title={inputMode === 'decimal' ? 'Passer en degrés-minutes-secondes' : 'Passer en décimal'}
         >
           {inputMode === 'decimal' ? 'dec' : 'dms'}
