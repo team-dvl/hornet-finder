@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider } from 'react-oidc-context'
 import { WebStorageStateStore } from 'oidc-client-ts'
 import { Provider } from 'react-redux'
@@ -78,10 +79,12 @@ console.log('🔐 OIDC Configuration:', {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <Provider store={store}>
-      <AuthProvider {...oidcConfig}>
-        <App/>
-      </AuthProvider>
-    </Provider>
+    <BrowserRouter>
+      <Provider store={store}>
+        <AuthProvider {...oidcConfig}>
+          <App/>
+        </AuthProvider>
+      </Provider>
+    </BrowserRouter>
   </StrictMode>,
 )

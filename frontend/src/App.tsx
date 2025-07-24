@@ -2,10 +2,12 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css'
 import { Container, Alert } from 'react-bootstrap'
 import { useState, useEffect } from 'react';
+import { Routes, Route } from 'react-router-dom'
 import { useAuth } from 'react-oidc-context';
 import { InteractiveMap } from './components/map';
 import { NavbarComponent } from './components/layout';
 import { WelcomeModal } from './components/modals';
+import { PrivacyPolicy, DataDeletion } from './pages';
 import { initIOSViewportFix } from './utils/iosViewportFix';
 import { useUrlCleaner } from './utils/urlCleaner';
 import { setupPWAAuthMonitoring } from './utils/pwaAuth';
@@ -99,17 +101,23 @@ function App() {
   }
 
   return (
-    <>
-      <NavbarComponent onShowWelcome={handleShowWelcomeModal} />
-      <div className="map-fullscreen">
-        <InteractiveMap />
-      </div>
-      
-      <WelcomeModal 
-        show={showWelcomeModal}
-        onHide={handleCloseWelcomeModal}
-      />
-    </>
+    <Routes>
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      <Route path="/data-deletion" element={<DataDeletion />} />
+      <Route path="/" element={
+        <>
+          <NavbarComponent onShowWelcome={handleShowWelcomeModal} />
+          <div className="map-fullscreen">
+            <InteractiveMap />
+          </div>
+          
+          <WelcomeModal 
+            show={showWelcomeModal}
+            onHide={handleCloseWelcomeModal}
+          />
+        </>
+      } />
+    </Routes>
   );
 }
 
