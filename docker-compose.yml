@@ -55,8 +55,6 @@ services:
     depends_on:
       - hornet-finder-api-db
       - hornet-finder-keycloak
-    volumes:
-      - staticfiles:/app/staticfiles
 
   hornet-finder-keycloak-db:
     image: postgres:latest
@@ -97,7 +95,6 @@ services:
       - ./nginx/conf.d/security-headers.conf:/etc/nginx/conf.d/security-headers.conf:ro
       - ./certbot/conf:/etc/letsencrypt:ro
       - ./certbot/www:/var/www/certbot
-      - staticfiles:/staticfiles
       - frontend-dist:/usr/share/nginx/html:ro
     depends_on:
       - hornet-finder-api
@@ -141,5 +138,4 @@ services:
 volumes:
   api-db:
   keycloak-db:
-  staticfiles:
   frontend-dist:

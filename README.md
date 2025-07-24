@@ -57,7 +57,6 @@ The application follows a modern containerized microservices architecture:
                             └────────────────────┘
 
 Volume Mounts:
-├─ staticfiles:/staticfiles        (Django static files)
 ├─ frontend-dist:/usr/share/nginx/ (Built React app)
 ├─ api-db:/var/lib/postgresql/     (Main database data)
 └─ keycloak-db:/var/lib/postgresql/(Auth database data)
