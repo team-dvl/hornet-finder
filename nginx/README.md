@@ -108,7 +108,7 @@ The application uses Let's Encrypt for SSL certificates:
 
 ```nginx
 ssl_protocols TLSv1.2 TLSv1.3;
-ssl_ciphers HIGH:!aNULL:!MD5;
+ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-CCM:ECDHE-ECDSA-CHACHA20-POLY1305;
 ```
 
 - **Protocol Support**: TLS 1.2 and 1.3 only (secure versions)
