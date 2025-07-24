@@ -800,7 +800,8 @@
         "https://velutina.ovh/*"
       ],
       "webOrigins": [
-        "+"
+        "https://velutina.ovh",
+        "https://dev.velutina.ovh"
       ],
       "notBefore": 0,
       "bearerOnly": false,
@@ -871,7 +872,8 @@
         "https://dev.velutina.ovh/*"
       ],
       "webOrigins": [
-        "+"
+        "https://dev.velutina.ovh",
+        "https://velutina.ovh"
       ],
       "notBefore": 0,
       "bearerOnly": false,

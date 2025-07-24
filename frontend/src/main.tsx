@@ -7,6 +7,8 @@ import { Provider } from 'react-redux'
 import { store } from './store'
 import './index.css'
 import App from './App'
+import { testServiceWorker } from './utils/testServiceWorker'
+import './utils/quickTest' // Import le test rapide
 
 // Détection automatique de l'environnement
 const isDevelopment = window.location.hostname === 'dev.velutina.ovh' || 
@@ -41,7 +43,7 @@ const getOidcConfig = () => {
     return {
       ...baseConfig,
       client_id: 'hornet-app-dev',
-      automaticSilentRenew: true, // Activé aussi en dev pour tester
+      automaticSilentRenew: true, // Réactivé après configuration Keycloak
       monitorSession: true, // Activer pour debug
       checkSessionInterval: 30000, // Vérification plus fréquente
       // Stocker aussi en localStorage en dev
@@ -76,6 +78,22 @@ console.log('🔐 OIDC Configuration:', {
   automaticSilentRenew: oidcConfig.automaticSilentRenew,
   monitorSession: oidcConfig.monitorSession
 });
+
+if (isDevelopment && !oidcConfig.automaticSilentRenew) {
+  console.warn('⚠️ Silent renewal désactivé en développement à cause des problèmes CORS');
+  console.log('💡 Pour activer, configurer Keycloak pour autoriser https://dev.velutina.ovh');
+}
+
+// En développement, initialiser le testeur de service worker
+if (isDevelopment) {
+  // Attendre que le service worker soit prêt
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.ready.then(() => {
+      console.log('🧪 Service Worker prêt - Testeur disponible via window.testSW');
+      testServiceWorker.setupServiceWorkerListener();
+    });
+  }
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

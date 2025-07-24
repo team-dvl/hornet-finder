@@ -16,6 +16,7 @@ export const useTokenMonitor = () => {
   const auth = useAuth();
   const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
   const [renewalAttempts, setRenewalAttempts] = useState(0);
+  const [lastRenewalAttempt, setLastRenewalAttempt] = useState(0);
 
   useEffect(() => {
     if (!auth.user?.access_token) {
@@ -28,7 +29,7 @@ export const useTokenMonitor = () => {
         const decoded = jwtDecode<{ exp: number; iat: number }>(auth.user!.access_token!);
         const now = Math.floor(Date.now() / 1000);
         const timeUntilExpiry = decoded.exp - now;
-        const isExpiringSoon = timeUntilExpiry < 300; // Moins de 5 minutes
+        const isExpiringSoon = timeUntilExpiry < 90; // Moins de 90 secondes
 
         setTokenInfo({
           exp: decoded.exp,
@@ -38,8 +39,13 @@ export const useTokenMonitor = () => {
         });
 
         // Log si le token expire bientôt
-        if (isExpiringSoon) {
-          console.warn(`⚠️ Token expires in ${Math.floor(timeUntilExpiry / 60)} minutes`);
+        if (isExpiringSoon && timeUntilExpiry > 0) {
+          const now = Date.now();
+          // Éviter de spammer les logs - seulement toutes les 30 secondes
+          if (now - lastRenewalAttempt > 30000) {
+            console.warn(`⚠️ Token expires in ${Math.floor(timeUntilExpiry / 60)} minutes`);
+            setLastRenewalAttempt(now);
+          }
         }
       } catch (error) {
         console.error('Erreur lors du décodage du token:', error);
@@ -54,7 +60,7 @@ export const useTokenMonitor = () => {
     const interval = setInterval(updateTokenInfo, 30000);
 
     return () => clearInterval(interval);
-  }, [auth.user]);
+  }, [auth.user, lastRenewalAttempt]);
 
   // Surveiller les tentatives de renouvellement
   useEffect(() => {

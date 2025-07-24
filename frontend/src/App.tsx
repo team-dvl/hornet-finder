@@ -10,8 +10,13 @@ import { WelcomeModal } from './components/modals';
 import { PrivacyPolicy, DataDeletion } from './pages';
 import { initIOSViewportFix } from './utils/iosViewportFix';
 import { useUrlCleaner } from './utils/urlCleaner';
-import { setupPWAAuthMonitoring } from './utils/pwaAuth';
+import { setupPWAAuthMonitoring, setupTokenMonitoring, syncAuthStateWithServiceWorker } from './utils/pwaAuth';
 import { useMobileSessionPersistence } from './hooks/useMobileSessionPersistence';
+
+// Import conditionnel pour les tests en développement
+if (import.meta.env.DEV) {
+  import('./utils/authTester');
+}
 
 function App() {
   const auth = useAuth();
@@ -31,6 +36,12 @@ function App() {
     // Initialiser le monitoring PWA pour l'authentification
     setupPWAAuthMonitoring();
     
+    // Initialiser le monitoring avancé des tokens
+    setupTokenMonitoring();
+    
+    // Synchroniser l'état avec le service worker
+    syncAuthStateWithServiceWorker();
+    
     if (!auth.isLoading && !auth.isAuthenticated && !auth.activeNavigator) {
       // Vérifier si l'utilisateur a déjà choisi de continuer sans connexion
       const hasDeclinedLogin = localStorage.getItem('hornet-finder-declined-login');
@@ -41,6 +52,13 @@ function App() {
       setShowWelcomeModal(false);
     }
   }, [auth.isLoading, auth.isAuthenticated, auth.activeNavigator]);
+
+  // Synchroniser l'état d'authentification avec le service worker
+  useEffect(() => {
+    if (!auth.isLoading) {
+      syncAuthStateWithServiceWorker();
+    }
+  }, [auth.isAuthenticated, auth.user, auth.isLoading]);
 
   const handleCloseWelcomeModal = () => {
     setShowWelcomeModal(false);
