@@ -1,6 +1,9 @@
-import { useState } from 'react';
 import { Circle } from 'react-leaflet';
+import * as L from 'leaflet';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { selectHighlightedCircles, selectApiaries, toggleCircleHighlight } from '../../store/store';
 import { Apiary } from '../../store/slices/apiariesSlice';
+import { findOverlappingCircles } from '../../utils/circleOverlap';
 import {
   APIARY_CIRCLE_RADIUS_M,
   APIARY_CIRCLE_COLOR,
@@ -15,10 +18,30 @@ interface ApiaryCircleProps {
 }
 
 export default function ApiaryCircle({ apiary }: ApiaryCircleProps) {
-  const [isHighlighted, setIsHighlighted] = useState(false);
+  const dispatch = useAppDispatch();
+  const highlightedCircles = useAppSelector(selectHighlightedCircles);
+  const allApiaries = useAppSelector(selectApiaries);
+  
+  // Vérifier si ce cercle est surligné
+  const isHighlighted = apiary.id ? highlightedCircles.includes(apiary.id) : false;
 
-  const handleClick = () => {
-    setIsHighlighted(!isHighlighted);
+  const handleClick = (event: L.LeafletMouseEvent) => {
+    // Empêcher la propagation vers la carte
+    event.originalEvent?.stopPropagation();
+    
+    if (!apiary.id) return;
+
+    // Obtenir les coordonnées du clic
+    const clickLat = event.latlng.lat;
+    const clickLon = event.latlng.lng;
+
+    // Trouver tous les cercles qui se chevauchent à cette position
+    const overlappingIds = findOverlappingCircles(clickLat, clickLon, allApiaries);
+    
+    // Toggle l'état de tous les cercles qui se chevauchent
+    if (overlappingIds.length > 0) {
+      dispatch(toggleCircleHighlight(overlappingIds));
+    }
   };
 
   return (

@@ -25,6 +25,7 @@ interface ApiariesState {
   error: string | null;
   showApiaries: boolean; // Toggle pour afficher/masquer les ruchers
   showApiaryCircles: boolean; // Toggle pour afficher/masquer les cercles de 1km autour des ruchers
+  highlightedCircles: number[]; // IDs des cercles de ruchers surlignés
 }
 
 const initialState: ApiariesState = {
@@ -33,6 +34,7 @@ const initialState: ApiariesState = {
   error: null,
   showApiaries: true, // Par défaut, afficher les ruchers
   showApiaryCircles: false, // Par défaut, ne pas afficher les cercles
+  highlightedCircles: [], // Aucun cercle surligné par défaut
 };
 
 // Thunk async pour récupérer les ruchers
@@ -246,6 +248,33 @@ const apiariesSlice = createSlice({
     toggleApiaryCircles: (state) => {
       state.showApiaryCircles = !state.showApiaryCircles;
     },
+    toggleCircleHighlight: (state, action) => {
+      const apiaryIds = action.payload; // Can be a single ID or array of IDs
+      const ids = Array.isArray(apiaryIds) ? apiaryIds : [apiaryIds];
+      
+      // Détermine si on doit allumer ou éteindre en fonction du premier ID
+      const firstId = ids[0];
+      const shouldHighlight = !state.highlightedCircles.includes(firstId);
+      
+      // Applique le même état à tous les cercles
+      ids.forEach(id => {
+        if (shouldHighlight) {
+          // Ajouter seulement s'il n'est pas déjà présent
+          if (!state.highlightedCircles.includes(id)) {
+            state.highlightedCircles.push(id);
+          }
+        } else {
+          // Retirer de la liste
+          const index = state.highlightedCircles.indexOf(id);
+          if (index > -1) {
+            state.highlightedCircles.splice(index, 1);
+          }
+        }
+      });
+    },
+    clearAllHighlights: (state) => {
+      state.highlightedCircles = [];
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -327,10 +356,11 @@ export const selectApiariesLoading = (state: { apiaries: ApiariesState }) => sta
 export const selectApiariesError = (state: { apiaries: ApiariesState }) => state.apiaries.error;
 export const selectShowApiaries = (state: { apiaries: ApiariesState }) => state.apiaries.showApiaries;
 export const selectShowApiaryCircles = (state: { apiaries: ApiariesState }) => state.apiaries.showApiaryCircles;
+export const selectHighlightedCircles = (state: { apiaries: ApiariesState }) => state.apiaries.highlightedCircles;
 
 // Sélecteur pour récupérer un rucher par ID
 export const selectApiaryById = (state: { apiaries: ApiariesState }, id: number | undefined) => 
   id ? state.apiaries.apiaries.find(apiary => apiary.id === id) : null;
 
-export const { clearError, clearApiaries, toggleApiaries, toggleApiaryCircles } = apiariesSlice.actions;
+export const { clearError, clearApiaries, toggleApiaries, toggleApiaryCircles, toggleCircleHighlight, clearAllHighlights } = apiariesSlice.actions;
 export default apiariesSlice.reducer;
