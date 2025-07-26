@@ -124,12 +124,31 @@ class NestViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
+    @geographic_list_schema() # Public endpoint for destroyed nests only
+    @action(detail=False, methods=['get'])
+    def destroyed(self, request, *args, **kwargs):
+        queryset, error_response = self.get_geographic_queryset(request)
+        if error_response:
+            return error_response
+        
+        # Filter only destroyed nests
+        queryset = queryset.filter(destroyed=True)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
     # Volunteers, beekeepers and admins can create and list nests, but only admins can retrieve, update, partial_update and destroy them
     def get_authenticators(self):
-        # Require authentication for all nest operations
+        # Allow public access to destroyed action (viewing destroyed nests)
+        if hasattr(self, 'action') and self.action == 'destroyed':
+            return super().get_authenticators()
+        # Require authentication for all other nest operations
         return [JWTBearerAuthentication()]
     
     def get_permissions(self):
+        # Allow public access to destroyed action (viewing destroyed nests)
+        if hasattr(self, 'action') and self.action == 'destroyed':
+            return super().get_permissions()
         if hasattr(self, 'action') and self.action in ['list', 'create']:
             return [HasAnyRole(['volunteer', 'beekeeper', 'admin'])]
         return [HasAnyRole(['admin'])]
