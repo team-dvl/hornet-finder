@@ -1,6 +1,6 @@
 django>=5.2
 djangorestframework
-drf-spectacular
+drf-spectacular[sidecar]
 gunicorn
 psycopg2-binary
 PyJWT

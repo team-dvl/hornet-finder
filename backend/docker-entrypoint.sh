@@ -8,5 +8,6 @@ done
 echo "PostgreSQL is up!"
 
 python manage.py migrate --noinput
+python manage.py collectstatic --noinput
 
 gunicorn hornet_finder_api.wsgi:application --bind 0.0.0.0:8000 --access-logfile -

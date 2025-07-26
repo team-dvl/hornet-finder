@@ -48,6 +48,11 @@ INSTALLED_APPS = [
     'hornet'
 ]
 
+if DEBUG:
+    INSTALLED_APPS += [
+        'drf_spectacular_sidecar',  # For serving Swagger UI and Redoc from local files
+    ]
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -74,6 +79,13 @@ SPECTACULAR_SETTINGS = { # WARNING: For routes with authentication, you must pro
     'DESCRIPTION': "API for a hornet detection app.",
     'SERVE_PUBLIC': False,
     'OAS_VERSION': '3.1.1',
+    'SWAGGER_UI_SETTINGS': {
+        'deepLinking': True,
+        'persistAuthorization': True,
+        'displayOperationId': False,
+        'filter': True,
+    },
+    'SWAGGER_UI_DIST': 'SIDECAR',  # Use bundled Swagger UI resources instead of CDN
 }
 
 CSRF_COOKIE_SECURE = True
