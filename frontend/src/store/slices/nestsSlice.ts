@@ -36,7 +36,7 @@ const initialState: NestsState = {
   showNests: true, // Par défaut, afficher les nids pour les utilisateurs authentifiés
 };
 
-// Thunk async pour récupérer les nids
+// Thunk async pour récupérer les nids (authentifié)
 export const fetchNests = createAsyncThunk(
   'nests/fetchNests',
   async ({ accessToken, geolocation }: { 
@@ -53,6 +53,35 @@ export const fetchNests = createAsyncThunk(
       const response = await fetch(`/api/nests?${params}`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data as Nest[];
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Une erreur est survenue');
+    }
+  }
+);
+
+// Thunk async pour récupérer les nids détruits (public, sans authentification)
+export const fetchNestsDestroyedPublic = createAsyncThunk(
+  'nests/fetchNestsDestroyedPublic',
+  async (geolocation: GeolocationParams, { rejectWithValue }) => {
+    try {
+      const params = new URLSearchParams({
+        lat: geolocation.lat.toString(),
+        lon: geolocation.lon.toString(),
+        ...(geolocation.radius && { radius: geolocation.radius.toString() })
+      });
+
+      const response = await fetch(`/api/nests/destroyed?${params}`, {
+        headers: {
           'Content-Type': 'application/json',
         },
       });
@@ -196,6 +225,19 @@ const nestsSlice = createSlice({
         state.nests = action.payload;
       })
       .addCase(fetchNests.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      // Cas de fetchNestsDestroyedPublic
+      .addCase(fetchNestsDestroyedPublic.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchNestsDestroyedPublic.fulfilled, (state, action) => {
+        state.loading = false;
+        state.nests = action.payload;
+      })
+      .addCase(fetchNestsDestroyedPublic.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })

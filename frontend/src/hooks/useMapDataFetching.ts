@@ -7,6 +7,7 @@ import {
   fetchApiaries, 
   fetchMyApiaries, 
   fetchNests,
+  fetchNestsDestroyedPublic,
   selectMapCenter,
   selectSearchRadius,
   selectIsInitialized,
@@ -85,14 +86,20 @@ export const useMapDataFetching = () => {
       dispatch(fetchHornetsPublic(geolocationParams));
     }
 
-    // Récupérer les ruchers et nids seulement pour les utilisateurs authentifiés
+    // Récupérer les nids
     if (auth.isAuthenticated && auth.user?.access_token) {
-      // Récupérer les nids (disponibles pour tous les utilisateurs authentifiés)
+      // Utilisateur authentifié : récupérer tous les nids (détruits et non détruits)
       dispatch(fetchNests({ 
         accessToken: auth.user.access_token, 
         geolocation: geolocationParams 
       }));
-      
+    } else {
+      // Utilisateur non authentifié : récupérer seulement les nids détruits
+      dispatch(fetchNestsDestroyedPublic(geolocationParams));
+    }
+
+    // Récupérer les ruchers seulement pour les utilisateurs authentifiés
+    if (auth.isAuthenticated && auth.user?.access_token) {
       if (isAdmin) {
         // Les admins peuvent voir tous les ruchers
         dispatch(fetchApiaries({ 

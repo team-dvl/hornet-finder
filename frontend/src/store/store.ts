@@ -14,7 +14,7 @@ export { selectApiaries, selectApiariesLoading, selectApiariesError, selectShowA
 export type { Apiary } from './slices/apiariesSlice';
 
 // Export des actions et thunks du slice nests
-export { fetchNests, createNest, deleteNest, clearError as clearNestsError, clearNests, toggleNests } from './slices/nestsSlice';
+export { fetchNests, fetchNestsDestroyedPublic, createNest, deleteNest, clearError as clearNestsError, clearNests, toggleNests } from './slices/nestsSlice';
 export { selectNests, selectNestsLoading, selectNestsError, selectShowNests } from './slices/nestsSlice';
 export type { Nest } from './slices/nestsSlice';
 

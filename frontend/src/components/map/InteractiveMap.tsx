@@ -377,7 +377,7 @@ export default function InteractiveMap() {
           onLocationUpdate={setCoordinates}
           onErrorUpdate={() => {}} // Les erreurs sont maintenant gérées par Redux
           showApiariesButton={auth.isAuthenticated && (isAdmin || canAddApiary)}
-          showNestsButton={auth.isAuthenticated} // Tous les utilisateurs authentifiés peuvent voir les nids
+          showNestsButton={true} // Tous les utilisateurs peuvent voir les nids (détruits pour non-authentifiés, tous pour authentifiés)
           onQuickHornetCapture={handleQuickHornetCapture}
           canAddHornet={canAddHornet}
         />
@@ -406,7 +406,7 @@ export default function InteractiveMap() {
             onClick={handleSmartApiaryClick}
           />
         ))}
-        {showNests && auth.isAuthenticated && nests.map((nest, index) => (
+        {showNests && nests.map((nest, index) => (
           <NestMarker
             key={nest.id || index}
             nest={nest}
