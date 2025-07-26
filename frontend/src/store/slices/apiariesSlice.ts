@@ -24,6 +24,7 @@ interface ApiariesState {
   loading: boolean;
   error: string | null;
   showApiaries: boolean; // Toggle pour afficher/masquer les ruchers
+  showApiaryCircles: boolean; // Toggle pour afficher/masquer les cercles de 1km autour des ruchers
 }
 
 const initialState: ApiariesState = {
@@ -31,6 +32,7 @@ const initialState: ApiariesState = {
   loading: false,
   error: null,
   showApiaries: true, // Par défaut, afficher les ruchers
+  showApiaryCircles: false, // Par défaut, ne pas afficher les cercles
 };
 
 // Thunk async pour récupérer les ruchers
@@ -241,6 +243,9 @@ const apiariesSlice = createSlice({
     toggleApiaries: (state) => {
       state.showApiaries = !state.showApiaries;
     },
+    toggleApiaryCircles: (state) => {
+      state.showApiaryCircles = !state.showApiaryCircles;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -321,10 +326,11 @@ export const selectApiaries = (state: { apiaries: ApiariesState }) => state.apia
 export const selectApiariesLoading = (state: { apiaries: ApiariesState }) => state.apiaries.loading;
 export const selectApiariesError = (state: { apiaries: ApiariesState }) => state.apiaries.error;
 export const selectShowApiaries = (state: { apiaries: ApiariesState }) => state.apiaries.showApiaries;
+export const selectShowApiaryCircles = (state: { apiaries: ApiariesState }) => state.apiaries.showApiaryCircles;
 
 // Sélecteur pour récupérer un rucher par ID
 export const selectApiaryById = (state: { apiaries: ApiariesState }, id: number | undefined) => 
   id ? state.apiaries.apiaries.find(apiary => apiary.id === id) : null;
 
-export const { clearError, clearApiaries, toggleApiaries } = apiariesSlice.actions;
+export const { clearError, clearApiaries, toggleApiaries, toggleApiaryCircles } = apiariesSlice.actions;
 export default apiariesSlice.reducer;

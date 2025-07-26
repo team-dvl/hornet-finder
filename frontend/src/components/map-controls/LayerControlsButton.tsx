@@ -7,6 +7,8 @@ import {
   selectDisplayMode,
   toggleApiaries,
   selectShowApiaries,
+  toggleApiaryCircles,
+  selectShowApiaryCircles,
   toggleNests,
   selectShowNests
 } from '../../store/store';
@@ -29,6 +31,7 @@ export default function LayerControlsButton({
   // États des couches depuis Redux
   const displayMode = useAppSelector(selectDisplayMode);
   const showApiaries = useAppSelector(selectShowApiaries);
+  const showApiaryCircles = useAppSelector(selectShowApiaryCircles);
   const showNests = useAppSelector(selectShowNests);
   
   // Dérivé des états pour les frelons et zones
@@ -75,6 +78,10 @@ export default function LayerControlsButton({
     dispatch(toggleApiaries());
   };
 
+  const handleApiaryCirclesToggle = () => {
+    dispatch(toggleApiaryCircles());
+  };
+
   const handleNestsToggle = () => {
     dispatch(toggleNests());
   };
@@ -84,7 +91,7 @@ export default function LayerControlsButton({
   };
 
   // Déterminer l'état du bouton principal (actif si au moins une couche est visible)
-  const hasActiveLayers = showHornets || showApiaries || showNests;
+  const hasActiveLayers = showHornets || showApiaries || showApiaryCircles || showNests;
 
   return (
     <>
@@ -200,6 +207,27 @@ export default function LayerControlsButton({
                     type="checkbox"
                     checked={showApiaries}
                     onChange={handleApiariesToggle}
+                  />
+                </div>
+              </ListGroup.Item>
+            )}
+
+            {/* Cercles autour des ruchers - visible uniquement si les ruchers sont activés */}
+            {showApiariesButton && showApiaries && (
+              <ListGroup.Item 
+                className="d-flex justify-content-between align-items-center px-0 py-2 ps-3"
+                style={{ border: 'none', backgroundColor: '#f8f9fa' }}
+              >
+                <div className="d-flex align-items-center">
+                  <span className="me-2">⭕</span>
+                  <span className="text-muted small">Rayon 1km</span>
+                </div>
+                <div className="form-check form-switch mb-0">
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    checked={showApiaryCircles}
+                    onChange={handleApiaryCirclesToggle}
                   />
                 </div>
               </ListGroup.Item>

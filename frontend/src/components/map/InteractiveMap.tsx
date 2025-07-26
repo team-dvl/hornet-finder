@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, ZoomControl } from "react-leaflet";
 import { Modal, Spinner } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
 import { Map } from 'leaflet';
-import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowHornets, selectShowReturnZones, selectShowNests, initializeGeolocation, selectMapCenter, selectGeolocationError, setGeolocationError, setIsAdmin } from '../../store/store';
+import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowApiaryCircles, selectShowHornets, selectShowReturnZones, selectShowNests, initializeGeolocation, selectMapCenter, selectGeolocationError, setGeolocationError, setIsAdmin } from '../../store/store';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useMapDataFetching } from '../../hooks/useMapDataFetching';
 import { MAX_ZOOM, MAX_NATIVE_ZOOM } from '../../utils/constants';
@@ -12,6 +12,7 @@ import { Apiary } from '../../store/slices/apiariesSlice';
 import { Nest } from '../../store/slices/nestsSlice';
 import HornetReturnZone from './HornetReturnZone';
 import ApiaryMarker from '../markers/ApiaryMarker';
+import ApiaryCircle from './ApiaryCircle';
 import NestMarker from '../markers/NestMarker';
 import MapControlsContainer from '../map-controls';
 import MapEventHandler from './MapEventHandler';
@@ -100,6 +101,7 @@ export default function InteractiveMap() {
   const { apiaries } = useAppSelector((state) => state.apiaries);
   const { nests } = useAppSelector((state) => state.nests);
   const showApiaries = useAppSelector(selectShowApiaries);
+  const showApiaryCircles = useAppSelector(selectShowApiaryCircles);
   const showHornets = useAppSelector(selectShowHornets);
   const showReturnZones = useAppSelector(selectShowReturnZones);
   const showNests = useAppSelector(selectShowNests);
@@ -404,6 +406,12 @@ export default function InteractiveMap() {
             key={apiary.id || index}
             apiary={apiary}
             onClick={handleSmartApiaryClick}
+          />
+        ))}
+        {showApiaryCircles && showApiaries && auth.isAuthenticated && (isAdmin || canAddApiary) && apiaries.map((apiary, index) => (
+          <ApiaryCircle
+            key={`circle-${apiary.id || index}`}
+            apiary={apiary}
           />
         ))}
         {showNests && nests.map((nest, index) => (
