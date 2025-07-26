@@ -3,8 +3,10 @@ import { Button, Overlay, ListGroup, Popover } from 'react-bootstrap';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { useAuth } from 'react-oidc-context';
 import {
-  cycleDisplayMode,
-  selectDisplayMode,
+  toggleHornets,
+  selectShowHornets,
+  toggleReturnZones,
+  selectShowReturnZones,
   toggleApiaries,
   selectShowApiaries,
   toggleApiaryCircles,
@@ -29,49 +31,24 @@ export default function LayerControlsButton({
   const auth = useAuth();
   
   // États des couches depuis Redux
-  const displayMode = useAppSelector(selectDisplayMode);
+  const showHornets = useAppSelector(selectShowHornets);
+  const showReturnZones = useAppSelector(selectShowReturnZones);
   const showApiaries = useAppSelector(selectShowApiaries);
   const showApiaryCircles = useAppSelector(selectShowApiaryCircles);
   const showNests = useAppSelector(selectShowNests);
-  
-  // Dérivé des états pour les frelons et zones
-  const showHornets = displayMode !== 'hidden';
-  const showReturnZones = displayMode === 'full';
 
   const handleTogglePopover = () => {
     setShowPopover(!showPopover);
   };
 
   const handleHornetsToggle = () => {
-    // Si les frelons sont visibles, basculer vers masqué
-    // Si les frelons sont masqués, basculer vers visible avec zones
-    if (showHornets) {
-      // Actuellement visible -> masquer
-      if (displayMode === 'full') {
-        // Frelons + zones -> seuls les frelons
-        dispatch(cycleDisplayMode()); // full -> hornets-only
-      } else {
-        // Seuls les frelons -> masquer tout
-        dispatch(cycleDisplayMode()); // hornets-only -> hidden
-      }
-    } else {
-      // Actuellement masqué -> afficher avec zones
-      dispatch(cycleDisplayMode()); // hidden -> full
-    }
+    // Comportement identique à handleApiariesToggle
+    dispatch(toggleHornets());
   };
 
   const handleReturnZonesToggle = () => {
-    // Basculer entre affichage avec zones et sans zones
-    if (showReturnZones) {
-      // Actuellement avec zones -> sans zones (mais garder les frelons)
-      dispatch(cycleDisplayMode()); // full -> hornets-only  
-    } else {
-      // Actuellement sans zones -> avec zones
-      if (displayMode === 'hornets-only') {
-        dispatch(cycleDisplayMode()); // hornets-only -> hidden
-        dispatch(cycleDisplayMode()); // hidden -> full
-      }
-    }
+    // Comportement identique à handleApiaryCirclesToggle
+    dispatch(toggleReturnZones());
   };
 
   const handleApiariesToggle = () => {
@@ -150,25 +127,26 @@ export default function LayerControlsButton({
               </div>
             </ListGroup.Item>
 
-            {/* Couche Zones de retour */}
-            <ListGroup.Item 
-              className="d-flex justify-content-between align-items-center px-0 py-2"
-              style={{ border: 'none' }}
-            >
-              <div className="d-flex align-items-center">
-                <span className="me-2">🔴</span>
-                <span>Zones de retour</span>
-              </div>
-              <div className="form-check form-switch mb-0">
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  checked={showReturnZones}
-                  onChange={handleReturnZonesToggle}
-                  disabled={!showHornets}
-                />
-              </div>
-            </ListGroup.Item>
+            {/* Zones de retour - visible uniquement si les frelons sont activés */}
+            {showHornets && (
+              <ListGroup.Item 
+                className="d-flex justify-content-between align-items-center px-0 py-2 ps-3"
+                style={{ border: 'none', backgroundColor: '#f8f9fa' }}
+              >
+                <div className="d-flex align-items-center">
+                  <span className="me-2">🔴</span>
+                  <span className="text-muted small">Zones de retour</span>
+                </div>
+                <div className="form-check form-switch mb-0">
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    checked={showReturnZones}
+                    onChange={handleReturnZonesToggle}
+                  />
+                </div>
+              </ListGroup.Item>
+            )}
 
             {/* Couche Nids - visible pour tous les utilisateurs authentifiés */}
             {showNestsButton && (

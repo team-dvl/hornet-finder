@@ -1,8 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
-// Types pour les modes d'affichage des frelons
-export type HornetDisplayMode = 'full' | 'hornets-only' | 'hidden';
-
 // Interface pour les paramètres de géolocalisation
 export interface GeolocationParams {
   lat: number;
@@ -30,14 +27,16 @@ interface HornetsState {
   hornets: Hornet[];
   loading: boolean;
   error: string | null;
-  displayMode: HornetDisplayMode; // Mode d'affichage des frelons et zones
+  showHornets: boolean; // Toggle pour afficher/masquer les frelons
+  showReturnZones: boolean; // Toggle pour afficher/masquer les zones de retour
 }
 
 const initialState: HornetsState = {
   hornets: [],
   loading: false,
   error: null,
-  displayMode: 'full', // Par défaut, tout est affiché (frelons + zones)
+  showHornets: true, // Par défaut, afficher les frelons
+  showReturnZones: true, // Par défaut, afficher les zones de retour
 };
 
 // Thunk async pour récupérer les frelons avec authentification
@@ -276,21 +275,16 @@ const hornetsSlice = createSlice({
     addHornet: (state, action) => {
       state.hornets.push(action.payload);
     },
-    // Cycle entre les 3 modes d'affichage : full -> hornets-only -> hidden -> full
-    cycleDisplayMode: (state) => {
-      switch (state.displayMode) {
-        case 'full':
-          state.displayMode = 'hornets-only';
-          break;
-        case 'hornets-only':
-          state.displayMode = 'hidden';
-          break;
-        case 'hidden':
-          state.displayMode = 'full';
-          break;
-        default:
-          state.displayMode = 'full';
+    // Actions simples pour gérer l'affichage (comme les ruchers)
+    toggleHornets: (state) => {
+      state.showHornets = !state.showHornets;
+      // Si on cache les frelons, cacher aussi les zones automatiquement
+      if (!state.showHornets) {
+        state.showReturnZones = false;
       }
+    },
+    toggleReturnZones: (state) => {
+      state.showReturnZones = !state.showReturnZones;
     },
   },
   extraReducers: (builder) => {
@@ -389,14 +383,8 @@ const hornetsSlice = createSlice({
 export const selectHornets = (state: { hornets: HornetsState }) => state.hornets.hornets;
 export const selectHornetsLoading = (state: { hornets: HornetsState }) => state.hornets.loading;
 export const selectHornetsError = (state: { hornets: HornetsState }) => state.hornets.error;
-export const selectDisplayMode = (state: { hornets: HornetsState }) => state.hornets.displayMode;
+export const selectShowHornets = (state: { hornets: HornetsState }) => state.hornets.showHornets;
+export const selectShowReturnZones = (state: { hornets: HornetsState }) => state.hornets.showReturnZones;
 
-// Sélecteurs dérivés pour faciliter l'utilisation
-export const selectShowHornets = (state: { hornets: HornetsState }) => 
-  state.hornets.displayMode !== 'hidden';
-
-export const selectShowReturnZones = (state: { hornets: HornetsState }) => 
-  state.hornets.displayMode === 'full';
-
-export const { clearError, clearHornets, addHornet, cycleDisplayMode } = hornetsSlice.actions;
+export const { clearError, clearHornets, addHornet, toggleHornets, toggleReturnZones } = hornetsSlice.actions;
 export default hornetsSlice.reducer;
