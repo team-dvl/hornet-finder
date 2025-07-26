@@ -60,6 +60,24 @@ class NestSerializer(GPSValidationMixin, serializers.ModelSerializer):
         fields = ['id', 'longitude', 'latitude', 'public_place', 'address', 'destroyed', 'destroyed_at', 'created_at', 'created_by', 'comments']
         read_only_fields = ['id', 'created_at']
     
+    def to_representation(self, instance):
+        """
+        Override to conditionally include created_by field.
+        Only show created_by to the creator of the nest or to admins.
+        """
+        data = super().to_representation(instance)
+        
+        request = self.context.get('request')
+        if request and hasattr(request, 'user') and request.user.is_authenticated:
+            user = request.user
+            # Show created_by if user is admin or is the creator
+            if 'admin' in getattr(user, 'roles', []) or instance.created_by == user.username:
+                return data
+        
+        # Remove created_by for other authenticated users
+        data.pop('created_by', None)
+        return data
+    
     def validate_address(self, value: str) -> str:
         # Allow empty address
         if not value or value.strip() == '':
@@ -69,6 +87,16 @@ class NestSerializer(GPSValidationMixin, serializers.ModelSerializer):
             raise serializers.ValidationError("Address must be 255 characters or less.")
         
         return value
+
+class PublicNestSerializer(GPSValidationMixin, serializers.ModelSerializer):
+    """
+    Serializer for public access to destroyed nests.
+    Excludes sensitive information like created_by.
+    """
+    class Meta:
+        model = Nest
+        fields = ['id', 'longitude', 'latitude', 'public_place', 'address', 'destroyed', 'destroyed_at', 'created_at', 'comments']
+        read_only_fields = ['id', 'created_at']
 
 class ApiarySerializer(GPSValidationMixin, serializers.ModelSerializer):
     class Meta:

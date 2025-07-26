@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from .models import Hornet, Nest, Apiary
-from .serializers import HornetSerializer, NestSerializer, ApiarySerializer
+from .serializers import HornetSerializer, NestSerializer, PublicNestSerializer, ApiarySerializer
 from hornet_finder_api.authentication import JWTBearerAuthentication, HasAnyRole
 
 
@@ -134,7 +134,8 @@ class NestViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         # Filter only destroyed nests
         queryset = queryset.filter(destroyed=True)
         
-        serializer = self.get_serializer(queryset, many=True)
+        # Use public serializer to exclude sensitive information like created_by
+        serializer = PublicNestSerializer(queryset, many=True)
         return Response(serializer.data)
 
     # Volunteers, beekeepers and admins can create and list nests, but only admins can retrieve, update, partial_update and destroy them
