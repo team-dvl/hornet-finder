@@ -73,3 +73,43 @@ export const OVERLAP_THRESHOLD_PIXELS = 50;
  * pour séparer les objets, sinon il affiche le dialogue de sélection
  */
 export const MIN_ZOOM_TO_SEPARATE = 18;
+
+/**
+ * Constantes pour les cercles autour des ruchers
+ */
+
+/**
+ * Rayon du cercle autour des ruchers (en mètres)
+ * Représente la zone d'influence d'un rucher (1 kilomètre)
+ */
+export const APIARY_CIRCLE_RADIUS_M = 1000;
+
+/**
+ * Couleur du cercle autour des ruchers
+ * Couleur violette pour un bon contraste sur la carte
+ */
+export const APIARY_CIRCLE_COLOR = '#8B5CF6';
+
+/**
+ * Opacité normale du remplissage du cercle autour des ruchers
+ * État par défaut, semi-transparent
+ */
+export const APIARY_CIRCLE_FILL_OPACITY_NORMAL = 0.1;
+
+/**
+ * Opacité normale de la bordure du cercle autour des ruchers
+ * État par défaut, semi-transparent
+ */
+export const APIARY_CIRCLE_BORDER_OPACITY_NORMAL = 0.3;
+
+/**
+ * Opacité du remplissage du cercle en mode surligné
+ * État activé au clic, très opaque
+ */
+export const APIARY_CIRCLE_FILL_OPACITY_HIGHLIGHTED = 0.9;
+
+/**
+ * Opacité de la bordure du cercle en mode surligné
+ * État activé au clic, très opaque
+ */
+export const APIARY_CIRCLE_BORDER_OPACITY_HIGHLIGHTED = 0.9;

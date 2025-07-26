@@ -1,24 +1,40 @@
+import { useState } from 'react';
 import { Circle } from 'react-leaflet';
 import { Apiary } from '../../store/slices/apiariesSlice';
+import {
+  APIARY_CIRCLE_RADIUS_M,
+  APIARY_CIRCLE_COLOR,
+  APIARY_CIRCLE_FILL_OPACITY_NORMAL,
+  APIARY_CIRCLE_BORDER_OPACITY_NORMAL,
+  APIARY_CIRCLE_FILL_OPACITY_HIGHLIGHTED,
+  APIARY_CIRCLE_BORDER_OPACITY_HIGHLIGHTED
+} from '../../utils/constants';
 
 interface ApiaryCircleProps {
   apiary: Apiary;
 }
 
 export default function ApiaryCircle({ apiary }: ApiaryCircleProps) {
+  const [isHighlighted, setIsHighlighted] = useState(false);
+
+  const handleClick = () => {
+    setIsHighlighted(!isHighlighted);
+  };
+
   return (
     <Circle
       center={[apiary.latitude, apiary.longitude]}
-      radius={1000} // 1km en mètres
+      radius={APIARY_CIRCLE_RADIUS_M}
       pathOptions={{
-        color: '#8B5CF6', // Violet pour un meilleur contraste
-        fillColor: '#8B5CF6',
-        fillOpacity: 0.1, // Très transparent
+        color: APIARY_CIRCLE_COLOR,
+        fillColor: APIARY_CIRCLE_COLOR,
+        fillOpacity: isHighlighted ? APIARY_CIRCLE_FILL_OPACITY_HIGHLIGHTED : APIARY_CIRCLE_FILL_OPACITY_NORMAL,
         weight: 2,
-        opacity: 0.3, // Bordure semi-transparente
+        opacity: isHighlighted ? APIARY_CIRCLE_BORDER_OPACITY_HIGHLIGHTED : APIARY_CIRCLE_BORDER_OPACITY_NORMAL,
       }}
-      // Pas d'événements onClick pour rendre non-cliquable
-      eventHandlers={{}}
+      eventHandlers={{
+        click: handleClick,
+      }}
     />
   );
 }
