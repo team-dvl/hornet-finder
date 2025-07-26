@@ -39,10 +39,7 @@ Ce système résout le problème où plusieurs objets (frelons, ruchers, nids) s
 #### `useSmartClickHandlers.ts`
 - Gestionnaires de clic intelligents qui vérifient les chevauchements
 - Intègre la logique de zoom automatique et d'affichage du dialogue
-
-#### `SmartMapClickHandler.tsx`
-- Composant qui gère les clics sur les zones vides de la carte
-- Utilise useMapClickHandler pour la logique de détection
+- Gère également les clics sur les zones vides de la carte
 
 #### `MapRefHandler.tsx`
 - Utilitaire pour récupérer la référence de la carte Leaflet

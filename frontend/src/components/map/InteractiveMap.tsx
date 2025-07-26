@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { MapContainer, TileLayer, ZoomControl } from "react-leaflet";
+import { MapContainer, TileLayer, ZoomControl, useMapEvents } from "react-leaflet";
 import { Modal, Spinner } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
 import { Map } from 'leaflet';
@@ -25,7 +25,6 @@ import AddHornetPopup from '../popups/AddHornetPopup';
 import AddApiaryPopup from '../popups/AddApiaryPopup';
 import AddNestPopup from '../popups/AddNestPopup';
 import CompassCapture from './CompassCapture';
-import SmartMapClickHandler from './SmartMapClickHandler';
 import OverlapDialog from './OverlapDialog';
 import MapRefHandler from './MapRefHandler';
 import { useSmartClickHandlers } from '../../hooks/useSmartClickHandlers';
@@ -38,6 +37,31 @@ const isMobile = () => {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
          (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
 };
+
+// Composant interne pour gérer les clics de carte
+function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    click: (e: L.LeafletMouseEvent) => {
+      // Vérifier si le clic provient d'un élément interactif
+      const target = e.originalEvent?.target as HTMLElement;
+      if (target && (
+        target.classList.contains('leaflet-interactive') ||
+        target.closest('.leaflet-interactive') ||
+        target.classList.contains('leaflet-marker-icon') ||
+        target.closest('.leaflet-marker-icon') ||
+        target.classList.contains('map-control-button') ||
+        target.closest('.map-control-button')
+      )) {
+        // Le clic provient d'un élément interactif, ne pas déclencher notre logique
+        return;
+      }
+      
+      onMapClick(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  
+  return null;
+}
 
 export default function InteractiveMap() {
   const dispatch = useAppDispatch();
@@ -385,6 +409,7 @@ export default function InteractiveMap() {
         />
         <MapRefHandler onMapReady={handleMapReady} />
         <MapEventHandler />
+        <MapClickHandler onMapClick={handleMapClick} />
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           maxZoom={MAX_ZOOM}
@@ -421,18 +446,6 @@ export default function InteractiveMap() {
             onClick={handleSmartNestClick}
           />
         ))}
-        <SmartMapClickHandler
-          hornets={hornets}
-          apiaries={apiaries}
-          nests={nests}
-          showHornets={showHornets}
-          showApiaries={showApiaries}
-          showNests={showNests}
-          onHornetClick={handleHornetClick}
-          onApiaryClick={handleApiaryClick}
-          onNestClick={handleNestClick}
-          onMapClick={handleMapClick}
-        />
       </MapContainer>
       
       <HornetInfoPopup
