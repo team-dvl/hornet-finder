@@ -70,6 +70,7 @@ export default function ApiaryMarker({ apiary, onClick }: ApiaryMarkerProps) {
     <Marker
       position={[apiary.latitude, apiary.longitude]}
       icon={createApiaryIcon(apiary.infestation_level, isCircleHighlighted)}
+      zIndexOffset={100} // Ruchers au-dessus des frelons
       eventHandlers={{
         click: handleMarkerClick,
       }}

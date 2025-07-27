@@ -44,6 +44,7 @@ export default function NestMarker({ nest, onClick }: NestMarkerProps) {
       ref={markerRef}
       position={[nest.latitude, nest.longitude]}
       icon={createNestIcon(nest.destroyed)}
+      zIndexOffset={200} // Nids au-dessus de tout
       eventHandlers={{
         click: handleMarkerClick,
       }}

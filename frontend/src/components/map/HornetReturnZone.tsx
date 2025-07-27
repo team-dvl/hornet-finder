@@ -164,6 +164,7 @@ export default function HornetReturnZone({
       <Marker
         position={[hornet.latitude, hornet.longitude]}
         icon={createHornetIcon()}
+        pane="hornetPane" // Utiliser le pane personnalisé avec z-index plus bas
         eventHandlers={{
           click: handleClick,
         }}

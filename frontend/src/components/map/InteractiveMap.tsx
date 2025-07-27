@@ -136,6 +136,12 @@ export default function InteractiveMap() {
   // Fonction pour stocker la référence de la carte
   const handleMapReady = (map: Map) => {
     mapRef.current = map;
+    
+    // Créer un pane personnalisé pour les frelons avec un z-index plus bas
+    if (!map.getPane('hornetPane')) {
+      const hornetPane = map.createPane('hornetPane');
+      hornetPane.style.zIndex = '250'; // Entre les paths (200) et les markers (600)
+    }
   };
 
   // Sync coordinates with map center
@@ -417,6 +423,7 @@ export default function InteractiveMap() {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
         <ZoomControl position="bottomleft" />
+        {/* Frelons et zones de retour - niveau le plus bas */}
         {showHornets && hornets.map((hornet, index) => (
           <HornetReturnZone
             key={hornet.id || index}
@@ -426,6 +433,14 @@ export default function InteractiveMap() {
             showReturnZone={showReturnZones}
           />
         ))}
+        {/* Disques de ruchers - au-dessus des frelons */}
+        {showApiaryCircles && showApiaries && auth.isAuthenticated && (isAdmin || canAddApiary) && apiaries.map((apiary, index) => (
+          <ApiaryCircle
+            key={`circle-${apiary.id || index}`}
+            apiary={apiary}
+          />
+        ))}
+        {/* Marqueurs de ruchers - au-dessus des disques */}
         {showApiaries && auth.isAuthenticated && (isAdmin || canAddApiary) && apiaries.map((apiary, index) => (
           <ApiaryMarker
             key={apiary.id || index}
@@ -433,12 +448,7 @@ export default function InteractiveMap() {
             onClick={handleSmartApiaryClick}
           />
         ))}
-        {showApiaryCircles && showApiaries && auth.isAuthenticated && (isAdmin || canAddApiary) && apiaries.map((apiary, index) => (
-          <ApiaryCircle
-            key={`circle-${apiary.id || index}`}
-            apiary={apiary}
-          />
-        ))}
+        {/* Marqueurs de nids - niveau le plus haut */}
         {showNests && nests.map((nest, index) => (
           <NestMarker
             key={nest.id || index}
