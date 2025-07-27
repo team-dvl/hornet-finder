@@ -193,10 +193,10 @@ export default function CoordinateInput({
             cursor: 'text'
           }}
         >
-          {inputMode === 'decimal' 
+            {inputMode === 'decimal' 
             ? value.toFixed(precision)
-            : `${dmsValue.degrees}° ${dmsValue.minutes}′ ${dmsValue.seconds.toFixed(2)}″`
-          }
+            : `${dmsValue.degrees}°\u00A0${dmsValue.minutes}′\u00A0${dmsValue.seconds.toFixed(2)}″`
+            }
         </span>
       </div>
     );
