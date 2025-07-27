@@ -54,7 +54,6 @@ const calculateRadiusFromZoom = (zoom: number, isAdmin: boolean): number => {
   
   // Minimum de 0.5 km
   radius = Math.max(0.5, radius);
-  console.log(`Calculated radius for zoom ${zoom}: ${radius} km`);
   return radius;
 };
 

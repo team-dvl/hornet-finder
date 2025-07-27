@@ -24,8 +24,6 @@ export const useMapEventHandler = () => {
         west: bounds.getWest(),
       };
       
-      console.log('Map moved - Center:', mapCenter, 'Zoom:', zoom, 'Bounds:', mapBounds);
-      
       dispatch(updateMapViewport({
         center: mapCenter,
         zoom,
@@ -48,8 +46,6 @@ export const useMapEventHandler = () => {
         east: bounds.getEast(),
         west: bounds.getWest(),
       };
-      
-      console.log('Map zoomed - Center:', mapCenter, 'Zoom:', zoom, 'Bounds:', mapBounds);
       
       dispatch(updateMapViewport({
         center: mapCenter,

@@ -60,7 +60,7 @@ export const useMapDataFetching = () => {
       const dist = earthRadius * c;
       
       if ((dist + searchRadius) <= lastFetchedArea.radius) {
-        console.log('Current view is within last fetched area, skipping fetch');
+        // nous sommes dans la zone déjà fetchée, pas besoin de fetcher à nouveau
         return;
       }
     }
