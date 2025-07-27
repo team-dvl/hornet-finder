@@ -2,7 +2,7 @@ import { Modal, Button, ListGroup, Badge } from 'react-bootstrap';
 import { Hornet } from '../../store/store';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useAuth } from 'react-oidc-context';
-import { getColorLabel } from '../../utils/colors';
+import { ColorSelector } from '../../components/forms';
 import { HORNET_RETURN_ZONE_ANGLE_DEG, HORNET_FLIGHT_SPEED_M_PER_MIN, HORNET_RETURN_ZONE_ABSOLUTE_MAX_DISTANCE_M } from '../../utils/constants';
 import CoordinateInput from '../common/CoordinateInput';
 
@@ -114,16 +114,16 @@ export default function HornetReturnZoneInfoPopup({
               )}
               
               {hornet.mark_color_1 && (
-                <ListGroup.Item className="d-flex justify-content-between">
+                <ListGroup.Item className="d-flex justify-content-between align-items-center">
                   <span>Couleur 1:</span>
-                  <Badge bg="secondary">{getColorLabel(hornet.mark_color_1)}</Badge>
+                  <ColorSelector value={hornet.mark_color_1} readOnly size="sm" />
                 </ListGroup.Item>
               )}
               
               {hornet.mark_color_2 && (
-                <ListGroup.Item className="d-flex justify-content-between">
+                <ListGroup.Item className="d-flex justify-content-between align-items-center">
                   <span>Couleur 2:</span>
-                  <Badge bg="secondary">{getColorLabel(hornet.mark_color_2)}</Badge>
+                  <ColorSelector value={hornet.mark_color_2} readOnly size="sm" />
                 </ListGroup.Item>
               )}
               

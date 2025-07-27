@@ -3,6 +3,7 @@ import { Hornet } from '../../store/slices/hornetsSlice';
 import { Apiary } from '../../store/slices/apiariesSlice';
 import { Nest } from '../../store/slices/nestsSlice';
 import { MapObject, MapObjectType } from './types';
+import { ColorSelector } from '../../components/forms';
 import CoordinateInput from '../common/CoordinateInput';
 
 interface OverlapDialogProps {
@@ -12,22 +13,6 @@ interface OverlapDialogProps {
   onSelectObject: (object: MapObject) => void;
   position: { lat: number; lng: number };
 }
-
-// Fonction pour obtenir le label d'une couleur
-const getColorLabel = (color: string): string => {
-  const colorMap: { [key: string]: string } = {
-    'red': 'Rouge',
-    'blue': 'Bleu',
-    'green': 'Vert',
-    'yellow': 'Jaune',
-    'orange': 'Orange',
-    'purple': 'Violet',
-    'pink': 'Rose',
-    'white': 'Blanc',
-    'black': 'Noir'
-  };
-  return colorMap[color] || color;
-};
 
 // Fonction pour obtenir le badge du niveau d'infestation
 const getInfestationBadge = (level: 1 | 2 | 3) => {
@@ -148,11 +133,14 @@ export default function OverlapDialog({
               
               {/* Couleurs pour les frelons */}
               {object.colors && object.colors.length > 0 && (
-                <div className="d-flex flex-column gap-1">
+                <div className="d-flex gap-1">
                   {object.colors.map((color, colorIndex) => (
-                    <Badge key={colorIndex} bg="secondary" className="small">
-                      {getColorLabel(color)}
-                    </Badge>
+                    <ColorSelector 
+                      key={colorIndex} 
+                      value={color} 
+                      readOnly 
+                      size="sm" 
+                    />
                   ))}
                 </div>
               )}

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { createHornet } from '../../store/store';
 import { useAppDispatch } from '../../store/hooks';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
-import { COLOR_OPTIONS, getColorLabel, getColorHex } from '../../utils/colors';
+import { ColorSelector } from '../../components/forms';
 import CompassCapture from '../map/CompassCapture';
 import CoordinateInput from '../common/CoordinateInput';
 
@@ -14,47 +14,6 @@ interface AddHornetPopupProps {
   longitude: number;
   onSuccess?: () => void;
   initialDirection?: number | null; // Direction capturée par la boussole
-}
-
-interface ColorDropdownProps {
-  value: string;
-  onChange: (value: string) => void;
-  disabled?: boolean;
-  label: string;
-}
-
-function ColorDropdown({ value, onChange, disabled, label }: ColorDropdownProps) {
-  return (
-    <Form.Group>
-      <Form.Label className="small mb-1">{label}:</Form.Label>
-      <Form.Select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        size="sm"
-      >
-        {COLOR_OPTIONS.map(color => (
-          <option key={color.value} value={color.value}>
-            {color.label}
-          </option>
-        ))}
-      </Form.Select>
-      {value && (
-        <div className="d-flex align-items-center gap-1 mt-1">
-          <div 
-            style={{
-              width: '16px',
-              height: '16px',
-              backgroundColor: getColorHex(value),
-              border: value === 'white' || value === '' ? '1px solid #ccc' : 'none',
-              borderRadius: '3px'
-            }}
-          ></div>
-          <span className="small text-muted">{getColorLabel(value)}</span>
-        </div>
-      )}
-    </Form.Group>
-  );
 }
 
 export default function AddHornetPopup({ 
@@ -317,19 +276,21 @@ export default function AddHornetPopup({
 
           <Row className="mb-3">
             <Col md={6}>
-              <ColorDropdown
+              <ColorSelector
                 value={markColor1}
                 onChange={setMarkColor1}
                 disabled={isSubmitting}
                 label="Couleur de marquage 1 (facultatif)"
+                size="sm"
               />
             </Col>
             <Col md={6}>
-              <ColorDropdown
+              <ColorSelector
                 value={markColor2}
                 onChange={setMarkColor2}
                 disabled={isSubmitting}
                 label="Couleur de marquage 2 (facultatif)"
+                size="sm"
               />
             </Col>
           </Row>

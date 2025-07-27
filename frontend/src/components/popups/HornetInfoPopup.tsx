@@ -1,10 +1,10 @@
-import { Modal, Button, ListGroup, Badge, Form, InputGroup, Alert, Dropdown } from 'react-bootstrap';
+import { Modal, Button, ListGroup, Badge, Form, InputGroup, Alert } from 'react-bootstrap';
 import { useState, useMemo } from 'react';
 import { Hornet, updateHornetDuration, updateHornetColors, deleteHornet } from '../../store/store';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useAuth } from 'react-oidc-context';
-import { COLOR_OPTIONS, getColorLabel, getColorHex } from '../../utils/colors';
+import { ColorSelector } from '../../components/forms';
 import { DeleteConfirmationModal } from '../modals';
 import { HORNET_RETURN_ZONE_ANGLE_DEG, HORNET_FLIGHT_SPEED_M_PER_MIN, HORNET_RETURN_ZONE_ABSOLUTE_MAX_DISTANCE_M } from '../../utils/constants';
 import CoordinateInput from '../common/CoordinateInput';
@@ -14,65 +14,6 @@ interface HornetInfoPopupProps {
   onHide: () => void;
   hornet: Hornet | null;
   onAddAtLocation?: (lat: number, lng: number) => void; // Nouvelle prop pour déclencher l'ajout
-}
-
-// Composant pour un dropdown de couleur personnalisé
-interface ColorDropdownProps {
-  value: string;
-  onChange: (value: string) => void;
-  disabled?: boolean;
-  label: string;
-}
-
-function ColorDropdown({ value, onChange, disabled, label }: ColorDropdownProps) {
-  const selectedOption = COLOR_OPTIONS.find(option => option.value === value) || COLOR_OPTIONS[0];
-  
-  return (
-    <div>
-      <Form.Label className="small mb-1">{label}:</Form.Label>
-      <Dropdown>
-        <Dropdown.Toggle
-          variant="outline-secondary"
-          size="sm"
-          disabled={disabled}
-          className="d-flex align-items-center gap-2 w-100"
-          style={{ minWidth: '140px' }}
-        >
-          <div 
-            style={{
-              width: '16px',
-              height: '16px',
-              backgroundColor: getColorHex(selectedOption.value),
-              border: selectedOption.value === 'white' || selectedOption.value === '' ? '1px solid #ccc' : 'none',
-              borderRadius: '3px'
-            }}
-          ></div>
-          <span>{selectedOption.label}</span>
-        </Dropdown.Toggle>
-
-        <Dropdown.Menu style={{ maxHeight: '200px', overflowY: 'auto' }}>
-          {COLOR_OPTIONS.map(color => (
-            <Dropdown.Item
-              key={color.value}
-              onClick={() => onChange(color.value)}
-              className="d-flex align-items-center gap-2"
-            >
-              <div 
-                style={{
-                  width: '16px',
-                  height: '16px',
-                  backgroundColor: getColorHex(color.value),
-                  border: color.value === 'white' || color.value === '' ? '1px solid #ccc' : 'none',
-                  borderRadius: '3px'
-                }}
-              ></div>
-              <span>{color.label}</span>
-            </Dropdown.Item>
-          ))}
-        </Dropdown.Menu>
-      </Dropdown>
-    </div>
-  );
 }
 
 export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation }: HornetInfoPopupProps) {
@@ -426,35 +367,17 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation 
             
             {!isEditingColors ? (
               <div className="d-flex gap-2 align-items-center">
-                {currentHornet.mark_color_1 ? (
-                  <div className="d-flex align-items-center gap-1">
-                    <div 
-                      style={{
-                        width: '20px',
-                        height: '20px',
-                        backgroundColor: getColorHex(currentHornet.mark_color_1),
-                        border: currentHornet.mark_color_1 === 'white' ? '1px solid #ccc' : 'none',
-                        borderRadius: '3px'
-                      }}
-                    ></div>
-                    <span className="small">{getColorLabel(currentHornet.mark_color_1)}</span>
-                  </div>
-                ) : null}
+                <ColorSelector 
+                  value={currentHornet.mark_color_1} 
+                  readOnly 
+                  size="sm" 
+                />
                 
-                {currentHornet.mark_color_2 ? (
-                  <div className="d-flex align-items-center gap-1">
-                    <div 
-                      style={{
-                        width: '20px',
-                        height: '20px',
-                        backgroundColor: getColorHex(currentHornet.mark_color_2),
-                        border: currentHornet.mark_color_2 === 'white' ? '1px solid #ccc' : 'none',
-                        borderRadius: '3px'
-                      }}
-                    ></div>
-                    <span className="small">{getColorLabel(currentHornet.mark_color_2)}</span>
-                  </div>
-                ) : null}
+                <ColorSelector 
+                  value={currentHornet.mark_color_2} 
+                  readOnly 
+                  size="sm" 
+                />
                 
                 {!currentHornet.mark_color_1 && !currentHornet.mark_color_2 && (
                   <span className="text-muted">Aucun marquage</span>
@@ -463,18 +386,20 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation 
             ) : (
               <div className="d-flex flex-column gap-2">
                 <div className="d-flex gap-2">
-                  <ColorDropdown
+                  <ColorSelector
                     value={editColor1}
                     onChange={setEditColor1}
                     disabled={isUpdatingColors}
                     label="Couleur 1"
+                    size="sm"
                   />
                   
-                  <ColorDropdown
+                  <ColorSelector
                     value={editColor2}
                     onChange={setEditColor2}
                     disabled={isUpdatingColors}
                     label="Couleur 2"
+                    size="sm"
                   />
                 </div>
                 
