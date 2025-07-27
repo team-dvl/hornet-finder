@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import api from '../../utils/api';
 
 // Interface pour les paramètres de géolocalisation
 export interface GeolocationParams {
@@ -51,21 +52,16 @@ export const fetchApiaries = createAsyncThunk(
         ...(geolocation.radius && { radius: geolocation.radius.toString() })
       });
 
-      const response = await fetch(`/api/apiaries?${params}`, {
+      const response = await api.get(`/apiaries?${params}`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
         },
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data as Apiary[];
-    } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Une erreur est survenue');
+      return response.data as Apiary[];
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string } }; message?: string };
+      return rejectWithValue(axiosError.response?.data?.message || axiosError.message || 'Une erreur est survenue');
     }
   }
 );
@@ -75,21 +71,16 @@ export const fetchMyApiaries = createAsyncThunk(
   'apiaries/fetchMyApiaries',
   async (accessToken: string, { rejectWithValue }) => {
     try {
-      const response = await fetch('/api/apiaries/my/', {
+      const response = await api.get('/apiaries/my/', {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
         },
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data as Apiary[];
-    } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Une erreur est survenue');
+      return response.data as Apiary[];
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string } }; message?: string };
+      return rejectWithValue(axiosError.response?.data?.message || axiosError.message || 'Une erreur est survenue');
     }
   }
 );
@@ -127,24 +118,19 @@ export const createApiary = createAsyncThunk(
         requestBody.comments = comments;
       }
 
-      const response = await fetch('/api/apiaries/', {
-        method: 'POST',
+      const response = await api.post('/apiaries/', requestBody, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody),
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-      }
-
-      const newApiary = await response.json();
-      return newApiary as Apiary;
-    } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Erreur lors de la création du rucher');
+      return response.data as Apiary;
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string; detail?: string }; status?: number } };
+      const errorMessage = axiosError.response?.data?.message || 
+                          axiosError.response?.data?.detail ||
+                          `HTTP error! status: ${axiosError.response?.status}`;
+      return rejectWithValue(errorMessage || 'Erreur lors de la création du rucher');
     }
   }
 );
@@ -177,24 +163,19 @@ export const updateApiary = createAsyncThunk(
         requestBody.comments = comments;
       }
 
-      const response = await fetch(`/api/apiaries/${id}/`, {
-        method: 'PATCH',
+      const response = await api.patch(`/apiaries/${id}/`, requestBody, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody),
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-      }
-
-      const updatedApiary = await response.json();
-      return updatedApiary as Apiary;
-    } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Erreur lors de la mise à jour du rucher');
+      return response.data as Apiary;
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string; detail?: string }; status?: number } };
+      const errorMessage = axiosError.response?.data?.message || 
+                          axiosError.response?.data?.detail ||
+                          `HTTP error! status: ${axiosError.response?.status}`;
+      return rejectWithValue(errorMessage || 'Erreur lors de la mise à jour du rucher');
     }
   }
 );
@@ -210,22 +191,19 @@ export const deleteApiary = createAsyncThunk(
     accessToken: string 
   }, { rejectWithValue }) => {
     try {
-      const response = await fetch(`/api/apiaries/${apiaryId}/`, {
-        method: 'DELETE',
+      await api.delete(`/apiaries/${apiaryId}/`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
         },
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-      }
-
       return apiaryId;
-    } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Une erreur est survenue lors de la suppression');
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string; detail?: string }; status?: number } };
+      const errorMessage = axiosError.response?.data?.message || 
+                          axiosError.response?.data?.detail ||
+                          `HTTP error! status: ${axiosError.response?.status}`;
+      return rejectWithValue(errorMessage || 'Une erreur est survenue lors de la suppression');
     }
   }
 );

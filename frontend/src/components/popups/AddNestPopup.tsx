@@ -4,6 +4,7 @@ import { useAuth } from 'react-oidc-context';
 import { useAppDispatch } from '../../store/hooks';
 import { createNest } from '../../store/store';
 import CoordinateInput from '../common/CoordinateInput';
+import axios from 'axios';
 
 interface AddNestPopupProps {
   show: boolean;
@@ -27,15 +28,12 @@ export default function AddNestPopup({ show, onHide, latitude, longitude, onSucc
   const fetchAddress = async () => {
     try {
       // Utiliser un service de géocodage inverse (ex: Nominatim d'OpenStreetMap)
-      const response = await fetch(
+      const response = await axios.get(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`
       );
       
-      if (response.ok) {
-        const data = await response.json();
-        if (data.display_name) {
-          setAddress(data.display_name);
-        }
+      if (response.data.display_name) {
+        setAddress(response.data.display_name);
       }
     } catch {
       console.warn('Impossible de récupérer l\'adresse automatiquement');

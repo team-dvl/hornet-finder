@@ -1,4 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import api from '../../utils/api';
+import { getAxiosErrorMessage } from '../../utils/axiosTypes';
 
 // Interface pour les paramètres de géolocalisation
 export interface GeolocationParams {
@@ -50,21 +52,15 @@ export const fetchNests = createAsyncThunk(
         ...(geolocation.radius && { radius: geolocation.radius.toString() })
       });
 
-      const response = await fetch(`/api/nests?${params}`, {
+      const response = await api.get(`/nests?${params}`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
         },
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data as Nest[];
-    } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Une erreur est survenue');
+      return response.data as Nest[];
+    } catch (error: unknown) {
+      return rejectWithValue(getAxiosErrorMessage(error));
     }
   }
 );
@@ -80,20 +76,11 @@ export const fetchNestsDestroyedPublic = createAsyncThunk(
         ...(geolocation.radius && { radius: geolocation.radius.toString() })
       });
 
-      const response = await fetch(`/api/nests/destroyed?${params}`, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await api.get(`/nests/destroyed?${params}`);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data as Nest[];
-    } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Une erreur est survenue');
+      return response.data as Nest[];
+    } catch (error: unknown) {
+      return rejectWithValue(getAxiosErrorMessage(error));
     }
   }
 );
@@ -139,24 +126,19 @@ export const createNest = createAsyncThunk(
         requestBody.comments = comments;
       }
 
-      const response = await fetch('/api/nests/', {
-        method: 'POST',
+      const response = await api.post('/nests/', requestBody, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody),
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-      }
-
-      const newNest = await response.json();
-      return newNest as Nest;
-    } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Erreur lors de la création du nid');
+      return response.data as Nest;
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string; detail?: string }; status?: number } };
+      const errorMessage = axiosError.response?.data?.message || 
+                          axiosError.response?.data?.detail ||
+                          `HTTP error! status: ${axiosError.response?.status}`;
+      return rejectWithValue(errorMessage || 'Erreur lors de la création du nid');
     }
   }
 );
@@ -172,22 +154,19 @@ export const deleteNest = createAsyncThunk(
     accessToken: string 
   }, { rejectWithValue }) => {
     try {
-      const response = await fetch(`/api/nests/${nestId}/`, {
-        method: 'DELETE',
+      await api.delete(`/nests/${nestId}/`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
         },
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-      }
-
       return nestId;
-    } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Une erreur est survenue lors de la suppression');
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string; detail?: string }; status?: number } };
+      const errorMessage = axiosError.response?.data?.message || 
+                          axiosError.response?.data?.detail ||
+                          `HTTP error! status: ${axiosError.response?.status}`;
+      return rejectWithValue(errorMessage || 'Une erreur est survenue lors de la suppression');
     }
   }
 );

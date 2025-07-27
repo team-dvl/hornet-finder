@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import api from '../../utils/api';
 
 // Interface pour les paramètres de géolocalisation
 export interface GeolocationParams {
@@ -53,21 +54,16 @@ export const fetchHornets = createAsyncThunk(
         ...(geolocation.radius && { radius: geolocation.radius.toString() })
       });
 
-      const response = await fetch(`/api/hornets?${params}`, {
+      const response = await api.get(`/hornets?${params}`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
         },
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data as Hornet[];
-    } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Une erreur est survenue');
+      return response.data as Hornet[];
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string } }; message?: string };
+      return rejectWithValue(axiosError.response?.data?.message || axiosError.message || 'Une erreur est survenue');
     }
   }
 );
@@ -83,20 +79,12 @@ export const fetchHornetsPublic = createAsyncThunk(
         ...(geolocation.radius && { radius: geolocation.radius.toString() })
       });
 
-      const response = await fetch(`/api/hornets?${params}`, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await api.get(`/hornets?${params}`);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data as Hornet[];
-    } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Une erreur est survenue');
+      return response.data as Hornet[];
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string } }; message?: string };
+      return rejectWithValue(axiosError.response?.data?.message || axiosError.message || 'Une erreur est survenue');
     }
   }
 );
@@ -106,23 +94,19 @@ export const updateHornetDuration = createAsyncThunk(
   'hornets/updateHornetDuration',
   async ({ hornetId, duration, accessToken }: { hornetId: number; duration: number; accessToken: string }, { rejectWithValue }) => {
     try {
-      const response = await fetch(`/api/hornets/${hornetId}/`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ duration }),
-      });
+      const response = await api.patch(`/hornets/${hornetId}/`, 
+        { duration },
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        }
+      );
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const updatedHornet = await response.json();
-      return { hornetId, updatedHornet } as { hornetId: number; updatedHornet: Hornet };
-    } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Erreur lors de la mise à jour');
+      return { hornetId, updatedHornet: response.data } as { hornetId: number; updatedHornet: Hornet };
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string } }; message?: string };
+      return rejectWithValue(axiosError.response?.data?.message || axiosError.message || 'Erreur lors de la mise à jour');
     }
   }
 );
@@ -137,26 +121,22 @@ export const updateHornetColors = createAsyncThunk(
     accessToken: string 
   }, { rejectWithValue }) => {
     try {
-      const response = await fetch(`/api/hornets/${hornetId}/`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
+      const response = await api.patch(`/hornets/${hornetId}/`, 
+        { 
           mark_color_1: markColor1, 
           mark_color_2: markColor2 
-        }),
-      });
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        }
+      );
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const updatedHornet = await response.json();
-      return { hornetId, updatedHornet } as { hornetId: number; updatedHornet: Hornet };
-    } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Erreur lors de la mise à jour des couleurs');
+      return { hornetId, updatedHornet: response.data } as { hornetId: number; updatedHornet: Hornet };
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string } }; message?: string };
+      return rejectWithValue(axiosError.response?.data?.message || axiosError.message || 'Erreur lors de la mise à jour des couleurs');
     }
   }
 );
@@ -206,24 +186,19 @@ export const createHornet = createAsyncThunk(
         requestBody.mark_color_2 = mark_color_2;
       }
 
-      const response = await fetch('/api/hornets/', {
-        method: 'POST',
+      const response = await api.post('/hornets/', requestBody, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody),
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-      }
-
-      const newHornet = await response.json();
-      return newHornet as Hornet;
-    } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Erreur lors de la création du frelon');
+      return response.data as Hornet;
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string; detail?: string }; status?: number } };
+      const errorMessage = axiosError.response?.data?.message || 
+                          axiosError.response?.data?.detail ||
+                          `HTTP error! status: ${axiosError.response?.status}`;
+      return rejectWithValue(errorMessage || 'Erreur lors de la création du frelon');
     }
   }
 );
@@ -239,22 +214,19 @@ export const deleteHornet = createAsyncThunk(
     accessToken: string 
   }, { rejectWithValue }) => {
     try {
-      const response = await fetch(`/api/hornets/${hornetId}/`, {
-        method: 'DELETE',
+      await api.delete(`/hornets/${hornetId}/`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
         },
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-      }
-
       return hornetId;
-    } catch (error) {
-      return rejectWithValue(error instanceof Error ? error.message : 'Une erreur est survenue lors de la suppression');
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string; detail?: string }; status?: number } };
+      const errorMessage = axiosError.response?.data?.message || 
+                          axiosError.response?.data?.detail ||
+                          `HTTP error! status: ${axiosError.response?.status}`;
+      return rejectWithValue(errorMessage || 'Une erreur est survenue lors de la suppression');
     }
   }
 );
