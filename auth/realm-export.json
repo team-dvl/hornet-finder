@@ -59,6 +59,15 @@
         "attributes": {}
       },
       {
+        "id": "3e83f3c4-9d09-4c9c-8804-e0fa0ccd5ee1",
+        "name": "beekeeper-group-admin",
+        "description": "Beekeeper group administrator: can accept/reject new submissions, can exclude members from a beekeeper group",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
+        "attributes": {}
+      },
+      {
         "id": "6828d02c-06de-443e-88ac-fd31e6b20c4a",
         "name": "admin",
         "description": "",
@@ -101,7 +110,6 @@
         "composite": true,
         "composites": {
           "realm": [
-            "volunteer",
             "offline_access",
             "uma_authorization"
           ],
@@ -437,7 +445,114 @@
       ]
     }
   },
-  "groups": [],
+  "groups": [
+    {
+      "id": "ecc50c12-2410-48bb-87b5-5ab56c957a45",
+      "name": "admins",
+      "path": "/admins",
+      "subGroups": [],
+      "attributes": {},
+      "realmRoles": [
+        "beekeeper",
+        "beekeeper-group-admin",
+        "admin",
+        "volunteer"
+      ],
+      "clientRoles": {}
+    },
+    {
+      "id": "4e65e2da-6219-46df-ac74-ca7fb568d4ad",
+      "name": "beekeepers",
+      "path": "/beekeepers",
+      "subGroups": [
+        {
+          "id": "ae9747ec-2327-4b1b-92ae-2e06a359cf04",
+          "name": "ena",
+          "path": "/beekeepers/ena",
+          "parentId": "4e65e2da-6219-46df-ac74-ca7fb568d4ad",
+          "subGroups": [
+            {
+              "id": "267eda15-33a9-4ba4-a651-991be833d247",
+              "name": "admin",
+              "path": "/beekeepers/ena/admin",
+              "parentId": "ae9747ec-2327-4b1b-92ae-2e06a359cf04",
+              "subGroups": [],
+              "attributes": {},
+              "realmRoles": [
+                "beekeeper-group-admin"
+              ],
+              "clientRoles": {}
+            }
+          ],
+          "attributes": {
+            "fancy_name": [
+              "école namuroise d'apiculture"
+            ]
+          },
+          "realmRoles": [],
+          "clientRoles": {}
+        },
+        {
+          "id": "9d22773c-89d1-4c50-8100-db3d892e19dc",
+          "name": "vsab",
+          "path": "/beekeepers/vsab",
+          "parentId": "4e65e2da-6219-46df-ac74-ca7fb568d4ad",
+          "subGroups": [
+            {
+              "id": "8bbbb30f-063b-4796-93cf-a10dc26b4e64",
+              "name": "admin",
+              "path": "/beekeepers/vsab/admin",
+              "parentId": "9d22773c-89d1-4c50-8100-db3d892e19dc",
+              "subGroups": [],
+              "attributes": {},
+              "realmRoles": [
+                "beekeeper-group-admin"
+              ],
+              "clientRoles": {}
+            }
+          ],
+          "attributes": {
+            "fancy_name": [
+              "Vedrin s'abeille"
+            ]
+          },
+          "realmRoles": [],
+          "clientRoles": {}
+        }
+      ],
+      "attributes": {},
+      "realmRoles": [
+        "beekeeper"
+      ],
+      "clientRoles": {}
+    },
+    {
+      "id": "c80bc5ca-7840-411c-8754-bf78a85db170",
+      "name": "volunteers",
+      "path": "/volunteers",
+      "subGroups": [
+        {
+          "id": "f085ce47-ef5f-491a-acaf-f86cdc89f7bc",
+          "name": "vsa",
+          "path": "/volunteers/vsa",
+          "parentId": "c80bc5ca-7840-411c-8754-bf78a85db170",
+          "subGroups": [],
+          "attributes": {
+            "fancy_name": [
+              "Vedrin s'anime"
+            ]
+          },
+          "realmRoles": [],
+          "clientRoles": {}
+        }
+      ],
+      "attributes": {},
+      "realmRoles": [
+        "volunteer"
+      ],
+      "clientRoles": {}
+    }
+  ],
   "defaultRole": {
     "id": "37b05786-954f-45ab-a795-cf8fc386243f",
     "name": "default-roles-hornet-finder",
@@ -446,6 +561,9 @@
     "clientRole": false,
     "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049"
   },
+  "defaultGroups": [
+    "/volunteers"
+  ],
   "requiredCredentials": [
     "password"
   ],
@@ -768,8 +886,8 @@
       "fullScopeAllowed": true,
       "nodeReRegistrationTimeout": -1,
       "defaultClientScopes": [
-        "web-origins",
         "service_account",
+        "web-origins",
         "acr",
         "roles",
         "profile",
@@ -781,7 +899,8 @@
         "phone",
         "organization",
         "offline_access",
-        "microprofile-jwt"
+        "microprofile-jwt",
+        "membership"
       ]
     },
     {
@@ -800,79 +919,6 @@
         "https://velutina.ovh/*"
       ],
       "webOrigins": [
-        "https://velutina.ovh",
-        "https://dev.velutina.ovh"
-      ],
-      "notBefore": 0,
-      "bearerOnly": false,
-      "consentRequired": false,
-      "standardFlowEnabled": true,
-      "implicitFlowEnabled": false,
-      "directAccessGrantsEnabled": false,
-      "serviceAccountsEnabled": false,
-      "publicClient": true,
-      "frontchannelLogout": true,
-      "protocol": "openid-connect",
-      "attributes": {
-        "request.object.signature.alg": "any",
-        "request.object.encryption.alg": "any",
-        "client.introspection.response.allow.jwt.claim.enabled": "false",
-        "standard.token.exchange.enabled": "false",
-        "frontchannel.logout.session.required": "true",
-        "post.logout.redirect.uris": "+",
-        "oauth2.device.authorization.grant.enabled": "false",
-        "backchannel.logout.revoke.offline.tokens": "false",
-        "use.refresh.tokens": "true",
-        "realm_client": "false",
-        "oidc.ciba.grant.enabled": "false",
-        "client.use.lightweight.access.token.enabled": "false",
-        "backchannel.logout.session.required": "true",
-        "client_credentials.use_refresh_token": "false",
-        "request.object.required": "not required",
-        "access.token.header.type.rfc9068": "false",
-        "acr.loa.map": "{}",
-        "require.pushed.authorization.requests": "false",
-        "tls.client.certificate.bound.access.tokens": "false",
-        "display.on.consent.screen": "false",
-        "request.object.encryption.enc": "any",
-        "token.response.type.bearer.lower-case": "false"
-      },
-      "authenticationFlowBindingOverrides": {},
-      "fullScopeAllowed": true,
-      "nodeReRegistrationTimeout": -1,
-      "defaultClientScopes": [
-        "web-origins",
-        "acr",
-        "roles",
-        "profile",
-        "basic",
-        "email"
-      ],
-      "optionalClientScopes": [
-        "address",
-        "phone",
-        "organization",
-        "offline_access",
-        "microprofile-jwt"
-      ]
-    },
-    {
-      "id": "df67e082-88f6-4425-9876-d6c1efb1884a",
-      "clientId": "hornet-app-dev",
-      "name": "hornet-app-dev",
-      "description": "",
-      "rootUrl": "https://dev.velutina.ovh",
-      "adminUrl": "",
-      "baseUrl": "",
-      "surrogateAuthRequired": false,
-      "enabled": true,
-      "alwaysDisplayInConsole": false,
-      "clientAuthenticatorType": "client-secret",
-      "redirectUris": [
-        "https://dev.velutina.ovh/*"
-      ],
-      "webOrigins": [
-        "https://dev.velutina.ovh",
         "https://velutina.ovh"
       ],
       "notBefore": 0,
@@ -890,6 +936,78 @@
         "request.object.encryption.alg": "any",
         "client.introspection.response.allow.jwt.claim.enabled": "false",
         "standard.token.exchange.enabled": "false",
+        "frontchannel.logout.session.required": "true",
+        "post.logout.redirect.uris": "+",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "backchannel.logout.revoke.offline.tokens": "false",
+        "use.refresh.tokens": "true",
+        "realm_client": "false",
+        "oidc.ciba.grant.enabled": "false",
+        "client.use.lightweight.access.token.enabled": "false",
+        "backchannel.logout.session.required": "true",
+        "client_credentials.use_refresh_token": "false",
+        "request.object.required": "not required",
+        "access.token.header.type.rfc9068": "false",
+        "acr.loa.map": "{}",
+        "require.pushed.authorization.requests": "false",
+        "tls.client.certificate.bound.access.tokens": "false",
+        "display.on.consent.screen": "false",
+        "request.object.encryption.enc": "any",
+        "token.response.type.bearer.lower-case": "false"
+      },
+      "authenticationFlowBindingOverrides": {},
+      "fullScopeAllowed": true,
+      "nodeReRegistrationTimeout": -1,
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "roles",
+        "profile",
+        "basic",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "organization",
+        "offline_access",
+        "microprofile-jwt",
+        "membership"
+      ]
+    },
+    {
+      "id": "df67e082-88f6-4425-9876-d6c1efb1884a",
+      "clientId": "hornet-app-dev",
+      "name": "hornet-app-dev",
+      "description": "the client used from the browser / PWA, in DEV mode",
+      "rootUrl": "https://dev.velutina.ovh",
+      "adminUrl": "",
+      "baseUrl": "",
+      "surrogateAuthRequired": false,
+      "enabled": true,
+      "alwaysDisplayInConsole": false,
+      "clientAuthenticatorType": "client-secret",
+      "redirectUris": [
+        "https://dev.velutina.ovh/*"
+      ],
+      "webOrigins": [
+        "https://dev.velutina.ovh"
+      ],
+      "notBefore": 0,
+      "bearerOnly": false,
+      "consentRequired": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "publicClient": true,
+      "frontchannelLogout": true,
+      "protocol": "openid-connect",
+      "attributes": {
+        "request.object.signature.alg": "any",
+        "request.object.encryption.alg": "any",
+        "client.introspection.response.allow.jwt.claim.enabled": "false",
+        "standard.token.exchange.enabled": "false",
         "post.logout.redirect.uris": "+",
         "frontchannel.logout.session.required": "true",
         "oauth2.device.authorization.grant.enabled": "false",
@@ -925,7 +1043,8 @@
         "phone",
         "organization",
         "offline_access",
-        "microprofile-jwt"
+        "microprofile-jwt",
+        "membership"
       ]
     },
     {
@@ -1462,6 +1581,37 @@
       ]
     },
     {
+      "id": "e3e687ce-b3ee-4d8b-8024-ee449c64c636",
+      "name": "membership",
+      "description": "membership for various groups",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false",
+        "gui.order": "",
+        "consent.screen.text": ""
+      },
+      "protocolMappers": [
+        {
+          "id": "463564cc-8323-4863-9b83-64a456e31511",
+          "name": "membership",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "true",
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "membership"
+          }
+        }
+      ]
+    },
+    {
       "id": "76eddc49-77ab-4113-91d9-80b8c9d749e9",
       "name": "profile",
       "description": "OpenID Connect built-in scope: profile",
@@ -1743,7 +1893,8 @@
     "address",
     "phone",
     "microprofile-jwt",
-    "organization"
+    "organization",
+    "membership"
   ],
   "browserSecurityHeaders": {
     "contentSecurityPolicyReportOnly": "",
@@ -1876,6 +2027,31 @@
   "adminEventsDetailsEnabled": false,
   "identityProviders": [
     {
+      "alias": "facebook",
+      "displayName": "Facebook",
+      "internalId": "0afa5020-abbd-4b5f-9459-0372299ba91d",
+      "providerId": "facebook",
+      "enabled": false,
+      "updateProfileFirstLoginMode": "on",
+      "trustEmail": true,
+      "storeToken": false,
+      "addReadTokenRoleOnCreate": false,
+      "authenticateByDefault": false,
+      "linkOnly": false,
+      "hideOnLogin": false,
+      "firstBrokerLoginFlowAlias": "first broker login",
+      "config": {
+        "acceptsPromptNoneForwardFromClient": "false",
+        "clientId": "2081790388897407",
+        "disableUserInfo": "false",
+        "filteredByClaim": "false",
+        "syncMode": "LEGACY",
+        "clientSecret": "**********",
+        "caseSensitiveOriginalUsername": "false",
+        "guiOrder": "1"
+      }
+    },
+    {
       "alias": "google",
       "displayName": "",
       "internalId": "4959666a-dbc1-46b4-8696-04d96b67d675",
@@ -1895,7 +2071,8 @@
         "filteredByClaim": "false",
         "syncMode": "LEGACY",
         "clientSecret": "**********",
-        "caseSensitiveOriginalUsername": "false"
+        "caseSensitiveOriginalUsername": "false",
+        "guiOrder": "0"
       }
     }
   ],

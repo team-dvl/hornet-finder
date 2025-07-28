@@ -24,7 +24,7 @@ const getOidcConfig = () => {
     redirect_uri: window.location.origin,
     post_logout_redirect_uri: window.location.origin,
     response_type: 'code',
-    scope: 'openid profile email',
+    scope: 'openid profile email membership',
     loadUserInfo: true,
     filterProtocolClaims: true,
     // Stockage persistant pour éviter la perte de session sur mobile
