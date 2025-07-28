@@ -4,7 +4,7 @@ import { Hornet, updateHornetDuration, updateHornetColors, deleteHornet } from '
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useAuth } from 'react-oidc-context';
-import { ColorSelector } from '../../components/forms';
+import { ColorSelector } from '../common';
 import { DeleteConfirmationModal } from '../modals';
 import { HORNET_RETURN_ZONE_ANGLE_DEG, HORNET_FLIGHT_SPEED_M_PER_MIN, HORNET_RETURN_ZONE_ABSOLUTE_MAX_DISTANCE_M } from '../../utils/constants';
 import CoordinateInput from '../common/CoordinateInput';
@@ -32,13 +32,6 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation 
   const [editDuration, setEditDuration] = useState('');
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
-  
-  // États pour l'édition des couleurs
-  const [isEditingColors, setIsEditingColors] = useState(false);
-  const [editColor1, setEditColor1] = useState('');
-  const [editColor2, setEditColor2] = useState('');
-  const [colorUpdateError, setColorUpdateError] = useState<string | null>(null);
-  const [isUpdatingColors, setIsUpdatingColors] = useState(false);
 
   // États pour la suppression
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -115,51 +108,6 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation 
 
   const formatDurationInput = (minutes: number) => {
     return (minutes * 60).toString();
-  };
-
-  // Fonctions pour gérer l'édition des couleurs
-  const handleColorsEditStart = () => {
-    setIsEditingColors(true);
-    setEditColor1(currentHornet.mark_color_1 || '');
-    setEditColor2(currentHornet.mark_color_2 || '');
-    setColorUpdateError(null);
-  };
-
-  const handleColorsEditCancel = () => {
-    setIsEditingColors(false);
-    setEditColor1('');
-    setEditColor2('');
-    setColorUpdateError(null);
-  };
-
-  const handleColorsEditSave = async () => {
-    if (!currentHornet.id || !accessToken) return;
-
-    // Validation : les deux couleurs ne peuvent pas être identiques si elles existent
-    if (editColor1 && editColor2 && editColor1 === editColor2) {
-      setColorUpdateError('Les deux marques de couleur ne peuvent pas être identiques.');
-      return;
-    }
-
-    setIsUpdatingColors(true);
-    setColorUpdateError(null);
-
-    try {
-      await dispatch(updateHornetColors({
-        hornetId: currentHornet.id,
-        markColor1: editColor1,
-        markColor2: editColor2,
-        accessToken
-      })).unwrap();
-
-      setIsEditingColors(false);
-      setEditColor1('');
-      setEditColor2('');
-    } catch (error) {
-      setColorUpdateError(error as string);
-    } finally {
-      setIsUpdatingColors(false);
-    }
   };
 
   // Formatter la date si disponible
@@ -353,85 +301,47 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation 
           <ListGroup.Item>
             <div className="d-flex justify-content-between align-items-center mb-2">
               <strong>Marquage couleur:</strong>
-              {canEdit && !isEditingColors && (
-                <Button
-                  variant="outline-primary"
-                  size="sm"
-                  onClick={handleColorsEditStart}
-                  disabled={isUpdatingColors}
-                >
-                  {(currentHornet.mark_color_1 || currentHornet.mark_color_2) ? 'Modifier' : 'Ajouter'}
-                </Button>
+            </div>
+            <div className="d-flex gap-2 align-items-center">
+              <ColorSelector
+                value={currentHornet.mark_color_1 || ''}
+                readOnly={!canEdit}
+                size="sm"
+                onChange={canEdit ? async (color1) => {
+                  if (color1 !== currentHornet.mark_color_1 && accessToken && currentHornet.id) {
+                    try {
+                      await dispatch(updateHornetColors({
+                        hornetId: currentHornet.id,
+                        markColor1: color1,
+                        markColor2: currentHornet.mark_color_2 || '',
+                        accessToken
+                      })).unwrap();
+                    } catch (error) {}
+                  }
+                } : undefined}
+              />
+              <ColorSelector
+                value={currentHornet.mark_color_2 || ''}
+                readOnly={!canEdit}
+                size="sm"
+                onChange={canEdit ? async (color2) => {
+                  if (color2 !== currentHornet.mark_color_2 && accessToken && currentHornet.id) {
+                    try {
+                      await dispatch(updateHornetColors({
+                        hornetId: currentHornet.id,
+                        markColor1: currentHornet.mark_color_1 || '',
+                        markColor2: color2,
+                        accessToken
+                      })).unwrap();
+                    } catch (error) {}
+                  }
+                } : undefined}
+              />
+              {!currentHornet.mark_color_1 && !currentHornet.mark_color_2 && (
+                <span className="text-muted">Aucun marquage</span>
               )}
             </div>
-            
-            {!isEditingColors ? (
-              <div className="d-flex gap-2 align-items-center">
-                <ColorSelector 
-                  value={currentHornet.mark_color_1} 
-                  readOnly 
-                  size="sm" 
-                />
-                
-                <ColorSelector 
-                  value={currentHornet.mark_color_2} 
-                  readOnly 
-                  size="sm" 
-                />
-                
-                {!currentHornet.mark_color_1 && !currentHornet.mark_color_2 && (
-                  <span className="text-muted">Aucun marquage</span>
-                )}
-              </div>
-            ) : (
-              <div className="d-flex flex-column gap-2">
-                <div className="d-flex gap-2">
-                  <ColorSelector
-                    value={editColor1}
-                    onChange={setEditColor1}
-                    disabled={isUpdatingColors}
-                    label="Couleur 1"
-                    size="sm"
-                  />
-                  
-                  <ColorSelector
-                    value={editColor2}
-                    onChange={setEditColor2}
-                    disabled={isUpdatingColors}
-                    label="Couleur 2"
-                    size="sm"
-                  />
-                </div>
-                
-                <div className="d-flex gap-2">
-                  <Button
-                    variant="success"
-                    size="sm"
-                    onClick={handleColorsEditSave}
-                    disabled={isUpdatingColors}
-                  >
-                    {isUpdatingColors ? 'Sauvegarde...' : 'Sauver'}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={handleColorsEditCancel}
-                    disabled={isUpdatingColors}
-                  >
-                    Annuler
-                  </Button>
-                </div>
-              </div>
-            )}
           </ListGroup.Item>
-          
-          {colorUpdateError && (
-            <ListGroup.Item>
-              <Alert variant="danger" className="mb-0 py-2">
-                {colorUpdateError}
-              </Alert>
-            </ListGroup.Item>
-          )}
           
           {currentHornet.created_at && (
             <ListGroup.Item className="d-flex justify-content-between align-items-center">

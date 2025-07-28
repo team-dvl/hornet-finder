@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Form, Button, InputGroup } from 'react-bootstrap';
 
-interface CoordinateInputProps {
+export interface CoordinateInputProps {
   label: string;
   value: number;
   onChange: (value: number) => void;

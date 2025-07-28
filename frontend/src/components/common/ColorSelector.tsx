@@ -91,7 +91,12 @@ export default function ColorSelector({
           variant="outline-secondary"
           className={`d-flex align-items-center gap-2 w-100 ${sizeClasses[size]}`}
           disabled={disabled}
-          style={{ minWidth: minWidths[size] }}
+          style={{ 
+            minWidth: minWidths[size],
+            backgroundColor: colorHex,
+            color: textColor,
+            border: selectedOption.value === 'white' || selectedOption.value === '' ? '1px solid #ccc' : undefined,
+          }}
         >
           <div 
             style={{
@@ -107,26 +112,29 @@ export default function ColorSelector({
         </Dropdown.Toggle>
 
         <Dropdown.Menu style={{ maxHeight: '200px', overflowY: 'auto', minWidth: minWidths[size] }}>
-          {COLOR_OPTIONS.map(color => (
-            <Dropdown.Item
-              key={color.value}
-              onClick={() => onChange?.(color.value)}
-              className="d-flex align-items-center gap-2"
-              active={color.value === selectedOption.value}
-            >
-              <div 
-                style={{
-                  width: '16px',
-                  height: '16px',
-                  backgroundColor: getColorHex(color.value),
-                  border: color.value === 'white' || color.value === '' ? '1px solid #ccc' : 'none',
-                  borderRadius: '3px',
-                  flexShrink: 0,
-                }}
-              />
-              <span>{color.label}</span>
-            </Dropdown.Item>
-          ))}
+          {COLOR_OPTIONS.map(color => {
+            const bg = getColorHex(color.value);
+            return (
+              <Dropdown.Item
+                key={color.value}
+                onClick={() => onChange?.(color.value)}
+                className="d-flex align-items-center gap-2"
+                active={color.value === selectedOption.value}
+              >
+                <div 
+                  style={{
+                    width: '16px',
+                    height: '16px',
+                    backgroundColor: bg,
+                    border: color.value === 'white' || color.value === '' ? '1px solid #ccc' : 'none',
+                    borderRadius: '3px',
+                    flexShrink: 0,
+                  }}
+                />
+                <span>{color.label}</span>
+              </Dropdown.Item>
+            );
+          })}
         </Dropdown.Menu>
       </Dropdown>
     </div>
