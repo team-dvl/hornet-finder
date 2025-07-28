@@ -1,6 +1,6 @@
 import { Navbar, Nav, Button, Container, Spinner } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAppSelector } from '../../store/hooks';
 import { 
   selectGeolocationLoading,
@@ -19,6 +19,22 @@ interface NavbarComponentProps {
 export default function NavbarComponent({ onShowWelcome }: NavbarComponentProps) {
   const auth = useAuth();
   const [showUserModal, setShowUserModal] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const navbarRef = useRef<HTMLDivElement>(null);
+
+  // Gestion de la contraction automatique sur clic extérieur (mobile)
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!expanded) return;
+      if (navbarRef.current && !navbarRef.current.contains(event.target as Node)) {
+        setExpanded(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [expanded]);
 
   // États de chargement des données
   const isGeolocationLoading = useAppSelector(selectGeolocationLoading);
@@ -30,15 +46,18 @@ export default function NavbarComponent({ onShowWelcome }: NavbarComponentProps)
   const isDataLoading = isGeolocationLoading || isApiariesLoading || isNestsLoading || isHornetsLoading;
 
   return (
-    <Navbar 
+    <Navbar
+      ref={navbarRef}
       variant="light"
-      expand="lg" 
-      fixed="top" 
+      expand="lg"
+      fixed="top"
       className="shadow-sm navbar-transparent"
+      expanded={expanded}
+      onToggle={setExpanded}
+      onBlur={() => (document.activeElement && !document.activeElement.closest('.navbar')) && document.querySelector('.navbar')?.classList.remove('show')}
       onMouseEnter={(e) => e.currentTarget.classList.add('navbar-opaque')}
       onMouseLeave={(e) => e.currentTarget.classList.remove('navbar-opaque')}
       onFocus={(e) => e.currentTarget.classList.add('navbar-opaque')}
-      onBlur={(e) => e.currentTarget.classList.remove('navbar-opaque')}
     >
       <Container>
         <Navbar.Brand href="#" className="d-flex align-items-center">
