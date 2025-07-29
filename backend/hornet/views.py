@@ -7,7 +7,7 @@ from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
-from .models import Hornet, Nest, Apiary
+from .models import Hornet, Nest, Apiary, User
 from .serializers import HornetSerializer, NestSerializer, PublicNestSerializer, ApiarySerializer
 from hornet_finder_api.authentication import JWTBearerAuthentication, HasAnyRole
 
@@ -84,8 +84,10 @@ class HornetViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         responses={200: HornetSerializer(many=True)},
     )
     @action(detail=False, methods=['get'])
-    def my(self, request): # There will be a crash without authentication
-        queryset = Hornet.objects.filter(created_by=request.user.username)
+    def my(self, request):
+        user_guid = getattr(request.user, 'guid', None)
+        user_obj = User.objects.filter(guid=user_guid).first()
+        queryset = Hornet.objects.filter(created_by=user_obj)
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
@@ -107,9 +109,10 @@ class HornetViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
             return [HasAnyRole(['admin'])]
         return super().get_permissions()
     
-    def perform_create(self, serializer): # This method is called when a new Hornet is created
-        # Overwrite linked nest to avoid users who set the linked_nest and save the username of the user who created the hornet
-        serializer.save(created_by=self.request.user.username, linked_nest=None)
+    def perform_create(self, serializer):
+        user_guid = getattr(self.request.user, 'guid', None)
+        user_obj = User.objects.filter(guid=user_guid).first()
+        serializer.save(created_by=user_obj, linked_nest=None)
 
 class NestViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
     queryset = Nest.objects.all()
@@ -155,8 +158,9 @@ class NestViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         return [HasAnyRole(['admin'])]
     
     def perform_create(self, serializer):
-        # Save the username of the user who created the nest
-        serializer.save(created_by=self.request.user.username)
+        user_guid = getattr(self.request.user, 'guid', None)
+        user_obj = User.objects.filter(guid=user_guid).first()
+        serializer.save(created_by=user_obj)
 
 class ApiaryViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
     queryset = Apiary.objects.all()
@@ -175,8 +179,10 @@ class ApiaryViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         responses={200: ApiarySerializer(many=True)},
     )
     @action(detail=False, methods=['get'])
-    def my(self, request): # There will be a crash without authentication
-        queryset = Apiary.objects.filter(created_by=request.user.username)
+    def my(self, request):
+        user_guid = getattr(request.user, 'guid', None)
+        user_obj = User.objects.filter(guid=user_guid).first()
+        queryset = Apiary.objects.filter(created_by=user_obj)
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
     
@@ -189,5 +195,7 @@ class ApiaryViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
             return [HasAnyRole(['beekeeper', 'admin'])]
         return [HasAnyRole(['admin'])]
 
-    def perform_create(self, serializer): # This method is called when a new Apiary is created
-        serializer.save(created_by=self.request.user.username) # This will save the username of the user who created the apiary
+    def perform_create(self, serializer):
+        user_guid = getattr(self.request.user, 'guid', None)
+        user_obj = User.objects.filter(guid=user_guid).first()
+        serializer.save(created_by=user_obj)

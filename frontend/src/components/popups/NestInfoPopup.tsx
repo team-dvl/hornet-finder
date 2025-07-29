@@ -143,7 +143,9 @@ export default function NestInfoPopup({ show, onHide, nest }: NestInfoPopupProps
         {nest.created_by && (
           <div>
             <strong>Signalé par :</strong>
-            <div className="text-muted">{nest.created_by}</div>
+            <div className="text-muted">
+              {nest.created_by.display_name || nest.created_by.guid}
+            </div>
           </div>
         )}
       </Modal.Body>

@@ -3,6 +3,14 @@ from django.contrib.gis.db import models as geomodels
 from django.contrib.gis.geos import Point
 
 
+class User(models.Model):
+    guid = models.UUIDField(primary_key=True, editable=False)
+    date_created = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return str(self.guid)
+
+
 class GeolocatedModel(models.Model):
     latitude = models.FloatField()
     longitude = models.FloatField()
@@ -41,7 +49,7 @@ class Hornet(GeolocatedModel):
     mark_color_1 = models.CharField(max_length=20, choices=COLOR_CHOICES, blank=True, default='')
     mark_color_2 = models.CharField(max_length=20, choices=COLOR_CHOICES, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
-    created_by = models.CharField(max_length=255, null=True, blank=True)
+    created_by = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL)
     linked_nest = models.ForeignKey('Nest', null=True, blank=True, on_delete=models.SET_NULL)
 
     def clean(self):
@@ -57,7 +65,7 @@ class Nest(GeolocatedModel):
     destroyed = models.BooleanField(default=False)
     destroyed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    created_by = models.CharField(max_length=255, null=True, blank=True)  # Add created_by field
+    created_by = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL)
     comments = models.TextField(null=True, blank=True)
 
 class Apiary(GeolocatedModel):
@@ -70,5 +78,5 @@ class Apiary(GeolocatedModel):
     id = models.AutoField(primary_key=True)
     infestation_level = models.IntegerField(choices=INFESTATION_LEVEL_CHOICES)
     created_at = models.DateTimeField(auto_now_add=True)
-    created_by = models.CharField(max_length=255, null=True, blank=True)
+    created_by = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL)
     comments = models.TextField(null=True, blank=True)

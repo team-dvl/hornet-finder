@@ -174,7 +174,9 @@ export default function ApiaryInfoPopup({ show, onHide, apiary }: ApiaryInfoPopu
               {currentApiary.created_by && (
                 <div className="mb-2">
                   <strong>Créé par :</strong>
-                  <div className="text-muted">{currentApiary.created_by}</div>
+                  <div className="text-muted">
+                    {currentApiary.created_by.display_name || currentApiary.created_by.guid}
+                  </div>
                 </div>
               )}
             </div>

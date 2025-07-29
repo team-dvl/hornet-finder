@@ -4,6 +4,7 @@ import { createApiary } from '../../store/store';
 import { useAppDispatch } from '../../store/hooks';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import CoordinateInput from '../common/CoordinateInput';
+import { useAuth } from 'react-oidc-context';
 
 interface AddApiaryPopupProps {
   show: boolean;
@@ -22,6 +23,7 @@ const INFESTATION_LEVELS = [
 export default function AddApiaryPopup({ show, onHide, latitude, longitude, onSuccess }: AddApiaryPopupProps) {
   const dispatch = useAppDispatch();
   const { accessToken } = useUserPermissions();
+  const auth = useAuth();
   
   // États du formulaire
   const [infestationLevel, setInfestationLevel] = useState<1 | 2 | 3>(1);
@@ -70,7 +72,8 @@ export default function AddApiaryPopup({ show, onHide, latitude, longitude, onSu
         longitude,
         infestation_level: infestationLevel,
         comments: comments.trim() || undefined,
-        accessToken
+        accessToken,
+        userGuid: auth.user?.profile?.sub || ''
       })).unwrap();
 
       // Succès : fermer la popup et réinitialiser le formulaire

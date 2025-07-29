@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -e
 
 #
 # Script pour builder le frontend en production

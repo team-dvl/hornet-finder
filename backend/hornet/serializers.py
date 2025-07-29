@@ -1,7 +1,7 @@
 from rest_framework import serializers
-from .models import Hornet, Nest, Apiary
+from .models import Hornet, Nest, Apiary, User
 from hornet_finder_api.utils import user_exists
-
+from hornet_finder_api.keycloak_utils import get_user_display_name
 
 class GPSValidationMixin:
     def validate_longitude(self, value: float) -> float:
@@ -20,6 +20,7 @@ class GPSValidationMixin:
         return value
 
 class HornetSerializer(GPSValidationMixin, serializers.ModelSerializer):
+    created_by = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
     class Meta:
         model = Hornet
         fields = ['id', 'longitude', 'latitude', 'direction', 'duration', 'mark_color_1', 'mark_color_2', 'created_at', 'created_by', 'linked_nest']
@@ -33,6 +34,19 @@ class HornetSerializer(GPSValidationMixin, serializers.ModelSerializer):
                 'min_value': 0,
             },
         }
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Enrichir le champ created_by avec le display_name Keycloak
+        if instance.created_by:
+            display_name = get_user_display_name(str(instance.created_by.guid))
+            data['created_by'] = {
+                'guid': str(instance.created_by.guid),
+                'display_name': display_name or str(instance.created_by.guid)[:8] + '...'
+            }
+        else:
+            data['created_by'] = None
+        return data
 
     def validate_direction(self, value: int) -> int:
         if not (0 <= value <= 359):
@@ -55,29 +69,25 @@ class HornetSerializer(GPSValidationMixin, serializers.ModelSerializer):
         return data
 
 class NestSerializer(GPSValidationMixin, serializers.ModelSerializer):
+    created_by = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
     class Meta:
         model = Nest
         fields = ['id', 'longitude', 'latitude', 'public_place', 'address', 'destroyed', 'destroyed_at', 'created_at', 'created_by', 'comments']
         read_only_fields = ['id', 'created_at']
     
     def to_representation(self, instance):
-        """
-        Override to conditionally include created_by field.
-        Only show created_by to the creator of the nest or to admins.
-        """
         data = super().to_representation(instance)
-        
-        request = self.context.get('request')
-        if request and hasattr(request, 'user') and request.user.is_authenticated:
-            user = request.user
-            # Show created_by if user is admin or is the creator
-            if 'admin' in getattr(user, 'roles', []) or instance.created_by == user.username:
-                return data
-        
-        # Remove created_by for other authenticated users
-        data.pop('created_by', None)
+        # Enrichir le champ created_by avec le display_name Keycloak
+        if instance.created_by:
+            display_name = get_user_display_name(str(instance.created_by.guid))
+            data['created_by'] = {
+                'guid': str(instance.created_by.guid),
+                'display_name': display_name or str(instance.created_by.guid)[:8] + '...'
+            }
+        else:
+            data['created_by'] = None
         return data
-    
+
     def validate_address(self, value: str) -> str:
         # Allow empty address
         if not value or value.strip() == '':
@@ -99,11 +109,26 @@ class PublicNestSerializer(GPSValidationMixin, serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at']
 
 class ApiarySerializer(GPSValidationMixin, serializers.ModelSerializer):
+    created_by = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
+
     class Meta:
         model = Apiary
         fields = ['id', 'longitude', 'latitude', 'infestation_level', 'created_at', 'created_by', 'comments']
         read_only_fields = ['id', 'created_at']
-    
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Enrichir le champ created_by avec le display_name Keycloak
+        if instance.created_by:
+            display_name = get_user_display_name(str(instance.created_by.guid))
+            data['created_by'] = {
+                'guid': str(instance.created_by.guid),
+                'display_name': display_name or str(instance.created_by.guid)[:8] + '...'
+            }
+        else:
+            data['created_by'] = None
+        return data
+
     def validate_infestation_level(self, value: int) -> int:
         valid_levels = [choice[0] for choice in Apiary.INFESTATION_LEVEL_CHOICES]
         if value not in valid_levels:

@@ -19,7 +19,7 @@ export interface Nest {
   destroyed?: boolean;
   destroyed_at?: string;
   created_at?: string;
-  created_by?: string;
+  created_by?: { guid: string; display_name: string }; // GUID of the user who created the nest
   comments?: string;
 }
 
@@ -94,14 +94,16 @@ export const createNest = createAsyncThunk(
     public_place,
     address,
     comments,
-    accessToken 
+    accessToken,
+    userGuid
   }: { 
     latitude: number; 
     longitude: number; 
     public_place?: boolean;
     address?: string;
     comments?: string;
-    accessToken: string 
+    accessToken: string;
+    userGuid: string; // GUID Keycloak
   }, { rejectWithValue }) => {
     try {
       const requestBody: {
@@ -110,12 +112,12 @@ export const createNest = createAsyncThunk(
         public_place?: boolean;
         address?: string;
         comments?: string;
+        created_by: string;
       } = {
         latitude,
         longitude,
+        created_by: userGuid,
       };
-
-      // Ajouter les champs optionnels seulement s'ils sont définis
       if (public_place !== undefined) {
         requestBody.public_place = public_place;
       }
@@ -125,13 +127,11 @@ export const createNest = createAsyncThunk(
       if (comments) {
         requestBody.comments = comments;
       }
-
       const response = await api.post('/nests/', requestBody, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
         },
       });
-
       return response.data as Nest;
     } catch (error: unknown) {
       const axiosError = error as { response?: { data?: { message?: string; detail?: string }; status?: number } };
@@ -258,3 +258,38 @@ export const selectShowNests = (state: { nests: NestsState }) => state.nests.sho
 
 export const { clearError, clearNests, addNest, toggleNests } = nestsSlice.actions;
 export default nestsSlice.reducer;
+
+// Utilisation dans un composant React
+/*
+import React from 'react';
+import { useDispatch } from 'react-redux';
+import { createNest } from './nestsSlice';
+import { useAuth } from 'react-oidc-context';
+import { jwtDecode } from 'jwt-decode';
+
+const MyComponent = () => {
+  const dispatch = useDispatch();
+  const auth = useAuth();
+  const accessToken = auth.user?.access_token;
+  const userGuid = accessToken ? jwtDecode<{ sub: string }>(accessToken).sub : undefined;
+
+  const handleCreateNest = () => {
+    const latitude = 48.8588443;
+    const longitude = 2.2943506;
+    const public_place = true;
+    const address = 'Champ de Mars, 5 Avenue Anatole France, 75007 Paris, France';
+    const comments = 'Près de la Tour Eiffel';
+
+    dispatch(createNest({ latitude, longitude, public_place, address, comments, accessToken, userGuid }));
+  };
+
+  return (
+    <div>
+      <h1>Créer un nid</h1>
+      <button onClick={handleCreateNest}>Ajouter</button>
+    </div>
+  );
+};
+
+export default MyComponent;
+*/

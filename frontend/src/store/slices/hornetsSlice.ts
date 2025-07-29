@@ -20,7 +20,7 @@ export interface Hornet {
   created_at?: string;
   updated_at?: string;
   user_id?: number;
-  created_by?: string; // Email de l'utilisateur qui a créé le frelon
+  created_by?: { guid: string; display_name: string }; // GUID of the user who created the hornet
 }
 
 // État initial du slice
@@ -151,7 +151,8 @@ export const createHornet = createAsyncThunk(
     duration, 
     mark_color_1, 
     mark_color_2, 
-    accessToken 
+    accessToken, 
+    userGuid 
   }: { 
     latitude: number; 
     longitude: number; 
@@ -159,7 +160,8 @@ export const createHornet = createAsyncThunk(
     duration?: number; 
     mark_color_1?: string; 
     mark_color_2?: string; 
-    accessToken: string 
+    accessToken: string; 
+    userGuid: string; // GUID Keycloak
   }, { rejectWithValue }) => {
     try {
       const requestBody: {
@@ -169,13 +171,13 @@ export const createHornet = createAsyncThunk(
         duration?: number;
         mark_color_1?: string;
         mark_color_2?: string;
+        created_by: string;
       } = {
         latitude,
         longitude,
         direction,
+        created_by: userGuid,
       };
-
-      // Ajouter les champs optionnels seulement s'ils sont définis
       if (duration !== undefined) {
         requestBody.duration = duration;
       }
@@ -185,13 +187,11 @@ export const createHornet = createAsyncThunk(
       if (mark_color_2) {
         requestBody.mark_color_2 = mark_color_2;
       }
-
       const response = await api.post('/hornets/', requestBody, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
         },
       });
-
       return response.data as Hornet;
     } catch (error: unknown) {
       const axiosError = error as { response?: { data?: { message?: string; detail?: string }; status?: number } };

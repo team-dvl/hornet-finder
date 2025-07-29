@@ -10,7 +10,6 @@ import {
   fetchNestsDestroyedPublic,
   selectMapCenter,
   selectSearchRadius,
-  selectIsInitialized,
   selectLastFetchedArea,
   setLastFetchedArea,
   selectZoom
@@ -30,15 +29,12 @@ export const useMapDataFetching = () => {
   
   const mapCenter = useAppSelector(selectMapCenter);
   const searchRadius = useAppSelector(selectSearchRadius);
-  const isInitialized = useAppSelector(selectIsInitialized);
   const lastFetchedArea = useAppSelector(selectLastFetchedArea);
   const currentZoom = useAppSelector(selectZoom);
 
   useEffect(() => {
-    // Attendre que la géolocalisation soit initialisée avant de faire les fetchs
-    if (!isInitialized) {
-      return;
-    }
+    // On fetch toujours par rapport au centre affiché, même si la géolocalisation n'est pas initialisée
+    // (on ne vérifie plus isInitialized)
 
     // Si on a déjà une zone fetchée, vérifier si la nouvelle vue est incluse
     if (lastFetchedArea) {
@@ -125,7 +121,6 @@ export const useMapDataFetching = () => {
       zoom: currentZoom,
     }));
   }, [
-    isInitialized,
     mapCenter,
     searchRadius, 
     currentZoom,

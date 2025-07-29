@@ -138,9 +138,9 @@ const mapSlice = createSlice({
         state.isGeolocationLoading = true;
         state.geolocationError = null;
       })
-      .addCase(initializeGeolocation.fulfilled, (state, action) => {
+      .addCase(initializeGeolocation.fulfilled, (state) => {
         state.isGeolocationLoading = false;
-        state.center = action.payload;
+        // state.center = action.payload; // Désactivé : ne pas centrer automatiquement la carte sur la géoloc
         state.geolocationError = null;
         state.isInitialized = true;
       })

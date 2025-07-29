@@ -46,51 +46,45 @@ export const useUserPermissions = () => {
 
   const isAdmin = useMemo(() => roles.includes('admin'), [roles]);
   const userEmail = profile?.email;
+  const userGuid = profile?.sub;
+
+  // Fonction utilitaire pour comparer created_by (objet)
+  function isOwner(created_by: { guid: string; display_name: string }): boolean {
+    if (!created_by || !userGuid) return false;
+    return created_by.guid === userGuid;
+  }
 
   // Fonction pour vérifier si l'utilisateur peut éditer un frelon
   const canEditHornet = useCallback((hornet: Hornet) => {
-    if (!hornet || !userEmail || !auth.user) return false;
-    
-    // Admin peut toujours éditer
+    if (!hornet || !userGuid || !auth.user) return false;
     if (isAdmin) return true;
-    
-    // Propriétaire peut éditer ses propres frelons
-    // On suppose que created_by contient l'email de l'utilisateur
-    return hornet.created_by === userEmail;
-  }, [isAdmin, userEmail, auth.user]);
+    if (!hornet.created_by) return false;
+    return isOwner(hornet.created_by);
+  }, [isAdmin, userGuid, auth.user]);
 
   // Fonction pour vérifier si l'utilisateur peut supprimer un frelon
   const canDeleteHornet = useCallback((hornet: Hornet) => {
-    if (!hornet || !userEmail || !auth.user) return false;
-    
-    // Admin peut toujours supprimer
+    if (!hornet || !userGuid || !auth.user) return false;
     if (isAdmin) return true;
-    
-    // Propriétaire peut supprimer ses propres frelons
-    return hornet.created_by === userEmail;
-  }, [isAdmin, userEmail, auth.user]);
+    if (!hornet.created_by) return false;
+    return isOwner(hornet.created_by);
+  }, [isAdmin, userGuid, auth.user]);
 
   // Fonction pour vérifier si l'utilisateur peut supprimer un nid
   const canDeleteNest = useCallback((nest: Nest) => {
-    if (!nest || !userEmail || !auth.user) return false;
-    
-    // Admin peut toujours supprimer
+    if (!nest || !userGuid || !auth.user) return false;
     if (isAdmin) return true;
-    
-    // Propriétaire peut supprimer ses propres nids
-    return nest.created_by === userEmail;
-  }, [isAdmin, userEmail, auth.user]);
+    if (!nest.created_by) return false;
+    return isOwner(nest.created_by);
+  }, [isAdmin, userGuid, auth.user]);
 
   // Fonction pour vérifier si l'utilisateur peut supprimer un rucher
   const canDeleteApiary = useCallback((apiary: Apiary) => {
-    if (!apiary || !userEmail || !auth.user) return false;
-    
-    // Admin peut toujours supprimer
+    if (!apiary || !userGuid || !auth.user) return false;
     if (isAdmin) return true;
-    
-    // Propriétaire peut supprimer ses propres ruchers
-    return apiary.created_by === userEmail;
-  }, [isAdmin, userEmail, auth.user]);
+    if (!apiary.created_by) return false;
+    return isOwner(apiary.created_by);
+  }, [isAdmin, userGuid, auth.user]);
 
   // Mémoriser si l'utilisateur peut ajouter des frelons
   const canAddHornet = useMemo(() => {

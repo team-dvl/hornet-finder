@@ -16,7 +16,7 @@ export interface Apiary {
   infestation_level: 1 | 2 | 3; // Niveau d'infestation selon le backend : 1=Light, 2=Medium, 3=High
   comments?: string;
   created_at?: string;
-  created_by?: string; // Email de l'utilisateur qui a créé le rucher
+  created_by?: { guid: string; display_name: string }; // GUID of the user who created the apiary
 }
 
 // État initial du slice
@@ -93,13 +93,15 @@ export const createApiary = createAsyncThunk(
     longitude, 
     infestation_level, 
     comments, 
-    accessToken 
+    accessToken, 
+    userGuid 
   }: { 
     latitude: number; 
     longitude: number; 
     infestation_level: number; 
     comments?: string; 
-    accessToken: string 
+    accessToken: string; 
+    userGuid: string; // GUID Keycloak
   }, { rejectWithValue }) => {
     try {
       const requestBody: {
@@ -107,23 +109,21 @@ export const createApiary = createAsyncThunk(
         longitude: number;
         infestation_level: number;
         comments?: string;
+        created_by: string;
       } = {
         latitude,
         longitude,
         infestation_level,
+        created_by: userGuid,
       };
-
-      // Ajouter les champs optionnels seulement s'ils sont définis
       if (comments) {
         requestBody.comments = comments;
       }
-
       const response = await api.post('/apiaries/', requestBody, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
         },
       });
-
       return response.data as Apiary;
     } catch (error: unknown) {
       const axiosError = error as { response?: { data?: { message?: string; detail?: string }; status?: number } };
@@ -342,3 +342,9 @@ export const selectApiaryById = (state: { apiaries: ApiariesState }, id: number 
 
 export const { clearError, clearApiaries, toggleApiaries, toggleApiaryCircles, toggleCircleHighlight, clearAllHighlights } = apiariesSlice.actions;
 export default apiariesSlice.reducer;
+
+// Exemple d'intégration dans un composant (à adapter dans tous les composants/pages concernés)
+// const auth = useAuth();
+// const accessToken = auth.user?.access_token;
+// const userGuid = accessToken ? jwtDecode<{ sub: string }>(accessToken).sub : undefined;
+// dispatch(createApiary({ latitude, longitude, infestation_level, comments, accessToken, userGuid }));

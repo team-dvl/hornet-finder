@@ -66,6 +66,7 @@ export default function AddNestPopup({ show, onHide, latitude, longitude, onSucc
         address: address.trim() || undefined,
         comments: comments.trim() || undefined,
         accessToken: auth.user.access_token,
+        userGuid: auth.user?.profile?.sub || ''
       })).unwrap();
 
       // Réinitialiser le formulaire

@@ -6,6 +6,7 @@ import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { ColorSelector } from '../../components/forms';
 import CompassCapture from '../map/CompassCapture';
 import CoordinateInput from '../common/CoordinateInput';
+import { useAuth } from 'react-oidc-context';
 
 interface AddHornetPopupProps {
   show: boolean;
@@ -26,6 +27,7 @@ export default function AddHornetPopup({
 }: AddHornetPopupProps) {
   const dispatch = useAppDispatch();
   const { accessToken } = useUserPermissions();
+  const auth = useAuth();
   
   // États du formulaire
   const [direction, setDirection] = useState(initialDirection ? initialDirection.toString() : '');
@@ -130,7 +132,8 @@ export default function AddHornetPopup({
         duration: durationValue,
         mark_color_1: markColor1 || undefined,
         mark_color_2: markColor2 || undefined,
-        accessToken
+        accessToken,
+        userGuid: auth.user?.profile?.sub || ''
       })).unwrap();
 
       // Succès : fermer la popup et réinitialiser le formulaire
