@@ -11,6 +11,8 @@ import requests
 import os
 import threading
 import time
+from hornet.models import User
+import uuid
 
 
 class JWTUser:
@@ -51,10 +53,6 @@ class HasAnyRole(BasePermission):
 class JWTBearerAuthentication(BaseAuthentication):
     """
     Custom authentication class that uses JWT tokens for user authentication.
-    It retrieves the JWT token from the Authorization header, decodes it using the Keycloak public key.
-    If the token is valid, it creates a JWTUser object with the token information.
-    This class needs to be used with the `authentication_classes` decorator in views.
-    It can be used in conjunction with the `permission_classes` decorator to enforce role-based permissions.
     """
 
     KEYCLOAK_PUBLIC_KEY = None
@@ -77,6 +75,16 @@ class JWTBearerAuthentication(BaseAuthentication):
                 self.KEYCLOAK_PUBLIC_KEY = get_realm_public_key()  # Get the public key of the Keycloak realm
             token_info = jwt.decode(token.split()[1], self.KEYCLOAK_PUBLIC_KEY, algorithms=['RS256'], audience='account') # Decode the token using the public key
             user = JWTUser(token_info)  # Create a JWTUser object with the token info
+
+            # --- On-the-fly creation of the local user if not existing ---
+            guid = token_info.get('sub')
+            if guid:
+                try:
+                    User.objects.get(guid=guid)
+                except User.DoesNotExist:
+                    User.objects.create(guid=uuid.UUID(guid))
+            # ---------------------------------------------------------------
+
             return (user, token_info)
         except Exception as e:
             raise AuthenticationFailed("Invalid token. " + str(e)) # If the decoding of the token fails, raise an exception, indicating that the token is invalid
