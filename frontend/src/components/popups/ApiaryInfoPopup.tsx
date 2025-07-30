@@ -71,7 +71,7 @@ export default function ApiaryInfoPopup({ show, onHide, apiary }: ApiaryInfoPopu
 
   // Vérifier si l'utilisateur peut éditer ce rucher (apiculteur qui l'a créé ou admin)
   const isAdmin = auth.user?.profile?.role === 'admin' || auth.user?.profile?.is_admin;
-  const canEdit = canAddApiary && (isAdmin || auth.user?.profile?.email === currentApiary.created_by);
+  const canEdit = canAddApiary && (isAdmin || auth.user?.profile?.sub === currentApiary.created_by?.guid);
 
   return (
     <Modal show={show} onHide={onHide} size="lg" centered>

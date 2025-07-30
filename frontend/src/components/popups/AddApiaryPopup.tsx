@@ -5,6 +5,7 @@ import { useAppDispatch } from '../../store/hooks';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import CoordinateInput from '../common/CoordinateInput';
 import { useAuth } from 'react-oidc-context';
+import InfestationLevelInput, { InfestationLevel } from '../common/InfestationLevelInput';
 
 interface AddApiaryPopupProps {
   show: boolean;
@@ -14,11 +15,8 @@ interface AddApiaryPopupProps {
   onSuccess?: () => void;
 }
 
-const INFESTATION_LEVELS = [
-  { value: 1 as const, label: 'Faible', description: 'Présence faible de frelons asiatiques', color: 'warning' },
-  { value: 2 as const, label: 'Modérée', description: 'Présence modérée de frelons asiatiques', color: 'info' },
-  { value: 3 as const, label: 'Élevée', description: 'Forte pression de frelons asiatiques', color: 'danger' }
-];
+const infestationLevelMap = { 1: 'low', 2: 'moderate', 3: 'high' } as const;
+const infestationLevelReverseMap = { low: 1, moderate: 2, high: 3 } as const;
 
 export default function AddApiaryPopup({ show, onHide, latitude, longitude, onSuccess }: AddApiaryPopupProps) {
   const dispatch = useAppDispatch();
@@ -89,8 +87,6 @@ export default function AddApiaryPopup({ show, onHide, latitude, longitude, onSu
     }
   };
 
-  const selectedLevel = INFESTATION_LEVELS.find(level => level.value === infestationLevel) || INFESTATION_LEVELS[0];
-
   return (
     <Modal show={show} onHide={handleClose} centered>
       <Modal.Header closeButton>
@@ -134,26 +130,10 @@ export default function AddApiaryPopup({ show, onHide, latitude, longitude, onSu
               <Form.Group>
                 <Form.Label><strong>Niveau d'infestation *</strong></Form.Label>
                 <div className="mt-2">
-                  {INFESTATION_LEVELS.map(level => (
-                    <Form.Check
-                      key={level.value}
-                      type="radio"
-                      id={`infestation-${level.value}`}
-                      name="infestationLevel"
-                      label={
-                        <div className="d-flex align-items-center">
-                          <span className={`badge bg-${level.color} me-2`}>
-                            {level.label}
-                          </span>
-                          <span>{level.description}</span>
-                        </div>
-                      }
-                      checked={infestationLevel === level.value}
-                      onChange={() => setInfestationLevel(level.value)}
-                      disabled={isSubmitting}
-                      className="mb-2"
-                    />
-                  ))}
+                  <InfestationLevelInput
+                    value={infestationLevelMap[infestationLevel] as InfestationLevel}
+                    onChange={level => setInfestationLevel(infestationLevelReverseMap[level])}
+                  />
                 </div>
                 <Form.Text className="text-muted">
                   Sélectionnez le niveau d'infestation de frelons asiatiques observé dans ce rucher
@@ -183,7 +163,7 @@ export default function AddApiaryPopup({ show, onHide, latitude, longitude, onSu
 
           <Alert variant="info" className="small">
             <strong>Information :</strong> Ce rucher sera enregistré à votre nom. 
-            Le niveau d'infestation sélectionné est <strong>{selectedLevel.label.toLowerCase()}</strong>.
+            Le niveau d'infestation sélectionné est <strong>{infestationLevelMap[infestationLevel]}</strong>.
           </Alert>
         </Modal.Body>
         
