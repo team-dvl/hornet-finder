@@ -68,6 +68,35 @@ class Nest(GeolocatedModel):
     created_by = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL)
     comments = models.TextField(null=True, blank=True)
 
+class BeekeeperGroup(models.Model):
+    """Represents a group of beekeepers for access control."""
+    name = models.CharField(max_length=128, unique=True)
+    # Optionally, store the group path as in the JWT (e.g. /beekeepers/vsab)
+    path = models.CharField(max_length=256, unique=True)
+
+    def __str__(self):
+        return self.name
+
+class ApiaryGroupPermission(models.Model):
+    apiary = models.ForeignKey('Apiary', on_delete=models.CASCADE)
+    group = models.ForeignKey('BeekeeperGroup', on_delete=models.CASCADE)
+    can_read = models.BooleanField(default=True)
+    can_update = models.BooleanField(default=False)
+    can_delete = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = ('apiary', 'group')
+
+    def __str__(self):
+        perms = []
+        if self.can_read:
+            perms.append('read')
+        if self.can_update:
+            perms.append('update')
+        if self.can_delete:
+            perms.append('delete')
+        return f"{self.group.name} on {self.apiary.id}: {', '.join(perms)}"
+
 class Apiary(GeolocatedModel):
     INFESTATION_LEVEL_CHOICES = [
         (1, "Light"),
@@ -80,3 +109,10 @@ class Apiary(GeolocatedModel):
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL)
     comments = models.TextField(null=True, blank=True)
+    # groups that can access this apiary, with permissions
+    allowed_groups = models.ManyToManyField(
+        BeekeeperGroup,
+        through='ApiaryGroupPermission',
+        blank=True,
+        related_name="apiaries"
+    )

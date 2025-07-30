@@ -5,7 +5,6 @@ import {
   fetchHornets, 
   fetchHornetsPublic, 
   fetchApiaries, 
-  fetchMyApiaries, 
   fetchNests,
   fetchNestsDestroyedPublic,
   selectMapCenter,
@@ -94,18 +93,12 @@ export const useMapDataFetching = () => {
       dispatch(fetchNestsDestroyedPublic(geolocationParams));
     }
 
-    // Récupérer les ruchers seulement pour les utilisateurs authentifiés
-    if (auth.isAuthenticated && auth.user?.access_token) {
-      if (isAdmin) {
-        // Les admins peuvent voir tous les ruchers
-        dispatch(fetchApiaries({ 
-          accessToken: auth.user.access_token, 
-          geolocation: geolocationParams 
-        }));
-      } else if (canAddApiary) {
-        // Les apiculteurs peuvent voir leurs propres ruchers (pas de filtrage géographique pour 'my')
-        dispatch(fetchMyApiaries(auth.user.access_token));
-      }
+    // Fetch apiaries only for authenticated users with admin or beekeeper rights
+    if (auth.isAuthenticated && auth.user?.access_token && (isAdmin || canAddApiary)) {
+      dispatch(fetchApiaries({ 
+        accessToken: auth.user.access_token, 
+        geolocation: geolocationParams 
+      }));
     }
 
     // Après chaque fetch, stocker la nouvelle zone

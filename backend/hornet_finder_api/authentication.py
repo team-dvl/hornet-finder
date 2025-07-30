@@ -18,12 +18,12 @@ class JWTUser:
     """
     Represents a user authenticated via JWT token.
     This class is used to create a user object from the token information.
-    It extracts the username and roles from the token info.
+    It extracts the guid and roles from the token info.
     """
 
     def __init__(self, token_info):
         self.token_info = token_info
-        self.username = token_info.get('email')
+        self.guid = token_info.get('sub')
         self.roles = token_info.get('realm_access', {}).get('roles', [])
 
     @property
