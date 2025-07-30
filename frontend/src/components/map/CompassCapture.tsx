@@ -1,5 +1,6 @@
 import { Modal, Button, Alert } from 'react-bootstrap';
 import { useState, useEffect, useRef } from 'react';
+import CompassPermissionModal from './CompassPermissionModal';
 
 interface DeviceOrientationEventStatic {
   requestPermission?: () => Promise<'granted' | 'denied'>;
@@ -34,6 +35,10 @@ interface CompassCaptureProps {
   onCapture: (direction: number) => void;
   initialLatitude?: number;
   initialLongitude?: number;
+  showPermissionModal?: boolean;
+  onRequestOrientationPermission?: () => void;
+  onCancelPermissionModal?: () => void;
+  orientationPermissionGranted?: boolean;
 }
 
 export default function CompassCapture({ 
@@ -41,13 +46,19 @@ export default function CompassCapture({
   onHide, 
   onCapture, 
   initialLatitude, 
-  initialLongitude 
+  initialLongitude,
+  showPermissionModal = false,
+  onRequestOrientationPermission,
+  onCancelPermissionModal,
+  orientationPermissionGranted = false
 }: CompassCaptureProps) {
   const [latitude, setLatitude] = useState<number | null>(initialLatitude || null);
   const [longitude, setLongitude] = useState<number | null>(initialLongitude || null);
   const [heading, setHeading] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSupported, setIsSupported] = useState(true);
+  const [needsOrientationPermission, setNeedsOrientationPermission] = useState(false);
+  const [orientationPermissionGrantedLocal, setOrientationPermissionGrantedLocal] = useState(orientationPermissionGranted);
   const watchIdRef = useRef<number | null>(null);
   const orientationPermissionRef = useRef<boolean>(false);
   const sensorRef = useRef<AbsoluteOrientationSensor | null>(null);
@@ -60,200 +71,195 @@ export default function CompassCapture({
       setError('Votre appareil ne supporte pas la géolocalisation ou l\'orientation.');
       return;
     }
+    if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+      setNeedsOrientationPermission(true);
+    }
   }, []);
 
   // Demander les permissions et démarrer le suivi
   useEffect(() => {
-    if (!show || !isSupported) return;
-
+    if (!show || !isSupported || (needsOrientationPermission && !orientationPermissionGrantedLocal)) return;
+    let cleanup: (() => void) | undefined;
     const startTracking = async () => {
       setError(null);
 
-      try {
-        // Demander la permission pour l'orientation sur iOS
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
-          try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const permission = await (DeviceOrientationEvent as any).requestPermission();
-            if (permission !== 'granted') {
-              setError('Permission d\'orientation refusée. Sur iOS, veuillez aller dans Réglages > Safari > Mouvement et Orientation et activer l\'accès.');
-              return;
+      // Démarrer la géolocalisation
+      if (navigator.geolocation) {
+        watchIdRef.current = navigator.geolocation.watchPosition(
+          (position) => {
+            setLatitude(position.coords.latitude);
+            setLongitude(position.coords.longitude);
+            // Réinitialiser l'erreur si la position est obtenue avec succès
+            setError(null);
+          },
+          (error) => {
+            console.error('Erreur de géolocalisation:', error);
+            let errorMessage = 'Impossible d\'obtenir la position. ';
+            switch (error.code) {
+              case error.PERMISSION_DENIED:
+                errorMessage += 'Permission de géolocalisation refusée.';
+                break;
+              case error.POSITION_UNAVAILABLE:
+                errorMessage += 'Position non disponible.';
+                break;
+              case error.TIMEOUT:
+                errorMessage += 'Timeout de géolocalisation.';
+                break;
+              default:
+                errorMessage += 'Erreur inconnue.';
+                break;
             }
-            orientationPermissionRef.current = true;
-          } catch (permissionError) {
-            console.error('Erreur de permission orientation:', permissionError);
-            setError('Impossible de demander la permission d\'orientation. Assurez-vous que votre appareil supporte cette fonctionnalité.');
-            return;
+            setError(errorMessage);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 15000, // Augmenter le timeout pour iOS PWA
+            maximumAge: 5000 // Augmenter l'âge maximum
           }
-        } else {
-          // Pour les appareils non-iOS, on suppose que la permission est accordée
-          orientationPermissionRef.current = true;
-        }
+        );
+      }
 
-        // Démarrer la géolocalisation
-        if (navigator.geolocation) {
-          watchIdRef.current = navigator.geolocation.watchPosition(
-            (position) => {
-              setLatitude(position.coords.latitude);
-              setLongitude(position.coords.longitude);
-              // Réinitialiser l'erreur si la position est obtenue avec succès
-              setError(null);
-            },
-            (error) => {
-              console.error('Erreur de géolocalisation:', error);
-              let errorMessage = 'Impossible d\'obtenir la position. ';
-              switch (error.code) {
-                case error.PERMISSION_DENIED:
-                  errorMessage += 'Permission de géolocalisation refusée.';
-                  break;
-                case error.POSITION_UNAVAILABLE:
-                  errorMessage += 'Position non disponible.';
-                  break;
-                case error.TIMEOUT:
-                  errorMessage += 'Timeout de géolocalisation.';
-                  break;
-                default:
-                  errorMessage += 'Erreur inconnue.';
-                  break;
-              }
-              setError(errorMessage);
-            },
-            {
-              enableHighAccuracy: true,
-              timeout: 15000, // Augmenter le timeout pour iOS PWA
-              maximumAge: 5000 // Augmenter l'âge maximum
-            }
-          );
-        }
+      // Démarrer l'écoute de l'orientation avec un délai pour iOS PWA
+      const startOrientationTracking = () => {
+        const isAndroid = /Android/.test(navigator.userAgent);
 
-        // Démarrer l'écoute de l'orientation avec un délai pour iOS PWA
-        const startOrientationTracking = () => {
-          const isAndroid = /Android/.test(navigator.userAgent);
-
-          // Fonction pour convertir quaternion en heading (yaw)
-          const quaternionToHeading = (q: number[]): number => {
-            const [x, y, z, w] = q;
-            // Calculer le yaw (rotation autour de l'axe Z) depuis le quaternion
-            const yaw = Math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z));
-            // Convertir en degrés
-            let degrees = (yaw * 180) / Math.PI;
-            // Sur Android, inverser l'angle (360 - angle)
-            if (isAndroid) {
-              degrees = 360 - degrees;
-            }
-            // Normaliser entre 0-359
-            degrees = ((degrees % 360) + 360) % 360;
-            return degrees;
-          };
-
-          // Essayer d'utiliser AbsoluteOrientationSensor sur Android si disponible
-          if (isAndroid && window.AbsoluteOrientationSensor) {
-            const checkSensorPermissions = async () => {
-              try {
-                // Vérifier les permissions pour les capteurs
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const permissionStatus = await (navigator as any).permissions?.query({ name: 'accelerometer' });
-                if (permissionStatus?.state === 'granted' || permissionStatus?.state === 'prompt') {
-                  const sensor = new window.AbsoluteOrientationSensor!({ frequency: 10 });
-                  sensorRef.current = sensor;
-                  
-                  sensor.addEventListener('reading', () => {
-                    if (sensor.quaternion) {
-                      const heading = quaternionToHeading(sensor.quaternion);
-                      setHeading(Math.round(heading));
-                    }
-                  });
-                  
-                  sensor.addEventListener('error', (event: Event) => {
-                    console.error('AbsoluteOrientationSensor error:', event);
-                    setError('Erreur du capteur AbsoluteOrientationSensor. Votre appareil Android ne supporte pas cette fonctionnalité de manière fiable.');
-                  });
-                  
-                  sensor.start();
-                  return;
-                } else {
-                  setError('Permissions des capteurs refusées. L\'application a besoin d\'accéder aux capteurs de mouvement pour fonctionner sur Android.');
-                }
-              } catch (error) {
-                console.log('AbsoluteOrientationSensor non disponible:', error);
-                setError('AbsoluteOrientationSensor non supporté. Votre appareil Android ne supporte pas cette fonctionnalité nécessaire pour la capture de direction.');
-              }
-            };
-            
-            checkSensorPermissions();
-          } else if (isAndroid) {
-            // Android sans AbsoluteOrientationSensor
-            setError('Votre appareil Android ne supporte pas AbsoluteOrientationSensor, nécessaire pour la capture de direction précise.');
-          } else {
-            // iOS : utiliser DeviceOrientationEvent
-            startDeviceOrientationTracking();
+        // Fonction pour convertir quaternion en heading (yaw)
+        const quaternionToHeading = (q: number[]): number => {
+          const [x, y, z, w] = q;
+          // Calculer le yaw (rotation autour de l'axe Z) depuis le quaternion
+          const yaw = Math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z));
+          // Convertir en degrés
+          let degrees = (yaw * 180) / Math.PI;
+          // Sur Android, inverser l'angle (360 - angle)
+          if (isAndroid) {
+            degrees = 360 - degrees;
           }
-
-          function startDeviceOrientationTracking() {
-            // Fonction uniquement pour iOS
-            const handleOrientation = (event: DeviceOrientationEvent) => {
-              if (event.alpha !== null) {
-                let direction = event.alpha;
-                
-                // Sur iOS, utiliser webkitCompassHeading si disponible
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                if (typeof (event as any).webkitCompassHeading === 'number') {
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  direction = (event as any).webkitCompassHeading;
-                }
-                
-                // Normaliser entre 0-359
-                direction = ((direction % 360) + 360) % 360;
-                
-                setHeading(Math.round(direction));
-              }
-            };
-
-            // Stocker la référence du listener pour pouvoir le nettoyer
-            orientationListenerRef.current = handleOrientation;
-            window.addEventListener('deviceorientation', handleOrientation, true);
-          }
-
-          // Nettoyer les event listeners lors du démontage
-          return () => {
-            // Arrêter le sensor si il est actif
-            if (sensorRef.current) {
-              sensorRef.current.stop();
-              sensorRef.current = null;
-            }
-            
-            // Nettoyer le listener DeviceOrientation si il existe
-            if (orientationListenerRef.current) {
-              window.removeEventListener('deviceorientation', orientationListenerRef.current, true);
-              orientationListenerRef.current = null;
-            }
-            
-            // Nettoyer la géolocalisation
-            if (watchIdRef.current !== null) {
-              navigator.geolocation.clearWatch(watchIdRef.current);
-            }
-          };
+          // Normaliser entre 0-359
+          degrees = ((degrees % 360) + 360) % 360;
+          return degrees;
         };
 
-        // Pour iOS PWA, attendre un peu avant de démarrer l'écoute d'orientation
-        const isIOSPWA = window.navigator.standalone === true;
-        if (isIOSPWA) {
-          setTimeout(startOrientationTracking, 500);
+        // Essayer d'utiliser AbsoluteOrientationSensor sur Android si disponible
+        if (isAndroid && window.AbsoluteOrientationSensor) {
+          const checkSensorPermissions = async () => {
+            try {
+              // Vérifier les permissions pour les capteurs
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const permissionStatus = await (navigator as any).permissions?.query({ name: 'accelerometer' });
+              if (permissionStatus?.state === 'granted' || permissionStatus?.state === 'prompt') {
+                const sensor = new window.AbsoluteOrientationSensor!({ frequency: 10 });
+                sensorRef.current = sensor;
+                
+                sensor.addEventListener('reading', () => {
+                  if (sensor.quaternion) {
+                    const heading = quaternionToHeading(sensor.quaternion);
+                    setHeading(Math.round(heading));
+                  }
+                });
+                
+                sensor.addEventListener('error', (event: Event) => {
+                  console.error('AbsoluteOrientationSensor error:', event);
+                  setError('Erreur du capteur AbsoluteOrientationSensor. Votre appareil Android ne supporte pas cette fonctionnalité de manière fiable.');
+                });
+                
+                sensor.start();
+                return;
+              } else {
+                setError('Permissions des capteurs refusées. L\'application a besoin d\'accéder aux capteurs de mouvement pour fonctionner sur Android.');
+              }
+            } catch (error) {
+              console.log('AbsoluteOrientationSensor non disponible:', error);
+              setError('AbsoluteOrientationSensor non supporté. Votre appareil Android ne supporte pas cette fonctionnalité nécessaire pour la capture de direction.');
+            }
+          };
+          
+          checkSensorPermissions();
+        } else if (isAndroid) {
+          // Android sans AbsoluteOrientationSensor
+          setError('Votre appareil Android ne supporte pas AbsoluteOrientationSensor, nécessaire pour la capture de direction précise.');
         } else {
-          startOrientationTracking();
+          // iOS : utiliser DeviceOrientationEvent
+          startDeviceOrientationTracking();
         }
 
-        return startOrientationTracking;
+        function startDeviceOrientationTracking() {
+          // Fonction uniquement pour iOS
+          const handleOrientation = (event: DeviceOrientationEvent) => {
+            if (event.alpha !== null) {
+              let direction = event.alpha;
+              
+              // Sur iOS, utiliser webkitCompassHeading si disponible
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              if (typeof (event as any).webkitCompassHeading === 'number') {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                direction = (event as any).webkitCompassHeading;
+              }
+              
+              // Normaliser entre 0-359
+              direction = ((direction % 360) + 360) % 360;
+              
+              setHeading(Math.round(direction));
+            }
+          };
 
-      } catch (err) {
-        console.error('Erreur lors du démarrage du suivi:', err);
-        setError('Erreur lors de l\'accès aux capteurs de l\'appareil. Sur iOS PWA, certaines fonctionnalités peuvent être limitées.');
+          // Stocker la référence du listener pour pouvoir le nettoyer
+          orientationListenerRef.current = handleOrientation;
+          window.addEventListener('deviceorientation', handleOrientation, true);
+        }
+
+        // Nettoyer les event listeners lors du démontage
+        return () => {
+          // Arrêter le sensor si il est actif
+          if (sensorRef.current) {
+            sensorRef.current.stop();
+            sensorRef.current = null;
+          }
+          
+          // Nettoyer le listener DeviceOrientation si il existe
+          if (orientationListenerRef.current) {
+            window.removeEventListener('deviceorientation', orientationListenerRef.current, true);
+            orientationListenerRef.current = null;
+          }
+          
+          // Nettoyer la géolocalisation
+          if (watchIdRef.current !== null) {
+            navigator.geolocation.clearWatch(watchIdRef.current);
+          }
+        };
+      };
+
+      // Pour iOS PWA, attendre un peu avant de démarrer l'écoute d'orientation
+      const isIOSPWA = window.navigator.standalone === true;
+      if (isIOSPWA) {
+        setTimeout(() => {
+          cleanup = startOrientationTracking();
+        }, 500);
+      } else {
+        cleanup = startOrientationTracking();
       }
     };
-
     startTracking();
-  }, [show, isSupported]);
+    return () => {
+      if (typeof cleanup === 'function') cleanup();
+    };
+  }, [show, isSupported, needsOrientationPermission, orientationPermissionGrantedLocal]);
+
+  // Handler pour le bouton d'autorisation orientation (iOS)
+  const handleRequestOrientationPermission = async () => {
+    setError(null);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const permission = await (DeviceOrientationEvent as any).requestPermission();
+      if (permission === 'granted') {
+        setOrientationPermissionGrantedLocal(true);
+        orientationPermissionRef.current = true;
+      } else {
+        setError('Permission d\'orientation refusée. Sur iOS, veuillez aller dans Réglages > Safari > Mouvement et Orientation et activer l\'accès.');
+      }
+    } catch (permissionError) {
+      setError('Impossible de demander la permission d\'orientation. Assurez-vous que votre appareil supporte cette fonctionnalité.');
+    }
+  };
 
   // Nettoyer lors de la fermeture
   const handleClose = () => {
@@ -292,6 +298,25 @@ export default function CompassCapture({
     const index = Math.round(degrees / 45) % 8;
     return directions[index];
   };
+
+  useEffect(() => {
+    setOrientationPermissionGrantedLocal(orientationPermissionGranted);
+  }, [orientationPermissionGranted]);
+
+  if (showPermissionModal && needsOrientationPermission && !orientationPermissionGrantedLocal) {
+    return (
+      <>
+        <CompassPermissionModal
+          show={true}
+          onRequestPermission={onRequestOrientationPermission || (() => {})}
+          onCancel={onCancelPermissionModal || (() => {})}
+        />
+        <Modal show={show} onHide={handleClose} centered size="lg" backdrop="static" keyboard={false} style={{ opacity: 0.5, pointerEvents: 'none' }}>
+          {/* Modal CompassCapture rendu mais désactivé visuellement */}
+        </Modal>
+      </>
+    );
+  }
 
   if (!isSupported) {
     return (
@@ -332,10 +357,8 @@ export default function CompassCapture({
                   size="sm"
                   onClick={() => {
                     setError(null);
-                    // Force un nouveau cycle de permissions
-                    if (show && isSupported) {
-                      window.location.reload();
-                    }
+                    setNeedsOrientationPermission(true);
+                    setOrientationPermissionGrantedLocal(false);
                   }}
                 >
                   🔄 Réessayer

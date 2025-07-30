@@ -317,7 +317,26 @@ export default function InteractiveMap() {
     // Optionnel : afficher un message de succès ou recharger les données
   };
 
-  // Gestionnaire pour la capture rapide avec boussole
+  // Pour la permission boussole iOS
+  const [showCompassPermissionModal, setShowCompassPermissionModal] = useState(false);
+  const [orientationPermissionGranted, setOrientationPermissionGranted] = useState(false);
+
+  // Handler pour demander la permission orientation (iOS)
+  const handleRequestOrientationPermission = async () => {
+    if (typeof window.DeviceOrientationEvent !== 'undefined' && typeof (window.DeviceOrientationEvent as any).requestPermission === 'function') {
+      try {
+        const permission = await (window.DeviceOrientationEvent as any).requestPermission();
+        if (permission === 'granted') {
+          setOrientationPermissionGranted(true);
+          setShowCompassPermissionModal(false);
+        }
+      } catch (e) {
+        setShowCompassPermissionModal(false);
+      }
+    }
+  };
+
+  // Handler pour QuickCaptureButton (ou LocateButton si besoin)
   const handleQuickHornetCapture = () => {
     // Vérifier d'abord si l'utilisateur est authentifié
     if (!auth.isAuthenticated) {
@@ -363,6 +382,12 @@ export default function InteractiveMap() {
       });
       setShowCompassCapture(true);
     }
+
+    // Juste avant d'afficher CompassCapture, vérifier si la permission orientation est requise
+    if (typeof window.DeviceOrientationEvent !== 'undefined' && typeof (window.DeviceOrientationEvent as any).requestPermission === 'function' && !orientationPermissionGranted) {
+      setShowCompassPermissionModal(true);
+    }
+    setShowCompassCapture(true);
   };
 
   // Gestionnaire pour la capture de direction
@@ -535,6 +560,10 @@ export default function InteractiveMap() {
         onCapture={handleCompassDirectionCapture}
         initialLatitude={compassCapturedPosition?.lat}
         initialLongitude={compassCapturedPosition?.lng}
+        showPermissionModal={showCompassPermissionModal}
+        onRequestOrientationPermission={handleRequestOrientationPermission}
+        onCancelPermissionModal={() => setShowCompassPermissionModal(false)}
+        orientationPermissionGranted={orientationPermissionGranted}
       />
 
       {/* Modal de géolocalisation en cours */}
