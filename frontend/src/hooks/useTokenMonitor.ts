@@ -9,6 +9,9 @@ interface TokenInfo {
   isExpiringSoon: boolean;
 }
 
+// Global flag to avoid log spam if multiple hooks are mounted
+let lastGlobalRenewalLog = 0;
+
 /**
  * Hook pour surveiller l'état des tokens et le renouvellement automatique
  */
@@ -38,13 +41,13 @@ export const useTokenMonitor = () => {
           isExpiringSoon
         });
 
-        // Log si le token expire bientôt
+        // Log si le token expire bientôt (une seule fois toutes les 30s globalement)
         if (isExpiringSoon && timeUntilExpiry > 0) {
-          const now = Date.now();
-          // Éviter de spammer les logs - seulement toutes les 30 secondes
-          if (now - lastRenewalAttempt > 30000) {
+          const nowMs = Date.now();
+          if (nowMs - lastGlobalRenewalLog > 30000) {
             console.warn(`⚠️ Token expires in ${Math.floor(timeUntilExpiry / 60)} minutes`);
-            setLastRenewalAttempt(now);
+            lastGlobalRenewalLog = nowMs;
+            setLastRenewalAttempt(nowMs);
           }
         }
       } catch (error) {

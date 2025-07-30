@@ -16,6 +16,9 @@ let isRenewing = false;
 let lastRenewalTime = 0;
 const RENEWAL_COOLDOWN = 30 * 1000; // 30 secondes entre renouvellements
 
+// Global variable to avoid duplicate logs for the same token expiry
+let lastTokenExpiringAt = 0;
+
 export function detectPWAAuthState(): PWAAuthState {
   // Détecter si l'app est lancée en mode PWA
   const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
@@ -72,11 +75,15 @@ export function setupPWAAuthMonitoring(): void {
         console.log('🔧 Service Worker signale une erreur d\'authentification');
         handlePWAAuthError();
       } else if (event.data && event.data.type === 'TOKEN_EXPIRING') {
-        console.log('⏰ Service Worker signale que le token va expirer');
-        // Déclencher un renouvellement proactif
-        window.dispatchEvent(new CustomEvent('token-expiring', { 
-          detail: event.data.payload 
-        }));
+        const expiresAt = event.data.payload?.expiresAt;
+        if (expiresAt && expiresAt !== lastTokenExpiringAt) {
+          lastTokenExpiringAt = expiresAt;
+          console.log('⏰ Service Worker signale que le token va expirer');
+          // Déclencher un renouvellement proactif
+          window.dispatchEvent(new CustomEvent('token-expiring', { 
+            detail: event.data.payload 
+          }));
+        } // else: duplicate, do not log
       } else if (event.data && event.data.type === 'TOKEN_RENEWED') {
         console.log('✅ Service Worker confirme le renouvellement du token');
       }

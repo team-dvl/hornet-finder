@@ -110,13 +110,13 @@ export class AuthServiceWorkerTester {
     
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('message', (event) => {
-        console.log('📨 Message du service worker:', event.data);
+        console.debug('📨 Message du service worker:', event.data);
       });
     }
 
     // Écouter les événements personnalisés
     window.addEventListener('token-expiring', (event) => {
-      console.log('⚠️ Événement token-expiring reçu:', (event as CustomEvent).detail);
+      console.debug('⚠️ Événement token-expiring reçu:', (event as CustomEvent).detail);
     });
   }
 

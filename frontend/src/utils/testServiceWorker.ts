@@ -73,11 +73,11 @@ export const testServiceWorker = {
     navigator.serviceWorker.addEventListener('message', (event) => {
       const { type, payload } = event.data || {};
       
-      console.log('📨 Message reçu du service worker:', { type, payload });
+      console.debug('📨 Message reçu du service worker:', { type, payload });
       
       switch (type) {
         case 'TOKEN_EXPIRING_SOON':
-          console.log('⚠️ Token expire bientôt:', payload);
+          console.warn('⚠️ Token expire bientôt:', payload);
           break;
         case 'AUTH_STATE_CHANGED':
           console.log('🔄 État auth changé:', payload);
