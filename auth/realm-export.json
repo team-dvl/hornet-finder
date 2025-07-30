@@ -2,7 +2,7 @@
   "id": "0a2b88de-ad3d-4820-af60-8397202b8049",
   "realm": "hornet-finder",
   "displayName": "Velutina",
-  "displayNameHtml": "",
+  "displayNameHtml": "<div class=\"kc-logo-text\"><span>Velutina</span></div>",
   "notBefore": 0,
   "defaultSignatureAlgorithm": "RS256",
   "revokeRefreshToken": false,
@@ -36,7 +36,7 @@
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
-  "editUsernameAllowed": false,
+  "editUsernameAllowed": true,
   "bruteForceProtected": false,
   "permanentLockout": false,
   "maxTemporaryLockouts": 0,
@@ -907,7 +907,7 @@
       "id": "0aa127ca-30e7-4e51-a563-f5248a6f210b",
       "clientId": "hornet-app",
       "name": "hornet-app",
-      "description": "",
+      "description": "the client used from the browser / PWA, in PROD mode",
       "rootUrl": "https://velutina.ovh",
       "adminUrl": "",
       "baseUrl": "",
@@ -971,8 +971,8 @@
         "phone",
         "organization",
         "offline_access",
-        "microprofile-jwt",
-        "membership"
+        "membership",
+        "microprofile-jwt"
       ]
     },
     {
@@ -1917,7 +1917,7 @@
     "host": "ssl0.ovh.net",
     "replyTo": "",
     "from": "4p6z9k4bj@mozmail.com",
-    "fromDisplayName": "Hornet-Finder",
+    "fromDisplayName": "Velutina administrator",
     "authType": "basic",
     "user": "admin@velutina.ovh"
   },
@@ -1926,7 +1926,7 @@
   "adminTheme": "",
   "emailTheme": "",
   "eventsEnabled": true,
-  "eventsExpiration": 172800,
+  "eventsExpiration": 604800,
   "eventsListeners": [
     "jboss-logging"
   ],
@@ -2992,11 +2992,11 @@
     "clientSessionMaxLifespan": "0",
     "frontendUrl": "",
     "acr.loa.map": "{}",
-    "adminEventsExpiration": "172800",
+    "adminEventsExpiration": "604800",
     "darkMode": "false"
   },
   "keycloakVersion": "26.2.5",
-  "userManagedAccessAllowed": false,
+  "userManagedAccessAllowed": true,
   "organizationsEnabled": false,
   "verifiableCredentialsEnabled": false,
   "adminPermissionsEnabled": false,
