@@ -43,18 +43,22 @@ def get_realm_public_key():
     pem_public_key = "-----BEGIN PUBLIC KEY-----\n" + public_key + "\n-----END PUBLIC KEY-----"
     return pem_public_key
 
-def user_exists(email: str) -> bool:
+def user_exists(guid: str) -> bool:
     """
-    Checks if a user with the given email exists in the hornet-finder realm.
+    Checks if a user with the given Keycloak GUID exists in the hornet-finder realm.
 
-    :param email: The email of the user to check.
-    :type email: str
+    :param guid: The Keycloak user GUID to check.
+    :type guid: str
 
     :return: True if the user exists, False otherwise.
     :rtype: bool
     """
     keycloak_admin = _get_keycloak_admin()
-    return keycloak_admin.get_user_id(email) is not None
+    try:
+        user = keycloak_admin.get_user(guid)
+        return user is not None
+    except Exception:
+        return False
 
 def get_user_display_name(guid: str) -> Optional[str]:
     """
