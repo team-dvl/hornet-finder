@@ -1,4 +1,4 @@
-import { Modal, Button, Alert } from 'react-bootstrap';
+import { Modal, Button, Alert, Tabs, Tab } from 'react-bootstrap';
 import { useState, useEffect, useRef } from 'react';
 import CompassPermissionModal from './CompassPermissionModal';
 
@@ -59,6 +59,9 @@ export default function CompassCapture({
   const [isSupported, setIsSupported] = useState(true);
   const [needsOrientationPermission, setNeedsOrientationPermission] = useState(false);
   const [orientationPermissionGrantedLocal, setOrientationPermissionGrantedLocal] = useState(orientationPermissionGranted);
+  const [manualMode, setManualMode] = useState(false);
+  const [manualHeading, setManualHeading] = useState<number | null>(null);
+  const [tabKey, setTabKey] = useState<'compass' | 'manual'>('compass');
   const watchIdRef = useRef<number | null>(null);
   const orientationPermissionRef = useRef<boolean>(false);
   const sensorRef = useRef<AbsoluteOrientationSensor | null>(null);
@@ -284,6 +287,15 @@ export default function CompassCapture({
 
   // Capturer la direction actuelle
   const handleCapture = () => {
+    if (tabKey === 'manual') {
+      if (manualHeading !== null && latitude !== null && longitude !== null) {
+        onCapture(manualHeading);
+        handleClose();
+      } else {
+        setError('Veuillez entrer une direction valide (0-359°) et attendre la position.');
+      }
+      return;
+    }
     if (heading !== null && latitude !== null && longitude !== null) {
       onCapture(heading);
       handleClose();
@@ -346,28 +358,152 @@ export default function CompassCapture({
       </Modal.Header>
       
       <Modal.Body>
-        {error && (
-          <Alert variant="danger" className="mb-3">
-            {error}
-            {/* Bouton pour réessayer les permissions sur iOS */}
-            {error.includes('Permission') && (
-              <div className="mt-2">
-                <Button 
-                  variant="outline-primary" 
-                  size="sm"
-                  onClick={() => {
-                    setError(null);
-                    setNeedsOrientationPermission(true);
-                    setOrientationPermissionGrantedLocal(false);
-                  }}
-                >
-                  🔄 Réessayer
-                </Button>
+        <Tabs
+          id="direction-capture-tabs"
+          activeKey={tabKey}
+          onSelect={k => setTabKey(k as 'compass' | 'manual')}
+          className="mb-3 justify-content-center"
+        >
+          <Tab eventKey="compass" title="Boussole">
+            <div style={{ minHeight: 340, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+              <div className="d-flex justify-content-center align-items-center" style={{ height: '240px', margin: '0', position: 'relative' }}>
+                <div className="bg-primary rounded-circle d-flex justify-content-center align-items-center"
+                  style={{ width: '200px', height: '200px', position: 'relative' }}>
+                  
+                  {/* Marqueurs de direction - rosace qui pivote avec le nord */}
+                  <div 
+                    className="position-absolute"
+                    style={{ 
+                      width: '100%', 
+                      height: '100%',
+                      transform: heading !== null ? `rotate(${-heading}deg)` : 'none',
+                      transformOrigin: 'center'
+                    }}
+                  >
+                    {/* Points cardinaux principaux */}
+                    <div className="position-absolute" style={{ top: '10px', left: '50%', transform: 'translateX(-50%)', color: 'white', fontWeight: 'bold', fontSize: '14px' }}>
+                      N
+                    </div>
+                    <div className="position-absolute" style={{ right: '10px', top: '50%', transform: 'translateY(-50%)', color: 'white', fontWeight: 'bold', fontSize: '14px' }}>
+                      E
+                    </div>
+                    <div className="position-absolute" style={{ bottom: '10px', left: '50%', transform: 'translateX(-50%)', color: 'white', fontWeight: 'bold', fontSize: '14px' }}>
+                      S
+                    </div>
+                    <div className="position-absolute" style={{ left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'white', fontWeight: 'bold', fontSize: '14px' }}>
+                      O
+                    </div>
+                    
+                    {/* Points cardinaux intermédiaires */}
+                    <div className="position-absolute" style={{ top: '35px', right: '35px', color: 'white', fontWeight: 'bold', fontSize: '12px' }}>
+                      NE
+                    </div>
+                    <div className="position-absolute" style={{ bottom: '35px', right: '35px', color: 'white', fontWeight: 'bold', fontSize: '12px' }}>
+                      SE
+                    </div>
+                    <div className="position-absolute" style={{ bottom: '35px', left: '35px', color: 'white', fontWeight: 'bold', fontSize: '12px' }}>
+                      SO
+                    </div>
+                    <div className="position-absolute" style={{ top: '35px', left: '35px', color: 'white', fontWeight: 'bold', fontSize: '12px' }}>
+                      NO
+                    </div>
+                  </div>
+
+                  {/* Flèche du nord géographique */}
+                  {heading !== null && (
+                    <div 
+                      className="position-absolute d-flex flex-column align-items-center"
+                      style={{ 
+                        color: '#ffff00',
+                        transform: `rotate(${-heading}deg)`,
+                        transformOrigin: 'center',
+                        zIndex: 1
+                      }}
+                    >
+                      <div style={{ 
+                        width: '0', 
+                        height: '0', 
+                        borderLeft: '15px solid transparent',
+                        borderRight: '15px solid transparent',
+                        borderBottom: '40px solid #ffff00',
+                        marginBottom: '5px',
+                        filter: 'drop-shadow(1px 1px 1px black) drop-shadow(-1px -1px 1px black) drop-shadow(1px -1px 1px black) drop-shadow(-1px 1px 1px black)'
+                      }}></div>
+                      <div style={{ 
+                        width: '6px', 
+                        height: '60px', 
+                        backgroundColor: '#ffff00',
+                        filter: 'drop-shadow(1px 1px 1px black) drop-shadow(-1px -1px 1px black) drop-shadow(1px -1px 1px black) drop-shadow(-1px 1px 1px black)'
+                      }}></div>
+                    </div>
+                  )}
+
+                  {/* Flèche de direction de l'appareil (toujours pointée vers le haut) */}
+                  <div className="position-absolute d-flex flex-column align-items-center" 
+                       style={{ color: 'white', zIndex: 2 }}>
+                    <div style={{ 
+                      width: '0', 
+                      height: '0', 
+                      borderLeft: '15px solid transparent',
+                      borderRight: '15px solid transparent',
+                      borderBottom: '40px solid white',
+                      marginBottom: '5px',
+                      filter: 'drop-shadow(1px 1px 1px black) drop-shadow(-1px -1px 1px black) drop-shadow(1px -1px 1px black) drop-shadow(-1px 1px 1px black)'
+                    }}></div>
+                    <div style={{ 
+                      width: '6px', 
+                      height: '60px', 
+                      backgroundColor: 'white',
+                      filter: 'drop-shadow(1px 1px 1px black) drop-shadow(-1px -1px 1px black) drop-shadow(1px -1px 1px black) drop-shadow(-1px 1px 1px black)'
+                    }}></div>
+                  </div>
+                </div>
               </div>
-            )}
-          </Alert>
-        )}
-        
+              <div className="text-center mt-2">
+                <p className="text-muted small mb-1">
+                  <strong>Flèche blanche :</strong> Direction de votre appareil<br/>
+                  <strong>Flèche jaune :</strong> Nord géographique
+                </p>
+                <p className="text-muted small mb-0">
+                  Orientez votre appareil dans la direction du vol du frelon, puis capturez.
+                </p>
+              </div>
+            </div>
+          </Tab>
+          <Tab eventKey="manual" title="Saisie manuelle">
+            <div style={{ minHeight: 340, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+              <div className="mb-3 text-center" style={{ marginTop: 40 }}>
+                <label htmlFor="manualHeadingInput" className="form-label">
+                  Direction (en degrés, 0-359)
+                </label>
+                <input
+                  id="manualHeadingInput"
+                  type="number"
+                  min={0}
+                  max={359}
+                  className="form-control w-auto d-inline-block"
+                  value={manualHeading !== null ? manualHeading : ''}
+                  onChange={e => {
+                    const val = parseInt(e.target.value, 10);
+                    if (!isNaN(val) && val >= 0 && val <= 359) {
+                      setManualHeading(val);
+                      setError(null);
+                    } else {
+                      setManualHeading(null);
+                      setError('Veuillez entrer une valeur entre 0 et 359.');
+                    }
+                  }}
+                  placeholder="0-359"
+                />
+              </div>
+              <div className="text-center mt-2">
+                <p className="text-muted small mb-0">
+                  Saisissez manuellement la direction du vol du frelon.
+                </p>
+              </div>
+            </div>
+          </Tab>
+        </Tabs>
         {/* Informations de position et direction */}
         <div className="bg-light p-3 rounded mb-3">
           <div className="row text-center">
@@ -386,130 +522,30 @@ export default function CompassCapture({
             <div className="col-4">
               <strong>Direction</strong>
               <div className="small">
-                {heading !== null ? `${heading}° (${getDirectionLabel(heading)})` : '...'}
+                {tabKey === 'manual'
+                  ? manualHeading !== null
+                    ? `${manualHeading}° (${getDirectionLabel(manualHeading)})`
+                    : '...'
+                  : heading !== null
+                    ? `${heading}° (${getDirectionLabel(heading)})`
+                    : '...'}
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Flèche de direction au centre */}
-        <div className="d-flex justify-content-center align-items-center" style={{ height: '300px', position: 'relative' }}>
-          <div className="bg-primary rounded-circle d-flex justify-content-center align-items-center" 
-               style={{ width: '200px', height: '200px', position: 'relative' }}>
-            
-            {/* Marqueurs de direction - rosace qui pivote avec le nord */}
-            <div 
-              className="position-absolute"
-              style={{ 
-                width: '100%', 
-                height: '100%',
-                transform: heading !== null ? `rotate(${-heading}deg)` : 'none',
-                transformOrigin: 'center'
-              }}
-            >
-              {/* Points cardinaux principaux */}
-              <div className="position-absolute" style={{ top: '10px', left: '50%', transform: 'translateX(-50%)', color: 'white', fontWeight: 'bold', fontSize: '14px' }}>
-                N
-              </div>
-              <div className="position-absolute" style={{ right: '10px', top: '50%', transform: 'translateY(-50%)', color: 'white', fontWeight: 'bold', fontSize: '14px' }}>
-                E
-              </div>
-              <div className="position-absolute" style={{ bottom: '10px', left: '50%', transform: 'translateX(-50%)', color: 'white', fontWeight: 'bold', fontSize: '14px' }}>
-                S
-              </div>
-              <div className="position-absolute" style={{ left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'white', fontWeight: 'bold', fontSize: '14px' }}>
-                O
-              </div>
-              
-              {/* Points cardinaux intermédiaires */}
-              <div className="position-absolute" style={{ top: '35px', right: '35px', color: 'white', fontWeight: 'bold', fontSize: '12px' }}>
-                NE
-              </div>
-              <div className="position-absolute" style={{ bottom: '35px', right: '35px', color: 'white', fontWeight: 'bold', fontSize: '12px' }}>
-                SE
-              </div>
-              <div className="position-absolute" style={{ bottom: '35px', left: '35px', color: 'white', fontWeight: 'bold', fontSize: '12px' }}>
-                SO
-              </div>
-              <div className="position-absolute" style={{ top: '35px', left: '35px', color: 'white', fontWeight: 'bold', fontSize: '12px' }}>
-                NO
-              </div>
-            </div>
-
-            {/* Flèche du nord géographique */}
-            {heading !== null && (
-              <div 
-                className="position-absolute d-flex flex-column align-items-center"
-                style={{ 
-                  color: '#ffff00',
-                  transform: `rotate(${-heading}deg)`,
-                  transformOrigin: 'center',
-                  zIndex: 1
-                }}
-              >
-                <div style={{ 
-                  width: '0', 
-                  height: '0', 
-                  borderLeft: '15px solid transparent',
-                  borderRight: '15px solid transparent',
-                  borderBottom: '40px solid #ffff00',
-                  marginBottom: '5px',
-                  filter: 'drop-shadow(1px 1px 1px black) drop-shadow(-1px -1px 1px black) drop-shadow(1px -1px 1px black) drop-shadow(-1px 1px 1px black)'
-                }}></div>
-                <div style={{ 
-                  width: '6px', 
-                  height: '60px', 
-                  backgroundColor: '#ffff00',
-                  filter: 'drop-shadow(1px 1px 1px black) drop-shadow(-1px -1px 1px black) drop-shadow(1px -1px 1px black) drop-shadow(-1px 1px 1px black)'
-                }}></div>
-              </div>
-            )}
-
-            {/* Flèche de direction de l'appareil (toujours pointée vers le haut) */}
-            <div className="position-absolute d-flex flex-column align-items-center" 
-                 style={{ color: 'white', zIndex: 2 }}>
-              <div style={{ 
-                width: '0', 
-                height: '0', 
-                borderLeft: '15px solid transparent',
-                borderRight: '15px solid transparent',
-                borderBottom: '40px solid white',
-                marginBottom: '5px',
-                filter: 'drop-shadow(1px 1px 1px black) drop-shadow(-1px -1px 1px black) drop-shadow(1px -1px 1px black) drop-shadow(-1px 1px 1px black)'
-              }}></div>
-              <div style={{ 
-                width: '6px', 
-                height: '60px', 
-                backgroundColor: 'white',
-                filter: 'drop-shadow(1px 1px 1px black) drop-shadow(-1px -1px 1px black) drop-shadow(1px -1px 1px black) drop-shadow(-1px 1px 1px black)'
-              }}></div>
             </div>
           </div>
         </div>
 
         <div className="text-center mt-3">
-          <p className="text-muted small">
-            <strong>Flèche blanche :</strong> Direction de votre appareil<br/>
-            <strong>Flèche jaune :</strong> Nord géographique
-          </p>
-          <p className="text-muted small">
-            Orientez votre appareil dans la direction du vol du frelon, puis capturez.
-          </p>
+          <Button 
+            variant="primary" 
+            onClick={handleCapture}
+            disabled={tabKey === 'manual'
+              ? manualHeading === null || latitude === null || longitude === null
+              : heading === null || latitude === null || longitude === null}
+          >
+            📍 Capturer la direction
+          </Button>
         </div>
       </Modal.Body>
-      
-      <Modal.Footer>
-        <Button variant="secondary" onClick={handleClose}>
-          Annuler
-        </Button>
-        <Button 
-          variant="primary" 
-          onClick={handleCapture}
-          disabled={heading === null || latitude === null || longitude === null}
-        >
-          📍 Capturer la direction
-        </Button>
-      </Modal.Footer>
     </Modal>
   );
 }
