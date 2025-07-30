@@ -14,33 +14,56 @@ interface InfestationLevelInputProps {
   readOnly?: boolean;
 }
 
+// Centralise la logique de style pour tous les usages (badge, dropdown, pastille)
+const getInfestationStyle = (color: string) => {
+  switch (color) {
+    case 'orange':
+      return {
+        backgroundColor: '#fd7e14',
+        color: 'white',
+        border: undefined,
+        textColor: 'white',
+      };
+    case 'warning':
+      return {
+        backgroundColor: '#ffc107',
+        color: '#212529',
+        border: '1px solid #ccc',
+        textColor: '#212529',
+      };
+    case 'danger':
+      return {
+        backgroundColor: '#dc3545',
+        color: 'white',
+        border: undefined,
+        textColor: 'white',
+      };
+    default:
+      return {};
+  }
+};
+
 export default function InfestationLevelInput({ value, onChange, readOnly = false }: InfestationLevelInputProps) {
   const current = LEVELS.find(l => l.value === value) || LEVELS[0];
+  const style = getInfestationStyle(current.color);
 
   if (readOnly) {
-    // Badge coloré
+    // Badge coloré (mêmes couleurs que Dropdown)
     return (
-      <Badge bg={current.color === 'orange' ? undefined : current.color} style={current.color === 'orange' ? { backgroundColor: '#fd7e14', color: 'white' } : {}}>
+      <Badge bg="none" style={{ backgroundColor: style.backgroundColor, color: style.color, border: style.border }}>
         {current.label}
       </Badge>
     );
   }
-
-  // Dropdown coloré cohérent avec ColorSelector
-  const getTextColor = (bg: string) => {
-    // Contraste simple : blanc sur rouge/orange, noir sur jaune
-    if (bg === '#fd7e14' || bg === '#dc3545') return 'white';
-    return '#212529';
-  };
 
   return (
     <Dropdown onSelect={key => onChange && onChange(key as InfestationLevel)}>
       <Dropdown.Toggle
         variant="outline-secondary"
         style={{
-          backgroundColor: current.color === 'orange' ? '#fd7e14' : current.color === 'warning' ? '#ffc107' : current.color === 'danger' ? '#dc3545' : undefined,
-          color: getTextColor(current.color === 'orange' ? '#fd7e14' : current.color === 'warning' ? '#ffc107' : current.color === 'danger' ? '#dc3545' : ''),
-          border: current.color === 'warning' ? '1px solid #ccc' : undefined,
+          backgroundColor: style.backgroundColor,
+          color: style.textColor,
+          border: style.border,
         }}
         className="d-flex align-items-center gap-2"
       >
@@ -48,8 +71,8 @@ export default function InfestationLevelInput({ value, onChange, readOnly = fals
           style={{
             width: '16px',
             height: '16px',
-            backgroundColor: current.color === 'orange' ? '#fd7e14' : current.color === 'warning' ? '#ffc107' : current.color === 'danger' ? '#dc3545' : undefined,
-            border: current.color === 'warning' ? '1px solid #ccc' : 'none',
+            backgroundColor: style.backgroundColor,
+            border: style.border || 'none',
             borderRadius: '3px',
             flexShrink: 0,
           }}
@@ -57,26 +80,29 @@ export default function InfestationLevelInput({ value, onChange, readOnly = fals
         <span>{current.label}</span>
       </Dropdown.Toggle>
       <Dropdown.Menu>
-        {LEVELS.map(l => (
-          <Dropdown.Item
-            eventKey={l.value}
-            key={l.value}
-            active={l.value === value}
-            className="d-flex align-items-center gap-2"
-          >
-            <div
-              style={{
-                width: '16px',
-                height: '16px',
-                backgroundColor: l.color === 'orange' ? '#fd7e14' : l.color === 'warning' ? '#ffc107' : l.color === 'danger' ? '#dc3545' : undefined,
-                border: l.color === 'warning' ? '1px solid #ccc' : 'none',
-                borderRadius: '3px',
-                flexShrink: 0,
-              }}
-            />
-            <span>{l.label}</span>
-          </Dropdown.Item>
-        ))}
+        {LEVELS.map(l => {
+          const lStyle = getInfestationStyle(l.color);
+          return (
+            <Dropdown.Item
+              eventKey={l.value}
+              key={l.value}
+              active={l.value === value}
+              className="d-flex align-items-center gap-2"
+            >
+              <div
+                style={{
+                  width: '16px',
+                  height: '16px',
+                  backgroundColor: lStyle.backgroundColor,
+                  border: lStyle.border || 'none',
+                  borderRadius: '3px',
+                  flexShrink: 0,
+                }}
+              />
+              <span>{l.label}</span>
+            </Dropdown.Item>
+          );
+        })}
       </Dropdown.Menu>
     </Dropdown>
   );
