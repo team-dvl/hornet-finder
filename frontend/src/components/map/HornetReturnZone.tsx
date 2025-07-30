@@ -8,6 +8,7 @@ import {
   HORNET_RETURN_ZONE_ABSOLUTE_MAX_DISTANCE_M,
   HORNET_FLIGHT_SPEED_M_PER_MIN
 } from '../../utils/constants';
+import geomagnetism from "geomagnetism";
 
 interface HornetReturnZoneProps {
   hornet: Hornet;
@@ -15,7 +16,7 @@ interface HornetReturnZoneProps {
   angleDeg?: number;
   onClick?: (hornet: Hornet) => void;
   showReturnZone?: boolean; // Prop pour contrôler l'affichage de la zone de retour
-  onShowInfo?: (hornet: Hornet, lat?: number, lng?: number) => void; // Prop pour afficher les informations détaillées avec position cliquée
+  onShowInfo?: (hornet: Hornet, lat?: number, lng?: number, declination?: number, correctedDirection?: number) => void; // Ajout des infos calculées
 }
 
 // Calculer la distance estimée du nid basée sur la durée
@@ -119,10 +120,18 @@ export default function HornetReturnZone({
   // Déterminer si la longueur est basée sur une durée réelle ou par défaut
   const isBasedOnDuration = Boolean(hornet.duration && hornet.duration > 0);
   
+  // Calculer la déclinaison magnétique à la position du frelon
+  const geo = geomagnetism.model().point([hornet.latitude, hornet.longitude]);
+  const declination = geo.decl;
+  const correctedDirection = hornet.direction + declination;
+  //console.log(
+  //  `[HornetReturnZone] Magnetic declination at (${hornet.latitude}, ${hornet.longitude}): ${declination.toFixed(2)}° | Magnetic azimuth: ${hornet.direction}° | Geographic azimuth used: ${correctedDirection.toFixed(2)}°`
+  //);
+
   const trianglePositions = computeTriangle(
     hornet.latitude, 
     hornet.longitude, 
-    hornet.direction, 
+    correctedDirection, 
     calculatedLength, 
     angleDeg
   );
@@ -137,7 +146,7 @@ export default function HornetReturnZone({
     if (onShowInfo) {
       // Capturer la position exacte du clic
       const clickPosition = event.latlng;
-      onShowInfo(hornet, clickPosition.lat, clickPosition.lng);
+      onShowInfo(hornet, clickPosition.lat, clickPosition.lng, declination, correctedDirection);
     } else if (onClick) {
       onClick(hornet);
     }

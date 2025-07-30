@@ -1,10 +1,11 @@
-import { Modal, Button, ListGroup, Badge } from 'react-bootstrap';
+import { Modal, Button, ListGroup, Badge, Accordion } from 'react-bootstrap';
 import { Hornet } from '../../store/store';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useAuth } from 'react-oidc-context';
 import { ColorSelector } from '../../components/forms';
 import { HORNET_RETURN_ZONE_ANGLE_DEG, HORNET_FLIGHT_SPEED_M_PER_MIN, HORNET_RETURN_ZONE_ABSOLUTE_MAX_DISTANCE_M } from '../../utils/constants';
 import CoordinateInput from '../common/CoordinateInput';
+import geomagnetism from "geomagnetism";
 
 interface HornetReturnZoneInfoPopupProps {
   show: boolean;
@@ -12,6 +13,8 @@ interface HornetReturnZoneInfoPopupProps {
   hornet: Hornet | null;
   clickPosition?: { lat: number; lng: number } | null; // Position cliquée sur la zone de retour
   onAddAtLocation?: (lat: number, lng: number) => void; // Prop pour déclencher l'ajout
+  declination?: number | null; // Ajouté
+  correctedDirection?: number | null; // Ajouté
 }
 
 // Calculer la distance estimée du nid basée sur la durée
@@ -33,7 +36,8 @@ export default function HornetReturnZoneInfoPopup({
   onHide, 
   hornet, 
   clickPosition,
-  onAddAtLocation 
+  onAddAtLocation,
+  ...props // Récupérer les props supplémentaires (declination, correctedDirection)
 }: HornetReturnZoneInfoPopupProps) {
   const { canAddHornet, canAddApiary } = useUserPermissions();
   const auth = useAuth();
@@ -48,6 +52,15 @@ export default function HornetReturnZoneInfoPopup({
   // Utiliser la position cliquée si disponible, sinon la position du frelon
   const displayPosition = clickPosition || { lat: hornet.latitude, lng: hornet.longitude };
   const isClickedPosition = Boolean(clickPosition);
+
+  // Calcul de la déclinaison magnétique et direction corrigée
+  let declination = props.declination;
+  let correctedDirection = props.correctedDirection;
+  if (declination == null || correctedDirection == null) {
+    const geo = geomagnetism.model().point([hornet.latitude, hornet.longitude]);
+    declination = geo.decl;
+    correctedDirection = hornet.direction + declination;
+  }
 
   return (
     <Modal show={show} onHide={onHide} size="lg">
@@ -155,6 +168,26 @@ export default function HornetReturnZoneInfoPopup({
                 <span>Angle de vol:</span>
                 <span>{HORNET_RETURN_ZONE_ANGLE_DEG}°</span>
               </ListGroup.Item>
+              <Accordion className="mb-2">
+                <Accordion.Item eventKey="0">
+                  <Accordion.Header>
+                    <span className="flex-grow-1">Direction géographique (corrigée):</span>
+                    <span className="text-end" style={{ minWidth: 70 }}>{correctedDirection.toFixed(2)}°</span>
+                  </Accordion.Header>
+                  <Accordion.Body>
+                    <div className="d-flex flex-column gap-2">
+                      <div className="d-flex justify-content-between align-items-center">
+                        <span>Direction magnétique:</span>
+                        <span className="text-end" style={{ minWidth: 70 }}>{(correctedDirection - declination).toFixed(2)}°</span>
+                      </div>
+                      <div className="d-flex justify-content-between align-items-center">
+                        <span>Déclinaison magnétique:</span>
+                        <span className="text-end" style={{ minWidth: 70 }}>{declination.toFixed(2)}°</span>
+                      </div>
+                    </div>
+                  </Accordion.Body>
+                </Accordion.Item>
+              </Accordion>
             </ListGroup>
             
             {!isBasedOnDuration && (

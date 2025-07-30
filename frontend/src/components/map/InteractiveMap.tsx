@@ -120,6 +120,10 @@ export default function InteractiveMap() {
   const [overlappingObjects, setOverlappingObjects] = useState<MapObject[]>([]);
   const [overlapPosition, setOverlapPosition] = useState<{ lat: number; lng: number } | null>(null);
   
+  // Ajout du state pour la déclinaison et la direction corrigée
+  const [returnZoneDeclination, setReturnZoneDeclination] = useState<number | null>(null);
+  const [returnZoneCorrectedDirection, setReturnZoneCorrectedDirection] = useState<number | null>(null);
+  
   // Sélectionner les données depuis le store Redux
   const { hornets, error } = useAppSelector((state) => state.hornets);
   const { apiaries } = useAppSelector((state) => state.apiaries);
@@ -168,13 +172,15 @@ export default function InteractiveMap() {
   };
 
   // Gestionnaire de clic sur une zone de retour
-  const handleReturnZoneClick = (hornet: Hornet, lat?: number, lng?: number) => {
+  const handleReturnZoneClick = (hornet: Hornet, lat?: number, lng?: number, declination?: number, correctedDirection?: number) => {
     setSelectedReturnZoneHornet(hornet);
     if (lat !== undefined && lng !== undefined) {
       setReturnZoneClickPosition({ lat, lng });
     } else {
       setReturnZoneClickPosition(null);
     }
+    setReturnZoneDeclination(declination ?? null);
+    setReturnZoneCorrectedDirection(correctedDirection ?? null);
     setShowReturnZoneModal(true);
   };
 
@@ -508,6 +514,8 @@ export default function InteractiveMap() {
         hornet={selectedReturnZoneHornet}
         clickPosition={returnZoneClickPosition}
         onAddAtLocation={handleAddAtLocation}
+        declination={returnZoneDeclination}
+        correctedDirection={returnZoneCorrectedDirection}
       />
       
       {showItemSelector && clickPosition && (
