@@ -126,6 +126,16 @@ class ApiarySerializer(GPSValidationMixin, serializers.ModelSerializer):
             }
         else:
             data['created_by'] = None
+        # Ajout du champ extended_permissions
+        perms = []
+        for agp in instance.apiarygrouppermission_set.select_related('group').all():
+            perms.append({
+                'group': agp.group.path,
+                'can_read': agp.can_read,
+                'can_update': agp.can_update,
+                'can_delete': agp.can_delete
+            })
+        data['extended_permissions'] = perms
         return data
 
     def validate_infestation_level(self, value: int) -> int:

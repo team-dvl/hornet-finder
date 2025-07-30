@@ -1,4 +1,4 @@
-import { Modal, Button, Alert } from 'react-bootstrap';
+import { Modal, Button, Alert, Table, Badge, Form, Card, Row, Col } from 'react-bootstrap';
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from 'react-oidc-context';
@@ -8,6 +8,7 @@ import { AppDispatch, RootState } from '../../store/store';
 import { DeleteConfirmationModal } from '../modals';
 import CoordinateInput from '../common/CoordinateInput';
 import InfestationLevelInput, { InfestationLevel } from '../common/InfestationLevelInput';
+import ApiaryGroupPermissions from '../common/ApiaryGroupPermissions';
 
 const infestationLevelMap = {
   1: 'low',
@@ -181,6 +182,16 @@ export default function ApiaryInfoPopup({ show, onHide, apiary }: ApiaryInfoPopu
               )}
             </div>
           </div>
+          
+          {/* Permissions étendues par groupe sous forme de Cards */}
+          {Array.isArray(currentApiary.extended_permissions) && currentApiary.extended_permissions.length > 0 && (
+            <div className="row mb-3">
+              <div className="col-12">
+                <h6 className="fw-bold">Permissions supplémentaires</h6>
+                <ApiaryGroupPermissions permissions={currentApiary.extended_permissions} readOnly />
+              </div>
+            </div>
+          )}
         </div>
       </Modal.Body>
       

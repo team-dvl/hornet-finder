@@ -17,6 +17,12 @@ export interface Apiary {
   comments?: string;
   created_at?: string;
   created_by?: { guid: string; display_name: string }; // GUID of the user who created the apiary
+  extended_permissions?: Array<{
+    group: string; // ex: /beekeepers/vsab
+    can_read: boolean;
+    can_update: boolean;
+    can_delete: boolean;
+  }>;
 }
 
 // État initial du slice
