@@ -1,5 +1,7 @@
 import os
 from keycloak import KeycloakOpenID, KeycloakAdmin
+from typing import Optional
+
 
 def _get_keycloak_client():
     """
@@ -53,3 +55,24 @@ def user_exists(email: str) -> bool:
     """
     keycloak_admin = _get_keycloak_admin()
     return keycloak_admin.get_user_id(email) is not None
+
+def get_user_display_name(guid: str) -> Optional[str]:
+    """
+    Retrieve the user's display name (first and last name), or preferred_username/email/id if not available,
+    for a given Keycloak user GUID.
+
+    :param guid: The Keycloak user ID.
+    :type guid: str
+    :return: The user's display name, or an alternative identifier, or None if not found.
+    :rtype: Optional[str]
+    """
+    keycloak_admin = _get_keycloak_admin()
+    try:
+        user = keycloak_admin.get_user(guid)
+        first = user.get('firstName', '')
+        last = user.get('lastName', '')
+        if first or last:
+            return f"{first} {last}".strip()
+        return user.get('preferred_username') or user.get('email') or user.get('id')
+    except Exception:
+        return None

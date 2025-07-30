@@ -1,7 +1,6 @@
 from rest_framework import serializers
 from .models import Hornet, Nest, Apiary, User
-from hornet_finder_api.utils import user_exists
-from hornet_finder_api.keycloak_utils import get_user_display_name
+from hornet_finder_api.utils import user_exists, get_user_display_name
 
 class GPSValidationMixin:
     def validate_longitude(self, value: float) -> float:
