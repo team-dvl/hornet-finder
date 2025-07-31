@@ -2,6 +2,7 @@ import { Badge, Form, Card, Row, Col } from 'react-bootstrap';
 
 export interface ApiaryGroupPermission {
   group: string;
+  group_name?: string; // nom fancy
   can_read: boolean;
   can_update: boolean;
   can_delete: boolean;
@@ -25,7 +26,7 @@ export default function ApiaryGroupPermissions({ permissions, readOnly = true, o
           <Card className="h-100">
             <Card.Header className="bg-light">
               <Badge bg="primary" pill style={{ fontSize: '0.90em', padding: '0.35em 0.7em' }}>
-                {perm.group}
+                {perm.group_name || perm.group}
               </Badge>
             </Card.Header>
             <Card.Body className="py-2 px-3">

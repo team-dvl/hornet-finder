@@ -126,11 +126,12 @@ class ApiarySerializer(GPSValidationMixin, serializers.ModelSerializer):
             }
         else:
             data['created_by'] = None
-        # Ajout du champ extended_permissions
+        # Ajout du champ extended_permissions avec le nom fancy
         perms = []
         for agp in instance.apiarygrouppermission_set.select_related('group').all():
             perms.append({
                 'group': agp.group.path,
+                'group_name': agp.group.name,  # nom fancy
                 'can_read': agp.can_read,
                 'can_update': agp.can_update,
                 'can_delete': agp.can_delete
