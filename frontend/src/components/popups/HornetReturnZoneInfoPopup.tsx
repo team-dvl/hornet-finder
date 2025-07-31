@@ -91,33 +91,32 @@ export default function HornetReturnZoneInfoPopup({
                 </div>
               </ListGroup.Item>
               
-              {isClickedPosition && (
-                <ListGroup.Item>
-                  <div className="d-flex flex-column gap-3">
-                    <CoordinateInput
-                      label="Latitude"
-                      value={displayPosition.lat}
-                      onChange={() => {}} // Ne sera pas appelé en mode lecture seule
-                      readOnly={true}
-                      precision={6}
-                      labelPosition="horizontal"
-                    />
-                    <CoordinateInput
-                      label="Longitude"
-                      value={displayPosition.lng}
-                      onChange={() => {}} // Ne sera pas appelé en mode lecture seule
-                      readOnly={true}
-                      precision={6}
-                      labelPosition="horizontal"
-                    />
-                  </div>
-                </ListGroup.Item>
-              )}
+
               
-              <ListGroup.Item className="d-flex justify-content-between">
-                <span>Direction:</span>
-                <span>{hornet.direction}°</span>
-              </ListGroup.Item>
+                <ListGroup.Item className="d-flex justify-content-between align-items-center">
+                <Accordion className="mb-2 flex-grow-1 w-100">
+                  <Accordion.Item eventKey="0">
+                  <Accordion.Header>
+                    <div className="d-flex justify-content-between align-items-center w-100">
+                    <span>Direction (corrigée):</span>
+                    <span className="text-end" style={{ minWidth: 70 }}>{correctedDirection.toFixed(0)}°</span>
+                    </div>
+                  </Accordion.Header>
+                  <Accordion.Body>
+                    <div className="d-flex flex-column gap-2">
+                    <div className="d-flex justify-content-between align-items-center">
+                      <span>Direction magnétique:</span>
+                      <span className="text-end" style={{ minWidth: 70 }}>{(correctedDirection - declination).toFixed(0)}°</span>
+                    </div>
+                    <div className="d-flex justify-content-between align-items-center">
+                      <span>Déclinaison magnétique:</span>
+                      <span className="text-end" style={{ minWidth: 70 }}>{declination.toFixed(2)}°</span>
+                    </div>
+                    </div>
+                  </Accordion.Body>
+                  </Accordion.Item>
+                </Accordion>
+                </ListGroup.Item>
               
               {hornet.duration && (
                 <ListGroup.Item className="d-flex justify-content-between">
@@ -168,26 +167,7 @@ export default function HornetReturnZoneInfoPopup({
                 <span>Angle de vol:</span>
                 <span>{HORNET_RETURN_ZONE_ANGLE_DEG}°</span>
               </ListGroup.Item>
-              <Accordion className="mb-2">
-                <Accordion.Item eventKey="0">
-                  <Accordion.Header>
-                    <span className="flex-grow-1">Direction géographique (corrigée):</span>
-                    <span className="text-end" style={{ minWidth: 70 }}>{correctedDirection.toFixed(2)}°</span>
-                  </Accordion.Header>
-                  <Accordion.Body>
-                    <div className="d-flex flex-column gap-2">
-                      <div className="d-flex justify-content-between align-items-center">
-                        <span>Direction magnétique:</span>
-                        <span className="text-end" style={{ minWidth: 70 }}>{(correctedDirection - declination).toFixed(2)}°</span>
-                      </div>
-                      <div className="d-flex justify-content-between align-items-center">
-                        <span>Déclinaison magnétique:</span>
-                        <span className="text-end" style={{ minWidth: 70 }}>{declination.toFixed(2)}°</span>
-                      </div>
-                    </div>
-                  </Accordion.Body>
-                </Accordion.Item>
-              </Accordion>
+
             </ListGroup>
             
             {!isBasedOnDuration && (
@@ -203,30 +183,9 @@ export default function HornetReturnZoneInfoPopup({
         
         {auth.isAuthenticated && (canAddHornet || canAddApiary) && onAddAtLocation && (
           <div className="mt-3 pt-3 border-top">
-            <p className="text-muted mb-2">
-              <strong>Ajouter un élément à cette position:</strong>
-            </p>
+
             <div className="d-flex flex-column gap-2">
-              <div className="small text-muted d-flex align-items-center gap-2">
-                📍 Coordonnées:
-                <div style={{ minWidth: '120px' }}>
-                  <CoordinateInput
-                    label=""
-                    value={displayPosition.lat}
-                    onChange={() => {}}
-                    readOnly
-                  />
-                </div>
-                <div style={{ minWidth: '120px' }}>
-                  <CoordinateInput
-                    label=""
-                    value={displayPosition.lng}
-                    onChange={() => {}}
-                    readOnly
-                  />
-                </div>
-                {isClickedPosition && <Badge bg="primary">Position cliquée</Badge>}
-              </div>
+
               <Button
                 variant="primary"
                 onClick={() => onAddAtLocation(displayPosition.lat, displayPosition.lng)}
