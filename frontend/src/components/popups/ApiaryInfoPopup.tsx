@@ -1,4 +1,4 @@
-import { Modal, Button, Alert, Table, Badge, Form, Card, Row, Col } from 'react-bootstrap';
+import { Modal, Button, Alert } from 'react-bootstrap';
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from 'react-oidc-context';
@@ -78,7 +78,7 @@ export default function ApiaryInfoPopup({ show, onHide, apiary }: ApiaryInfoPopu
     <Modal show={show} onHide={onHide} size="lg" centered>
       <Modal.Header closeButton>
         <Modal.Title>
-          🍯 Informations du Rucher #{currentApiary.id}
+          🍯 Rucher #{currentApiary.id}
         </Modal.Title>
       </Modal.Header>
       

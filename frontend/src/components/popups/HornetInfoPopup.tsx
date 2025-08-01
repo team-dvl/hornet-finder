@@ -8,15 +8,18 @@ import { ColorSelector } from '../common';
 import { DeleteConfirmationModal } from '../modals';
 import { HORNET_RETURN_ZONE_ANGLE_DEG, HORNET_FLIGHT_SPEED_M_PER_MIN, HORNET_RETURN_ZONE_ABSOLUTE_MAX_DISTANCE_M } from '../../utils/constants';
 import CoordinateInput from '../common/CoordinateInput';
+import CorrectedDirectionInfo from '../common/CorrectedDirectionInfo';
 
 interface HornetInfoPopupProps {
   show: boolean;
   onHide: () => void;
   hornet: Hornet | null;
-  onAddAtLocation?: (lat: number, lng: number) => void; // Nouvelle prop pour déclencher l'ajout
+  onAddAtLocation?: (lat: number, lng: number) => void;
+  declination?: number | null;
+  correctedDirection?: number | null;
 }
 
-export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation }: HornetInfoPopupProps) {
+export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation, declination, correctedDirection }: HornetInfoPopupProps) {
   const dispatch = useAppDispatch();
   const { canEditHornet, canDeleteHornet, canAddHornet, canAddApiary, accessToken } = useUserPermissions();
   const auth = useAuth();
@@ -122,13 +125,6 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation 
     });
   };
 
-  // Convertir la direction en point cardinal
-  const getDirectionLabel = (degrees: number) => {
-    const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-    const index = Math.round(degrees / 45) % 8;
-    return `${degrees}° (${directions[index]})`;
-  };
-
   // Calculer la distance estimée du nid basée sur la durée
   const calculateNestDistance = (duration?: number) => {
     if (!duration || duration <= 0) {
@@ -176,18 +172,12 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation 
       <Modal.Header closeButton>
         <Modal.Title>
           <span className="me-2">🐝</span>
-          Informations du frelon
+          Frelon #{currentHornet.id || '(Nouveau)'}
         </Modal.Title>
       </Modal.Header>
       
       <Modal.Body>
         <ListGroup variant="flush">
-          {currentHornet.id && (
-            <ListGroup.Item className="d-flex justify-content-between align-items-center">
-              <strong>ID:</strong>
-              <Badge bg="secondary">{currentHornet.id}</Badge>
-            </ListGroup.Item>
-          )}
           
           <ListGroup.Item>
             <div className="d-flex flex-column gap-3">
@@ -212,7 +202,22 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation 
           
           <ListGroup.Item className="d-flex justify-content-between align-items-center">
             <strong>Direction de vol:</strong>
-            <span>{getDirectionLabel(currentHornet.direction)}</span>
+            <span>
+              {typeof currentHornet.direction === 'number' ? (() => {
+                // Utiliser la prop correctedDirection si dispo, sinon fallback à direction
+                let usedDeclination = declination ?? 0;
+                let usedCorrectedDirection = correctedDirection ?? currentHornet.direction;
+                return (
+                  <CorrectedDirectionInfo
+                    correctedDirection={usedCorrectedDirection}
+                    declination={usedDeclination}
+                    popoverId={`popover-hornetinfo-${currentHornet.id}`}
+                  />
+                );
+              })() : (
+                <span className="text-muted">Non renseignée</span>
+              )}
+            </span>
           </ListGroup.Item>
           
           <ListGroup.Item className="d-flex justify-content-between align-items-center">

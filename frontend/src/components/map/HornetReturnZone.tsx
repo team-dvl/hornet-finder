@@ -17,6 +17,8 @@ interface HornetReturnZoneProps {
   onClick?: (hornet: Hornet) => void;
   showReturnZone?: boolean; // Prop pour contrôler l'affichage de la zone de retour
   onShowInfo?: (hornet: Hornet, lat?: number, lng?: number, declination?: number, correctedDirection?: number) => void; // Ajout des infos calculées
+  declination?: number; // Déclinaison magnétique précalculée (optionnelle)
+  correctedDirection?: number; // Direction corrigée précalculée (optionnelle)
 }
 
 // Calculer la distance estimée du nid basée sur la durée
@@ -112,7 +114,9 @@ export default function HornetReturnZone({
   angleDeg = HORNET_RETURN_ZONE_ANGLE_DEG,
   onClick,
   showReturnZone = true, // Par défaut, afficher la zone de retour
-  onShowInfo
+  onShowInfo,
+  declination: providedDeclination,
+  correctedDirection: providedCorrectedDirection
 }: HornetReturnZoneProps) {
   // Calculer la longueur du cône basée sur la durée si elle n'est pas fournie explicitement
   const calculatedLength = lengthKm ?? calculateNestDistance(hornet.duration);
@@ -120,13 +124,20 @@ export default function HornetReturnZone({
   // Déterminer si la longueur est basée sur une durée réelle ou par défaut
   const isBasedOnDuration = Boolean(hornet.duration && hornet.duration > 0);
   
-  // Calculer la déclinaison magnétique à la position du frelon
-  const geo = geomagnetism.model().point([hornet.latitude, hornet.longitude]);
-  const declination = geo.decl;
-  const correctedDirection = hornet.direction + declination;
-  //console.log(
-  //  `[HornetReturnZone] Magnetic declination at (${hornet.latitude}, ${hornet.longitude}): ${declination.toFixed(2)}° | Magnetic azimuth: ${hornet.direction}° | Geographic azimuth used: ${correctedDirection.toFixed(2)}°`
-  //);
+  // Utiliser la déclinaison fournie ou la calculer si nécessaire
+  let declination: number;
+  let correctedDirection: number;
+  
+  if (providedDeclination !== undefined && providedCorrectedDirection !== undefined) {
+    // Utiliser les valeurs précalculées
+    declination = providedDeclination;
+    correctedDirection = providedCorrectedDirection;
+  } else {
+    // Calculer la déclinaison magnétique à la position du frelon
+    const geo = geomagnetism.model().point([hornet.latitude, hornet.longitude]);
+    declination = geo.decl;
+    correctedDirection = hornet.direction + declination;
+  }
 
   const trianglePositions = computeTriangle(
     hornet.latitude, 

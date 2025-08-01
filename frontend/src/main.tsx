@@ -9,6 +9,7 @@ import './index.css'
 import App from './App'
 import { testServiceWorker } from './utils/testServiceWorker'
 import './utils/quickTest' // Import le test rapide
+import 'bootstrap-icons/font/bootstrap-icons.css';
 
 // Détection automatique de l'environnement
 const isDevelopment = window.location.hostname === 'dev.velutina.ovh' || 

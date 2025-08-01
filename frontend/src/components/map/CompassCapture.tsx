@@ -55,15 +55,13 @@ export default function CompassCapture({
   const [latitude, setLatitude] = useState<number | null>(initialLatitude || null);
   const [longitude, setLongitude] = useState<number | null>(initialLongitude || null);
   const [heading, setHeading] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // const [error, setError] = useState<string | null>(null);
   const [isSupported, setIsSupported] = useState(true);
   const [needsOrientationPermission, setNeedsOrientationPermission] = useState(false);
   const [orientationPermissionGrantedLocal, setOrientationPermissionGrantedLocal] = useState(orientationPermissionGranted);
-  const [manualMode, setManualMode] = useState(false);
   const [manualHeading, setManualHeading] = useState<number | null>(null);
   const [tabKey, setTabKey] = useState<'compass' | 'manual'>('compass');
   const watchIdRef = useRef<number | null>(null);
-  const orientationPermissionRef = useRef<boolean>(false);
   const sensorRef = useRef<AbsoluteOrientationSensor | null>(null);
   const orientationListenerRef = useRef<((event: DeviceOrientationEvent) => void) | null>(null);
 
@@ -71,7 +69,7 @@ export default function CompassCapture({
   useEffect(() => {
     if (!navigator.geolocation || !window.DeviceOrientationEvent) {
       setIsSupported(false);
-      setError('Votre appareil ne supporte pas la géolocalisation ou l\'orientation.');
+      // setError('Votre appareil ne supporte pas la géolocalisation ou l\'orientation.');
       return;
     }
     if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
@@ -84,7 +82,7 @@ export default function CompassCapture({
     if (!show || !isSupported || (needsOrientationPermission && !orientationPermissionGrantedLocal)) return;
     let cleanup: (() => void) | undefined;
     const startTracking = async () => {
-      setError(null);
+      // setError(null);
 
       // Démarrer la géolocalisation
       if (navigator.geolocation) {
@@ -93,7 +91,7 @@ export default function CompassCapture({
             setLatitude(position.coords.latitude);
             setLongitude(position.coords.longitude);
             // Réinitialiser l'erreur si la position est obtenue avec succès
-            setError(null);
+            // setError(null);
           },
           (error) => {
             console.error('Erreur de géolocalisation:', error);
@@ -112,7 +110,7 @@ export default function CompassCapture({
                 errorMessage += 'Erreur inconnue.';
                 break;
             }
-            setError(errorMessage);
+            // setError(errorMessage);
           },
           {
             enableHighAccuracy: true,
@@ -162,24 +160,24 @@ export default function CompassCapture({
                 
                 sensor.addEventListener('error', (event: Event) => {
                   console.error('AbsoluteOrientationSensor error:', event);
-                  setError('Erreur du capteur AbsoluteOrientationSensor. Votre appareil Android ne supporte pas cette fonctionnalité de manière fiable.');
+                  // setError('Erreur du capteur AbsoluteOrientationSensor. Votre appareil Android ne supporte pas cette fonctionnalité de manière fiable.');
                 });
                 
                 sensor.start();
                 return;
               } else {
-                setError('Permissions des capteurs refusées. L\'application a besoin d\'accéder aux capteurs de mouvement pour fonctionner sur Android.');
+                // setError('Permissions des capteurs refusées. L\'application a besoin d\'accéder aux capteurs de mouvement pour fonctionner sur Android.');
               }
             } catch (error) {
               console.log('AbsoluteOrientationSensor non disponible:', error);
-              setError('AbsoluteOrientationSensor non supporté. Votre appareil Android ne supporte pas cette fonctionnalité nécessaire pour la capture de direction.');
+              // setError('AbsoluteOrientationSensor non supporté. Votre appareil Android ne supporte pas cette fonctionnalité nécessaire pour la capture de direction.');
             }
           };
           
           checkSensorPermissions();
         } else if (isAndroid) {
           // Android sans AbsoluteOrientationSensor
-          setError('Votre appareil Android ne supporte pas AbsoluteOrientationSensor, nécessaire pour la capture de direction précise.');
+          // setError('Votre appareil Android ne supporte pas AbsoluteOrientationSensor, nécessaire pour la capture de direction précise.');
         } else {
           // iOS : utiliser DeviceOrientationEvent
           startDeviceOrientationTracking();
@@ -247,23 +245,6 @@ export default function CompassCapture({
     };
   }, [show, isSupported, needsOrientationPermission, orientationPermissionGrantedLocal]);
 
-  // Handler pour le bouton d'autorisation orientation (iOS)
-  const handleRequestOrientationPermission = async () => {
-    setError(null);
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const permission = await (DeviceOrientationEvent as any).requestPermission();
-      if (permission === 'granted') {
-        setOrientationPermissionGrantedLocal(true);
-        orientationPermissionRef.current = true;
-      } else {
-        setError('Permission d\'orientation refusée. Sur iOS, veuillez aller dans Réglages > Safari > Mouvement et Orientation et activer l\'accès.');
-      }
-    } catch (permissionError) {
-      setError('Impossible de demander la permission d\'orientation. Assurez-vous que votre appareil supporte cette fonctionnalité.');
-    }
-  };
-
   // Nettoyer lors de la fermeture
   const handleClose = () => {
     // Arrêter le sensor si il est actif
@@ -292,7 +273,7 @@ export default function CompassCapture({
         onCapture(manualHeading);
         handleClose();
       } else {
-        setError('Veuillez entrer une direction valide (0-359°) et attendre la position.');
+        // setError('Veuillez entrer une direction valide (0-359°) et attendre la position.');
       }
       return;
     }
@@ -300,7 +281,7 @@ export default function CompassCapture({
       onCapture(heading);
       handleClose();
     } else {
-      setError('Veuillez attendre que la position et la direction soient détectées.');
+      // setError('Veuillez attendre que la position et la direction soient détectées.');
     }
   };
 
@@ -487,10 +468,10 @@ export default function CompassCapture({
                     const val = parseInt(e.target.value, 10);
                     if (!isNaN(val) && val >= 0 && val <= 359) {
                       setManualHeading(val);
-                      setError(null);
+                      // setError(null);
                     } else {
                       setManualHeading(null);
-                      setError('Veuillez entrer une valeur entre 0 et 359.');
+                      // setError('Veuillez entrer une valeur entre 0 et 359.');
                     }
                   }}
                   placeholder="0-359"

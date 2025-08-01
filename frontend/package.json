@@ -13,6 +13,7 @@
     "@reduxjs/toolkit": "^2.8.2",
     "axios": "^1.11.0",
     "bootstrap": "^5.3.5",
+    "bootstrap-icons": "^1.13.1",
     "geomagnetism": "^0.2.0",
     "jwt-decode": "^4.0.0",
     "leaflet": "^1.9.0",

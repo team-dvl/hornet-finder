@@ -31,6 +31,26 @@ import { useSmartClickHandlers } from '../../hooks/useSmartClickHandlers';
 import { MapObject } from './types';
 import "leaflet/dist/leaflet.css";
 import "leaflet/dist/leaflet.js";
+import geomagnetism from "geomagnetism";
+
+// Fonction utilitaire pour calculer la déclinaison magnétique
+function calculateMagneticDeclination(hornet: Hornet): { declination: number; correctedDirection: number } | null {
+  if (
+    typeof hornet.longitude === 'number' &&
+    typeof hornet.latitude === 'number' &&
+    typeof hornet.direction === 'number'
+  ) {
+    const geo = geomagnetism.model().point([
+      Number(hornet.latitude),
+      Number(hornet.longitude)
+    ]);
+    return {
+      declination: geo.decl,
+      correctedDirection: hornet.direction + geo.decl
+    };
+  }
+  return null;
+}
 
 // Fonction utilitaire pour détecter les appareils mobiles
 const isMobile = () => {
@@ -124,6 +144,10 @@ export default function InteractiveMap() {
   const [returnZoneDeclination, setReturnZoneDeclination] = useState<number | null>(null);
   const [returnZoneCorrectedDirection, setReturnZoneCorrectedDirection] = useState<number | null>(null);
   
+  // Ajout du state pour la déclinaison et la direction corrigée du frelon sélectionné
+  const [hornetDeclination, setHornetDeclination] = useState<number | null>(null);
+  const [hornetCorrectedDirection, setHornetCorrectedDirection] = useState<number | null>(null);
+  
   // Sélectionner les données depuis le store Redux
   const { hornets, error } = useAppSelector((state) => state.hornets);
   const { apiaries } = useAppSelector((state) => state.apiaries);
@@ -148,6 +172,11 @@ export default function InteractiveMap() {
     }
   };
 
+  // Fonction pour obtenir la déclinaison d'un frelon donné
+  const getHornetDeclinationInfo = (hornet: Hornet) => {
+    return calculateMagneticDeclination(hornet);
+  };
+
   // Sync coordinates with map center
   useEffect(() => {
     setCoordinates([mapCenter.latitude, mapCenter.longitude]);
@@ -156,6 +185,14 @@ export default function InteractiveMap() {
   // Gestionnaire de clic sur une zone de frelon
   const handleHornetClick = (hornet: Hornet) => {
     setSelectedHornet(hornet);
+    const declinationInfo = calculateMagneticDeclination(hornet);
+    if (declinationInfo) {
+      setHornetDeclination(declinationInfo.declination);
+      setHornetCorrectedDirection(declinationInfo.correctedDirection);
+    } else {
+      setHornetDeclination(null);
+      setHornetCorrectedDirection(null);
+    }
     setShowHornetModal(true);
   };
 
@@ -455,15 +492,20 @@ export default function InteractiveMap() {
         />
         <ZoomControl position="bottomleft" />
         {/* Frelons et zones de retour - niveau le plus bas */}
-        {showHornets && hornets.map((hornet, index) => (
-          <HornetReturnZone
-            key={hornet.id || index}
-            hornet={hornet}
-            onClick={handleSmartHornetClick}
-            onShowInfo={handleReturnZoneClick}
-            showReturnZone={showReturnZones}
-          />
-        ))}
+        {showHornets && hornets.map((hornet, index) => {
+          const declinationInfo = getHornetDeclinationInfo(hornet);
+          return (
+            <HornetReturnZone
+              key={hornet.id || index}
+              hornet={hornet}
+              onClick={handleSmartHornetClick}
+              onShowInfo={handleReturnZoneClick}
+              showReturnZone={showReturnZones}
+              declination={declinationInfo?.declination}
+              correctedDirection={declinationInfo?.correctedDirection}
+            />
+          );
+        })}
         {/* Disques de ruchers - au-dessus des frelons */}
         {showApiaryCircles && showApiaries && auth.isAuthenticated && (isAdmin || canAddApiary) && apiaries.map((apiary, index) => (
           <ApiaryCircle
@@ -494,6 +536,8 @@ export default function InteractiveMap() {
         onHide={handleCloseModal}
         hornet={selectedHornet}
         onAddAtLocation={handleAddAtLocation}
+        declination={hornetDeclination}
+        correctedDirection={hornetCorrectedDirection}
       />
       
       <ApiaryInfoPopup
