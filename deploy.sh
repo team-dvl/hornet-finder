@@ -17,8 +17,15 @@ get_script_dir() {
 }
 
 SCRIPT_DIR="$(get_script_dir)"
+
+# Load common functions
+source "$SCRIPT_DIR/lib/common.sh"
+
 MODE="both"
 BUILD_FRONTEND=0
+YAML_FILE=$(get_yaml_files "$SCRIPT_DIR")
+
+
 
 # Affichage de l'aide
 print_help() {
@@ -59,67 +66,50 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Validation du mode
-if [[ "$MODE" != "dev" && "$MODE" != "prod" && "$MODE" != "both" ]]; then
-    echo "Erreur: Mode invalide '$MODE'. Utilisez 'dev', 'prod', ou 'both'." >&2
-    exit 1
-fi
+validate_mode "$MODE"
 
 echo "🚀 Déploiement Hornet Finder - Mode: $MODE"
 
 cd "$SCRIPT_DIR"
 
-# Vérifier que les fichiers de configuration existent
-if [[ ! -f .env ]]; then
-    echo "❌ Fichier .env manquant"
-    exit 1
+# Create ZFS datasets if ZFS is used
+if is_zfs_used "$SCRIPT_DIR"; then
+    echo "🗄️ Vérification et création des datasets ZFS..."
+    create_zfs_datasets_if_needed
 fi
 
-# Charger les variables d'environnement
-source .env
+# Load environment variables
+load_env
 
 # Builder le frontend si nécessaire (pour le mode prod)
 if [[ ("$MODE" == "prod" || "$MODE" == "both") && "$BUILD_FRONTEND" == 1 ]]; then
-    echo "🔨 Construction du frontend pour la production..."
-    docker compose --profile build-frontend up --build hornet-finder-frontend-build
-    docker compose --profile build-frontend down
+    build_frontend_production "$YAML_FILE"
 fi
 
 # Arrêter les services existants
-echo "🛑 Arrêt des services existants..."
-docker compose down
+stop_services "$YAML_FILE"
 
 # Démarrer les services selon le mode
 case "$MODE" in
     "dev")
         echo "🔧 Démarrage en mode développement..."
-        docker compose --profile dev up -d --build
+        docker compose ${YAML_FILE} --profile dev up -d --build
         ;;
     "prod")
         echo "🏭 Démarrage en mode production..."
-        docker compose up -d --build
+        docker compose ${YAML_FILE} up -d --build
         ;;
     "both")
         echo "🌐 Démarrage en mode mixte (dev + prod)..."
-        docker compose --profile dev up -d --build
+        docker compose ${YAML_FILE} --profile dev up -d --build
         ;;
 esac
 
 # Attendre que les services soient prêts
-echo "⏳ Attente du démarrage des services..."
-sleep 10
+wait_for_services
 
 # Vérifier l'état des services
-echo "📊 État des services:"
-docker compose ps
+show_service_status "$YAML_FILE"
 
-echo "✅ Déploiement terminé!"
-echo ""
-echo "🌐 URLs disponibles:"
-if [[ "$MODE" == "dev" || "$MODE" == "both" ]]; then
-    echo "  - Développement: https://dev.velutina.ovh"
-fi
-if [[ "$MODE" == "prod" || "$MODE" == "both" ]]; then
-    echo "  - Production: https://velutina.ovh"
-fi
-echo "  - Auth: https://auth.velutina.ovh"
-echo "  - API: https://api.velutina.ovh"
+show_success "Déploiement terminé!"
+print_deployment_urls "$MODE"

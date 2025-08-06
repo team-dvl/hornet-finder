@@ -18,18 +18,17 @@ get_script_dir() {
 
 SCRIPT_DIR="$(get_script_dir)"
 
-echo "🔨 Construction du frontend pour la production..."
+# Load common functions
+source "$SCRIPT_DIR/lib/common.sh"
 
 cd "$SCRIPT_DIR"
 
-# Builder le frontend
-docker compose --profile build-frontend up --build hornet-finder-frontend-build
+YAML_FILE=$(get_yaml_files "$SCRIPT_DIR")
 
-# Nettoyer
-docker compose --profile build-frontend down
+# Build the frontend
+build_frontend_production "$YAML_FILE"
 
-echo "✅ Build terminé! Les fichiers sont dans le volume 'frontend-dist'"
+show_success "Build terminé! Les fichiers sont dans le volume 'frontend-dist'"
 
-# Afficher la taille du build
-echo "📦 Taille du build:"
-docker run --rm -v hornet-finder_frontend-dist:/data alpine sh -c "du -sh /data/* 2>/dev/null || echo 'Aucun fichier trouvé'"
+# Show build size
+show_build_size

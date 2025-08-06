@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+
 #
 # get_script_dir will work with either zsh or bash
 # it can be used to retrieve the directory where the script is stored, in absolute form.
@@ -12,6 +13,11 @@ get_script_dir() {
     done
     cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd
 }
+
+SCRIPT_DIR="$(get_script_dir)"
+
+# Load common functions
+source "$SCRIPT_DIR/lib/common.sh"
 
 # Variables
 FORCE=0
@@ -32,31 +38,15 @@ while getopts ":fh" opt; do
     esac
 done
 
-SCRIPT_DIR="$(get_script_dir)"
 TARGET_DIR="$SCRIPT_DIR/certbot"
 
-if [ -d "$TARGET_DIR" ]; then
-  if [ "$FORCE" -eq 1 ]; then
-    echo "Forcibly deleting $TARGET_DIR"
-    sudo rm -rf "$TARGET_DIR"
-  else
-    read -p "Existing '$TARGET_DIR' directory. would you like to delete it? [y/N] " response
-    if [[ "$response" == "y" || "$response" == "Y" ]]; then
-      echo "Deleting $TARGET_DIR"
-      sudo rm -rf "$TARGET_DIR"
-    else
-	echo "Cancelled"
-	exit 1
-    fi
-  fi
-else
-  echo "The directory '$TARGET_DIR' cannot be found."
-fi
+# Use common function for deletion confirmation
+confirm_deletion "$TARGET_DIR" "$FORCE"
 
 pushd $SCRIPT_DIR
-docker compose --profile gencert down -v
+stop_services_with_profile_and_volumes "" "gencert"
 docker compose --profile gencert up --build certbot
-docker compose --profile gencert down -v
+stop_services_with_profile_and_volumes "" "gencert"
 
 
 

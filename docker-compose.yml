@@ -14,7 +14,7 @@ services:
 
     profiles:
       - gencert
-  
+
   nginx-certbot:
     image: nginx:latest
     container_name: hornet-finder-nginx-certbot
@@ -37,7 +37,7 @@ services:
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     volumes:
       - api-db:/var/lib/postgresql/data
-  
+
   hornet-finder-api:
     build: ./backend
     container_name: hornet-finder-api
@@ -85,7 +85,7 @@ services:
       - ./auth/realm-export.json:/opt/keycloak/data/import/realm-export.json
     depends_on:
       - hornet-finder-keycloak-db
-  
+
   nginx:
     image: nginx:latest
     container_name: hornet-finder-nginx
@@ -134,8 +134,8 @@ services:
       - VITE_API_URL=https://velutina.ovh/api/
       - VITE_KEYCLOAK_URL=https://auth.velutina.ovh/
     volumes:
-      - frontend-dist:/app/dist
-    command: npm run build
+      - frontend-dist:/output
+    command: sh -c "cp -r dist/* /output/"
     profiles:
       - build-frontend
 
