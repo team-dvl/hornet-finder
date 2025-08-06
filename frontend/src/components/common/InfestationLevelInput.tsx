@@ -4,8 +4,8 @@ export type InfestationLevel = 'low' | 'moderate' | 'high';
 
 const LEVELS: { value: InfestationLevel; label: string; color: string }[] = [
   { value: 'low', label: 'Faible', color: 'warning' },
-  { value: 'moderate', label: 'Modérée', color: 'orange' },
-  { value: 'high', label: 'Forte', color: 'danger' },
+  { value: 'moderate', label: 'Modéré', color: 'orange' },
+  { value: 'high', label: 'Fort', color: 'danger' },
 ];
 
 interface InfestationLevelInputProps {
