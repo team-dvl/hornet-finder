@@ -52,12 +52,6 @@ function calculateMagneticDeclination(hornet: Hornet): { declination: number; co
   return null;
 }
 
-// Fonction utilitaire pour détecter les appareils mobiles
-const isMobile = () => {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-         (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
-};
-
 // Composant interne pour gérer les clics de carte
 function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number) => void }) {
   useMapEvents({
@@ -287,11 +281,6 @@ export default function InteractiveMap() {
   const handleMapClick = (lat: number, lng: number) => {
     // Vérifier d'abord si l'utilisateur est authentifié
     if (!auth.isAuthenticated) {
-      return;
-    }
-    
-    // Sur mobile, seuls les admins peuvent ajouter des éléments
-    if (isMobile() && !isAdmin) {
       return;
     }
     
