@@ -31,11 +31,11 @@ export default function DeleteConfirmationModal({
   const getWarningMessage = () => {
     switch (itemType) {
       case 'frelon':
-        return 'Toutes les données associées à ce frelon (direction, durée, couleurs de marquage) seront définitivement perdues.';
+        return 'Toutes les données associées à ce frelon  seront définitivement perdues.';
       case 'nid':
-        return 'Toutes les informations de ce nid (adresse, commentaires, statut) seront définitivement perdues.';
+        return 'Toutes les informations de ce nid seront définitivement perdues.';
       case 'rucher':
-        return 'Toutes les informations de ce rucher (niveau d\'infestation, commentaires) seront définitivement perdues.';
+        return 'Toutes les informations de ce rucher seront définitivement perdues.';
       default:
         return 'Cette action est irréversible.';
     }
