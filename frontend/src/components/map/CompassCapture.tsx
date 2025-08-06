@@ -453,34 +453,41 @@ export default function CompassCapture({
           </Tab>
           <Tab eventKey="manual" title="Saisie manuelle">
             <div style={{ minHeight: 340, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-              <div className="mb-3 text-center" style={{ marginTop: 40 }}>
-                <label htmlFor="manualHeadingInput" className="form-label">
-                  Direction (en degrés, 0-359)
-                </label>
-                <input
-                  id="manualHeadingInput"
-                  type="number"
-                  min={0}
-                  max={359}
-                  className="form-control w-auto d-inline-block"
-                  value={manualHeading !== null ? manualHeading : ''}
-                  onChange={e => {
-                    const val = parseInt(e.target.value, 10);
-                    if (!isNaN(val) && val >= 0 && val <= 359) {
-                      setManualHeading(val);
-                      // setError(null);
-                    } else {
-                      setManualHeading(null);
-                      // setError('Veuillez entrer une valeur entre 0 et 359.');
-                    }
-                  }}
-                  placeholder="0-359"
-                />
-              </div>
-              <div className="text-center mt-2">
-                <p className="text-muted small mb-0">
-                  Saisissez manuellement la direction du vol du frelon.
-                </p>
+              <div className="text-center" style={{ marginTop: 40 }}>
+                <div className="mb-3">
+                  <label htmlFor="manualHeadingInput" className="form-label">
+                    Direction (en degrés)
+                  </label>
+                </div>
+                <div className="mb-3">
+                  <input
+                    id="manualHeadingInput"
+                    type="number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    min={0}
+                    max={359}
+                    className="form-control text-center"
+                    style={{ width: '120px', margin: '0 auto' }}
+                    value={manualHeading !== null ? manualHeading : ''}
+                    onChange={e => {
+                      const val = parseInt(e.target.value, 10);
+                      if (!isNaN(val) && val >= 0 && val <= 359) {
+                        setManualHeading(val);
+                        // setError(null);
+                      } else {
+                        setManualHeading(null);
+                        // setError('Veuillez entrer une valeur entre 0 et 359.');
+                      }
+                    }}
+                    placeholder="0-359"
+                  />
+                </div>
+                <div className="text-center mt-2">
+                  <p className="text-muted small mb-0">
+                    Saisissez manuellement la direction du vol du frelon.
+                  </p>
+                </div>
               </div>
             </div>
           </Tab>
