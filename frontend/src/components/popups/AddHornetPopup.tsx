@@ -110,12 +110,6 @@ export default function AddHornetPopup({
       return;
     }
 
-    // Validation des couleurs (ne peuvent pas être identiques si elles existent)
-    if (markColor1 && markColor2 && markColor1 === markColor2) {
-      setError('Les deux marques de couleur ne peuvent pas être identiques.');
-      return;
-    }
-
     if (!accessToken) {
       setError('Vous devez être connecté pour ajouter un frelon.');
       return;
