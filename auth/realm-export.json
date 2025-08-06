@@ -7,10 +7,10 @@
   "defaultSignatureAlgorithm": "RS256",
   "revokeRefreshToken": false,
   "refreshTokenMaxReuse": 0,
-  "accessTokenLifespan": 300,
+  "accessTokenLifespan": 10800,
   "accessTokenLifespanForImplicitFlow": 900,
-  "ssoSessionIdleTimeout": 1800,
-  "ssoSessionMaxLifespan": 36000,
+  "ssoSessionIdleTimeout": 259200,
+  "ssoSessionMaxLifespan": 604800,
   "ssoSessionIdleTimeoutRememberMe": 0,
   "ssoSessionMaxLifespanRememberMe": 0,
   "offlineSessionIdleTimeout": 2592000,
@@ -971,8 +971,8 @@
         "phone",
         "organization",
         "offline_access",
-        "membership",
-        "microprofile-jwt"
+        "microprofile-jwt",
+        "membership"
       ]
     },
     {
@@ -1916,7 +1916,7 @@
     "port": "465",
     "host": "ssl0.ovh.net",
     "replyTo": "",
-    "from": "4p6z9k4bj@mozmail.com",
+    "from": "contact@velutina.ovh",
     "fromDisplayName": "Velutina administrator",
     "authType": "basic",
     "user": "admin@velutina.ovh"
@@ -2982,7 +2982,10 @@
     "clientOfflineSessionMaxLifespan": "0",
     "oauth2DevicePollingInterval": "5",
     "clientSessionIdleTimeout": "0",
+    "actionTokenGeneratedByUserLifespan.verify-email": "",
+    "actionTokenGeneratedByUserLifespan.idp-verify-account-via-email": "",
     "clientOfflineSessionIdleTimeout": "0",
+    "actionTokenGeneratedByUserLifespan.execute-actions": "",
     "cibaInterval": "5",
     "realmReusableOtpCode": "false",
     "cibaExpiresIn": "120",
@@ -2993,6 +2996,8 @@
     "frontendUrl": "",
     "acr.loa.map": "{}",
     "adminEventsExpiration": "604800",
+    "shortVerificationUri": "",
+    "actionTokenGeneratedByUserLifespan.reset-credentials": "",
     "darkMode": "false"
   },
   "keycloakVersion": "26.2.5",
