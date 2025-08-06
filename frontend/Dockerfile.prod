@@ -17,5 +17,5 @@ ENV NODE_ENV=production
 # Builder l'application avec les variables de production
 RUN npm run build
 
-# Copier les fichiers buildés dans le volume
-CMD ["sh", "-c", "cp -r dist/* /app/dist/"]
+# Point d'entrée par défaut pour copier les fichiers
+CMD ["sh", "-c", "cp -r dist/* /output/ && echo 'Build files copied to volume'"]
