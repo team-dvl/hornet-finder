@@ -18,9 +18,12 @@ const isDevelopment = window.location.hostname === 'dev.velutina.ovh' ||
 
 // Configuration OIDC selon l'environnement
 const getOidcConfig = () => {
+  // Choisir le realm selon l'environnement
+  const realm = isDevelopment ? 'hornet-finder-dev' : 'hornet-finder';
+  
   const baseConfig = {
-    authority: import.meta.env.VITE_KEYCLOAK_URL?.replace(/\/$/, '') + '/realms/hornet-finder' || 
-               'https://auth.velutina.ovh/realms/hornet-finder',
+    authority: import.meta.env.VITE_KEYCLOAK_URL?.replace(/\/$/, '') + `/realms/${realm}` || 
+               `https://auth.velutina.ovh/realms/${realm}`,
     client_id: 'hornet-app',
     redirect_uri: window.location.origin,
     post_logout_redirect_uri: window.location.origin,
