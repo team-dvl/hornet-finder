@@ -223,54 +223,54 @@ TIMESTAMP=$(date +%y%m%d-%H%M%S)
 
 # Function to list snapshots
 list_snapshots() {
-    echo "📋 Snapshots existants:"
+    echo "📋 Existing snapshots:"
     for dataset in "${DATASETS[@]}"; do
         if zfs list "$dataset" >/dev/null 2>&1; then
             echo ""
             echo "Dataset: $dataset"
-            # Format des dates en DD/MM/YY HH:MM:SS
+            # Format dates as DD/MM/YY HH:MM:SS
             zfs list -t snapshot -H -o name,creation,used -s creation "$dataset" 2>/dev/null | while IFS=$'\t' read -r name creation used; do
                 if [[ -n "$name" && "$name" == *"@"* ]]; then
-                    # Convertir la date au format souhaité
+                    # Convert date to desired format
                     formatted_date=$(date -d "$creation" "+%d/%m/%y %H:%M:%S" 2>/dev/null || echo "$creation")
                     printf "  %-50s %s %s\n" "$name" "$formatted_date" "$used"
                 fi
             done
             
-            # Vérifier si des snapshots ont été trouvés
+            # Check if snapshots were found
             snapshot_count=$(zfs list -t snapshot -H -o name "$dataset" 2>/dev/null | grep "@" | wc -l)
             if [[ "$snapshot_count" -eq 0 ]]; then
-                echo "  Aucun snapshot trouvé"
+                echo "  No snapshots found"
             fi
         else
-            echo "  ⚠️  Dataset $dataset non trouvé"
+            echo "  ⚠️  Dataset $dataset not found"
         fi
     done
 }
 
-# Fonction pour nettoyer les anciens snapshots
+# Function to clean old snapshots
 cleanup_old_snapshots() {
-    echo "🧹 Nettoyage des snapshots de plus de $KEEP_DAYS jours..."
+    echo "🧹 Cleaning snapshots older than $KEEP_DAYS days..."
     cutoff_date=$(date -d "$KEEP_DAYS days ago" +%s)
     
     for dataset in "${DATASETS[@]}"; do
         if zfs list "$dataset" >/dev/null 2>&1; then
-            echo "Vérification de $dataset..."
+            echo "Checking $dataset..."
             
-            # Obtenir la liste des snapshots avec leur date de création
+            # Get list of snapshots with their creation date
             zfs list -t snapshot -H -o name,creation "$dataset" 2>/dev/null | while IFS=$'\t' read -r snapshot_name creation_date; do
                 if [[ "$snapshot_name" == *"@"* ]]; then
-                    # Convertir la date de création en timestamp
+                    # Convert creation date to timestamp
                     snapshot_timestamp=$(date -d "$creation_date" +%s 2>/dev/null)
                     
                     if [[ $? -eq 0 && $snapshot_timestamp -lt $cutoff_date ]]; then
-                        # Afficher la date formatée pour l'utilisateur
+                        # Display formatted date for user
                         formatted_date=$(date -d "$creation_date" "+%d/%m/%y %H:%M:%S" 2>/dev/null || echo "$creation_date")
-                        echo "  🗑️  Suppression du snapshot ancien: $snapshot_name (créé le $formatted_date)"
+                        echo "  🗑️  Deleting old snapshot: $snapshot_name (created on $formatted_date)"
                         if [[ "$FORCE" == 1 ]]; then
                             sudo zfs destroy "$snapshot_name"
                         else
-                            read -p "Supprimer $snapshot_name ? [y/N] " response
+                            read -p "Delete $snapshot_name? [y/N] " response
                             if [[ "$response" == "y" || "$response" == "Y" ]]; then
                                 sudo zfs destroy "$snapshot_name"
                             fi
@@ -282,43 +282,43 @@ cleanup_old_snapshots() {
     done
 }
 
-# Fonction pour créer les snapshots
+# Function to create snapshots
 create_snapshots() {
-    echo "📸 Création des snapshots ZFS avec timestamp: $TIMESTAMP"
+    echo "📸 Creating ZFS snapshots with timestamp: $TIMESTAMP"
     
     for dataset in "${DATASETS[@]}"; do
         snapshot_name="${dataset}@${TIMESTAMP}"
         
         if zfs list "$dataset" >/dev/null 2>&1; then
-            echo "Création du snapshot: $snapshot_name"
+            echo "Creating snapshot: $snapshot_name"
             if sudo zfs snapshot "$snapshot_name"; then
-                echo "  ✅ Snapshot créé avec succès"
+                echo "  ✅ Snapshot created successfully"
             else
-                echo "  ❌ Échec de la création du snapshot"
+                echo "  ❌ Failed to create snapshot"
             fi
         else
-            echo "  ⚠️  Dataset $dataset non trouvé, ignoré"
+            echo "  ⚠️  Dataset $dataset not found, skipping"
         fi
     done
 }
 
-# Fonction pour supprimer des snapshots par suffixe
+# Function to delete snapshots by suffix
 delete_snapshots() {
     local suffixes=("$@")
     
     if [[ ${#suffixes[@]} -eq 0 ]]; then
-        handle_error "Aucun suffixe spécifié pour la suppression"
+        handle_error "No suffix specified for deletion"
     fi
     
-    echo "🗑️  Suppression des snapshots avec les suffixes: ${suffixes[*]}"
+    echo "🗑️  Deleting snapshots with suffixes: ${suffixes[*]}"
     
     local found_snapshots=()
     
-    # Rechercher tous les snapshots correspondants
+    # Search for all matching snapshots
     for dataset in "${DATASETS[@]}"; do
         if zfs list "$dataset" >/dev/null 2>&1; then
             for suffix in "${suffixes[@]}"; do
-                # Rechercher les snapshots qui correspondent au pattern
+                # Search for snapshots matching the pattern
                 while IFS= read -r snapshot_name; do
                     if [[ -n "$snapshot_name" ]]; then
                         found_snapshots+=("$snapshot_name")
@@ -328,17 +328,17 @@ delete_snapshots() {
         fi
     done
     
-    # Vérifier qu'on a trouvé des snapshots
+    # Check if we found snapshots
     if [[ ${#found_snapshots[@]} -eq 0 ]]; then
-        echo "Aucun snapshot trouvé avec les suffixes spécifiés"
+        echo "No snapshots found with the specified suffixes"
         return 0
     fi
     
-    # Afficher les snapshots trouvés
+    # Display found snapshots
     echo ""
-    echo "Snapshots trouvés à supprimer:"
+    echo "Snapshots found to delete:"
     for snapshot in "${found_snapshots[@]}"; do
-        # Obtenir les informations du snapshot
+        # Get snapshot information
         snapshot_info=$(zfs list -H -o name,creation,used "$snapshot" 2>/dev/null)
         if [[ -n "$snapshot_info" ]]; then
             IFS=$'\t' read -r name creation used <<< "$snapshot_info"
@@ -347,83 +347,83 @@ delete_snapshots() {
         fi
     done
     
-    # Demander confirmation
+    # Ask for confirmation
     if [[ "$FORCE" != 1 ]]; then
         echo ""
-        read -p "Confirmer la suppression de ${#found_snapshots[@]} snapshot(s) ? [y/N] " response
+        read -p "Confirm deletion of ${#found_snapshots[@]} snapshot(s)? [y/N] " response
         if [[ "$response" != "y" && "$response" != "Y" ]]; then
-            echo "Suppression annulée"
+            echo "Deletion cancelled"
             return 0
         fi
     fi
     
-    # Supprimer les snapshots
+    # Delete snapshots
     echo ""
     local success_count=0
     for snapshot in "${found_snapshots[@]}"; do
-        echo "Suppression de $snapshot..."
+        echo "Deleting $snapshot..."
         if sudo zfs destroy "$snapshot"; then
-            echo "  ✅ Supprimé avec succès"
+            echo "  ✅ Successfully deleted"
             ((success_count++))
         else
-            echo "  ❌ Échec de la suppression"
+            echo "  ❌ Failed to delete"
         fi
     done
     
     echo ""
-    show_success "$success_count snapshot(s) supprimé(s) sur ${#found_snapshots[@]}"
+    show_success "$success_count snapshot(s) deleted out of ${#found_snapshots[@]}"
 }
 
 cd "$SCRIPT_DIR"
 
-# Exécuter l'action demandée
+# Execute requested action
 case "$ACTION" in
     "list"|"ls")
         list_snapshots
         ;;
     "clean"|"prune")
         cleanup_old_snapshots
-        show_success "Nettoyage terminé"
+        show_success "Cleanup completed"
         ;;
     "delete"|"rm"|"del")
-        # Les arguments restants sont les suffixes à supprimer
+        # Remaining arguments are suffixes to delete
         delete_snapshots "$@"
         ;;
     "create"|"new")
-        # Confirmation avant création
+        # Confirmation before creation
         if [[ "$FORCE" != 1 ]]; then
-            echo "📸 Création de snapshots ZFS pour Hornet Finder"
+            echo "📸 Creating ZFS snapshots for Hornet Finder"
             echo "Timestamp: $TIMESTAMP"
             echo ""
-            echo "Datasets à sauvegarder:"
+            echo "Datasets to backup:"
             for dataset in "${DATASETS[@]}"; do
                 echo "  - $dataset"
             done
             echo ""
-            read -p "Continuer avec la création des snapshots ? [y/N] " response
+            read -p "Continue with snapshot creation? [y/N] " response
             if [[ "$response" != "y" && "$response" != "Y" ]]; then
-                echo "Création annulée"
+                echo "Creation cancelled"
                 exit 0
             fi
         fi
 
-        # Créer les snapshots
+        # Create snapshots
         create_snapshots
 
         echo ""
-        show_success "Snapshots créés avec le timestamp: $TIMESTAMP"
+        show_success "Snapshots created with timestamp: $TIMESTAMP"
 
-        # Afficher les snapshots créés
+        # Display created snapshots
         echo ""
-        echo "📋 Snapshots créés:"
+        echo "📋 Created snapshots:"
         for dataset in "${DATASETS[@]}"; do
             snapshot_name="${dataset}@${TIMESTAMP}"
             if zfs list "$snapshot_name" >/dev/null 2>&1; then
                 echo "  ✅ $snapshot_name"
-                # Afficher avec format de date personnalisé
+                # Display with custom date format
                 zfs list -H -o name,used,creation "$snapshot_name" | while IFS=$'\t' read -r name used creation; do
                     formatted_date=$(date -d "$creation" "+%d/%m/%y %H:%M:%S" 2>/dev/null || echo "$creation")
-                    printf "     Taille: %s, Créé le: %s\n" "$used" "$formatted_date"
+                    printf "     Size: %s, Created on: %s\n" "$used" "$formatted_date"
                 done
             fi
         done
