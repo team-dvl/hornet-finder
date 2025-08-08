@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 #
-# Script de création de snapshots ZFS pour Hornet Finder
-# Crée des snapshots horodatés des volumes Docker
+# ZFS snapshot creation script for Hornet Finder
+# Creates timestamped snapshots of Docker volumes
 #
 
 # get_script_dir will work with either zsh or bash
@@ -25,38 +25,43 @@ source "$SCRIPT_DIR/lib/common.sh"
 FORCE=0
 KEEP_DAYS=7
 ACTION=""
+ENVIRONMENT=""
 
-# Affichage de l'aide
+# Help display
 print_help() {
     echo "Usage: $0 ACTION [OPTIONS]"
     echo ""
     echo "Actions:"
-    echo "  create|new          Crée de nouveaux snapshots horodatés"
-    echo "  list|ls             Liste les snapshots existants"
-    echo "  clean|prune         Nettoie les snapshots anciens"
-    echo "  delete|rm|del SUFFIX...    Supprime les snapshots avec les suffixes spécifiés"
+    echo "  create|new          Create new timestamped snapshots"
+    echo "  list|ls             List existing snapshots"
+    echo "  clean|prune         Clean old snapshots"
+    echo "  delete|rm|del SUFFIX...    Delete snapshots with specified suffixes"
+    echo "  restore SUFFIX      Restore from a snapshot (⚠️ DANGEROUS)"
     echo ""
     echo "Options:"
-    echo "  -f, --force         Force l'action sans confirmation"
-    echo "  -k, --keep DAYS     Nombre de jours à conserver pour clean/prune (défaut: 7)"
-    echo "  -h, --help          Affiche cette aide"
+    echo "  -e, --env ENV       Environment: 'prod', 'dev', or 'both' (required)"
+    echo "  -f, --force         Force action without confirmation"
+    echo "  -k, --keep DAYS     Number of days to keep for clean/prune (default: 7)"
+    echo "  --tag TAG           Custom tag for snapshot (instead of timestamp)"
+    echo "  -h, --help          Display this help"
     echo ""
     echo "Description:"
-    echo "  Gère les snapshots ZFS horodatés des volumes Docker de Hornet Finder."
-    echo "  Format du nom: volume@YYMMDD-HHMMSS"
+    echo "  Manages timestamped ZFS snapshots of Hornet Finder Docker volumes."
+    echo "  Supports separate PROD and DEV environments."
+    echo "  Name format: volume@YYMMDD-HHMMSS or volume@TAG"
     echo ""
-    echo "Exemples:"
-    echo "  $0 create                    # Crée de nouveaux snapshots"
-    echo "  $0 new                       # Alias pour create"
-    echo "  $0 list                      # Liste tous les snapshots"
-    echo "  $0 ls                        # Alias pour list"
-    echo "  $0 clean -k 3                # Nettoie les snapshots de plus de 3 jours"
-    echo "  $0 delete 250806-082324      # Supprime tous les snapshots avec ce suffixe"
-    echo "  $0 rm 250806-082324          # Alias pour delete"
-    echo "  $0 del 250806-* 250805-*     # Supprime plusieurs patterns de suffixes"
+    echo "Examples:"
+    echo "  $0 create                           # PROD + DEV snapshots"
+    echo "  $0 create -e prod                   # PROD snapshots only"
+    echo "  $0 create -e dev                    # DEV snapshots only"
+    echo "  $0 create --tag pre-deploy          # Snapshot with custom tag"
+    echo "  $0 list -e prod                     # List PROD snapshots"
+    echo "  $0 clean -e dev -k 3                # Clean DEV (3 days)"
+    echo "  $0 delete 250806-082324             # Delete snapshots with this suffix"
+    echo "  $0 restore pre-deploy-20250807      # ⚠️ Restore from snapshot"
 }
 
-# Vérifier d'abord si l'aide est demandée
+# First check if help is requested
 for arg in "$@"; do
     if [[ "$arg" == "-h" || "$arg" == "--help" ]]; then
         print_help
@@ -64,20 +69,54 @@ for arg in "$@"; do
     fi
 done
 
-# Vérifier qu'une action est fournie
+# Check that an action is provided
 if [[ $# -eq 0 ]]; then
-    echo "Erreur: Action manquante" >&2
+    echo "Error: Missing action" >&2
     print_help
     exit 1
 fi
 
-# Récupérer l'action
-ACTION="$1"
-shift
+# Parse all arguments first to find action and options
+ACTION=""
+TEMP_ARGS=()
 
-# Parsing des options
+# First pass: collect all arguments and identify action
 while [[ $# -gt 0 ]]; do
     case $1 in
+        create|new|list|ls|clean|prune|delete|rm|del|restore)
+            if [[ -z "$ACTION" ]]; then
+                ACTION="$1"
+                shift
+            else
+                echo "Error: Multiple actions specified" >&2
+                print_help
+                exit 1
+            fi
+            ;;
+        *)
+            TEMP_ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+# Check that we found an action
+if [[ -z "$ACTION" ]]; then
+    echo "Error: No action specified" >&2
+    print_help
+    exit 1
+fi
+
+# Restore arguments for option parsing
+set -- "${TEMP_ARGS[@]}"
+
+# Option parsing
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -e|--env)
+            ENVIRONMENT="$2"
+            shift 2
+            ;;
         -f|--force)
             FORCE=1
             shift
@@ -85,8 +124,12 @@ while [[ $# -gt 0 ]]; do
         -k|--keep)
             KEEP_DAYS="$2"
             if ! [[ "$KEEP_DAYS" =~ ^[0-9]+$ ]]; then
-                handle_error "La valeur pour --keep doit être un nombre entier"
+                handle_error "The value for --keep must be an integer"
             fi
+            shift 2
+            ;;
+        --tag)
+            CUSTOM_TAG="$2"
             shift 2
             ;;
         -h|--help)
@@ -94,16 +137,19 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         -*)
-            echo "Option inconnue: $1" >&2
+            echo "Unknown option: $1" >&2
             print_help
             exit 1
             ;;
         *)
-            # Pour l'action delete, les arguments restants sont les suffixes
+            # For delete action, remaining arguments are suffixes
             if [[ "$ACTION" == "delete" || "$ACTION" == "rm" || "$ACTION" == "del" ]]; then
                 break
+            elif [[ "$ACTION" == "restore" ]]; then
+                RESTORE_SUFFIX="$1"
+                shift
             else
-                echo "Argument inattendu: $1" >&2
+                echo "Unexpected argument: $1" >&2
                 print_help
                 exit 1
             fi
@@ -111,38 +157,52 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Valider l'action
+# Validate action
 case "$ACTION" in
     create|new|list|ls|clean|prune|delete|rm|del)
         ;;
     *)
-        echo "Action inconnue: $ACTION" >&2
+        echo "Unknown action: $ACTION" >&2
         print_help
         exit 1
         ;;
 esac
 
-# Vérifier que ZFS est disponible
+# Check that environment is specified
+if [[ -z "$ENVIRONMENT" ]]; then
+    echo "❌ Environment required (-e prod|dev|both)" >&2
+    print_help
+    exit 1
+fi
+
+# Environment validation
+if [[ "$ENVIRONMENT" != "prod" && "$ENVIRONMENT" != "dev" && "$ENVIRONMENT" != "both" ]]; then
+    echo "❌ Invalid environment: $ENVIRONMENT (must be 'prod', 'dev', or 'both')" >&2
+    print_help
+    exit 1
+fi
+
+# Check that ZFS is available
 if ! command -v zfs >/dev/null 2>&1; then
-    handle_error "ZFS n'est pas installé ou disponible"
+    handle_error "ZFS is not installed or available"
 fi
 
-# Vérifier que ZFS est utilisé
+# Check that ZFS is used
 if ! is_zfs_used "$SCRIPT_DIR"; then
-    handle_error "ZFS n'est pas utilisé dans ce projet"
+    handle_error "ZFS is not used in this project"
 fi
 
-# Datasets à sauvegarder
+# Datasets to backup
 DATASETS=(
     "ZROOT/docker/volumes/hornet-finder-api-db"
     "ZROOT/docker/volumes/hornet-finder-keycloak-db"
     "ZROOT/docker/volumes/hornet-finder-frontend-dist"
 )
 
-# Générer le timestamp YYMMDD-HHMMSS
+# Generate YYMMDD-HHMMSS timestamp
 TIMESTAMP=$(date +%y%m%d-%H%M%S)
 
-# Fonction pour lister les snapshots
+# Function to list snapshots
 list_snapshots() {
     echo "📋 Snapshots existants:"
     for dataset in "${DATASETS[@]}"; do

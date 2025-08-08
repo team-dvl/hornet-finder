@@ -175,6 +175,8 @@ cython_debug/
 
 # Docker env file
 *.env
+*.env.dev
+*.env.prod
 
 # emacs backup files
 *~

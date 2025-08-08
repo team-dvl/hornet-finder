@@ -2,7 +2,9 @@
 set -e
 
 #
-# Script pour builder le frontend en production
+# Script to build the frontend for production deployment
+# This script generates the static bundle and places it in the frontend-dist volume
+# for nginx to serve in production environment
 #
 
 # get_script_dir will work with either zsh or bash
@@ -23,12 +25,14 @@ source "$SCRIPT_DIR/lib/common.sh"
 
 cd "$SCRIPT_DIR"
 
-YAML_FILE=$(get_yaml_files "$SCRIPT_DIR")
+# Use production configuration
+YAML_FILE=$(get_yaml_files "$SCRIPT_DIR" "prod")
 
-# Build the frontend
+# Build the frontend for production
+echo "🔨 Building frontend for production deployment..."
 build_frontend_production "$YAML_FILE"
 
-show_success "Build terminé! Les fichiers sont dans le volume 'frontend-dist'"
+show_success "Production build completed! Files are in the 'frontend-dist' volume"
 
 # Show build size
 show_build_size

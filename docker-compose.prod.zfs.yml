@@ -1,0 +1,14 @@
+# Override to use external volumes for PROD (pointant vers les vraies données)
+volumes:
+  api-db:
+    external: true
+    name: hornet-finder_api-db
+
+  keycloak-db:
+    external: true
+    name: hornet-finder_keycloak-db
+  
+  frontend-dist:
+    external: true
+    name: hornet-finder_frontend-dist
+

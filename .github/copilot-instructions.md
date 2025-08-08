@@ -1,49 +1,64 @@
 # Copilot Instructions for Hornet Finder
 
 ## Architecture Overview
-- **Microservices, Dockerized**: The project is split into `frontend` (React/Vite), `backend` (Django REST + PostGIS), `auth` (Keycloak), `postgis` (PostgreSQL+PostGIS), and `nginx` (reverse proxy/SSL/static).
-- **Data Flow**: Users interact via the frontend, which communicates with the backend API (Django) via REST. Authentication is handled by Keycloak (OAuth2/JWT). All geospatial data is stored in PostGIS.
-- **Domains**: `velutina.ovh` (prod), `dev.velutina.ovh` (dev), `auth.velutina.ovh` (auth service).
+- **Containerized Microservices**: 5 main services: `frontend` (React/Vite/TypeScript), `backend` (Django REST + PostGIS), `auth` (Keycloak), `postgis` (PostgreSQL+PostGIS), and `nginx` (reverse proxy/SSL/static files)
+- **Data Flow**: Frontend (React + PWA) → Nginx → Backend API (Django REST) ↔ PostGIS database. Authentication via Keycloak (OAuth2/JWT with service worker-based token management)
+- **Environments**: Production (`velutina.ovh` and `auth.velutina.ovh`), development (`dev.velutina.ovh` and `auth.dev.velutina.ovh`)
+- **Key Files**: `docker-compose.yml` (base), `docker-compose.{dev,prod}.yml` (environment-specific overrides), `docker-compose.{dev,prod}.zfs.yml`
 
-## Developer Workflows
-- **Build all services**: Use `docker-compose up --build` from the repo root. For frontend-only: `cd frontend && npm run build`.
-- **Backend (Django)**: Use `manage.py` for migrations, superuser, etc. (`cd backend`).
-- **Frontend (Vite/React)**: Dev server: `npm run dev` in `frontend/`. Production build: `npm run build`.
-- **Auth (Keycloak)**: Managed via Docker; config in `auth/realm-export.json` and `auth/docker-entrypoint.sh`.
-- **Database**: PostGIS setup/updates via scripts in `postgis/`.
-- **Nginx**: Configs in `nginx/conf.d/`, SSL via Let's Encrypt, see `deploy-certs.sh`.
+## Critical Developer Workflows
+- **Full Stack Development**: `docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build` 
+- **Frontend Only**: `cd frontend && npm run dev` (Vite dev server on :5173)
+- **Backend Management**: `cd backend && python manage.py migrate|createsuperuser|collectstatic`
+- **Deployment**: Use `./deploy.sh {dev|prod}` - handles environment selection, frontend build, Docker composition
+- **SSL Management**: `./deploy-certs.sh` and `./generate-certs-dev.sh` for Let's Encrypt certificates
+- **Debugging**: `docker-compose logs <service>`
 
 ## Project-Specific Conventions
-- **No local user registration**: All users authenticate via Keycloak (auth.velutina.ovh); no passwords stored in the app; no email or GDPR-sensitive data in the app.
-- **Environment Variables**: Use `.env` files for service-specific configs (see `docker-compose.yml`).
-- **Role-based access**: Roles are `admin`, `beekeeper`, `volunteer` (see `auth/realm-export.json`).
-- **Group-based access**: Users can belong to multiple groups, with permissions managed at the group level.
-- **Geospatial everywhere**: All location data uses PostGIS types (EPSG:4326). Models: see `backend/hornet/models.py`.
-- **API Auth**: JWT Bearer tokens from Keycloak; see `backend/hornet_finder_api/authentication.py`.
-- **Frontend Auth**: Uses `sw-auth-extension.js` for service worker-based auth.
-- **API Docs**: Swagger/OpenAPI at `/api/docs/` (dev only).
+- **No Local Registration**: Users ONLY authenticate via Keycloak (auth.velutina.ovh for prod, auth.dev.velutina.ovh for dev). No passwords/emails stored in app
+- **Geospatial First**: All location data uses PostGIS `PointField` (EPSG:4326). Base pattern: `GeolocatedModel` abstract class auto-generates `point` field from `latitude`/`longitude`
+- **Role-Based Access**: 3 roles (`admin`, `beekeeper`, `volunteer`) + group-based permissions. See `auth/realm-export.json` and `backend/hornet/models.py` (`BeekeeperGroup`, `ApiaryGroupPermission`)
+- **JWT Auth Pattern**: Custom `JWTBearerAuthentication` validates Keycloak tokens. API endpoints use `HasAnyRole` permission class
+- **PWA Auth**: Service worker (`frontend/src/sw-auth-extension.js`) manages token lifecycle, auto-refresh, offline state
+- **Environment Variables**: Each service uses `.env` files. See `.env.{dev,prod}.example` for required vars
+
+## Data Model Patterns
+- **Core Entities**: `Hornet` (sightings with colors/direction), `Nest` (destruction tracking), `Apiary` (infestation monitoring)
+- **Geospatial Queries**: Use Django's `GeographicFilterMixin` pattern in views for radius-based filtering (`lat`, `lon`, `radius` params)
+- **User Model**: Simple UUID-based `User` model synced from Keycloak (no Django auth)
+- **PostGIS Integration**: Models inherit from `GeolocatedModel` for automatic point generation from lat/lng
+
+## Frontend Architecture
+- **Tech Stack**: React 19 + TypeScript + Vite + Bootstrap + Leaflet maps + Redux Toolkit
+- **Development vs Production**: Vite dev server (`:5173`) only used in dev with volume-mounted frontend directory for hot reload. Production serves pre-built static files via Nginx
+- **PWA Features**: Service worker auth extension, offline capability via `vite-plugin-pwa`
+- **Auth Flow**: `react-oidc-context` + custom service worker for token management
+- **Key Dependencies**: `leaflet`/`react-leaflet` (maps), `jwt-decode`, `axios`, `bootstrap`/`react-bootstrap`
 
 ## Integration Points
-- **Frontend <-> Backend**: REST API, endpoints in `backend/README.md`.
-- **Backend <-> DB**: Django ORM with PostGIS fields.
-- **Backend <-> Auth**: JWT validation, see `backend/hornet_finder_api/authentication.py`.
-- **Nginx**: Handles SSL, static, and API proxying. See `nginx/README.md` and `nginx/conf.d/prod.conf`.
+- **Frontend ↔ Backend**: REST API documented in `backend/README.md`. All endpoints require JWT Bearer token except health checks
+- **Backend ↔ PostGIS**: Django ORM with `django.contrib.gis`. Use `Distance`, geographic filtering in querysets
+- **Auth Integration**: `JWTBearerAuthentication` validates Keycloak JWT tokens, creates `JWTUser` objects with roles/groups
+- **Nginx Routing**: Prod serves static files directly, proxies `/api/*` to Django, handles SSL termination
+- **Docker Composition**: Base `docker-compose.yml` + environment overlays. Services communicate via container names
 
 ## Examples & Patterns
-- **Model Example**: See `backend/hornet/models.py` for geospatial fields.
-- **API Example**: See `backend/README.md` for endpoint structure.
-- **Frontend Auth**: See `frontend/src/sw-auth-extension.js` for service worker integration.
-- **Keycloak Realm**: See `auth/realm-export.json` for roles/clients.
+- **Model Example**: `backend/hornet/models.py` - `GeolocatedModel` pattern, PostGIS fields, validation
+- **API Views**: `backend/hornet/views.py` - `GeographicFilterMixin`, authentication, serializers
+- **Frontend Auth**: `frontend/src/sw-auth-extension.js` - service worker token management
+- **Deployment Script**: `./deploy.sh prod` - builds frontend, composes services, loads environment
+- **Geographic Queries**: `?lat=45.5&lon=2.5&radius=10` for 10km radius searches
 
 ## Tips
 - Always use Docker for local dev to match prod.
-- For debugging, check logs in `logs/` and use `docker-compose logs <service>`.
+- For debugging, use `docker-compose logs <service>`.
 - For SSL, use `deploy-certs.sh` and see `nginx/README.md` for renewal.
 
 ## Style Guide
 - function names, comments, docstrings, etc: use English.
 - code comments should be clear and concise. Always in english,
 - for git commits: always in English, with the usual prefix ('feat:, fix;, refactor;, ...').
+- when renaming or deleting a file, try with 'git mv' or 'git rm' to keep history, when appropriate.
 
 
 ---
