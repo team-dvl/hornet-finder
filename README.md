@@ -151,9 +151,9 @@ COMPOSE_PROFILES=dev                          # Use 'dev' for development mode
 DEBUG=False                                   # Set to True for development
 DJANGO_SECRET_KEY=your_secret_key_here        # Django cryptographic key
 HOST=your_domain.com                          # Your domain name
-DEV_HOST=dev.your_domain.com                  # Development domain
 
 # Network Configuration  
+BIND_IP=your_server_ip                        # Server IP (for development binding)
 PROXY_PORT=80                                 # HTTP port (80 for production)
 
 # Database Configuration

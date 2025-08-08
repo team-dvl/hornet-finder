@@ -87,6 +87,8 @@ YAML_FILE=$(get_yaml_files "$SCRIPT_DIR" "$MODE")
 if is_zfs_used "$SCRIPT_DIR"; then
     echo "🗄️ Checking and creating ZFS datasets for $MODE..."
     create_zfs_datasets_if_needed "$MODE"
+    echo "🐳 Checking and creating Docker volumes for $MODE..."
+    create_docker_volumes_if_needed "$MODE"
 fi
 
 # Load environment variables specific to the environment

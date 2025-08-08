@@ -46,7 +46,6 @@ services:
       - DEBUG=${DEBUG}
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
       - HOST=${HOST}
-      - DEV_HOST=${DEV_HOST}
       - DB_HOST=hornet-finder-api-db
       - DB_NAME=hornet_finder
       - DB_USER=hornet_finder

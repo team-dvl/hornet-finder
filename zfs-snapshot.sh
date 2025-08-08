@@ -192,12 +192,31 @@ if ! is_zfs_used "$SCRIPT_DIR"; then
     handle_error "ZFS is not used in this project"
 fi
 
-# Datasets to backup
-DATASETS=(
-    "ZROOT/docker/volumes/hornet-finder-api-db"
-    "ZROOT/docker/volumes/hornet-finder-keycloak-db"
-    "ZROOT/docker/volumes/hornet-finder-frontend-dist"
-)
+# Get datasets to backup based on environment
+get_datasets_for_environment() {
+    local env="$1"
+    case "$env" in
+        "prod")
+            echo "ZROOT/docker/volumes/hornet-finder-api-db"
+            echo "ZROOT/docker/volumes/hornet-finder-keycloak-db"
+            echo "ZROOT/docker/volumes/hornet-finder-frontend-dist"
+            ;;
+        "dev")
+            echo "ZROOT/docker/volumes/hornet-finder-dev-api-db"
+            echo "ZROOT/docker/volumes/hornet-finder-dev-keycloak-db"
+            ;;
+        "both")
+            echo "ZROOT/docker/volumes/hornet-finder-api-db"
+            echo "ZROOT/docker/volumes/hornet-finder-keycloak-db"
+            echo "ZROOT/docker/volumes/hornet-finder-frontend-dist"
+            echo "ZROOT/docker/volumes/hornet-finder-dev-api-db"
+            echo "ZROOT/docker/volumes/hornet-finder-dev-keycloak-db"
+            ;;
+    esac
+}
+
+# Build datasets array
+readarray -t DATASETS < <(get_datasets_for_environment "$ENVIRONMENT")
 
 # Generate YYMMDD-HHMMSS timestamp
 TIMESTAMP=$(date +%y%m%d-%H%M%S)
