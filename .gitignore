@@ -186,6 +186,7 @@ cython_debug/
 
 # certbot
 certbot/
+certbot-dev/
 
 # directories to ignore; they have an '.ign' suffix
 *.ign/
