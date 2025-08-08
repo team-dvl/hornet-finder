@@ -189,3 +189,7 @@ certbot/
 
 # directories to ignore; they have an '.ign' suffix
 *.ign/
+
+# dump files to ignore
+*.dump.sql
+
