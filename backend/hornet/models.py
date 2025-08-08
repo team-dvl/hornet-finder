@@ -52,12 +52,6 @@ class Hornet(GeolocatedModel):
     created_by = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL)
     linked_nest = models.ForeignKey('Nest', null=True, blank=True, on_delete=models.SET_NULL)
 
-    def clean(self):
-        # Validation : les deux couleurs ne peuvent pas être identiques si elles existent
-        if self.mark_color_1 and self.mark_color_2 and self.mark_color_1 == self.mark_color_2:
-            from django.core.exceptions import ValidationError
-            raise ValidationError("Les deux marques de couleur ne peuvent pas être identiques.")
-
 class Nest(GeolocatedModel):
     id = models.AutoField(primary_key=True)
     public_place = models.BooleanField(default=False)

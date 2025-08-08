@@ -57,15 +57,7 @@ class HornetSerializer(GPSValidationMixin, serializers.ModelSerializer):
             raise serializers.ValidationError("Duration must be a positive integer.")
         return value
 
-    def validate(self, data):
-        # Validation croisée pour les couleurs
-        mark_color_1 = data.get('mark_color_1', '')
-        mark_color_2 = data.get('mark_color_2', '')
-        
-        if mark_color_1 and mark_color_2 and mark_color_1 == mark_color_2:
-            raise serializers.ValidationError("Les deux marques de couleur ne peuvent pas être identiques.")
-        
-        return data
+
 
 class NestSerializer(GPSValidationMixin, serializers.ModelSerializer):
     created_by = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
