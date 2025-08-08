@@ -23,6 +23,7 @@ source "$SCRIPT_DIR/lib/common.sh"
 
 MODE=""  # No default - environment must be specified
 BUILD_FRONTEND=0
+SERVICE=""  # Specific service to deploy (optional)
 
 # Help display
 print_help() {
@@ -30,12 +31,34 @@ print_help() {
     echo ""
     echo "Options:"
     echo "  -e, --env ENV       Environment: 'dev' or 'prod' (required)"
+    echo "  -s, --service SVC   Specific service to restart (optional)"
     echo "  -b, --build         Force rebuild of frontend for production"
     echo "  -h, --help          Display this help"
     echo ""
     echo "Environments:"
     echo "  dev    - Deploy only the development environment (dev.velutina.ovh + auth.dev.velutina.ovh)"
     echo "  prod   - Deploy only the production environment (velutina.ovh + auth.velutina.ovh)"
+    echo ""
+    echo "Services (dev):"
+    echo "  api, backend        - Django API server"
+    echo "  frontend, vite      - Frontend development server"
+    echo "  keycloak, auth      - Keycloak authentication server"
+    echo "  nginx, proxy        - Nginx reverse proxy"
+    echo "  api-db, database    - PostgreSQL + PostGIS database"
+    echo "  keycloak-db         - Keycloak PostgreSQL database"
+    echo ""
+    echo "Services (prod):"
+    echo "  api, backend        - Django API server"
+    echo "  keycloak, auth      - Keycloak authentication server"
+    echo "  nginx, proxy        - Nginx reverse proxy"
+    echo "  api-db, database    - PostgreSQL + PostGIS database"
+    echo "  keycloak-db         - Keycloak PostgreSQL database"
+    echo ""
+    echo "Examples:"
+    echo "  $0 -e dev                    # Deploy full dev environment"
+    echo "  $0 -e dev -s api             # Restart only dev API service"
+    echo "  $0 -e prod -s keycloak       # Restart only prod Keycloak"
+    echo "  $0 -e dev -s frontend        # Restart only dev frontend"
     echo ""
     echo "WARNING: DEV and PROD environments are now completely separated."
     echo "Each environment has its own services, databases and configurations."
@@ -46,6 +69,10 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         -e|--env)
             MODE="$2"
+            shift 2
+            ;;
+        -s|--service)
+            SERVICE="$2"
             shift 2
             ;;
         -b|--build)
@@ -74,6 +101,47 @@ fi
 # Environment validation
 if [[ "$MODE" != "dev" && "$MODE" != "prod" ]]; then
     handle_error "Invalid environment '$MODE'. Use 'dev' or 'prod'."
+fi
+
+# Function to resolve service aliases to actual Docker Compose service names
+resolve_service_name() {
+    local service="$1"
+    local env="$2"
+    
+    case "$service" in
+        "api"|"backend")
+            echo "hornet-finder-${env}-api"
+            ;;
+        "frontend"|"vite")
+            if [[ "$env" == "dev" ]]; then
+                echo "hornet-finder-dev-vite"
+            else
+                handle_error "Frontend service only available in dev environment"
+            fi
+            ;;
+        "keycloak"|"auth")
+            echo "hornet-finder-${env}-keycloak"
+            ;;
+        "nginx"|"proxy")
+            echo "nginx"
+            ;;
+        "api-db"|"database")
+            echo "hornet-finder-${env}-api-db"
+            ;;
+        "keycloak-db")
+            echo "hornet-finder-${env}-keycloak-db"
+            ;;
+        *)
+            # Try the service name as-is (could be full docker-compose service name)
+            echo "$service"
+            ;;
+    esac
+}
+
+# Validate service name if specified
+if [[ -n "$SERVICE" ]]; then
+    RESOLVED_SERVICE=$(resolve_service_name "$SERVICE" "$MODE")
+    echo "🎯 Targeting specific service: $SERVICE → $RESOLVED_SERVICE"
 fi
 
 echo "🚀 Hornet Finder Deployment - Environment: $MODE (separate environments)"
@@ -110,6 +178,30 @@ if [[ "$MODE" == "prod" && "$BUILD_FRONTEND" == 1 ]]; then
     eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" --profile build-frontend down"
 fi
 
+# Handle service-specific deployment
+if [[ -n "$SERVICE" ]]; then
+    echo "🔄 Restarting specific service: $RESOLVED_SERVICE"
+    
+    # For specific services, we don't do a full down
+    echo "🔧 Rebuilding and restarting service..."
+    eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" up -d --build \"$RESOLVED_SERVICE\""
+    
+    # Check if the service is running
+    if eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" ps \"$RESOLVED_SERVICE\"" | grep -q "Up\|running"; then
+        show_success "Service $RESOLVED_SERVICE restarted successfully"
+    else
+        handle_error "Failed to restart service $RESOLVED_SERVICE"
+    fi
+    
+    # Show service logs
+    echo ""
+    echo "📋 Recent logs for $RESOLVED_SERVICE:"
+    eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" logs --tail=10 \"$RESOLVED_SERVICE\"" || echo "No logs available"
+    
+    exit 0
+fi
+
+# Full environment deployment
 # Stop existing services for this environment
 echo "🛑 Stopping existing services for $MODE..."
 eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" down"
