@@ -12,6 +12,9 @@ import threading
 import time
 from hornet.models import User
 import uuid
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class JWTUser:
@@ -68,11 +71,20 @@ class JWTBearerAuthentication(BaseAuthentication):
         """
         token = request.META.get('HTTP_AUTHORIZATION') # Retrieve the token from the Authorization header
         if not token:
+            logger.debug("No Authorization header found in request")
             return None
+        
+        logger.debug(f"Found Authorization header: {token[:50]}..." if len(token) > 50 else f"Found Authorization header: {token}")
+        
         try:
             if not self.KEYCLOAK_PUBLIC_KEY:  # If the public key is not set, retrieve it
+                logger.debug("Retrieving Keycloak public key...")
                 self.KEYCLOAK_PUBLIC_KEY = get_realm_public_key()  # Get the public key of the Keycloak realm
+                logger.debug("Successfully retrieved Keycloak public key")
+                
             token_info = jwt.decode(token.split()[1], self.KEYCLOAK_PUBLIC_KEY, algorithms=['RS256'], audience='account') # Decode the token using the public key
+            logger.debug(f"Successfully decoded JWT token for user: {token_info.get('preferred_username', 'unknown')}")
+            
             user = JWTUser(token_info)  # Create a JWTUser object with the token info
 
             # --- On-the-fly creation of the local user if not existing ---
@@ -81,11 +93,13 @@ class JWTBearerAuthentication(BaseAuthentication):
                 try:
                     User.objects.get(guid=guid)
                 except User.DoesNotExist:
+                    logger.debug(f"Creating new user with GUID: {guid}")
                     User.objects.create(guid=uuid.UUID(guid))
             # ---------------------------------------------------------------
 
             return (user, token_info)
         except Exception as e:
+            logger.error(f"JWT authentication failed: {type(e).__name__}: {e}")
             raise AuthenticationFailed("Invalid token. " + str(e)) # If the decoding of the token fails, raise an exception, indicating that the token is invalid
     
 

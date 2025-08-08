@@ -1,6 +1,31 @@
 import os
 from keycloak import KeycloakOpenID, KeycloakAdmin
 from typing import Optional
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class KeycloakConfigurationError(Exception):
+    """Raised when Keycloak configuration is missing or invalid."""
+    pass
+
+
+def _get_required_env_var(var_name: str) -> str:
+    """
+    Get a required environment variable or raise a configuration error.
+    
+    :param var_name: The name of the environment variable.
+    :return: The value of the environment variable.
+    :raises KeycloakConfigurationError: If the environment variable is not set.
+    """
+    value = os.getenv(var_name)
+    if not value:
+        raise KeycloakConfigurationError(
+            f"Required environment variable '{var_name}' is not set. "
+            f"Please configure this variable in your .env file."
+        )
+    return value
 
 
 def _get_keycloak_client():
@@ -9,12 +34,13 @@ def _get_keycloak_client():
 
     :return: A KeycloakOpenID instance for authentication and token management.
     :rtype: KeycloakOpenID
+    :raises KeycloakConfigurationError: If required configuration is missing.
     """
     return KeycloakOpenID(
-        server_url="http://hornet-finder-keycloak:8080/",
-        client_id="hornet-api",
-        realm_name="hornet-finder",
-        client_secret_key=os.getenv("KC_CLIENT_SECRET")
+        server_url=_get_required_env_var("KC_INTERNAL_URL"),
+        client_id=_get_required_env_var("KC_CLIENT_ID"),
+        realm_name=_get_required_env_var("KC_REALM"),
+        client_secret_key=_get_required_env_var("KC_CLIENT_SECRET")
     )
 
 def _get_keycloak_admin():
@@ -23,12 +49,13 @@ def _get_keycloak_admin():
 
     :return: A KeycloakAdmin instance for managing users and roles.
     :rtype: KeycloakAdmin
+    :raises KeycloakConfigurationError: If required configuration is missing.
     """
     return KeycloakAdmin(
-        server_url="http://hornet-finder-keycloak:8080/",
-        realm_name="hornet-finder",
-        client_id="hornet-api",
-        client_secret_key=os.getenv("KC_CLIENT_SECRET")
+        server_url=_get_required_env_var("KC_INTERNAL_URL"),
+        realm_name=_get_required_env_var("KC_REALM"),
+        client_id=_get_required_env_var("KC_CLIENT_ID"),
+        client_secret_key=_get_required_env_var("KC_CLIENT_SECRET")
     )
 
 def get_realm_public_key():
@@ -38,10 +65,17 @@ def get_realm_public_key():
     :return: The public key of the realm.
     :rtype: str
     """
-    keycloak_openid = _get_keycloak_client()
-    public_key = keycloak_openid.public_key()
-    pem_public_key = "-----BEGIN PUBLIC KEY-----\n" + public_key + "\n-----END PUBLIC KEY-----"
-    return pem_public_key
+    try:
+        logger.debug("Creating Keycloak client to retrieve public key...")
+        keycloak_openid = _get_keycloak_client()
+        logger.debug("Successfully created Keycloak client, calling public_key()...")
+        public_key = keycloak_openid.public_key()
+        logger.debug(f"Successfully retrieved public key: {public_key[:50]}...")
+        pem_public_key = "-----BEGIN PUBLIC KEY-----\n" + public_key + "\n-----END PUBLIC KEY-----"
+        return pem_public_key
+    except Exception as e:
+        logger.error(f"Failed to retrieve Keycloak public key: {type(e).__name__}: {e}")
+        raise
 
 def user_exists(guid: str) -> bool:
     """

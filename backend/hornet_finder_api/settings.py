@@ -29,8 +29,7 @@ DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    os.environ.get('HOST'), # The host name of the reverse proxy (nginx) used in production
-    os.environ.get('DEV_HOST') # The host name for development
+    os.environ.get('HOST'), # The host name of the reverse proxy (nginx)
 ]
 
 
@@ -184,3 +183,46 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Ensure GDAL and GEOS is available for geospatial features
 GDAL_LIBRARY_PATH = '/usr/lib/libgdal.so.36'
 GEOS_LIBRARY_PATH = '/usr/lib/libgeos_c.so.1'
+
+# Logging configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose' if DEBUG else 'simple',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'DEBUG' if DEBUG else 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'propagate': False,
+        },
+        'hornet_finder_api': {
+            'handlers': ['console'],
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'propagate': False,
+        },
+        'hornet': {
+            'handlers': ['console'],
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'propagate': False,
+        },
+    },
+}
