@@ -108,9 +108,15 @@ resolve_service_name() {
     local service="$1"
     local env="$2"
     
+    # Set suffix based on environment (dev has -dev suffix, prod has no suffix)
+    local suffix=""
+    if [[ "$env" == "dev" ]]; then
+        suffix="-dev"
+    fi
+    
     case "$service" in
         "api"|"backend")
-            echo "hornet-finder-${env}-api"
+            echo "hornet-finder${suffix}-api"
             ;;
         "frontend"|"vite")
             if [[ "$env" == "dev" ]]; then
@@ -120,16 +126,16 @@ resolve_service_name() {
             fi
             ;;
         "keycloak"|"auth")
-            echo "hornet-finder-${env}-keycloak"
+            echo "hornet-finder${suffix}-keycloak"
             ;;
         "nginx"|"proxy")
             echo "nginx"
             ;;
         "api-db"|"database")
-            echo "hornet-finder-${env}-api-db"
+            echo "hornet-finder${suffix}-api-db"
             ;;
         "keycloak-db")
-            echo "hornet-finder-${env}-keycloak-db"
+            echo "hornet-finder${suffix}-keycloak-db"
             ;;
         *)
             # Try the service name as-is (could be full docker-compose service name)
