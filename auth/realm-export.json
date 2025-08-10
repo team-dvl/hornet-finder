@@ -1043,8 +1043,8 @@
         "phone",
         "organization",
         "offline_access",
-        "microprofile-jwt",
-        "membership"
+        "membership",
+        "microprofile-jwt"
       ]
     },
     {
