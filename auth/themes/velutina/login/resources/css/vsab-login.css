@@ -3,3 +3,11 @@ div.kc-logo-text {
     height: 120px;
     width: 300px;
 }
+
+.login-pf body {
+    background: url("../img/vsab-abeille-bg1.jpg") no-repeat center center fixed;
+}
+
+div.card-pf {
+    opacity: 0.94;
+}
