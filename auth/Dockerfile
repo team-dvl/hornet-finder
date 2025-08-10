@@ -9,6 +9,9 @@ FROM quay.io/keycloak/keycloak:26.2
 COPY --from=builder /opt/keycloak/ /opt/keycloak/
 WORKDIR /opt/keycloak
 
+# Copier le thème personnalisé
+COPY themes/ /opt/keycloak/themes/
+
 COPY docker-entrypoint.sh /opt/keycloak/docker-entrypoint.sh
 
 ENTRYPOINT ["/opt/keycloak/docker-entrypoint.sh"]

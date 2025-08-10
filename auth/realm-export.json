@@ -1921,7 +1921,7 @@
     "authType": "basic",
     "user": "admin@velutina.ovh"
   },
-  "loginTheme": "keycloak.v2",
+  "loginTheme": "velutina",
   "accountTheme": "",
   "adminTheme": "",
   "emailTheme": "",
