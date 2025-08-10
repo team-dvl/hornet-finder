@@ -1,14 +1,51 @@
 div.kc-logo-text {
-    background-image: url(../img/vsab-logo-transparent-petit.png);
+    background-image: url(../img/vsab-logo-transparent-petit.png) !important;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
     height: 120px;
     width: 300px;
+    margin: 0 auto;
+}
+
+#kc-header {
+    text-align: center !important;
+    float: none !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+#kc-header-wrapper {
+    padding: 20px 0 0 0 !important;
+    margin: 0 auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
 }
 
 .login-pf body {
     background: url("../img/vsab-abeille-bg1.jpg") no-repeat center center fixed;
     background-size: cover;
+    margin: 0;
+    min-height: 100vh;
+}
+
+.login-pf-page {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 24px;
 }
 
 div.card-pf {
     opacity: 0.94;
+    max-width: 420px;
+    width: 100%;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    background-color: rgba(255, 255, 255, 0.94);
 }
