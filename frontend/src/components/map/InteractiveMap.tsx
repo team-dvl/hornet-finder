@@ -4,6 +4,7 @@ import { Modal, Spinner } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
 import { Map } from 'leaflet';
 import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowApiaryCircles, selectShowHornets, selectShowReturnZones, selectShowNests, initializeGeolocation, selectMapCenter, selectGeolocationError, setGeolocationError, setIsAdmin } from '../../store/store';
+import { selectFilteredHornets } from '../../store/slices/hornetsSlice';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useMapDataFetching } from '../../hooks/useMapDataFetching';
 import { MAX_ZOOM, MAX_NATIVE_ZOOM } from '../../utils/constants';
@@ -143,7 +144,8 @@ export default function InteractiveMap() {
   const [hornetCorrectedDirection, setHornetCorrectedDirection] = useState<number | null>(null);
   
   // Sélectionner les données depuis le store Redux
-  const { hornets, error } = useAppSelector((state) => state.hornets);
+  const { error } = useAppSelector((state) => state.hornets);
+  const filteredHornets = useAppSelector(selectFilteredHornets); // Utiliser les frelons filtrés
   const { apiaries } = useAppSelector((state) => state.apiaries);
   const { nests } = useAppSelector((state) => state.nests);
   const showApiaries = useAppSelector(selectShowApiaries);
@@ -244,7 +246,7 @@ export default function InteractiveMap() {
 
   const { handleSmartHornetClick, handleSmartApiaryClick, handleSmartNestClick } = useSmartClickHandlers({
     map: mapRef.current,
-    hornets,
+    hornets: filteredHornets,
     apiaries,
     nests,
     showHornets,
@@ -481,7 +483,7 @@ export default function InteractiveMap() {
         />
         <ZoomControl position="bottomleft" />
         {/* Frelons et zones de retour - niveau le plus bas */}
-        {showHornets && hornets.map((hornet, index) => {
+        {showHornets && filteredHornets.map((hornet: Hornet, index: number) => {
           const declinationInfo = getHornetDeclinationInfo(hornet);
           return (
             <HornetReturnZone

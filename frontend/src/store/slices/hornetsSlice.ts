@@ -23,6 +23,12 @@ export interface Hornet {
   created_by?: { guid: string; display_name: string }; // GUID of the user who created the hornet
 }
 
+// Interface pour les filtres de couleur
+export interface ColorFilters {
+  color1: string;
+  color2: string;
+}
+
 // État initial du slice
 interface HornetsState {
   hornets: Hornet[];
@@ -30,6 +36,7 @@ interface HornetsState {
   error: string | null;
   showHornets: boolean; // Toggle pour afficher/masquer les frelons
   showReturnZones: boolean; // Toggle pour afficher/masquer les zones de retour
+  colorFilters: ColorFilters; // Filtres par couleur
 }
 
 const initialState: HornetsState = {
@@ -38,6 +45,7 @@ const initialState: HornetsState = {
   error: null,
   showHornets: true, // Par défaut, afficher les frelons
   showReturnZones: true, // Par défaut, afficher les zones de retour
+  colorFilters: { color1: '', color2: '' }, // Pas de filtre par défaut
 };
 
 // Thunk async pour récupérer les frelons avec authentification
@@ -258,6 +266,13 @@ const hornetsSlice = createSlice({
     toggleReturnZones: (state) => {
       state.showReturnZones = !state.showReturnZones;
     },
+    // Actions pour gérer les filtres par couleur
+    setColorFilters: (state, action) => {
+      state.colorFilters = action.payload;
+    },
+    clearColorFilters: (state) => {
+      state.colorFilters = { color1: '', color2: '' };
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -357,6 +372,42 @@ export const selectHornetsLoading = (state: { hornets: HornetsState }) => state.
 export const selectHornetsError = (state: { hornets: HornetsState }) => state.hornets.error;
 export const selectShowHornets = (state: { hornets: HornetsState }) => state.hornets.showHornets;
 export const selectShowReturnZones = (state: { hornets: HornetsState }) => state.hornets.showReturnZones;
+export const selectColorFilters = (state: { hornets: HornetsState }) => state.hornets.colorFilters;
 
-export const { clearError, clearHornets, addHornet, toggleHornets, toggleReturnZones } = hornetsSlice.actions;
+// Sélecteur pour les frelons filtrés par couleur
+export const selectFilteredHornets = (state: { hornets: HornetsState }) => {
+  const hornets = state.hornets.hornets;
+  const filters = state.hornets.colorFilters;
+  
+  // Si aucun filtre n'est actif, retourner tous les frelons
+  if (!filters.color1 && !filters.color2) {
+    return hornets;
+  }
+  
+  // Filtrer les frelons selon les couleurs sélectionnées
+  return hornets.filter(hornet => {
+    // Si le frelon n'a aucune couleur de marquage et qu'un filtre est actif, l'exclure
+    if (!hornet.mark_color_1 && !hornet.mark_color_2) {
+      return false;
+    }
+    
+    const hornetColors = [hornet.mark_color_1, hornet.mark_color_2].filter((color): color is string => Boolean(color));
+    const filterColors = [filters.color1, filters.color2].filter((color): color is string => Boolean(color));
+    
+    // Si un seul filtre est défini, le frelon doit avoir au moins cette couleur
+    if (filterColors.length === 1) {
+      return hornetColors.includes(filterColors[0]);
+    }
+    
+    // Si deux filtres sont définis, le frelon doit avoir exactement ces deux couleurs
+    if (filterColors.length === 2) {
+      return hornetColors.length === 2 && 
+             filterColors.every(filterColor => hornetColors.includes(filterColor));
+    }
+    
+    return false;
+  });
+};
+
+export const { clearError, clearHornets, addHornet, toggleHornets, toggleReturnZones, setColorFilters, clearColorFilters } = hornetsSlice.actions;
 export default hornetsSlice.reducer;
