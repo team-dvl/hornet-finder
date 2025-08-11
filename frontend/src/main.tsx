@@ -8,7 +8,7 @@ import { store } from './store'
 import './index.css'
 import App from './App'
 import { testServiceWorker } from './utils/testServiceWorker'
-import './utils/quickTest' // Import le test rapide
+//import './utils/quickTest' // Import le test rapide
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
 // Détection automatique de l'environnement
@@ -73,20 +73,6 @@ const getOidcConfig = () => {
 };
 
 const oidcConfig = getOidcConfig();
-
-// Debug : afficher la configuration utilisée
-console.log('🔐 OIDC Configuration:', {
-  environment: isDevelopment ? 'development' : 'production',
-  hostname: window.location.hostname,
-  authority: oidcConfig.authority,
-  automaticSilentRenew: oidcConfig.automaticSilentRenew,
-  monitorSession: oidcConfig.monitorSession
-});
-
-if (isDevelopment && !oidcConfig.automaticSilentRenew) {
-  console.warn('⚠️ Silent renewal désactivé en développement à cause des problèmes CORS');
-  console.log('💡 Pour activer, configurer Keycloak pour autoriser https://dev.velutina.ovh');
-}
 
 // En développement, initialiser le testeur de service worker
 if (isDevelopment) {

@@ -60,7 +60,7 @@ export const useMapDataFetching = () => {
       }
     }
 
-    console.log('Geolocation initialized, fetching data for position:', mapCenter);
+    // console.log('Geolocation initialized, fetching data for position:', mapCenter);
 
     // Convertir le centre de la carte en paramètres de géolocalisation
     const geolocationParams: GeolocationParams = {
