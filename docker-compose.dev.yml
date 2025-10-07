@@ -35,7 +35,7 @@ services:
       - POSTGRES_USER=hornet_finder_dev
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     volumes:
-      - api-db:/var/lib/postgresql/data
+      - dev-api-db:/var/lib/postgresql/data
 
   # API Django pour DEV
   hornet-finder-dev-api:
@@ -67,7 +67,7 @@ services:
       - POSTGRES_USER=keycloak_dev
       - POSTGRES_PASSWORD=${KEYCLOAK_DB_PASSWORD}
     volumes:
-      - keycloak-db:/var/lib/postgresql/data
+      - dev-keycloak-db:/var/lib/postgresql/data
 
   # Keycloak pour DEV
   hornet-finder-dev-keycloak:
@@ -124,8 +124,8 @@ services:
     command: npm run dev -- --host 0.0.0.0 --port 5173
 
 volumes:
-  api-db:
-  keycloak-db:
+  dev-api-db:
+  dev-keycloak-db:
 
 networks:
   default:
