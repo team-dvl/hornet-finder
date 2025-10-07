@@ -1043,8 +1043,8 @@
         "phone",
         "organization",
         "offline_access",
-        "membership",
-        "microprofile-jwt"
+        "microprofile-jwt",
+        "membership"
       ]
     },
     {
@@ -2031,7 +2031,7 @@
       "displayName": "Facebook",
       "internalId": "0afa5020-abbd-4b5f-9459-0372299ba91d",
       "providerId": "facebook",
-      "enabled": false,
+      "enabled": true,
       "updateProfileFirstLoginMode": "on",
       "trustEmail": true,
       "storeToken": false,
@@ -2042,13 +2042,14 @@
       "firstBrokerLoginFlowAlias": "first broker login",
       "config": {
         "acceptsPromptNoneForwardFromClient": "false",
-        "clientId": "2081790388897407",
+        "clientId": "1168307525173363",
         "disableUserInfo": "false",
         "filteredByClaim": "false",
         "syncMode": "LEGACY",
         "clientSecret": "**********",
         "caseSensitiveOriginalUsername": "false",
-        "guiOrder": "1"
+        "guiOrder": "1",
+        "defaultScope": "openid email public_profile"
       }
     },
     {
@@ -2076,7 +2077,38 @@
       }
     }
   ],
-  "identityProviderMappers": [],
+  "identityProviderMappers": [
+    {
+      "id": "cb70acc1-caf8-4b39-a0c6-21a34bc98e06",
+      "name": "email",
+      "identityProviderAlias": "facebook",
+      "identityProviderMapper": "facebook-user-attribute-mapper",
+      "config": {
+        "syncMode": "INHERIT",
+        "userAttribute": "email"
+      }
+    },
+    {
+      "id": "81eb2d74-ff0e-47c4-90f4-e1f9075dad85",
+      "name": "name",
+      "identityProviderAlias": "facebook",
+      "identityProviderMapper": "facebook-user-attribute-mapper",
+      "config": {
+        "syncMode": "INHERIT",
+        "userAttribute": "username"
+      }
+    },
+    {
+      "id": "fc97ec1e-8ae4-4298-8436-8737b4ccde03",
+      "name": "id",
+      "identityProviderAlias": "facebook",
+      "identityProviderMapper": "facebook-user-attribute-mapper",
+      "config": {
+        "syncMode": "INHERIT",
+        "userAttribute": "facebook_id"
+      }
+    }
+  ],
   "components": {
     "org.keycloak.services.clientregistration.policy.ClientRegistrationPolicy": [
       {
