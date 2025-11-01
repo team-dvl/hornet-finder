@@ -93,7 +93,6 @@ create_docker_volumes_if_needed() {
 
 # Helper function to create Docker volumes from array
 create_docker_volumes_array() {
-    set -x
     local volumes=("$@")
     for volume in "${volumes[@]}"; do
         if ! docker volume inspect "$volume" >/dev/null 2>&1; then
@@ -103,12 +102,10 @@ create_docker_volumes_array() {
             echo "Docker volume already exists: $volume"
         fi
     done
-    set -x
 }
 
 # Helper function to create datasets from array
 create_datasets_array() {
-    set -x
     local datasets=("$@")
     for dataset in "${datasets[@]}"; do
         if ! zfs list "$dataset" >/dev/null 2>&1; then
