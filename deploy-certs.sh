@@ -3,7 +3,10 @@ set -e  # Exit on error
 
 #
 # Script unifié de génération des certificats SSL
-# Usage: ./deploy-certs.sh [-e env] [-f] [-h]
+# Usage: ./deploy-certs.sh -e ENV [-h]
+#
+# ⚠️  IMPORTANT: This script NEVER deletes Docker volumes.
+#     It only manages SSL certificates via certbot.
 #
 
 #
@@ -26,7 +29,6 @@ SCRIPT_DIR="$(get_script_dir)"
 source "$SCRIPT_DIR/lib/common.sh"
 
 # Default variables
-FORCE=0
 ENVIRONMENT=""
 
 # Colors for messages
@@ -44,17 +46,15 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 # Help display
 print_help() {
-    echo "Usage: $0 [-e environment] [-f] [-h]"
+    echo "Usage: $0 [-e environment] [-h]"
     echo ""
     echo "Options:"
     echo "  -e ENV    Environment to deploy (prod or dev)"
-    echo "  -f        Force deletion of existing certificates"
     echo "  -h        Display this help"
     echo ""
     echo "Examples:"
     echo "  $0 -e prod        # Generate certificates for PROD"
-    echo "  $0 -e dev         # Generate certificates for DEV" 
-    echo "  $0 -e prod -f     # Force regeneration of PROD certificates"
+    echo "  $0 -e dev         # Generate certificates for DEV"
     echo ""
     echo "Supported environments:"
     echo "  prod: velutina.ovh, auth.velutina.ovh (IP 51.83.11.24)"
@@ -62,6 +62,9 @@ print_help() {
     echo ""
     echo "Note: Both environments are deployed from the same server"
     echo "      but exposed on different IP addresses."
+    echo ""
+    echo "⚠️  IMPORTANT: This script NEVER deletes Docker volumes or data."
+    echo "    It only manages certificates in certbot/certbot-dev directories."
 }
 
 # Environment validation
@@ -75,26 +78,45 @@ validate_environment() {
     fi
 }
 
-# Certificate generation for PROD (original method)
+# Certificate generation for PROD (aligned with DEV method)
 generate_prod_certs() {
     log "🔐 Generating SSL certificates for PROD environment"
     log "Domains: velutina.ovh, auth.velutina.ovh"
     
-    TARGET_DIR="$SCRIPT_DIR/certbot"
+    cd "$SCRIPT_DIR"
     
-    # Use common function for deletion confirmation
-    confirm_deletion "$TARGET_DIR" "$FORCE"
+    # Load environment variables for PROD
+    log "📁 Loading environment variables for PROD..."
+    load_env "prod"
     
-    pushd "$SCRIPT_DIR" > /dev/null
+    # Create ZFS datasets if needed
+    if is_zfs_used "$SCRIPT_DIR"; then
+        log "🗄️ Checking and creating ZFS datasets for PROD..."
+        create_zfs_datasets_if_needed "prod"
+    fi
     
-    # Using original method for PROD
-    stop_services_with_profile_and_volumes "" "gencert"
-    docker compose --profile gencert up --build certbot
-    stop_services_with_profile_and_volumes "" "gencert"
+    # Get YAML files for PROD
+    YAML_FILE=$(get_yaml_files "$SCRIPT_DIR" "prod")
     
-    popd > /dev/null
+    log "🛑 Stopping existing services..."
+    eval "docker compose ${YAML_FILE} --env-file .env.prod down"
+    
+    log "🌐 Starting nginx server for ACME challenges..."
+    eval "docker compose ${YAML_FILE} --env-file .env.prod --profile gencert up -d nginx-certbot"
+    
+    log "⏳ Waiting for nginx server to start..."
+    sleep 5
+    
+    log "🔐 Generating SSL certificates..."
+    eval "docker compose ${YAML_FILE} --env-file .env.prod --profile gencert up certbot"
+    
+    log "🛑 Stopping temporary nginx server..."
+    eval "docker compose ${YAML_FILE} --env-file .env.prod --profile gencert down"
     
     success "✅ PROD certificates generated successfully!"
+    echo ""
+    log "🚀 You can now deploy the complete PROD environment with:"
+    log "   ./deploy.sh prod"
 }
 
 # Certificate generation for DEV
@@ -118,12 +140,6 @@ generate_dev_certs() {
     # Get YAML files for DEV
     YAML_FILE=$(get_yaml_files "$SCRIPT_DIR" "dev")
     
-    # Handle forced deletion for DEV
-    if [[ "$FORCE" == "1" ]]; then
-        TARGET_DIR="$SCRIPT_DIR/certbot"
-        confirm_deletion "$TARGET_DIR" "$FORCE"
-    fi
-    
     log "🛑 Stopping existing services..."
     eval "docker compose ${YAML_FILE} --env-file .env.dev down"
     
@@ -146,10 +162,9 @@ generate_dev_certs() {
 }
 
 # Option parsing
-while getopts ":e:fh" opt; do
+while getopts ":e:h" opt; do
     case "$opt" in
         e) ENVIRONMENT="$OPTARG" ;;
-        f) FORCE=1 ;;
         h) print_help; exit 0 ;;
         \?) error "Invalid option: -$OPTARG"; print_help; exit 1 ;;
         :) error "Option -$OPTARG requires an argument"; print_help; exit 1 ;;

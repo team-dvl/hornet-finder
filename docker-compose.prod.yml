@@ -7,7 +7,7 @@ services:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
     entrypoint:
-      sh -c "certbot certonly --webroot --webroot-path=/var/www/certbot --email vlb79rzxd@relay.firefox.com --agree-tos --no-eff-email --non-interactive -d velutina.ovh -d auth.velutina.ovh -d www.velutina.ovh -d dev.velutina.ovh -d prod.velutina.ovh"
+      sh -c "certbot certonly --webroot --webroot-path=/var/www/certbot --email vlb79rzxd@relay.firefox.com --agree-tos --no-eff-email --non-interactive --expand --force-renewal -d velutina.ovh -d auth.velutina.ovh -d www.velutina.ovh"
 
     depends_on:
       - nginx-certbot
