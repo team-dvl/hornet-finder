@@ -63,7 +63,7 @@ done
 
 # Check that environment is specified
 if [[ -z "$MODE" ]]; then
-    echo "❌ Environment required (-e dev|prod|all)" >&2
+    echo "[ERROR] Environment required (-e dev|prod|all)" >&2
     print_help
     exit 1
 fi
@@ -73,7 +73,7 @@ if [[ "$MODE" != "dev" && "$MODE" != "prod" && "$MODE" != "all" ]]; then
     handle_error "Invalid environment '$MODE'. Use 'dev', 'prod', or 'all'."
 fi
 
-echo "🛑 Hornet Finder Shutdown - Environment: $MODE"
+echo "[SHUTDOWN] Hornet Finder Shutdown - Environment: $MODE"
 
 cd "$SCRIPT_DIR"
 
@@ -90,16 +90,16 @@ shutdown_environment() {
         ENV_FILE=".env.prod"  
     fi
     
-    echo "🛑 Stopping $env environment..."
+    echo "[SHUTDOWN] Stopping $env environment..."
     
     if [[ "$REMOVE_VOLUMES" == 1 ]]; then
-        echo "⚠️  WARNING: Removing volumes for $env (data loss!)"
+        echo "[WARNING] Removing volumes for $env (data loss!)"
         eval "docker compose ${yaml_file} --env-file \"$ENV_FILE\" down -v"
     else
         eval "docker compose ${yaml_file} --env-file \"$ENV_FILE\" down"
     fi
     
-    echo "✅ Environment $env stopped"
+    echo "[SUCCESS] Environment $env stopped"
 }
 
 # Execute shutdown based on mode

@@ -101,7 +101,7 @@ done
 
 # Check that environment is specified
 if [[ -z "$MODE" ]]; then
-    echo "❌ Environment required (-e dev|prod)" >&2
+    echo "[ERROR] Environment required (-e dev|prod)" >&2
     print_help
     exit 1
 fi
@@ -155,10 +155,10 @@ resolve_service_name() {
 # Validate service name if specified
 if [[ -n "$SERVICE" ]]; then
     RESOLVED_SERVICE=$(resolve_service_name "$SERVICE" "$MODE")
-    echo "🎯 Targeting specific service: $SERVICE → $RESOLVED_SERVICE"
+    echo "[TARGET] Targeting specific service: $SERVICE -> $RESOLVED_SERVICE"
 fi
 
-echo "🚀 Hornet Finder Deployment - Environment: $MODE (separate environments)"
+echo "[DEPLOY] Hornet Finder Deployment - Environment: $MODE (separate environments)"
 
 cd "$SCRIPT_DIR"
 
@@ -167,14 +167,14 @@ YAML_FILE=$(get_yaml_files "$SCRIPT_DIR" "$MODE")
 
 # Create ZFS datasets if ZFS is used
 if is_zfs_used "$SCRIPT_DIR"; then
-    echo "🗄️ Checking and creating ZFS datasets for $MODE..."
+    echo "[ZFS] Checking and creating ZFS datasets for $MODE..."
     create_zfs_datasets_if_needed "$MODE"
-    echo "🐳 Checking and creating Docker volumes for $MODE..."
+    echo "[DOCKER] Checking and creating Docker volumes for $MODE..."
     create_docker_volumes_if_needed "$MODE"
 fi
 
 # Load environment variables specific to the environment
-echo "📁 Loading environment variables for $MODE..."
+echo "[ENV] Loading environment variables for $MODE..."
 load_env "$MODE"
 
 # Determine the env file to use
@@ -187,9 +187,9 @@ fi
 
 # Build frontend if needed (for prod mode)
 if [[ "$MODE" == "prod" && "$BUILD_FRONTEND" == 1 ]]; then
-    echo "🔨 Building frontend for production..."
+    echo "[BUILD] Building frontend for production..."
     if [[ "$NO_CACHE" == 1 ]]; then
-        echo "⚡ Using --no-cache for frontend build"
+        echo "[NO-CACHE] Using --no-cache for frontend build"
         eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" --profile build-frontend build --no-cache hornet-finder-frontend-build"
         eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" --profile build-frontend up hornet-finder-frontend-build"
     else
@@ -200,16 +200,16 @@ fi
 
 # Handle service-specific deployment
 if [[ -n "$SERVICE" ]]; then
-    echo "🔄 Restarting specific service: $RESOLVED_SERVICE"
+    echo "[RESTART] Restarting specific service: $RESOLVED_SERVICE"
     
     # For specific services, we don't do a full down
-    echo "🔧 Rebuilding and restarting service..."
+    echo "[BUILD] Rebuilding and restarting service..."
     if [[ "$NO_CACHE" == 1 ]]; then
-        echo "⚡ Using --no-cache for service build"
+        echo "[NO-CACHE] Using --no-cache for service build"
         eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" build --no-cache \"$RESOLVED_SERVICE\""
-        eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" up -d \"$RESOLVED_SERVICE\""
+        eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" up -d --force-recreate \"$RESOLVED_SERVICE\""
     else
-        eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" up -d --build \"$RESOLVED_SERVICE\""
+        eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" up -d --build --force-recreate \"$RESOLVED_SERVICE\""
     fi
     
     # Check if the service is running
@@ -221,7 +221,7 @@ if [[ -n "$SERVICE" ]]; then
     
     # Show service logs
     echo ""
-    echo "📋 Recent logs for $RESOLVED_SERVICE:"
+    echo "[LOGS] Recent logs for $RESOLVED_SERVICE:"
     eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" logs --tail=10 \"$RESOLVED_SERVICE\"" || echo "No logs available"
     
     exit 0
@@ -229,17 +229,17 @@ fi
 
 # Full environment deployment
 # Stop existing services for this environment
-echo "🛑 Stopping existing services for $MODE..."
+echo "[STOP] Stopping existing services for $MODE..."
 eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" down"
 
 # Start services according to mode
 if [[ "$NO_CACHE" == 1 ]]; then
-    echo "⚡ Using --no-cache for full environment build"
+    echo "[NO-CACHE] Using --no-cache for full environment build"
 fi
 
 case "$MODE" in
     "dev")
-        echo "🔧 Starting in development mode (separate environment)..."
+        echo "[DEV] Starting in development mode (separate environment)..."
         if [[ "$NO_CACHE" == 1 ]]; then
             eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" build --no-cache"
             eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" up -d"
@@ -248,7 +248,7 @@ case "$MODE" in
         fi
         ;;
     "prod")
-        echo "🏭 Starting in production mode (separate environment)..."
+        echo "[PROD] Starting in production mode (separate environment)..."
         if [[ "$NO_CACHE" == 1 ]]; then
             eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" build --no-cache"
             eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" up -d"
@@ -262,14 +262,14 @@ esac
 wait_for_services
 
 # Check service status
-echo "📊 Service status:"
+echo "[STATUS] Service status:"
 eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" ps"
 
 show_success "Deployment completed!"
 
 # Display appropriate URLs
 echo ""
-echo "🌐 Available URLs for $MODE:"
+echo "[URLS] Available URLs for $MODE:"
 if [[ "$MODE" == "dev" ]]; then
     echo "  - DEV Application: https://dev.velutina.ovh"
     echo "  - DEV Auth: https://auth.dev.velutina.ovh"

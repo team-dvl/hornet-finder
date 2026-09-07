@@ -29,7 +29,7 @@ cd "$SCRIPT_DIR"
 YAML_FILE=$(get_yaml_files "$SCRIPT_DIR" "prod")
 
 # Build the frontend for production
-echo "🔨 Building frontend for production deployment..."
+echo "[BUILD] Building frontend for production deployment..."
 build_frontend_production "$YAML_FILE"
 
 show_success "Production build completed! Files are in the 'frontend-dist' volume"

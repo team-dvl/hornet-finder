@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
 set -e  # Exit on error
+#set -x
 
 #
 # Script unifié de génération des certificats SSL
 # Usage: ./deploy-certs.sh -e ENV [-h]
-#
-# ⚠️  IMPORTANT: This script NEVER deletes Docker volumes.
-#     It only manages SSL certificates via certbot.
 #
 
 #
@@ -56,15 +54,6 @@ print_help() {
     echo "  $0 -e prod        # Generate certificates for PROD"
     echo "  $0 -e dev         # Generate certificates for DEV"
     echo ""
-    echo "Supported environments:"
-    echo "  prod: velutina.ovh, auth.velutina.ovh (IP 51.83.11.24)"
-    echo "  dev:  dev.velutina.ovh, auth.dev.velutina.ovh (IP 37.187.220.209)"
-    echo ""
-    echo "Note: Both environments are deployed from the same server"
-    echo "      but exposed on different IP addresses."
-    echo ""
-    echo "⚠️  IMPORTANT: This script NEVER deletes Docker volumes or data."
-    echo "    It only manages certificates in certbot/certbot-dev directories."
 }
 
 # Environment validation
@@ -80,85 +69,85 @@ validate_environment() {
 
 # Certificate generation for PROD (aligned with DEV method)
 generate_prod_certs() {
-    log "🔐 Generating SSL certificates for PROD environment"
+    log "Generating SSL certificates for PROD environment"
     log "Domains: velutina.ovh, auth.velutina.ovh"
     
     cd "$SCRIPT_DIR"
     
     # Load environment variables for PROD
-    log "📁 Loading environment variables for PROD..."
+    log "Loading environment variables for PROD..."
     load_env "prod"
     
     # Create ZFS datasets if needed
     if is_zfs_used "$SCRIPT_DIR"; then
-        log "🗄️ Checking and creating ZFS datasets for PROD..."
+        log "Checking and creating ZFS datasets for PROD..."
         create_zfs_datasets_if_needed "prod"
     fi
     
     # Get YAML files for PROD
     YAML_FILE=$(get_yaml_files "$SCRIPT_DIR" "prod")
     
-    log "🛑 Stopping existing services..."
+    log "Stopping existing services..."
     eval "docker compose ${YAML_FILE} --env-file .env.prod down"
     
-    log "🌐 Starting nginx server for ACME challenges..."
+    log "Starting nginx server for ACME challenges..."
     eval "docker compose ${YAML_FILE} --env-file .env.prod --profile gencert up -d nginx-certbot"
     
-    log "⏳ Waiting for nginx server to start..."
+    log "Waiting for nginx server to start..."
     sleep 5
     
-    log "🔐 Generating SSL certificates..."
+    log "Generating SSL certificates..."
     eval "docker compose ${YAML_FILE} --env-file .env.prod --profile gencert up certbot"
     
-    log "🛑 Stopping temporary nginx server..."
+    log "Stopping temporary nginx server..."
     eval "docker compose ${YAML_FILE} --env-file .env.prod --profile gencert down"
     
-    success "✅ PROD certificates generated successfully!"
+    success "PROD certificates generated successfully!"
     echo ""
-    log "🚀 You can now deploy the complete PROD environment with:"
-    log "   ./deploy.sh prod"
+    log "You can now deploy the complete PROD environment with:"
+    log " ./deploy.sh prod"
 }
 
 # Certificate generation for DEV
 generate_dev_certs() {
-    log "🔐 Generating SSL certificates for DEV environment"
+    log "Generating SSL certificates for DEV environment"
     log "Domains: dev.velutina.ovh, auth.dev.velutina.ovh"
-    log "ℹ️  Deploying from same server on different IP"
+    log "Deploying from same server on different IP"
     
     cd "$SCRIPT_DIR"
     
     # Load environment variables for DEV
-    log "📁 Loading environment variables for DEV..."
+    log "Loading environment variables for DEV..."
     load_env "dev"
     
     # Create ZFS datasets if needed
     if is_zfs_used "$SCRIPT_DIR"; then
-        log "🗄️ Checking and creating ZFS datasets for DEV..."
+        log "Checking and creating ZFS datasets for DEV..."
         create_zfs_datasets_if_needed "dev"
     fi
     
     # Get YAML files for DEV
     YAML_FILE=$(get_yaml_files "$SCRIPT_DIR" "dev")
     
-    log "🛑 Stopping existing services..."
+    log "Stopping existing services..."
     eval "docker compose ${YAML_FILE} --env-file .env.dev down"
     
-    log "🌐 Starting nginx server for ACME challenges..."
+    log "Starting nginx server for ACME challenges..."
     eval "docker compose ${YAML_FILE} --env-file .env.dev --profile gencert up -d nginx-certbot-dev"
     
-    log "⏳ Waiting for nginx server to start..."
+    log "Waiting for nginx server to start..."
     sleep 5
     
-    log "🔐 Generating SSL certificates..."
+    log "Generating SSL certificates..."
     eval "docker compose ${YAML_FILE} --env-file .env.dev --profile gencert up certbot-dev"
     
-    log "🛑 Stopping temporary nginx server..."
+    log "Stopping temporary nginx server..."
     eval "docker compose ${YAML_FILE} --env-file .env.dev --profile gencert down"
     
-    success "✅ DEV certificates generated successfully!"
+    success "DEV certificates generated successfully!"
     echo ""
-    log "🚀 You can now deploy the complete DEV environment with:"
-    log "   ./deploy-separated.sh -m dev"
+    log "You can now deploy the complete DEV environment with:"
+    log " ./deploy-separated.sh -m dev"
 }
 
 # Option parsing
@@ -191,10 +180,7 @@ case "$ENVIRONMENT" in
         ;;
 esac
 
-success "🎉 Certificate generation completed for $ENVIRONMENT environment"
-
-
-
+success "Certificate generation completed for $ENVIRONMENT environment"
 
 
 

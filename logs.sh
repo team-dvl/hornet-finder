@@ -8,7 +8,7 @@ source lib/common.sh
 
 usage() {
     cat << EOF
-🔍 Log utilities for separate environments
+[LOGS] Log utilities for separate environments
 
 Usage: $0 [OPTIONS] [SERVICE]
 
@@ -68,13 +68,13 @@ done
 
 # Validation
 if [[ -z "$MODE" ]]; then
-    echo "❌ Environment required (-e dev|prod)"
+    echo "[ERROR] Environment required (-e dev|prod)"
     usage
     exit 1
 fi
 
 if [[ "$MODE" != "dev" && "$MODE" != "prod" ]]; then
-    echo "❌ Invalid environment: $MODE (must be 'dev' or 'prod')"
+    echo "[ERROR] Invalid environment: $MODE (must be 'dev' or 'prod')"
     exit 1
 fi
 
@@ -122,7 +122,7 @@ if [[ -n "$SERVICE" ]]; then
             ;;
         vite)
             if [[ "$MODE" != "dev" ]]; then
-                echo "❌ The vite service is only available in DEV mode"
+                echo "[ERROR] The vite service is only available in DEV mode"
                 exit 1
             fi
             SERVICE="hornet-finder-dev-vite"
@@ -134,5 +134,5 @@ if [[ -n "$SERVICE" ]]; then
     LOGS_CMD="$LOGS_CMD $SERVICE"
 fi
 
-echo "🔍 Logs $MODE${SERVICE:+ - $SERVICE}"
+echo "[LOGS] Logs $MODE${SERVICE:+ - $SERVICE}"
 eval "docker compose $COMPOSE_ARGS $LOGS_CMD"
