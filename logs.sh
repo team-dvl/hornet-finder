@@ -1,5 +1,5 @@
 #!/bin/bash
-# Utilities to manage logs in separate mode
+# Utilities to manage logs for the current worktree
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -13,7 +13,6 @@ usage() {
 Usage: $0 [OPTIONS] [SERVICE]
 
 OPTIONS:
-    -e, --env ENV      Environment: dev or prod (required)
     -f, --follow       Follow logs in real time
     -n, --tail N       Number of lines to display (default: 50)
     -h, --help         Display this help
@@ -27,15 +26,14 @@ SERVICES:
     vite              Vite server (DEV only)
 
 Examples:
-    $0 -e dev api              # DEV API logs (last 50 lines)
-    $0 -e prod -f nginx        # Follow PROD Nginx logs in real time
-    $0 -e dev -n 100 keycloak  # Last 100 lines of DEV Keycloak
-    $0 -e dev                  # Logs of all DEV services
+    $0 api                     # API logs (last 50 lines)
+    $0 -f nginx                # Follow Nginx logs in real time
+    $0 -n 100 keycloak         # Last 100 lines of Keycloak
+    $0                         # Logs of all services
 
 EOF
 }
 
-MODE=""
 FOLLOW=false
 TAIL_COUNT=50
 SERVICE=""
@@ -43,10 +41,6 @@ SERVICE=""
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
-        -e|--env)
-            MODE="$2"
-            shift 2
-            ;;
         -f|--follow)
             FOLLOW=true
             shift
@@ -66,20 +60,9 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Validation
-if [[ -z "$MODE" ]]; then
-    echo "[ERROR] Environment required (-e dev|prod)"
-    usage
-    exit 1
-fi
-
-if [[ "$MODE" != "dev" && "$MODE" != "prod" ]]; then
-    echo "[ERROR] Invalid environment: $MODE (must be 'dev' or 'prod')"
-    exit 1
-fi
-
-# Load environment
-load_env "$MODE"
+# Load and detect the environment from this worktree
+load_env
+MODE=$(get_configured_environment)
 
 # Adjust name suffix: "" for prod, "-dev" for dev
 NAMESUFFIX=""
@@ -91,7 +74,7 @@ fi
 COMPOSE_FILES=$(get_yaml_files "$SCRIPT_DIR" "$MODE")
 
 # Build docker compose command parts
-COMPOSE_ARGS="--env-file .env.$MODE $COMPOSE_FILES"
+COMPOSE_ARGS="$COMPOSE_FILES"
 
 # Build logs command
 LOGS_CMD="logs"

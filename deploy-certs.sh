@@ -4,7 +4,7 @@ set -e  # Exit on error
 
 #
 # Script unifié de génération des certificats SSL
-# Usage: ./deploy-certs.sh -e ENV [-h]
+# Usage: ./deploy-certs.sh [-h]
 #
 
 #
@@ -26,9 +26,6 @@ SCRIPT_DIR="$(get_script_dir)"
 # Load common functions
 source "$SCRIPT_DIR/lib/common.sh"
 
-# Default variables
-ENVIRONMENT=""
-
 # Colors for messages
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -44,27 +41,14 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 # Help display
 print_help() {
-    echo "Usage: $0 [-e environment] [-h]"
+    echo "Usage: $0 [-h]"
     echo ""
     echo "Options:"
-    echo "  -e ENV    Environment to deploy (prod or dev)"
     echo "  -h        Display this help"
     echo ""
     echo "Examples:"
-    echo "  $0 -e prod        # Generate certificates for PROD"
-    echo "  $0 -e dev         # Generate certificates for DEV"
+    echo "  $0               # Generate certificates for APP_ENV from .env"
     echo ""
-}
-
-# Environment validation
-validate_environment() {
-    local env="$1"
-    
-    if [[ "$env" != "prod" && "$env" != "dev" ]]; then
-        error "Invalid environment: $env"
-        echo "Supported environments are: prod, dev"
-        exit 1
-    fi
 }
 
 # Certificate generation for PROD (aligned with DEV method)
@@ -76,7 +60,7 @@ generate_prod_certs() {
     
     # Load environment variables for PROD
     log "Loading environment variables for PROD..."
-    load_env "prod"
+    load_env
     
     # Create ZFS datasets if needed
     if is_zfs_used "$SCRIPT_DIR"; then
@@ -88,24 +72,24 @@ generate_prod_certs() {
     YAML_FILE=$(get_yaml_files "$SCRIPT_DIR" "prod")
     
     log "Stopping existing services..."
-    eval "docker compose ${YAML_FILE} --env-file .env.prod down"
+    eval "docker compose ${YAML_FILE} down"
     
     log "Starting nginx server for ACME challenges..."
-    eval "docker compose ${YAML_FILE} --env-file .env.prod --profile gencert up -d nginx-certbot"
+    eval "docker compose ${YAML_FILE} --profile gencert up -d nginx-certbot"
     
     log "Waiting for nginx server to start..."
     sleep 5
     
     log "Generating SSL certificates..."
-    eval "docker compose ${YAML_FILE} --env-file .env.prod --profile gencert up certbot"
+    eval "docker compose ${YAML_FILE} --profile gencert up certbot"
     
     log "Stopping temporary nginx server..."
-    eval "docker compose ${YAML_FILE} --env-file .env.prod --profile gencert down"
+    eval "docker compose ${YAML_FILE} --profile gencert down"
     
     success "PROD certificates generated successfully!"
     echo ""
     log "You can now deploy the complete PROD environment with:"
-    log " ./deploy.sh prod"
+    log " ./deploy.sh"
 }
 
 # Certificate generation for DEV
@@ -118,7 +102,7 @@ generate_dev_certs() {
     
     # Load environment variables for DEV
     log "Loading environment variables for DEV..."
-    load_env "dev"
+    load_env
     
     # Create ZFS datasets if needed
     if is_zfs_used "$SCRIPT_DIR"; then
@@ -130,45 +114,43 @@ generate_dev_certs() {
     YAML_FILE=$(get_yaml_files "$SCRIPT_DIR" "dev")
     
     log "Stopping existing services..."
-    eval "docker compose ${YAML_FILE} --env-file .env.dev down"
+    eval "docker compose ${YAML_FILE} down"
     
     log "Starting nginx server for ACME challenges..."
-    eval "docker compose ${YAML_FILE} --env-file .env.dev --profile gencert up -d nginx-certbot-dev"
+    eval "docker compose ${YAML_FILE} --profile gencert up -d nginx-certbot-dev"
     
     log "Waiting for nginx server to start..."
     sleep 5
     
     log "Generating SSL certificates..."
-    eval "docker compose ${YAML_FILE} --env-file .env.dev --profile gencert up certbot-dev"
+    eval "docker compose ${YAML_FILE} --profile gencert up certbot-dev"
     
     log "Stopping temporary nginx server..."
-    eval "docker compose ${YAML_FILE} --env-file .env.dev --profile gencert down"
+    eval "docker compose ${YAML_FILE} --profile gencert down"
     
     success "DEV certificates generated successfully!"
     echo ""
     log "You can now deploy the complete DEV environment with:"
-    log " ./deploy-separated.sh -m dev"
+    log " ./deploy-certs.sh"
 }
 
 # Option parsing
-while getopts ":e:h" opt; do
+if [[ "${1:-}" == "--help" ]]; then
+    print_help
+    exit 0
+fi
+
+while getopts ":h" opt; do
     case "$opt" in
-        e) ENVIRONMENT="$OPTARG" ;;
         h) print_help; exit 0 ;;
         \?) error "Invalid option: -$OPTARG"; print_help; exit 1 ;;
         :) error "Option -$OPTARG requires an argument"; print_help; exit 1 ;;
     esac
 done
 
-# Check that an environment was specified
-if [[ -z "$ENVIRONMENT" ]]; then
-    error "No environment specified"
-    print_help
-    exit 1
-fi
-
-# Validate environment
-validate_environment "$ENVIRONMENT"
+cd "$SCRIPT_DIR"
+load_env
+ENVIRONMENT=$(get_configured_environment)
 
 # Generate certificates according to environment
 case "$ENVIRONMENT" in

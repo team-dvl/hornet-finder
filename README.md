@@ -76,7 +76,7 @@ Volume Mounts:
 
 ### Infrastructure
 - **Reverse Proxy**: Nginx with SSL termination
-- **Authentication Server**: Keycloak 26.2 with Google OAuth provider
+- **Authentication Server**: Keycloak 26.7 with Google OAuth provider
 - **SSL Certificates**: Let's Encrypt with automated renewal
 - **Containerization**: Docker Compose for orchestration
 - **Database**: PostGIS-enabled PostgreSQL for geospatial operations
@@ -133,50 +133,86 @@ hornet-finder/
 2. **Beekeeper**: Professional beekeepers with enhanced data access
 3. **Volunteer**: Community members with basic reporting capabilities
 
-## Deployment
+## Installation
 
 ### Prerequisites
 
-- Docker and Docker Compose
-- Domain name with DNS configuration
-- Email address for Let's Encrypt certificate registration
+- Git with worktree support
+- Docker Engine and Docker Compose v2
+- DNS records for the environment being deployed
+- A valid email address for Let's Encrypt
+- An initialized Keycloak realm and client for the selected environment
 
-### Environment Configuration
+### Initial setup
 
-Create a `.env` file in the project root:
+The repository uses one worktree per environment. Each worktree has its own
+ignored `.env` file, Docker Compose project, database volumes, and certificates.
+The `.env` file is never shared between development and production.
 
-```env
-# Application Settings
-COMPOSE_PROFILES=dev                          # Use 'dev' for development mode
-DEBUG=False                                   # Set to True for development
-DJANGO_SECRET_KEY=your_secret_key_here        # Django cryptographic key
-HOST=your_domain.com                          # Your domain name
+1. Clone the repository and enter the main worktree:
 
-# Network Configuration  
-BIND_IP=your_server_ip                        # Server IP (for development binding)
-PROXY_PORT=80                                 # HTTP port (80 for production)
-
-# Database Configuration
-DB_PASSWORD=your_secure_db_password           # PostgreSQL password
-
-# Authentication Configuration
-KEYCLOAK_DB_PASSWORD=your_keycloak_db_pass    # Keycloak database password
-KC_BOOTSTRAP_ADMIN_PASSWORD=admin_password    # Initial Keycloak admin password
-KC_HOSTNAME=auth.your_domain.com              # Keycloak hostname (use 0.0.0.0:8080 for local)
-KC_CLIENT_SECRET=secret                       # Client secret from Keycloak hornet-api client
-```
-
-### Production Deployment
-
-1. **Clone the repository**:
 ```bash
 git clone https://github.com/mdevolde/hornet-finder.git
 cd hornet-finder
 ```
 
-2. **Configure environment variables** (see above)
+2. Create a dedicated development worktree if needed:
 
-<!-- Next steps will be added here -->
+```bash
+git worktree add ../hornet-finder-dev devel
+```
+
+3. In each worktree, create the local environment file from the template:
+
+```bash
+cp .env.example .env
+```
+
+4. Edit `.env`. Keep only one profile active and set `APP_ENV` to `dev` or
+`prod`. The development and production example values are documented directly
+in `.env.example`; all placeholder secrets must be replaced.
+
+5. Make sure the Keycloak client matches the selected profile:
+
+| Profile | Realm | Client ID | Hostname |
+| --- | --- | --- | --- |
+| `dev` | `hornet-finder-dev` | `hornet-api-dev` | `auth.dev.velutina.ovh` |
+| `prod` | `hornet-finder` | `hornet-api` | `auth.velutina.ovh` |
+
+`KC_CLIENT_SECRET` must be the current secret of that client. Do not reuse the
+database passwords between environments.
+
+6. Validate the Compose configuration without starting services:
+
+```bash
+docker compose-f docker-compose.dev.yml config --quiet
+```
+
+Use `docker-compose.prod.yml` in the production worktree.
+
+### Deployment
+
+The scripts detect the environment from `APP_ENV`; no `-e dev|prod` option is
+needed:
+
+```bash
+./deploy.sh
+```
+
+Useful commands:
+
+```bash
+./deploy.sh -s api       # Rebuild and restart the API
+./logs.sh api            # Show API logs
+./logs.sh -f keycloak    # Follow Keycloak logs
+./shutdown.sh            # Stop this worktree's environment
+./deploy-certs.sh        # Generate certificates for this worktree
+```
+
+The development and production Compose files use different service names,
+networks, database volumes, frontend setup, and Certbot directories. Always run
+these commands from the intended worktree. Do not use `--volumes` unless data
+removal is explicitly intended.
 
 ## API Documentation
 

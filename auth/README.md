@@ -4,7 +4,7 @@ This directory contains the Keycloak authentication server configuration for the
 
 ## Overview
 
-The authentication service is built on Keycloak 26.2 and provides:
+The authentication service is built on Keycloak 26.7 and provides:
 
 - **User Authentication**: Secure login/logout functionality with JWT tokens
 - **Role-based Access Control**: Multi-tier user roles (admin, beekeeper, volunteer)

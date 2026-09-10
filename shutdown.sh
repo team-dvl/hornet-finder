@@ -20,7 +20,6 @@ SCRIPT_DIR="$(get_script_dir)"
 # Load common functions
 source "$SCRIPT_DIR/lib/common.sh"
 
-MODE=""  # No default - environment must be specified
 REMOVE_VOLUMES=0
 
 # Help display
@@ -28,23 +27,15 @@ print_help() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
     echo "Options:"
-    echo "  -e, --env ENV       Environment to stop: 'dev', 'prod', or 'all' (required)"
     echo "  -v, --volumes       Also remove volumes (WARNING: data loss!)"
     echo "  -h, --help          Display this help"
     echo ""
-    echo "Environments:"
-    echo "  dev    - Stop only the development environment"
-    echo "  prod   - Stop only the production environment"
-    echo "  all    - Stop both environments"
+    echo "The environment is read from APP_ENV in .env."
 }
 
 # Option parsing
 while [[ $# -gt 0 ]]; do
     case $1 in
-        -e|--env)
-            MODE="$2"
-            shift 2
-            ;;
         -v|--volumes)
             REMOVE_VOLUMES=1
             shift
@@ -61,59 +52,28 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Check that environment is specified
-if [[ -z "$MODE" ]]; then
-    echo "[ERROR] Environment required (-e dev|prod|all)" >&2
-    print_help
-    exit 1
-fi
-
-# Environment validation
-if [[ "$MODE" != "dev" && "$MODE" != "prod" && "$MODE" != "all" ]]; then
-    handle_error "Invalid environment '$MODE'. Use 'dev', 'prod', or 'all'."
-fi
-
-echo "[SHUTDOWN] Hornet Finder Shutdown - Environment: $MODE"
-
 cd "$SCRIPT_DIR"
+load_env
+MODE=$(get_configured_environment)
+echo "[SHUTDOWN] Hornet Finder Shutdown - Environment: $MODE"
 
 # Function to shutdown a specific environment
 shutdown_environment() {
     local env="$1"
     local yaml_file=$(get_yaml_files "$SCRIPT_DIR" "$env")
     
-    # Determine the env file to use
-    local ENV_FILE=".env"
-    if [[ "$env" == "dev" ]]; then
-        ENV_FILE=".env.dev"
-    elif [[ "$env" == "prod" ]]; then
-        ENV_FILE=".env.prod"  
-    fi
-    
     echo "[SHUTDOWN] Stopping $env environment..."
     
     if [[ "$REMOVE_VOLUMES" == 1 ]]; then
         echo "[WARNING] Removing volumes for $env (data loss!)"
-        eval "docker compose ${yaml_file} --env-file \"$ENV_FILE\" down -v"
+        eval "docker compose ${yaml_file} down -v"
     else
-        eval "docker compose ${yaml_file} --env-file \"$ENV_FILE\" down"
+        eval "docker compose ${yaml_file} down"
     fi
     
     echo "[SUCCESS] Environment $env stopped"
 }
 
-# Execute shutdown based on mode
-case "$MODE" in
-    "dev")
-        shutdown_environment "dev"
-        ;;
-    "prod")
-        shutdown_environment "prod"
-        ;;
-    "all")
-        shutdown_environment "dev"
-        shutdown_environment "prod"
-        ;;
-esac
+shutdown_environment "$MODE"
 
 show_success "Shutdown completed!"

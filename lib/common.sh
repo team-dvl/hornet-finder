@@ -118,37 +118,34 @@ create_datasets_array() {
     set +x
 }
 
-# check_env_file will verify that required environment files exist
+# check_env_file will verify that the worktree environment file exists
 check_env_file() {
-    local environment="${1:-prod}"
     local env_file=".env"
-    
-    if [[ "$environment" == "dev" ]]; then
-        env_file=".env.dev"
-    elif [[ "$environment" == "prod" ]]; then
-        env_file=".env.prod"
-    fi
     
     if [[ ! -f "$env_file" ]]; then
         echo "❌ Missing $env_file file"
-        echo "💡 Tip: Copy ${env_file}.example to $env_file and adjust the values"
+        echo "💡 Tip: Copy .env.example to $env_file and adjust the values"
         exit 1
     fi
 }
 
 # load_env will source the environment variables
 load_env() {
-    local environment="${1:-prod}"
-    check_env_file "$environment"
-    
-    if [[ "$environment" == "dev" ]]; then
-        source .env.dev
-    elif [[ "$environment" == "prod" ]]; then
-        source .env.prod
-    else
-        # Fallback to .env for backward compatibility
-        source .env
-    fi
+    check_env_file
+    source .env
+}
+
+# get_configured_environment validates the environment declared by the worktree
+get_configured_environment() {
+    case "${APP_ENV:-}" in
+        dev|prod)
+            echo "$APP_ENV"
+            ;;
+        *)
+            echo "❌ APP_ENV must be set to 'dev' or 'prod' in .env" >&2
+            exit 1
+            ;;
+    esac
 }
 
 # get_yaml_files will return the appropriate docker-compose files for the environment

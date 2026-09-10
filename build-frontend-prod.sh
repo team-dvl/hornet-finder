@@ -25,6 +25,11 @@ source "$SCRIPT_DIR/lib/common.sh"
 
 cd "$SCRIPT_DIR"
 
+load_env
+if [[ "$(get_configured_environment)" != "prod" ]]; then
+    handle_error "build-frontend-prod.sh must be run from a production worktree"
+fi
+
 # Use production configuration
 YAML_FILE=$(get_yaml_files "$SCRIPT_DIR" "prod")
 

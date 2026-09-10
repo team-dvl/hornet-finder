@@ -39,7 +39,6 @@ print_help() {
     echo "  restore SUFFIX      Restore from a snapshot (WARNING: DANGEROUS)"
     echo ""
     echo "Options:"
-    echo "  -e, --env ENV       Environment: 'prod', 'dev', or 'both' (required)"
     echo "  -f, --force         Force action without confirmation"
     echo "  -k, --keep DAYS     Number of days to keep for clean/prune (default: 7)"
     echo "  --tag TAG           Custom tag for snapshot (instead of timestamp)"
@@ -51,12 +50,10 @@ print_help() {
     echo "  Name format: volume@YYMMDD-HHMMSS or volume@TAG"
     echo ""
     echo "Examples:"
-    echo "  $0 create                           # PROD + DEV snapshots"
-    echo "  $0 create -e prod                   # PROD snapshots only"
-    echo "  $0 create -e dev                    # DEV snapshots only"
+    echo "  $0 create                           # Snapshot the environment in .env"
     echo "  $0 create --tag pre-deploy          # Snapshot with custom tag"
-    echo "  $0 list -e prod                     # List PROD snapshots"
-    echo "  $0 clean -e dev -k 3                # Clean DEV (3 days)"
+    echo "  $0 list                             # List snapshots for this worktree"
+    echo "  $0 clean -k 3                       # Clean snapshots older than 3 days"
     echo "  $0 delete 250806-082324             # Delete snapshots with this suffix"
     echo "  $0 restore pre-deploy-20250807      # ⚠️ Restore from snapshot"
 }
@@ -113,10 +110,6 @@ set -- "${TEMP_ARGS[@]}"
 # Option parsing
 while [[ $# -gt 0 ]]; do
     case $1 in
-        -e|--env)
-            ENVIRONMENT="$2"
-            shift 2
-            ;;
         -f|--force)
             FORCE=1
             shift
@@ -168,19 +161,9 @@ case "$ACTION" in
         ;;
 esac
 
-# Check that environment is specified
-if [[ -z "$ENVIRONMENT" ]]; then
-    echo "[ERROR] Environment required (-e prod|dev|both)" >&2
-    print_help
-    exit 1
-fi
-
-# Environment validation
-if [[ "$ENVIRONMENT" != "prod" && "$ENVIRONMENT" != "dev" && "$ENVIRONMENT" != "both" ]]; then
-    echo "[ERROR] Invalid environment: $ENVIRONMENT (must be 'prod', 'dev', or 'both')" >&2
-    print_help
-    exit 1
-fi
+cd "$SCRIPT_DIR"
+load_env
+ENVIRONMENT=$(get_configured_environment)
 
 # Check that ZFS is available
 if ! command -v zfs >/dev/null 2>&1; then
@@ -202,13 +185,6 @@ get_datasets_for_environment() {
             echo "ZROOT/docker/volumes/hornet-finder-frontend-dist"
             ;;
         "dev")
-            echo "ZROOT/docker/volumes/hornet-finder-dev-api-db"
-            echo "ZROOT/docker/volumes/hornet-finder-dev-keycloak-db"
-            ;;
-        "both")
-            echo "ZROOT/docker/volumes/hornet-finder-api-db"
-            echo "ZROOT/docker/volumes/hornet-finder-keycloak-db"
-            echo "ZROOT/docker/volumes/hornet-finder-frontend-dist"
             echo "ZROOT/docker/volumes/hornet-finder-dev-api-db"
             echo "ZROOT/docker/volumes/hornet-finder-dev-keycloak-db"
             ;;

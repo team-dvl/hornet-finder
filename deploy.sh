@@ -21,7 +21,6 @@ SCRIPT_DIR="$(get_script_dir)"
 # Load common functions
 source "$SCRIPT_DIR/lib/common.sh"
 
-MODE=""  # No default - environment must be specified
 BUILD_FRONTEND=0
 SERVICE=""  # Specific service to deploy (optional)
 NO_CACHE=0  # Force rebuild without cache
@@ -31,7 +30,6 @@ print_help() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
     echo "Options:"
-    echo "  -e, --env ENV       Environment: 'dev' or 'prod' (required)"
     echo "  -s, --service SVC   Specific service to restart (optional)"
     echo "  -b, --build         Force rebuild of frontend for production"
     echo "  --no-cache          Force rebuild without using Docker cache"
@@ -57,12 +55,9 @@ print_help() {
     echo "  keycloak-db         - Keycloak PostgreSQL database"
     echo ""
     echo "Examples:"
-    echo "  $0 -e dev                    # Deploy full dev environment"
-    echo "  $0 -e dev -s api             # Restart only dev API service"
-    echo "  $0 -e prod -s keycloak       # Restart only prod Keycloak"
-    echo "  $0 -e dev -s frontend        # Restart only dev frontend"
-    echo "  $0 -e dev --no-cache         # Deploy dev with forced rebuild"
-    echo "  $0 -e dev -s keycloak --no-cache  # Restart Keycloak without cache"
+    echo "  $0                         # Deploy the environment declared in .env"
+    echo "  $0 -s api                  # Restart the API service"
+    echo "  $0 -s keycloak --no-cache  # Restart Keycloak without cache"
     echo ""
     echo "WARNING: DEV and PROD environments are now completely separated."
     echo "Each environment has its own services, databases and configurations."
@@ -71,10 +66,6 @@ print_help() {
 # Option parsing
 while [[ $# -gt 0 ]]; do
     case $1 in
-        -e|--env)
-            MODE="$2"
-            shift 2
-            ;;
         -s|--service)
             SERVICE="$2"
             shift 2
@@ -99,17 +90,9 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Check that environment is specified
-if [[ -z "$MODE" ]]; then
-    echo "[ERROR] Environment required (-e dev|prod)" >&2
-    print_help
-    exit 1
-fi
-
-# Environment validation
-if [[ "$MODE" != "dev" && "$MODE" != "prod" ]]; then
-    handle_error "Invalid environment '$MODE'. Use 'dev' or 'prod'."
-fi
+cd "$SCRIPT_DIR"
+load_env
+MODE=$(get_configured_environment)
 
 # Function to resolve service aliases to actual Docker Compose service names
 resolve_service_name() {
@@ -160,8 +143,6 @@ fi
 
 echo "[DEPLOY] Hornet Finder Deployment - Environment: $MODE (separate environments)"
 
-cd "$SCRIPT_DIR"
-
 # Get YAML files for the specific environment
 YAML_FILE=$(get_yaml_files "$SCRIPT_DIR" "$MODE")
 
@@ -173,29 +154,17 @@ if is_zfs_used "$SCRIPT_DIR"; then
     create_docker_volumes_if_needed "$MODE"
 fi
 
-# Load environment variables specific to the environment
-echo "[ENV] Loading environment variables for $MODE..."
-load_env "$MODE"
-
-# Determine the env file to use
-ENV_FILE=".env"
-if [[ "$MODE" == "dev" ]]; then
-    ENV_FILE=".env.dev"
-elif [[ "$MODE" == "prod" ]]; then
-    ENV_FILE=".env.prod"  
-fi
-
 # Build frontend if needed (for prod mode)
 if [[ "$MODE" == "prod" && "$BUILD_FRONTEND" == 1 ]]; then
     echo "[BUILD] Building frontend for production..."
     if [[ "$NO_CACHE" == 1 ]]; then
         echo "[NO-CACHE] Using --no-cache for frontend build"
-        eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" --profile build-frontend build --no-cache hornet-finder-frontend-build"
-        eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" --profile build-frontend up hornet-finder-frontend-build"
+        eval "docker compose ${YAML_FILE} --profile build-frontend build --no-cache hornet-finder-frontend-build"
+        eval "docker compose ${YAML_FILE} --profile build-frontend up hornet-finder-frontend-build"
     else
-        eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" --profile build-frontend up --build hornet-finder-frontend-build"
+        eval "docker compose ${YAML_FILE} --profile build-frontend up --build hornet-finder-frontend-build"
     fi
-    eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" --profile build-frontend down"
+    eval "docker compose ${YAML_FILE} --profile build-frontend down"
 fi
 
 # Handle service-specific deployment
@@ -206,14 +175,14 @@ if [[ -n "$SERVICE" ]]; then
     echo "[BUILD] Rebuilding and restarting service..."
     if [[ "$NO_CACHE" == 1 ]]; then
         echo "[NO-CACHE] Using --no-cache for service build"
-        eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" build --no-cache \"$RESOLVED_SERVICE\""
-        eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" up -d --force-recreate \"$RESOLVED_SERVICE\""
+        eval "docker compose ${YAML_FILE} build --no-cache \"$RESOLVED_SERVICE\""
+        eval "docker compose ${YAML_FILE} up -d --force-recreate \"$RESOLVED_SERVICE\""
     else
-        eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" up -d --build --force-recreate \"$RESOLVED_SERVICE\""
+        eval "docker compose ${YAML_FILE} up -d --build --force-recreate \"$RESOLVED_SERVICE\""
     fi
     
     # Check if the service is running
-    if eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" ps \"$RESOLVED_SERVICE\"" | grep -q "Up\|running"; then
+    if eval "docker compose ${YAML_FILE} ps \"$RESOLVED_SERVICE\"" | grep -q "Up\|running"; then
         show_success "Service $RESOLVED_SERVICE restarted successfully"
     else
         handle_error "Failed to restart service $RESOLVED_SERVICE"
@@ -222,7 +191,7 @@ if [[ -n "$SERVICE" ]]; then
     # Show service logs
     echo ""
     echo "[LOGS] Recent logs for $RESOLVED_SERVICE:"
-    eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" logs --tail=10 \"$RESOLVED_SERVICE\"" || echo "No logs available"
+    eval "docker compose ${YAML_FILE} logs --tail=10 \"$RESOLVED_SERVICE\"" || echo "No logs available"
     
     exit 0
 fi
@@ -230,7 +199,7 @@ fi
 # Full environment deployment
 # Stop existing services for this environment
 echo "[STOP] Stopping existing services for $MODE..."
-eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" down"
+eval "docker compose ${YAML_FILE} down"
 
 # Start services according to mode
 if [[ "$NO_CACHE" == 1 ]]; then
@@ -241,19 +210,19 @@ case "$MODE" in
     "dev")
         echo "[DEV] Starting in development mode (separate environment)..."
         if [[ "$NO_CACHE" == 1 ]]; then
-            eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" build --no-cache"
-            eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" up -d"
+            eval "docker compose ${YAML_FILE} build --no-cache"
+            eval "docker compose ${YAML_FILE} up -d"
         else
-            eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" up -d --build"
+            eval "docker compose ${YAML_FILE} up -d --build"
         fi
         ;;
     "prod")
         echo "[PROD] Starting in production mode (separate environment)..."
         if [[ "$NO_CACHE" == 1 ]]; then
-            eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" build --no-cache"
-            eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" up -d"
+            eval "docker compose ${YAML_FILE} build --no-cache"
+            eval "docker compose ${YAML_FILE} up -d"
         else
-            eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" up -d --build"
+            eval "docker compose ${YAML_FILE} up -d --build"
         fi
         ;;
 esac
@@ -263,7 +232,7 @@ wait_for_services
 
 # Check service status
 echo "[STATUS] Service status:"
-eval "docker compose ${YAML_FILE} --env-file \"$ENV_FILE\" ps"
+eval "docker compose ${YAML_FILE} ps"
 
 show_success "Deployment completed!"
 
