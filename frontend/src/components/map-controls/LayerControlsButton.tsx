@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { Button, Overlay, ListGroup, Popover } from 'react-bootstrap';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { useAuth } from 'react-oidc-context';
+import { useUserPermissions } from '../../hooks/useUserPermissions';
 import {
   toggleHornets,
   selectShowHornets,
@@ -12,7 +13,11 @@ import {
   toggleApiaryCircles,
   selectShowApiaryCircles,
   toggleNests,
-  selectShowNests
+  selectShowNests,
+  toggleShowArchivedHornets,
+  selectShowArchivedHornets,
+  toggleShowArchivedNests,
+  selectShowArchivedNests
 } from '../../store/store';
 
 interface LayerControlsButtonProps {
@@ -29,6 +34,7 @@ export default function LayerControlsButton({
   
   const dispatch = useAppDispatch();
   const auth = useAuth();
+  const { isAdmin } = useUserPermissions();
   
   // États des couches depuis Redux
   const showHornets = useAppSelector(selectShowHornets);
@@ -36,6 +42,8 @@ export default function LayerControlsButton({
   const showApiaries = useAppSelector(selectShowApiaries);
   const showApiaryCircles = useAppSelector(selectShowApiaryCircles);
   const showNests = useAppSelector(selectShowNests);
+  const showArchivedHornets = useAppSelector(selectShowArchivedHornets);
+  const showArchivedNests = useAppSelector(selectShowArchivedNests);
 
   const handleTogglePopover = () => {
     setShowPopover(!showPopover);
@@ -61,6 +69,11 @@ export default function LayerControlsButton({
 
   const handleNestsToggle = () => {
     dispatch(toggleNests());
+  };
+
+  const handleArchivedToggle = () => {
+    dispatch(toggleShowArchivedHornets());
+    dispatch(toggleShowArchivedNests());
   };
 
   const handleClose = () => {
@@ -206,6 +219,27 @@ export default function LayerControlsButton({
                     type="checkbox"
                     checked={showApiaryCircles}
                     onChange={handleApiaryCirclesToggle}
+                  />
+                </div>
+              </ListGroup.Item>
+            )}
+
+            {/* Données archivées (années passées) - réservé aux administrateurs */}
+            {isAdmin && (
+              <ListGroup.Item
+                className="d-flex justify-content-between align-items-center px-0 py-2"
+                style={{ border: 'none' }}
+              >
+                <div className="d-flex align-items-center">
+                  <span className="me-2">🗄️</span>
+                  <span>Afficher les archives</span>
+                </div>
+                <div className="form-check form-switch mb-0">
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    checked={showArchivedHornets || showArchivedNests}
+                    onChange={handleArchivedToggle}
                   />
                 </div>
               </ListGroup.Item>

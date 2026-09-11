@@ -2,6 +2,7 @@ import LocateButton from './LocateButton';
 import LayerControlsButton from './LayerControlsButton';
 import QuickCaptureButton from './QuickCaptureButton';
 import HornetColorFilterButton from './HornetColorFilterButton';
+import BulkArchiveButton from './BulkArchiveButton';
 import { ErrorAlert } from './MapFeedback';
 import { useAppSelector, selectShowHornets } from '../../store/store';
 
@@ -39,6 +40,7 @@ export default function MapControlsContainer({
         />
         {/* Bouton de filtrage par couleur - visible uniquement si les frelons sont affichés */}
         {showHornets && <HornetColorFilterButton />}
+        <BulkArchiveButton />
         {onQuickHornetCapture && (
           <QuickCaptureButton 
             onQuickCapture={onQuickHornetCapture} 

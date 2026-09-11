@@ -22,8 +22,8 @@ class HornetSerializer(GPSValidationMixin, serializers.ModelSerializer):
     created_by = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
     class Meta:
         model = Hornet
-        fields = ['id', 'longitude', 'latitude', 'direction', 'duration', 'mark_color_1', 'mark_color_2', 'created_at', 'created_by', 'linked_nest']
-        read_only_fields = ['id', 'created_at']
+        fields = ['id', 'longitude', 'latitude', 'direction', 'duration', 'mark_color_1', 'mark_color_2', 'created_at', 'created_by', 'linked_nest', 'archived', 'archived_at']
+        read_only_fields = ['id', 'created_at', 'archived', 'archived_at']
         extra_kwargs = { # Adding this to make the validation limits understandable by the swagger
             'direction': {
                 'min_value': 0,
@@ -63,8 +63,8 @@ class NestSerializer(GPSValidationMixin, serializers.ModelSerializer):
     created_by = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
     class Meta:
         model = Nest
-        fields = ['id', 'longitude', 'latitude', 'public_place', 'address', 'destroyed', 'destroyed_at', 'created_at', 'created_by', 'comments']
-        read_only_fields = ['id', 'created_at']
+        fields = ['id', 'longitude', 'latitude', 'public_place', 'address', 'destroyed', 'destroyed_at', 'created_at', 'created_by', 'comments', 'archived', 'archived_at']
+        read_only_fields = ['id', 'created_at', 'archived', 'archived_at']
     
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -96,8 +96,8 @@ class PublicNestSerializer(GPSValidationMixin, serializers.ModelSerializer):
     """
     class Meta:
         model = Nest
-        fields = ['id', 'longitude', 'latitude', 'public_place', 'address', 'destroyed', 'destroyed_at', 'created_at', 'comments']
-        read_only_fields = ['id', 'created_at']
+        fields = ['id', 'longitude', 'latitude', 'public_place', 'address', 'destroyed', 'destroyed_at', 'created_at', 'comments', 'archived', 'archived_at']
+        read_only_fields = ['id', 'created_at', 'archived', 'archived_at']
 
 class ApiarySerializer(GPSValidationMixin, serializers.ModelSerializer):
     created_by = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)

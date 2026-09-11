@@ -1,6 +1,7 @@
 from django.contrib.gis.measure import D
 from django.contrib.gis.geos import Point
 from django.contrib.gis.db.models.functions import Distance
+from django.utils import timezone
 
 from rest_framework import viewsets
 from rest_framework.decorators import action, api_view
@@ -49,6 +50,59 @@ class GeographicFilterMixin:
         return queryset, None
 
 
+class ArchiveFilterMixin:
+    """Mixin adding `year`/`archived` query param filtering and archive/bulk_archive actions."""
+
+    def apply_archive_year_filters(self, queryset, request):
+        """
+        Apply the `year` and `archived` query param filters to a queryset.
+
+        `year`: filters on created_at's year. Defaults to the current year. Use 'all' to disable.
+        `archived`: 'false' (default, excludes archived), 'true' (only archived), 'all' (no filter).
+        """
+        year = request.query_params.get('year')
+        if year is None:
+            queryset = queryset.filter(created_at__year=timezone.now().year)
+        elif year != 'all':
+            queryset = queryset.filter(created_at__year=year)
+
+        archived = request.query_params.get('archived', 'false')
+        if archived == 'false':
+            queryset = queryset.filter(archived=False)
+        elif archived == 'true':
+            queryset = queryset.filter(archived=True)
+
+        return queryset
+
+    @extend_schema(
+        responses={200: OpenApiResponse(description='Archived object')},
+    )
+    @action(detail=True, methods=['post'], permission_classes=[HasAnyRole(['admin'])])
+    def archive(self, request, pk=None):
+        obj = self.get_object()
+        obj.archived = True
+        obj.archived_at = timezone.now()
+        obj.save()
+        serializer = self.get_serializer(obj)
+        return Response(serializer.data)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(name='year', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, required=True),
+        ],
+        responses={200: OpenApiResponse(description='Number of archived objects')},
+    )
+    @action(detail=False, methods=['post'], permission_classes=[HasAnyRole(['admin'])])
+    def bulk_archive(self, request):
+        year = request.query_params.get('year')
+        if not year or not year.isdigit():
+            return Response({"error": "year parameter is required and must be a valid year"}, status=400)
+        updated_count = self.queryset.filter(created_at__year=year, archived=False).update(
+            archived=True, archived_at=timezone.now()
+        )
+        return Response({"archived_count": updated_count})
+
+
 def geographic_list_schema(default_radius=5):
     """Decorator to extend schema for geographic filtering in list actions.
     
@@ -69,7 +123,7 @@ def geographic_list_schema(default_radius=5):
     )
 
 
-class HornetViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
+class HornetViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewSet):
     queryset = Hornet.objects.all()
     serializer_class = HornetSerializer
 
@@ -79,6 +133,7 @@ class HornetViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         if error_response:
             return error_response
         
+        queryset = self.apply_archive_year_filters(queryset, request)
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
@@ -99,7 +154,7 @@ class HornetViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         # Each action corresponds to a method in the viewset, e.g. list corresponds to the GET /hornets/ endpoint.
         # if hasattr(self, 'action') and self.action in ['list', 'retrieve', 'update', 'partial_update', 'destroy']:
         # Allow public access to list action (viewing hornets)
-        if hasattr(self, 'action') and self.action in ['retrieve', 'create', 'update', 'partial_update', 'destroy', 'my']:
+        if hasattr(self, 'action') and self.action in ['retrieve', 'create', 'update', 'partial_update', 'destroy', 'my', 'archive', 'bulk_archive']:
             return [JWTBearerAuthentication()]
         return super().get_authenticators()
 
@@ -107,7 +162,7 @@ class HornetViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         # Allow public access to list action (viewing hornets)
         if hasattr(self, 'action') and self.action in ('create', 'my'):
             return [HasAnyRole(['volunteer', 'beekeeper', 'admin'])]
-        elif hasattr(self, 'action') and self.action in ['retrieve', 'update', 'partial_update', 'destroy']:
+        elif hasattr(self, 'action') and self.action in ['retrieve', 'update', 'partial_update', 'destroy', 'archive', 'bulk_archive']:
             return [HasAnyRole(['admin'])]
         return super().get_permissions()
     
@@ -116,7 +171,7 @@ class HornetViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         user_obj = User.objects.filter(guid=user_guid).first()
         serializer.save(created_by=user_obj, linked_nest=None)
 
-class NestViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
+class NestViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewSet):
     queryset = Nest.objects.all()
     serializer_class = NestSerializer
 
@@ -126,6 +181,7 @@ class NestViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         if error_response:
             return error_response
         
+        queryset = self.apply_archive_year_filters(queryset, request)
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
@@ -138,6 +194,7 @@ class NestViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         
         # Filter only destroyed nests
         queryset = queryset.filter(destroyed=True)
+        queryset = self.apply_archive_year_filters(queryset, request)
         
         # Use public serializer to exclude sensitive information like created_by
         serializer = PublicNestSerializer(queryset, many=True)

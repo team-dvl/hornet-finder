@@ -51,6 +51,8 @@ class Hornet(GeolocatedModel):
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL)
     linked_nest = models.ForeignKey('Nest', null=True, blank=True, on_delete=models.SET_NULL)
+    archived = models.BooleanField(default=False)
+    archived_at = models.DateTimeField(null=True, blank=True)
 
 class Nest(GeolocatedModel):
     id = models.AutoField(primary_key=True)
@@ -61,6 +63,8 @@ class Nest(GeolocatedModel):
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL)
     comments = models.TextField(null=True, blank=True)
+    archived = models.BooleanField(default=False)
+    archived_at = models.DateTimeField(null=True, blank=True)
 
 class BeekeeperGroup(models.Model):
     """Represents a group of beekeepers for access control."""

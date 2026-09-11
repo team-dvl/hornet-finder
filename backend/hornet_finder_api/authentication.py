@@ -5,7 +5,7 @@ from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import BasePermission
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
-from hornet_finder_api.utils import get_realm_public_key, get_user_display_name
+from hornet_finder_api.utils import get_realm_jwks_url, get_user_display_name
 import requests
 import os
 import threading
@@ -57,7 +57,9 @@ class JWTBearerAuthentication(BaseAuthentication):
     Custom authentication class that uses JWT tokens for user authentication.
     """
 
-    KEYCLOAK_PUBLIC_KEY = None
+    # Cached PyJWKClient: resolves the correct signing key by `kid`, so it keeps working
+    # across key rotations and when several algorithms (RS256/PS256) are active at once.
+    JWKS_CLIENT = None
 
     def authenticate(self, request: HttpRequest) -> Optional[Tuple[JWTUser, dict]]:
         """
@@ -77,12 +79,16 @@ class JWTBearerAuthentication(BaseAuthentication):
         logger.debug(f"Found Authorization header: {token[:50]}..." if len(token) > 50 else f"Found Authorization header: {token}")
         
         try:
-            if not self.KEYCLOAK_PUBLIC_KEY:  # If the public key is not set, retrieve it
-                logger.debug("Retrieving Keycloak public key...")
-                self.KEYCLOAK_PUBLIC_KEY = get_realm_public_key()  # Get the public key of the Keycloak realm
-                logger.debug("Successfully retrieved Keycloak public key")
-                
-            token_info = jwt.decode(token.split()[1], self.KEYCLOAK_PUBLIC_KEY, algorithms=['RS256'], audience='account') # Decode the token using the public key
+            raw_token = token.split()[1]
+
+            if not JWTBearerAuthentication.JWKS_CLIENT:  # If the JWKS client is not set, create it
+                logger.debug("Creating Keycloak JWKS client...")
+                JWTBearerAuthentication.JWKS_CLIENT = jwt.PyJWKClient(get_realm_jwks_url())
+                logger.debug("Successfully created Keycloak JWKS client")
+
+            # Resolve the signing key matching the token's `kid`, whichever algorithm (RS256/PS256) it uses
+            signing_key = JWTBearerAuthentication.JWKS_CLIENT.get_signing_key_from_jwt(raw_token)
+            token_info = jwt.decode(raw_token, signing_key.key, algorithms=['RS256', 'PS256'], audience='account') # Decode the token using the resolved signing key
             logger.debug(f"Successfully decoded JWT token for user: {token_info.get('preferred_username', 'unknown')}")
             
             user = JWTUser(token_info)  # Create a JWTUser object with the token info

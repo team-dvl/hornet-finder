@@ -77,6 +77,21 @@ def get_realm_public_key():
         logger.error(f"Failed to retrieve Keycloak public key: {type(e).__name__}: {e}")
         raise
 
+def get_realm_jwks_url() -> str:
+    """
+    Returns the JWKS (JSON Web Key Set) URL of the hornet-finder realm.
+
+    Unlike the single-key `public_key()` endpoint, the JWKS contains every active signing
+    key of the realm (one per algorithm/kid), which is required to validate tokens correctly
+    when several algorithms (e.g. RS256 and PS256) are enabled at once.
+
+    :return: The JWKS URL of the realm.
+    :rtype: str
+    """
+    server_url = _get_required_env_var("KC_INTERNAL_URL").rstrip('/')
+    realm_name = _get_required_env_var("KC_REALM")
+    return f"{server_url}/realms/{realm_name}/protocol/openid-connect/certs"
+
 def user_exists(guid: str) -> bool:
     """
     Checks if a user with the given Keycloak GUID exists in the hornet-finder realm.

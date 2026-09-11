@@ -7,4 +7,5 @@ export { default as LocateButton } from './LocateButton';
 export { default as QuickCaptureButton } from './QuickCaptureButton';
 export { default as MapControlsContainer } from './MapControlsContainer';
 export { default as HornetColorFilterButton } from './HornetColorFilterButton';
+export { default as BulkArchiveButton } from './BulkArchiveButton';
 export { LoadingIndicator, ErrorAlert } from './MapFeedback';

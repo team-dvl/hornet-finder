@@ -8,6 +8,13 @@ export interface GeolocationParams {
   radius?: number;
 }
 
+// `year`: 'all' pour désactiver le filtre année (défaut backend = année en cours)
+// `archived`: 'true' pour ne voir que les archives, 'all' pour désactiver le filtre (défaut backend = non archivé)
+export interface ArchiveFilterParams {
+  year?: 'all' | number;
+  archived?: 'true' | 'all';
+}
+
 // Types pour les données de frelon
 export interface Hornet {
   id?: number;
@@ -21,6 +28,8 @@ export interface Hornet {
   updated_at?: string;
   user_id?: number;
   created_by?: { guid: string; display_name: string }; // GUID of the user who created the hornet
+  archived?: boolean;
+  archived_at?: string;
 }
 
 // Interface pour les filtres de couleur
@@ -37,6 +46,7 @@ interface HornetsState {
   showHornets: boolean; // Toggle pour afficher/masquer les frelons
   showReturnZones: boolean; // Toggle pour afficher/masquer les zones de retour
   colorFilters: ColorFilters; // Filtres par couleur
+  showArchived: boolean; // Toggle pour afficher les données archivées (années passées)
 }
 
 const initialState: HornetsState = {
@@ -46,20 +56,24 @@ const initialState: HornetsState = {
   showHornets: true, // Par défaut, afficher les frelons
   showReturnZones: true, // Par défaut, afficher les zones de retour
   colorFilters: { color1: '', color2: '' }, // Pas de filtre par défaut
+  showArchived: false, // Par défaut, ne montrer que l'année en cours (non archivé)
 };
 
 // Thunk async pour récupérer les frelons avec authentification
 export const fetchHornets = createAsyncThunk(
   'hornets/fetchHornets',
-  async ({ accessToken, geolocation }: { 
+  async ({ accessToken, geolocation, archiveFilters }: { 
     accessToken: string; 
-    geolocation: GeolocationParams 
+    geolocation: GeolocationParams;
+    archiveFilters?: ArchiveFilterParams;
   }, { rejectWithValue }) => {
     try {
       const params = new URLSearchParams({
         lat: geolocation.lat.toString(),
         lon: geolocation.lon.toString(),
-        ...(geolocation.radius && { radius: geolocation.radius.toString() })
+        ...(geolocation.radius && { radius: geolocation.radius.toString() }),
+        ...(archiveFilters?.year !== undefined && { year: archiveFilters.year.toString() }),
+        ...(archiveFilters?.archived !== undefined && { archived: archiveFilters.archived }),
       });
 
       const response = await api.get(`/hornets?${params}`, {
@@ -79,12 +93,14 @@ export const fetchHornets = createAsyncThunk(
 // Thunk async pour récupérer les frelons (public, sans authentification)
 export const fetchHornetsPublic = createAsyncThunk(
   'hornets/fetchHornetsPublic',
-  async (geolocation: GeolocationParams, { rejectWithValue }) => {
+  async ({ geolocation, archiveFilters }: { geolocation: GeolocationParams; archiveFilters?: ArchiveFilterParams }, { rejectWithValue }) => {
     try {
       const params = new URLSearchParams({
         lat: geolocation.lat.toString(),
         lon: geolocation.lon.toString(),
-        ...(geolocation.radius && { radius: geolocation.radius.toString() })
+        ...(geolocation.radius && { radius: geolocation.radius.toString() }),
+        ...(archiveFilters?.year !== undefined && { year: archiveFilters.year.toString() }),
+        ...(archiveFilters?.archived !== undefined && { archived: archiveFilters.archived }),
       });
 
       const response = await api.get(`/hornets?${params}`);
@@ -239,6 +255,48 @@ export const deleteHornet = createAsyncThunk(
   }
 );
 
+// Thunk async pour archiver un frelon (admin uniquement)
+export const archiveHornet = createAsyncThunk(
+  'hornets/archiveHornet',
+  async ({ hornetId, accessToken }: { hornetId: number; accessToken: string }, { rejectWithValue }) => {
+    try {
+      const response = await api.post(`/hornets/${hornetId}/archive/`, {}, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+      return response.data as Hornet;
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string; detail?: string }; status?: number } };
+      const errorMessage = axiosError.response?.data?.message ||
+                          axiosError.response?.data?.detail ||
+                          `HTTP error! status: ${axiosError.response?.status}`;
+      return rejectWithValue(errorMessage || "Erreur lors de l'archivage du frelon");
+    }
+  }
+);
+
+// Thunk async pour archiver en masse les frelons d'une année donnée (admin uniquement)
+export const bulkArchiveHornets = createAsyncThunk(
+  'hornets/bulkArchiveHornets',
+  async ({ year, accessToken }: { year: number; accessToken: string }, { rejectWithValue }) => {
+    try {
+      const response = await api.post(`/hornets/bulk_archive/?year=${year}`, {}, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+      return response.data as { archived_count: number };
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string; error?: string }; status?: number } };
+      const errorMessage = axiosError.response?.data?.message ||
+                          axiosError.response?.data?.error ||
+                          `HTTP error! status: ${axiosError.response?.status}`;
+      return rejectWithValue(errorMessage || "Erreur lors de l'archivage en masse des frelons");
+    }
+  }
+);
+
 // Slice pour les frelons
 const hornetsSlice = createSlice({
   name: 'hornets',
@@ -265,6 +323,9 @@ const hornetsSlice = createSlice({
     },
     toggleReturnZones: (state) => {
       state.showReturnZones = !state.showReturnZones;
+    },
+    toggleShowArchived: (state) => {
+      state.showArchived = !state.showArchived;
     },
     // Actions pour gérer les filtres par couleur
     setColorFilters: (state, action) => {
@@ -362,6 +423,17 @@ const hornetsSlice = createSlice({
       .addCase(deleteHornet.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+      })
+      // Cas de archiveHornet : l'élément archivé disparaît de la vue courante (par défaut non-archivée)
+      .addCase(archiveHornet.fulfilled, (state, action) => {
+        state.hornets = state.hornets.filter(hornet => hornet.id !== action.payload.id);
+      })
+      .addCase(archiveHornet.rejected, (state, action) => {
+        state.error = action.payload as string;
+      })
+      // Cas de bulkArchiveHornets
+      .addCase(bulkArchiveHornets.rejected, (state, action) => {
+        state.error = action.payload as string;
       });
   },
 });
@@ -373,6 +445,7 @@ export const selectHornetsError = (state: { hornets: HornetsState }) => state.ho
 export const selectShowHornets = (state: { hornets: HornetsState }) => state.hornets.showHornets;
 export const selectShowReturnZones = (state: { hornets: HornetsState }) => state.hornets.showReturnZones;
 export const selectColorFilters = (state: { hornets: HornetsState }) => state.hornets.colorFilters;
+export const selectShowArchivedHornets = (state: { hornets: HornetsState }) => state.hornets.showArchived;
 
 // Sélecteur pour les frelons filtrés par couleur
 export const selectFilteredHornets = (state: { hornets: HornetsState }) => {
@@ -409,5 +482,5 @@ export const selectFilteredHornets = (state: { hornets: HornetsState }) => {
   });
 };
 
-export const { clearError, clearHornets, addHornet, toggleHornets, toggleReturnZones, setColorFilters, clearColorFilters } = hornetsSlice.actions;
+export const { clearError, clearHornets, addHornet, toggleHornets, toggleReturnZones, toggleShowArchived, setColorFilters, clearColorFilters } = hornetsSlice.actions;
 export default hornetsSlice.reducer;

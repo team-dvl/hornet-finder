@@ -5,7 +5,7 @@ import { useAuth } from 'react-oidc-context';
 import { Apiary, updateApiary, selectApiaryById, deleteApiary } from '../../store/slices/apiariesSlice';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { AppDispatch, RootState } from '../../store/store';
-import { DeleteConfirmationModal } from '../modals';
+import { ConfirmationModal } from '../modals';
 import CoordinateInput from '../common/CoordinateInput';
 import InfestationLevelInput, { InfestationLevel } from '../common/InfestationLevelInput';
 import ApiaryGroupPermissions from '../common/ApiaryGroupPermissions';
@@ -214,12 +214,13 @@ export default function ApiaryInfoPopup({ show, onHide, apiary }: ApiaryInfoPopu
       </Modal.Footer>
       
       {/* Modal de confirmation de suppression */}
-      <DeleteConfirmationModal
+      <ConfirmationModal
         show={showDeleteModal}
         onHide={() => setShowDeleteModal(false)}
         onConfirm={handleDelete}
         itemName={`rucher #${currentApiary.id}`}
         itemType="rucher"
+        action="delete"
         isDeleting={isDeleting}
         deleteError={deleteError}
       />

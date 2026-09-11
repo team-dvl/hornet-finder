@@ -78,6 +78,10 @@ export const useUserPermissions = () => {
     return isOwner(nest.created_by);
   }, [isAdmin, userGuid, auth.user]);
 
+  // Seuls les admins peuvent archiver (contrairement à la suppression, pas d'exception pour le créateur)
+  const canArchiveHornet = useCallback(() => isAdmin, [isAdmin]);
+  const canArchiveNest = useCallback(() => isAdmin, [isAdmin]);
+
   // Fonction pour vérifier si l'utilisateur peut supprimer un rucher
   const canDeleteApiary = useCallback((apiary: Apiary) => {
     if (!apiary || !userGuid || !auth.user) return false;
@@ -110,6 +114,8 @@ export const useUserPermissions = () => {
       canDeleteHornet: () => false,
       canDeleteNest: () => false,
       canDeleteApiary: () => false,
+      canArchiveHornet: () => false,
+      canArchiveNest: () => false,
       canAddHornet: false,
       canAddApiary: false,
     };
@@ -124,6 +130,8 @@ export const useUserPermissions = () => {
     canDeleteHornet,
     canDeleteNest,
     canDeleteApiary,
+    canArchiveHornet,
+    canArchiveNest,
     canAddHornet,
     canAddApiary,
     accessToken,

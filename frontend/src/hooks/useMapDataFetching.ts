@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAuth } from 'react-oidc-context';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { 
@@ -11,7 +11,10 @@ import {
   selectSearchRadius,
   selectLastFetchedArea,
   setLastFetchedArea,
-  selectZoom
+  selectZoom,
+  selectShowArchivedHornets,
+  selectShowArchivedNests,
+  type ArchiveFilterParams
 } from '../store/store';
 import { useUserPermissions } from './useUserPermissions';
 
@@ -30,13 +33,18 @@ export const useMapDataFetching = () => {
   const searchRadius = useAppSelector(selectSearchRadius);
   const lastFetchedArea = useAppSelector(selectLastFetchedArea);
   const currentZoom = useAppSelector(selectZoom);
+  const showArchivedHornets = useAppSelector(selectShowArchivedHornets);
+  const showArchivedNests = useAppSelector(selectShowArchivedNests);
+  // Permet de forcer un refetch immédiat quand ce toggle change, même si la zone carte n'a pas bougé
+  const previousArchiveFilters = useRef<{ hornets: boolean; nests: boolean } | null>(null);
 
   useEffect(() => {
-    // On fetch toujours par rapport au centre affiché, même si la géolocalisation n'est pas initialisée
-    // (on ne vérifie plus isInitialized)
+    const archiveFiltersChanged = previousArchiveFilters.current === null ||
+      previousArchiveFilters.current.hornets !== showArchivedHornets ||
+      previousArchiveFilters.current.nests !== showArchivedNests;
 
     // Si on a déjà une zone fetchée, vérifier si la nouvelle vue est incluse
-    if (lastFetchedArea) {
+    if (lastFetchedArea && !archiveFiltersChanged) {
       // Si zoom-in (zoom actuel > zoom précédent), ne rien faire
       if (lastFetchedArea.zoom && currentZoom > lastFetchedArea.zoom) {
         return;
@@ -70,27 +78,35 @@ export const useMapDataFetching = () => {
     };
 
     // Récupérer les frelons (toujours, même pour les utilisateurs non authentifiés)
+    const hornetArchiveFilters: ArchiveFilterParams | undefined = showArchivedHornets
+      ? { year: 'all', archived: 'true' }
+      : undefined;
     if (auth.isAuthenticated && auth.user?.access_token) {
       // Utilisateur authentifié : récupérer avec le token
       dispatch(fetchHornets({ 
         accessToken: auth.user.access_token, 
-        geolocation: geolocationParams 
+        geolocation: geolocationParams,
+        archiveFilters: hornetArchiveFilters,
       }));
     } else {
       // Utilisateur non authentifié : récupérer sans token
-      dispatch(fetchHornetsPublic(geolocationParams));
+      dispatch(fetchHornetsPublic({ geolocation: geolocationParams, archiveFilters: hornetArchiveFilters }));
     }
 
     // Récupérer les nids
+    const nestArchiveFilters: ArchiveFilterParams | undefined = showArchivedNests
+      ? { year: 'all', archived: 'true' }
+      : undefined;
     if (auth.isAuthenticated && auth.user?.access_token) {
       // Utilisateur authentifié : récupérer tous les nids (détruits et non détruits)
       dispatch(fetchNests({ 
         accessToken: auth.user.access_token, 
-        geolocation: geolocationParams 
+        geolocation: geolocationParams,
+        archiveFilters: nestArchiveFilters,
       }));
     } else {
       // Utilisateur non authentifié : récupérer seulement les nids détruits
-      dispatch(fetchNestsDestroyedPublic(geolocationParams));
+      dispatch(fetchNestsDestroyedPublic({ geolocation: geolocationParams, archiveFilters: nestArchiveFilters }));
     }
 
     // Fetch apiaries only for authenticated users with admin or beekeeper rights
@@ -113,6 +129,8 @@ export const useMapDataFetching = () => {
       },
       zoom: currentZoom,
     }));
+
+    previousArchiveFilters.current = { hornets: showArchivedHornets, nests: showArchivedNests };
   }, [
     mapCenter,
     searchRadius, 
@@ -122,6 +140,8 @@ export const useMapDataFetching = () => {
     dispatch, 
     isAdmin, 
     canAddApiary,
-    lastFetchedArea
+    lastFetchedArea,
+    showArchivedHornets,
+    showArchivedNests
   ]);
 };

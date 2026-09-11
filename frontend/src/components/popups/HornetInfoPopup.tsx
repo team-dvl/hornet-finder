@@ -1,11 +1,11 @@
 import { Modal, Button, ListGroup, Badge, Form, InputGroup, Alert } from 'react-bootstrap';
 import { useState, useMemo } from 'react';
-import { Hornet, updateHornetDuration, updateHornetColors, deleteHornet } from '../../store/store';
+import { Hornet, updateHornetDuration, updateHornetColors, deleteHornet, archiveHornet } from '../../store/store';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useAuth } from 'react-oidc-context';
 import { ColorSelector } from '../common';
-import { DeleteConfirmationModal } from '../modals';
+import { ConfirmationModal } from '../modals';
 import { HORNET_RETURN_ZONE_ANGLE_DEG, HORNET_FLIGHT_SPEED_M_PER_MIN, HORNET_RETURN_ZONE_ABSOLUTE_MAX_DISTANCE_M } from '../../utils/constants';
 import CoordinateInput from '../common/CoordinateInput';
 import CorrectedDirectionInfo from '../common/CorrectedDirectionInfo';
@@ -21,7 +21,7 @@ interface HornetInfoPopupProps {
 
 export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation, declination, correctedDirection }: HornetInfoPopupProps) {
   const dispatch = useAppDispatch();
-  const { canEditHornet, canDeleteHornet, canAddHornet, canAddApiary, accessToken } = useUserPermissions();
+  const { canEditHornet, canDeleteHornet, canArchiveHornet, canAddHornet, canAddApiary, accessToken } = useUserPermissions();
   const auth = useAuth();
   
   // Récupérer les données mises à jour depuis le store Redux
@@ -40,6 +40,11 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation,
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // États pour l'archivage
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+  const [isArchiving, setIsArchiving] = useState(false);
 
   if (!currentHornet) {
     return null;
@@ -68,6 +73,28 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation,
   };
 
   const canEdit = canEditHornet(currentHornet);
+
+  // Logique d'archivage
+  const handleArchive = async () => {
+    if (!currentHornet?.id || !accessToken) return;
+
+    setIsArchiving(true);
+    setArchiveError(null);
+
+    try {
+      await dispatch(archiveHornet({
+        hornetId: currentHornet.id,
+        accessToken
+      })).unwrap();
+
+      setShowArchiveModal(false);
+      onHide(); // Fermer le popup principal
+    } catch (error) {
+      setArchiveError(error as string);
+    } finally {
+      setIsArchiving(false);
+    }
+  };
 
   const handleEditStart = () => {
     setIsEditing(true);
@@ -413,20 +440,45 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation,
           </Button>
         )}
         
+        {/* Bouton d'archivage réservé aux administrateurs */}
+        {auth.isAuthenticated && canArchiveHornet() && !currentHornet.archived && (
+          <Button
+            variant="outline-warning"
+            onClick={() => setShowArchiveModal(true)}
+            className="me-2"
+          >
+            <i className="fas fa-box-archive me-1"></i>
+            Archiver
+          </Button>
+        )}
+        
         <Button variant="secondary" onClick={onHide}>
           Fermer
         </Button>
       </Modal.Footer>
       
       {/* Modal de confirmation de suppression */}
-      <DeleteConfirmationModal
+      <ConfirmationModal
         show={showDeleteModal}
         onHide={() => setShowDeleteModal(false)}
         onConfirm={handleDelete}
         itemName={`frelon #${currentHornet.id}`}
         itemType="frelon"
+        action="delete"
         isDeleting={isDeleting}
         deleteError={deleteError}
+      />
+
+      {/* Modal de confirmation d'archivage */}
+      <ConfirmationModal
+        show={showArchiveModal}
+        onHide={() => setShowArchiveModal(false)}
+        onConfirm={handleArchive}
+        itemName={`frelon #${currentHornet.id}`}
+        itemType="frelon"
+        action="archive"
+        isDeleting={isArchiving}
+        deleteError={archiveError}
       />
     </Modal>
   );

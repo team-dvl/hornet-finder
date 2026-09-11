@@ -9,6 +9,13 @@ export interface GeolocationParams {
   radius?: number;
 }
 
+// `year`: 'all' pour désactiver le filtre année (défaut backend = année en cours)
+// `archived`: 'true' pour ne voir que les archives, 'all' pour désactiver le filtre (défaut backend = non archivé)
+export interface ArchiveFilterParams {
+  year?: 'all' | number;
+  archived?: 'true' | 'all';
+}
+
 // Types pour les données de nid
 export interface Nest {
   id?: number;
@@ -21,6 +28,8 @@ export interface Nest {
   created_at?: string;
   created_by?: { guid: string; display_name: string }; // GUID of the user who created the nest
   comments?: string;
+  archived?: boolean;
+  archived_at?: string;
 }
 
 // État initial du slice
@@ -29,6 +38,7 @@ interface NestsState {
   loading: boolean;
   error: string | null;
   showNests: boolean; // Contrôle l'affichage des nids
+  showArchived: boolean; // Toggle pour afficher les données archivées (années passées)
 }
 
 const initialState: NestsState = {
@@ -36,20 +46,24 @@ const initialState: NestsState = {
   loading: false,
   error: null,
   showNests: true, // Par défaut, afficher les nids pour les utilisateurs authentifiés
+  showArchived: false, // Par défaut, ne montrer que l'année en cours (non archivé)
 };
 
 // Thunk async pour récupérer les nids (authentifié)
 export const fetchNests = createAsyncThunk(
   'nests/fetchNests',
-  async ({ accessToken, geolocation }: { 
+  async ({ accessToken, geolocation, archiveFilters }: { 
     accessToken: string; 
-    geolocation: GeolocationParams 
+    geolocation: GeolocationParams;
+    archiveFilters?: ArchiveFilterParams;
   }, { rejectWithValue }) => {
     try {
       const params = new URLSearchParams({
         lat: geolocation.lat.toString(),
         lon: geolocation.lon.toString(),
-        ...(geolocation.radius && { radius: geolocation.radius.toString() })
+        ...(geolocation.radius && { radius: geolocation.radius.toString() }),
+        ...(archiveFilters?.year !== undefined && { year: archiveFilters.year.toString() }),
+        ...(archiveFilters?.archived !== undefined && { archived: archiveFilters.archived }),
       });
 
       const response = await api.get(`/nests?${params}`, {
@@ -68,12 +82,14 @@ export const fetchNests = createAsyncThunk(
 // Thunk async pour récupérer les nids détruits (public, sans authentification)
 export const fetchNestsDestroyedPublic = createAsyncThunk(
   'nests/fetchNestsDestroyedPublic',
-  async (geolocation: GeolocationParams, { rejectWithValue }) => {
+  async ({ geolocation, archiveFilters }: { geolocation: GeolocationParams; archiveFilters?: ArchiveFilterParams }, { rejectWithValue }) => {
     try {
       const params = new URLSearchParams({
         lat: geolocation.lat.toString(),
         lon: geolocation.lon.toString(),
-        ...(geolocation.radius && { radius: geolocation.radius.toString() })
+        ...(geolocation.radius && { radius: geolocation.radius.toString() }),
+        ...(archiveFilters?.year !== undefined && { year: archiveFilters.year.toString() }),
+        ...(archiveFilters?.archived !== undefined && { archived: archiveFilters.archived }),
       });
 
       const response = await api.get(`/nests/destroyed?${params}`);
@@ -171,6 +187,48 @@ export const deleteNest = createAsyncThunk(
   }
 );
 
+// Thunk async pour archiver un nid (admin uniquement)
+export const archiveNest = createAsyncThunk(
+  'nests/archiveNest',
+  async ({ nestId, accessToken }: { nestId: number; accessToken: string }, { rejectWithValue }) => {
+    try {
+      const response = await api.post(`/nests/${nestId}/archive/`, {}, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+      return response.data as Nest;
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string; detail?: string }; status?: number } };
+      const errorMessage = axiosError.response?.data?.message ||
+                          axiosError.response?.data?.detail ||
+                          `HTTP error! status: ${axiosError.response?.status}`;
+      return rejectWithValue(errorMessage || "Erreur lors de l'archivage du nid");
+    }
+  }
+);
+
+// Thunk async pour archiver en masse les nids d'une année donnée (admin uniquement)
+export const bulkArchiveNests = createAsyncThunk(
+  'nests/bulkArchiveNests',
+  async ({ year, accessToken }: { year: number; accessToken: string }, { rejectWithValue }) => {
+    try {
+      const response = await api.post(`/nests/bulk_archive/?year=${year}`, {}, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+      return response.data as { archived_count: number };
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string; error?: string }; status?: number } };
+      const errorMessage = axiosError.response?.data?.message ||
+                          axiosError.response?.data?.error ||
+                          `HTTP error! status: ${axiosError.response?.status}`;
+      return rejectWithValue(errorMessage || "Erreur lors de l'archivage en masse des nids");
+    }
+  }
+);
+
 // Slice pour les nids
 const nestsSlice = createSlice({
   name: 'nests',
@@ -190,6 +248,9 @@ const nestsSlice = createSlice({
     // Basculer l'affichage des nids
     toggleNests: (state) => {
       state.showNests = !state.showNests;
+    },
+    toggleShowArchived: (state) => {
+      state.showArchived = !state.showArchived;
     },
   },
   extraReducers: (builder) => {
@@ -246,6 +307,17 @@ const nestsSlice = createSlice({
       .addCase(deleteNest.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+      })
+      // Cas de archiveNest : l'élément archivé disparaît de la vue courante (par défaut non-archivée)
+      .addCase(archiveNest.fulfilled, (state, action) => {
+        state.nests = state.nests.filter(nest => nest.id !== action.payload.id);
+      })
+      .addCase(archiveNest.rejected, (state, action) => {
+        state.error = action.payload as string;
+      })
+      // Cas de bulkArchiveNests
+      .addCase(bulkArchiveNests.rejected, (state, action) => {
+        state.error = action.payload as string;
       });
   },
 });
@@ -255,8 +327,9 @@ export const selectNests = (state: { nests: NestsState }) => state.nests.nests;
 export const selectNestsLoading = (state: { nests: NestsState }) => state.nests.loading;
 export const selectNestsError = (state: { nests: NestsState }) => state.nests.error;
 export const selectShowNests = (state: { nests: NestsState }) => state.nests.showNests;
+export const selectShowArchivedNests = (state: { nests: NestsState }) => state.nests.showArchived;
 
-export const { clearError, clearNests, addNest, toggleNests } = nestsSlice.actions;
+export const { clearError, clearNests, addNest, toggleNests, toggleShowArchived } = nestsSlice.actions;
 export default nestsSlice.reducer;
 
 // Utilisation dans un composant React
