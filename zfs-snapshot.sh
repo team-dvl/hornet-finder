@@ -180,8 +180,8 @@ get_datasets_for_environment() {
     local env="$1"
     case "$env" in
         "prod")
-            echo "ZROOT/docker/volumes/hornet-finder-api-db"
-            echo "ZROOT/docker/volumes/hornet-finder-keycloak-db"
+            echo "ZROOT/docker/volumes/hornet-finder-api-db-18"
+            echo "ZROOT/docker/volumes/hornet-finder-keycloak-db-18"
             echo "ZROOT/docker/volumes/hornet-finder-frontend-dist"
             ;;
         "dev")
