@@ -2,11 +2,11 @@
 volumes:
   api-db:
     external: true
-    name: hornet-finder-api-db
+    name: hornet-finder-api-db-18
 
   keycloak-db:
     external: true
-    name: hornet-finder-keycloak-db
+    name: hornet-finder-keycloak-db-18
   
   frontend-dist:
     external: true
