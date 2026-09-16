@@ -35,7 +35,7 @@ services:
       - POSTGRES_USER=hornet_finder_dev
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     volumes:
-      - dev-api-db:/var/lib/postgresql/data
+      - dev-api-db:/var/lib/postgresql
 
   # API Django pour DEV
   hornet-finder-dev-api:
@@ -60,14 +60,14 @@ services:
 
   # Database Keycloak pour DEV
   hornet-finder-dev-keycloak-db:
-    image: postgres:17.5
+    image: postgres:18.6
     container_name: hornet-finder-dev-keycloak-db
     environment:
       - POSTGRES_DB=keycloak_dev
       - POSTGRES_USER=keycloak_dev
       - POSTGRES_PASSWORD=${KEYCLOAK_DB_PASSWORD}
     volumes:
-      - dev-keycloak-db:/var/lib/postgresql/data
+      - dev-keycloak-db:/var/lib/postgresql
 
   # Keycloak pour DEV
   hornet-finder-dev-keycloak:
