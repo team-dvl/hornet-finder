@@ -3,7 +3,7 @@ name: hornet-finder-dev
 services:
   # Service pour générer les certificats SSL DEV
   certbot-dev:
-    image: certbot/certbot
+    image: certbot/certbot:v5.1.0
     volumes:
       - ./certbot-dev/conf:/etc/letsencrypt
       - ./certbot-dev/www:/var/www/certbot
@@ -15,7 +15,7 @@ services:
       - gencert
 
   nginx-certbot-dev:
-    image: nginx:latest
+    image: nginx:1.29.0
     container_name: hornet-finder-dev-nginx-certbot
     ports:
       - "${BIND_IP:-37.187.220.209}:80:80"  # Port 80 requis pour les challenges ACME sur IP spécifique
@@ -60,7 +60,7 @@ services:
 
   # Database Keycloak pour DEV
   hornet-finder-dev-keycloak-db:
-    image: postgres:latest
+    image: postgres:17.5
     container_name: hornet-finder-dev-keycloak-db
     environment:
       - POSTGRES_DB=keycloak_dev
@@ -88,7 +88,7 @@ services:
 
   # Nginx pour DEV
   nginx:
-    image: nginx:latest
+    image: nginx:1.29.0
     container_name: hornet-finder-dev-nginx
     ports:
       - "${BIND_IP:-0.0.0.0}:${PROXY_PORT:-80}:80"

@@ -2,7 +2,7 @@ name: hornet-finder-prod
 
 services:
   certbot:
-    image: certbot/certbot
+    image: certbot/certbot:v5.1.0
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
@@ -16,7 +16,7 @@ services:
       - gencert
 
   nginx-certbot:
-    image: nginx:latest
+    image: nginx:1.29.0
     container_name: hornet-finder-nginx-certbot
     ports:
       - "${BIND_IP:-0.0.0.0}:${PROXY_PORT:-80}:80"
@@ -60,7 +60,7 @@ services:
       - hornet-finder-keycloak
 
   hornet-finder-keycloak-db:
-    image: postgres:latest
+    image: postgres:17.5
     container_name: hornet-finder-keycloak-db
     environment:
       - POSTGRES_DB=keycloak
@@ -86,7 +86,7 @@ services:
       - hornet-finder-keycloak-db
 
   nginx:
-    image: nginx:latest
+    image: nginx:1.29.0
     container_name: hornet-finder-nginx-prod
     ports:
       - "${BIND_IP:-0.0.0.0}:${PROXY_PORT:-80}:80"
