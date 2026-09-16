@@ -27,8 +27,8 @@ create_zfs_datasets_if_needed() {
     
     # Arrays of required ZFS datasets per environment
     local prod_datasets=(
-        "ZROOT/docker/volumes/hornet-finder-api-db"
-        "ZROOT/docker/volumes/hornet-finder-keycloak-db"
+        "ZROOT/docker/volumes/hornet-finder-api-db-18"
+        "ZROOT/docker/volumes/hornet-finder-keycloak-db-18"
         "ZROOT/docker/volumes/hornet-finder-frontend-dist"
     )
     
@@ -66,8 +66,8 @@ create_docker_volumes_if_needed() {
     
     # Arrays of required Docker volumes per environment
     local prod_volumes=(
-        "hornet-finder-api-db"
-        "hornet-finder-keycloak-db"
+        "hornet-finder-api-db-18"
+        "hornet-finder-keycloak-db-18"
         "hornet-finder-frontend-dist"
     )
     
