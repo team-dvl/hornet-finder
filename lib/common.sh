@@ -33,8 +33,8 @@ create_zfs_datasets_if_needed() {
     )
     
     local dev_datasets=(
-        "ZROOT/docker/volumes/hornet-finder-dev-api-db"
-        "ZROOT/docker/volumes/hornet-finder-dev-keycloak-db"
+        "ZROOT/docker/volumes/hornet-finder-dev-api-db-18"
+        "ZROOT/docker/volumes/hornet-finder-dev-keycloak-db-18"
     )
     
     # Ensure parent directory exists
@@ -72,8 +72,8 @@ create_docker_volumes_if_needed() {
     )
     
     local dev_volumes=(
-        "hornet-finder-dev-api-db"
-        "hornet-finder-dev-keycloak-db"
+        "hornet-finder-dev-api-db-18"
+        "hornet-finder-dev-keycloak-db-18"
     )
     
     # Create volumes based on environment

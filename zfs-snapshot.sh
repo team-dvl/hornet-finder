@@ -185,8 +185,8 @@ get_datasets_for_environment() {
             echo "ZROOT/docker/volumes/hornet-finder-frontend-dist"
             ;;
         "dev")
-            echo "ZROOT/docker/volumes/hornet-finder-dev-api-db"
-            echo "ZROOT/docker/volumes/hornet-finder-dev-keycloak-db"
+            echo "ZROOT/docker/volumes/hornet-finder-dev-api-db-18"
+            echo "ZROOT/docker/volumes/hornet-finder-dev-keycloak-db-18"
             ;;
     esac
 }
