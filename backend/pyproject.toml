@@ -12,7 +12,7 @@ dependencies = [
     "drf-spectacular[sidecar]==0.30.0",
     "gunicorn==26.2.0",
     "psycopg2-binary==2.9.13",
-    "PyJWT==2.13.0",
+    "PyJWT==2.14.0",
     "python-keycloak==7.1.1"
 ]
 
