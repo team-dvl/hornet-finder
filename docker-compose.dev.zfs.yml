@@ -1,9 +1,0 @@
-# Override to use external volumes for DEV (pointant vers les données DEV séparées)
-volumes:
-  dev-api-db:
-    external: true
-    name: hornet-finder-dev-api-db-18
-
-  dev-keycloak-db:
-    external: true
-    name: hornet-finder-dev-keycloak-db-18

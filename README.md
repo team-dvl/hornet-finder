@@ -102,7 +102,13 @@ hornet-finder/
 │   ├── conf.d/        # Nginx configuration files
 │   └── README.md      # Proxy documentation
 ├── certbot/           # SSL certificate management
-└── docker-compose.yml # Service orchestration
+├── docker-compose.{dev,prod}.yml               # One self-contained stack per environment
+├── docker-compose.{dev,prod}.external-volumes.yml  # Overlay: map data volumes to external volumes
+├── deploy.sh, shutdown.sh, logs.sh, deploy-certs.sh  # Operations (environment from .env)
+├── storage-init.sh    # Provision external volumes (and ZFS datasets when configured)
+├── status.sh          # Read-only environment status report
+├── zfs-snapshot.sh    # Snapshot management for the ZFS backend
+└── lib/               # Shared shell libraries (common.sh, volumes.sh, zfs.sh)
 ```
 
 ## Core Features
@@ -172,6 +178,19 @@ cp .env.example .env
 `prod`. The development and production example values are documented directly
 in `.env.example`; all placeholder secrets must be replaced.
 
+   Beyond the application secrets, `.env` also drives the stack itself:
+
+   - `COMPOSE_FILE` lists the Compose files of this worktree. Docker Compose
+     reads it natively, so a plain `docker compose <cmd>` run from the worktree
+     root always uses the right files. Never pass `-f` by hand.
+   - `API_DB_VOLUME`, `KEYCLOAK_DB_VOLUME`, `FRONTEND_DIST_VOLUME` name the
+     external Docker volumes holding the data. They are the single source of
+     truth for both the `external-volumes` overlay and the scripts. Leave a
+     variable empty when the environment has no such volume (dev has no
+     `frontend-dist`).
+   - `ZFS_PARENT` (optional) selects the ZFS backend: one dataset per volume,
+     named `<ZFS_PARENT>/<volume>`. Leave it empty on a host without ZFS.
+
 5. Make sure the Keycloak client matches the selected profile:
 
 | Profile | Realm | Client ID | Hostname |
@@ -185,10 +204,40 @@ database passwords between environments.
 6. Validate the Compose configuration without starting services:
 
 ```bash
-docker compose-f docker-compose.dev.yml config --quiet
+docker compose config --quiet
+docker compose config --format yaml | grep -c 'external: true'   # 2 in dev, 3 in prod
 ```
 
-Use `docker-compose.prod.yml` in the production worktree.
+7. Provision the storage once, before the first deployment:
+
+```bash
+./storage-init.sh --dry-run   # Show what would be created
+./storage-init.sh             # Create missing datasets (ZFS) and volumes
+```
+
+### Storage
+
+Data lives in external Docker volumes that the stack never creates or removes:
+`deploy.sh` only checks that they exist and stops with a clear message
+otherwise. `storage-init.sh` is the only script that creates storage, and it
+is idempotent.
+
+With `ZFS_PARENT` set, `storage-init.sh` creates the dataset backing each
+volume *before* the Docker volume, so that Docker writes into the mounted
+dataset. The parent dataset itself (`ZFS_PARENT`) is host provisioning and is
+never created by the scripts. The only link between a dataset and its volume is
+the name; Docker owns the directory layout under the mountpoint, and no script
+derives a path from it.
+
+On a host without ZFS, leave `ZFS_PARENT` empty: `storage-init.sh` creates
+plain local Docker volumes and no `zfs` command is ever run. Everything else
+is unchanged.
+
+Snapshots of the ZFS backend are managed with `./zfs-snapshot.sh`
+(`create [--tag TAG]`, `list`, `clean -k DAYS`, `delete SUFFIX...`,
+`restore SUFFIX`). `restore` rolls every dataset back to the same snapshot
+suffix; it refuses to run while the stack is up and asks for an explicit
+confirmation.
 
 ### Deployment
 
@@ -207,12 +256,14 @@ Useful commands:
 ./logs.sh -f keycloak    # Follow Keycloak logs
 ./shutdown.sh            # Stop this worktree's environment
 ./deploy-certs.sh        # Generate certificates for this worktree
+./status.sh              # Read-only status report (config, storage, services, certs, endpoints)
 ```
 
 The development and production Compose files use different service names,
 networks, database volumes, frontend setup, and Certbot directories. Always run
-these commands from the intended worktree. Do not use `--volumes` unless data
-removal is explicitly intended.
+these commands from the root of the intended worktree: `COMPOSE_FILE` in
+`.env` is only picked up there. Do not use `--volumes` unless data removal is
+explicitly intended (external volumes are never removed by Compose).
 
 ## API Documentation
 

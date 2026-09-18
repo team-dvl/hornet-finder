@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 #
-# Test script to validate refactoring
+# Test script to validate the shared libraries against the worktree .env.
+# Read-only: nothing is created.
 #
 
 # get_script_dir will work with either zsh or bash
@@ -15,33 +17,46 @@ get_script_dir() {
     cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd
 }
 
-SCRIPT_DIR="$(get_script_dir)"
+# The libraries expect SCRIPT_DIR to be the worktree root
+SCRIPT_DIR="$(cd "$(get_script_dir)/.." && pwd)"
 
-# Load common functions
-source "$SCRIPT_DIR/common.sh"
+source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/lib/volumes.sh"
+source "$SCRIPT_DIR/lib/zfs.sh"
 
-echo "🧪 Testing common library..."
+echo "🧪 Testing libraries against $SCRIPT_DIR/.env"
 
-# Test common functions
-echo "✓ Testing get_yaml_files:"
-YAML_FILE_PROD=$(get_yaml_files "$SCRIPT_DIR" "prod")
-echo "  Result for prod: '$YAML_FILE_PROD'"
-YAML_FILE_DEV=$(get_yaml_files "$SCRIPT_DIR" "dev")
-echo "  Result for dev: '$YAML_FILE_DEV'"
+load_env
+MODE=$(get_configured_environment)
+echo "✓ get_configured_environment: $MODE"
 
-echo "✓ Testing is_zfs_used:"
-if is_zfs_used "$SCRIPT_DIR"; then
-    echo "  ZFS detected"
+echo "✓ COMPOSE_FILE: ${COMPOSE_FILE:-<unset>}"
+
+echo "✓ resolve_service_name:"
+for alias in api db keycloak-db nginx unknown-service; do
+    echo "  $alias -> $(resolve_service_name "$alias" "$MODE")"
+done
+
+echo "✓ managed_volumes:"
+while read -r v; do
+    if docker_volume_exists "$v"; then
+        echo "  $v (exists)"
+    else
+        echo "  $v (MISSING)"
+    fi
+done < <(managed_volumes)
+
+if zfs_backend_configured; then
+    echo "✓ ZFS backend: $ZFS_PARENT"
+    while read -r d; do
+        if dataset_exists "$d"; then
+            echo "  $d (exists)"
+        else
+            echo "  $d (MISSING)"
+        fi
+    done < <(managed_datasets)
 else
-    echo "  ZFS not detected"
+    echo "✓ ZFS backend: not configured"
 fi
 
-echo "✓ Testing validate_mode:"
-validate_mode "prod" && echo "  Mode 'prod' validated"
-validate_mode "dev" && echo "  Mode 'dev' validated"  
-validate_mode "both" && echo "  Mode 'both' validated"
-
-echo "✓ Testing display functions:"
-show_success "Testing show_success"
-
-echo "✅ All tests pass"
+show_success "All tests pass"

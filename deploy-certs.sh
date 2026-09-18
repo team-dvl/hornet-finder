@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-set -e  # Exit on error
-#set -x
+set -euo pipefail
 
 #
-# Script unifié de génération des certificats SSL
+# SSL certificate generation (Let's Encrypt) for the environment of this worktree
 # Usage: ./deploy-certs.sh [-h]
 #
 
@@ -51,87 +50,37 @@ print_help() {
     echo ""
 }
 
-# Certificate generation for PROD (aligned with DEV method)
-generate_prod_certs() {
-    log "Generating SSL certificates for PROD environment"
-    log "Domains: velutina.ovh, auth.velutina.ovh"
-    
-    cd "$SCRIPT_DIR"
-    
-    # Load environment variables for PROD
-    log "Loading environment variables for PROD..."
-    load_env
-    
-    # Create ZFS datasets if needed
-    if is_zfs_used "$SCRIPT_DIR"; then
-        log "Checking and creating ZFS datasets for PROD..."
-        create_zfs_datasets_if_needed "prod"
+# generate_certs runs the ACME challenge through the temporary nginx of the
+# gencert profile. The compose services carry a -dev suffix in development.
+generate_certs() {
+    local env="$1"
+    local suffix=""
+    if [[ "$env" == "dev" ]]; then
+        suffix="-dev"
     fi
-    
-    # Get YAML files for PROD
-    YAML_FILE=$(get_yaml_files "$SCRIPT_DIR" "prod")
-    
-    log "Stopping existing services..."
-    eval "docker compose ${YAML_FILE} down"
-    
-    log "Starting nginx server for ACME challenges..."
-    eval "docker compose ${YAML_FILE} --profile gencert up -d nginx-certbot"
-    
-    log "Waiting for nginx server to start..."
-    sleep 5
-    
-    log "Generating SSL certificates..."
-    eval "docker compose ${YAML_FILE} --profile gencert up certbot"
-    
-    log "Stopping temporary nginx server..."
-    eval "docker compose ${YAML_FILE} --profile gencert down"
-    
-    success "PROD certificates generated successfully!"
-    echo ""
-    log "You can now deploy the complete PROD environment with:"
-    log " ./deploy.sh"
-}
 
-# Certificate generation for DEV
-generate_dev_certs() {
-    log "Generating SSL certificates for DEV environment"
-    log "Domains: dev.velutina.ovh, auth.dev.velutina.ovh"
-    log "Deploying from same server on different IP"
-    
-    cd "$SCRIPT_DIR"
-    
-    # Load environment variables for DEV
-    log "Loading environment variables for DEV..."
-    load_env
-    
-    # Create ZFS datasets if needed
-    if is_zfs_used "$SCRIPT_DIR"; then
-        log "Checking and creating ZFS datasets for DEV..."
-        create_zfs_datasets_if_needed "dev"
-    fi
-    
-    # Get YAML files for DEV
-    YAML_FILE=$(get_yaml_files "$SCRIPT_DIR" "dev")
-    
+    log "Generating SSL certificates for ${env^^} environment"
+    log "Domains: ${HOST}, ${KC_HOSTNAME}"
+
     log "Stopping existing services..."
-    eval "docker compose ${YAML_FILE} down"
-    
+    docker compose down
+
     log "Starting nginx server for ACME challenges..."
-    eval "docker compose ${YAML_FILE} --profile gencert up -d nginx-certbot-dev"
-    
+    docker compose --profile gencert up -d "nginx-certbot${suffix}"
+
     log "Waiting for nginx server to start..."
     sleep 5
-    
+
     log "Generating SSL certificates..."
-    eval "docker compose ${YAML_FILE} --profile gencert up certbot-dev"
-    
+    docker compose --profile gencert up "certbot${suffix}"
+
     log "Stopping temporary nginx server..."
-    eval "docker compose ${YAML_FILE} --profile gencert down"
-    
-    success "DEV certificates generated successfully!"
+    docker compose --profile gencert down
+
+    success "${env^^} certificates generated successfully!"
     echo ""
-    log "You can now deploy the complete DEV environment with:"
-    log " ./deploy-certs.sh"
+    log "You can now deploy the complete ${env^^} environment with:"
+    log " ./deploy.sh"
 }
 
 # Option parsing
@@ -152,18 +101,6 @@ cd "$SCRIPT_DIR"
 load_env
 ENVIRONMENT=$(get_configured_environment)
 
-# Generate certificates according to environment
-case "$ENVIRONMENT" in
-    "prod")
-        generate_prod_certs
-        ;;
-    "dev")
-        generate_dev_certs
-        ;;
-esac
+generate_certs "$ENVIRONMENT"
 
 success "Certificate generation completed for $ENVIRONMENT environment"
-
-
-
-     

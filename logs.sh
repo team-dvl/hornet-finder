@@ -1,10 +1,23 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
+
 # Utilities to manage logs for the current worktree
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+# get_script_dir will work with either zsh or bash
+get_script_dir() {
+    local SOURCE="${BASH_SOURCE[0]:-${(%):-%x}}"
+    while [ -h "$SOURCE" ]; do
+        local DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+        SOURCE="$(readlink "$SOURCE")"
+        [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+    done
+    cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd
+}
 
-source lib/common.sh
+SCRIPT_DIR="$(get_script_dir)"
+
+# Load common functions
+source "$SCRIPT_DIR/lib/common.sh"
 
 usage() {
     cat << EOF
@@ -60,62 +73,23 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Load and detect the environment from this worktree
+cd "$SCRIPT_DIR"
 load_env
 MODE=$(get_configured_environment)
 
-# Adjust name suffix: "" for prod, "-dev" for dev
-NAMESUFFIX=""
-if [[ "$MODE" == "dev" ]]; then
-    NAMESUFFIX="-$MODE"
-fi
-
-# Get compose files
-COMPOSE_FILES=$(get_yaml_files "$SCRIPT_DIR" "$MODE")
-
-# Build docker compose command parts
-COMPOSE_ARGS="$COMPOSE_FILES"
-
 # Build logs command
-LOGS_CMD="logs"
+LOGS_ARGS=(logs)
 if [[ "$FOLLOW" == "true" ]]; then
-    LOGS_CMD="$LOGS_CMD -f"
+    LOGS_ARGS+=(-f)
 else
-    LOGS_CMD="$LOGS_CMD --tail $TAIL_COUNT"
+    LOGS_ARGS+=(--tail "$TAIL_COUNT")
 fi
 
 # Add service if specified
 if [[ -n "$SERVICE" ]]; then
-    # Map service names to container names
-    case "$SERVICE" in
-        api)
-            SERVICE="hornet-finder$NAMESUFFIX-api"
-            ;;
-        api-db|db)
-            SERVICE="hornet-finder$NAMESUFFIX-api-db"
-            ;;
-        keycloak)
-            SERVICE="hornet-finder$NAMESUFFIX-keycloak"
-            ;;
-        keycloak-db)
-            SERVICE="hornet-finder$NAMESUFFIX-keycloak-db"
-            ;;
-        nginx)
-            SERVICE="nginx"
-            ;;
-        vite)
-            if [[ "$MODE" != "dev" ]]; then
-                echo "[ERROR] The vite service is only available in DEV mode"
-                exit 1
-            fi
-            SERVICE="hornet-finder-dev-vite"
-            ;;
-        *)
-            # Service name already correct
-            ;;
-    esac
-    LOGS_CMD="$LOGS_CMD $SERVICE"
+    SERVICE=$(resolve_service_name "$SERVICE" "$MODE")
+    LOGS_ARGS+=("$SERVICE")
 fi
 
 echo "[LOGS] Logs $MODE${SERVICE:+ - $SERVICE}"
-eval "docker compose $COMPOSE_ARGS $LOGS_CMD"
+docker compose "${LOGS_ARGS[@]}"

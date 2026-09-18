@@ -1,0 +1,10 @@
+# Map the stack's named volumes onto pre-provisioned external Docker volumes.
+# Names come from .env; run ./storage-init.sh to provision them.
+volumes:
+  dev-api-db:
+    external: true
+    name: ${API_DB_VOLUME:?API_DB_VOLUME must be set in .env, then run ./storage-init.sh}
+
+  dev-keycloak-db:
+    external: true
+    name: ${KEYCLOAK_DB_VOLUME:?KEYCLOAK_DB_VOLUME must be set in .env, then run ./storage-init.sh}

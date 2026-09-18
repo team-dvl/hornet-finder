@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 #
-# ZFS snapshot creation script for Hornet Finder
-# Creates timestamped snapshots of Docker volumes
+# ZFS snapshot management for Hornet Finder
+# Creates, lists, prunes, deletes and restores snapshots of the datasets
+# backing the external Docker volumes of this worktree (see .env: ZFS_PARENT
+# and the *_VOLUME variables).
 #
 
 # get_script_dir will work with either zsh or bash
@@ -20,12 +23,16 @@ SCRIPT_DIR="$(get_script_dir)"
 
 # Load common functions
 source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/lib/volumes.sh"
+source "$SCRIPT_DIR/lib/zfs.sh"
 
 # Variables
 FORCE=0
 KEEP_DAYS=7
 ACTION=""
-ENVIRONMENT=""
+CUSTOM_TAG=""
+RESTORE_SUFFIX=""
+DELETE_SUFFIXES=()
 
 # Help display
 print_help() {
@@ -36,26 +43,28 @@ print_help() {
     echo "  list|ls             List existing snapshots"
     echo "  clean|prune         Clean old snapshots"
     echo "  delete|rm|del SUFFIX...    Delete snapshots with specified suffixes"
-    echo "  restore SUFFIX      Restore from a snapshot (WARNING: DANGEROUS)"
+    echo "  restore SUFFIX      Roll every dataset back to the snapshot with this exact suffix"
+    echo "                      (WARNING: DANGEROUS, the stack must be stopped first)"
     echo ""
     echo "Options:"
-    echo "  -f, --force         Force action without confirmation"
+    echo "  -f, --force         create/clean/delete: skip confirmation"
+    echo "                      restore: also destroy snapshots newer than the target (zfs rollback -r)"
     echo "  -k, --keep DAYS     Number of days to keep for clean/prune (default: 7)"
-    echo "  --tag TAG           Custom tag for snapshot (instead of timestamp)"
+    echo "  --tag TAG           Append a custom tag to the snapshot timestamp"
     echo "  -h, --help          Display this help"
     echo ""
     echo "Description:"
     echo "  Manages timestamped ZFS snapshots of Hornet Finder Docker volumes."
-    echo "  Supports separate PROD and DEV environments."
-    echo "  Name format: volume@YYMMDD-HHMMSS or volume@TAG"
+    echo "  Datasets are <ZFS_PARENT>/<volume> for each *_VOLUME declared in .env."
+    echo "  Name format: dataset@YYMMDD-HHMMSS or dataset@YYMMDD-HHMMSS-TAG"
     echo ""
     echo "Examples:"
     echo "  $0 create                           # Snapshot the environment in .env"
-    echo "  $0 create --tag pre-deploy          # Snapshot with custom tag"
+    echo "  $0 create --tag pre-deploy          # Snapshot as dataset@YYMMDD-HHMMSS-pre-deploy"
     echo "  $0 list                             # List snapshots for this worktree"
     echo "  $0 clean -k 3                       # Clean snapshots older than 3 days"
     echo "  $0 delete 250806-082324             # Delete snapshots with this suffix"
-    echo "  $0 restore pre-deploy-20250807      # ⚠️ Restore from snapshot"
+    echo "  $0 restore 250806-082324-pre-deploy # ⚠️ Roll back to this snapshot"
 }
 
 # First check if help is requested
@@ -74,7 +83,6 @@ if [[ $# -eq 0 ]]; then
 fi
 
 # Parse all arguments first to find action and options
-ACTION=""
 TEMP_ARGS=()
 
 # First pass: collect all arguments and identify action
@@ -105,7 +113,7 @@ if [[ -z "$ACTION" ]]; then
 fi
 
 # Restore arguments for option parsing
-set -- "${TEMP_ARGS[@]}"
+set -- "${TEMP_ARGS[@]+"${TEMP_ARGS[@]}"}"
 
 # Option parsing
 while [[ $# -gt 0 ]]; do
@@ -123,11 +131,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --tag)
             CUSTOM_TAG="$2"
+            if ! [[ "$CUSTOM_TAG" =~ ^[A-Za-z0-9_.-]+$ ]]; then
+                handle_error "The value for --tag may only contain letters, digits, '_', '.' and '-'"
+            fi
             shift 2
-            ;;
-        -h|--help)
-            print_help
-            exit 0
             ;;
         -*)
             echo "Unknown option: $1" >&2
@@ -135,10 +142,11 @@ while [[ $# -gt 0 ]]; do
             exit 1
             ;;
         *)
-            # For delete action, remaining arguments are suffixes
+            # Positional arguments: suffixes for delete, the target for restore
             if [[ "$ACTION" == "delete" || "$ACTION" == "rm" || "$ACTION" == "del" ]]; then
-                break
-            elif [[ "$ACTION" == "restore" ]]; then
+                DELETE_SUFFIXES+=("$1")
+                shift
+            elif [[ "$ACTION" == "restore" && -z "$RESTORE_SUFFIX" ]]; then
                 RESTORE_SUFFIX="$1"
                 shift
             else
@@ -150,76 +158,57 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Validate action
-case "$ACTION" in
-    create|new|list|ls|clean|prune|delete|rm|del)
-        ;;
-    *)
-        echo "Unknown action: $ACTION" >&2
-        print_help
-        exit 1
-        ;;
-esac
+if [[ "$ACTION" == "restore" && -z "$RESTORE_SUFFIX" ]]; then
+    handle_error "restore requires a snapshot suffix"
+fi
 
 cd "$SCRIPT_DIR"
 load_env
 ENVIRONMENT=$(get_configured_environment)
 
-# Check that ZFS is available
-if ! command -v zfs >/dev/null 2>&1; then
-    handle_error "ZFS is not installed or available"
-fi
-
-# Check that ZFS is used
-if ! is_zfs_used "$SCRIPT_DIR"; then
-    handle_error "ZFS is not used in this project"
-fi
-
-# Get datasets to backup based on environment
-get_datasets_for_environment() {
-    local env="$1"
-    case "$env" in
-        "prod")
-            echo "ZROOT/docker/volumes/hornet-finder-api-db-18"
-            echo "ZROOT/docker/volumes/hornet-finder-keycloak-db-18"
-            echo "ZROOT/docker/volumes/hornet-finder-frontend-dist"
-            ;;
-        "dev")
-            echo "ZROOT/docker/volumes/hornet-finder-dev-api-db-18"
-            echo "ZROOT/docker/volumes/hornet-finder-dev-keycloak-db-18"
-            ;;
-    esac
-}
+# Fail-safe: the backend must be configured and every dataset must exist
+# before any action runs, so nothing is ever done partially.
+require_zfs_backend
+require_datasets
 
 # Build datasets array
-readarray -t DATASETS < <(get_datasets_for_environment "$ENVIRONMENT")
+readarray -t DATASETS < <(managed_datasets)
 
-# Generate YYMMDD-HHMMSS timestamp
-TIMESTAMP=$(date +%y%m%d-%H%M%S)
+# Generate YYMMDD-HHMMSS timestamp, with the optional tag appended
+TIMESTAMP="$(date +%y%m%d-%H%M%S)${CUSTOM_TAG:+-${CUSTOM_TAG}}"
+
+# confirm prompts for a yes/no answer on the terminal. Without a terminal
+# (cron, CI, piped input) it fails safe: no answer means no.
+confirm() {
+    local prompt="$1" response
+    if [[ ! -t 0 ]]; then
+        echo "❌ No terminal to confirm on: re-run interactively or use --force" >&2
+        return 1
+    fi
+    read -r -p "$prompt [y/N] " response
+    [[ "$response" == "y" || "$response" == "Y" ]]
+}
+
+# format_creation renders a zfs creation date as DD/MM/YY HH:MM:SS
+format_creation() {
+    date -d "$1" "+%d/%m/%y %H:%M:%S" 2>/dev/null || echo "$1"
+}
 
 # Function to list snapshots
 list_snapshots() {
     echo "[LIST] Existing snapshots:"
     for dataset in "${DATASETS[@]}"; do
-        if zfs list "$dataset" >/dev/null 2>&1; then
-            echo ""
-            echo "Dataset: $dataset"
-            # Format dates as DD/MM/YY HH:MM:SS
-            zfs list -t snapshot -H -o name,creation,used -s creation "$dataset" 2>/dev/null | while IFS=$'\t' read -r name creation used; do
-                if [[ -n "$name" && "$name" == *"@"* ]]; then
-                    # Convert date to desired format
-                    formatted_date=$(date -d "$creation" "+%d/%m/%y %H:%M:%S" 2>/dev/null || echo "$creation")
-                    printf "  %-50s %s %s\n" "$name" "$formatted_date" "$used"
-                fi
-            done
-            
-            # Check if snapshots were found
-            snapshot_count=$(zfs list -t snapshot -H -o name "$dataset" 2>/dev/null | grep "@" | wc -l)
-            if [[ "$snapshot_count" -eq 0 ]]; then
-                echo "  No snapshots found"
-            fi
-        else
-            echo "  [WARNING] Dataset $dataset not found"
+        echo ""
+        echo "Dataset: $dataset"
+        local count=0
+        while IFS=$'\t' read -r name creation used; do
+            [[ -n "$name" ]] || continue
+            printf "  %-50s %s %s\n" "$name" "$(format_creation "$creation")" "$used"
+            ((count++)) || true
+        done < <(zfs list -t snapshot -H -o name,creation,used -s creation "$dataset" 2>/dev/null || true)
+
+        if [[ "$count" -eq 0 ]]; then
+            echo "  No snapshots found"
         fi
     done
 }
@@ -227,53 +216,41 @@ list_snapshots() {
 # Function to clean old snapshots
 cleanup_old_snapshots() {
     echo "[CLEAN] Cleaning snapshots older than $KEEP_DAYS days..."
+    local cutoff_date
     cutoff_date=$(date -d "$KEEP_DAYS days ago" +%s)
-    
+
     for dataset in "${DATASETS[@]}"; do
-        if zfs list "$dataset" >/dev/null 2>&1; then
-            echo "Checking $dataset..."
-            
-            # Get list of snapshots with their creation date
-            zfs list -t snapshot -H -o name,creation "$dataset" 2>/dev/null | while IFS=$'\t' read -r snapshot_name creation_date; do
-                if [[ "$snapshot_name" == *"@"* ]]; then
-                    # Convert creation date to timestamp
-                    snapshot_timestamp=$(date -d "$creation_date" +%s 2>/dev/null)
-                    
-                    if [[ $? -eq 0 && $snapshot_timestamp -lt $cutoff_date ]]; then
-                        # Display formatted date for user
-                        formatted_date=$(date -d "$creation_date" "+%d/%m/%y %H:%M:%S" 2>/dev/null || echo "$creation_date")
-                        echo "  [DELETE] Deleting old snapshot: $snapshot_name (created on $formatted_date)"
-                        if [[ "$FORCE" == 1 ]]; then
-                            sudo zfs destroy "$snapshot_name"
-                        else
-                            read -p "Delete $snapshot_name? [y/N] " response
-                            if [[ "$response" == "y" || "$response" == "Y" ]]; then
-                                sudo zfs destroy "$snapshot_name"
-                            fi
-                        fi
+        echo "Checking $dataset..."
+
+        while IFS=$'\t' read -r snapshot_name creation_date; do
+            [[ -n "$snapshot_name" ]] || continue
+            local snapshot_timestamp
+            snapshot_timestamp=$(date -d "$creation_date" +%s 2>/dev/null) || continue
+            if (( snapshot_timestamp < cutoff_date )); then
+                echo "  [DELETE] Deleting old snapshot: $snapshot_name (created on $(format_creation "$creation_date"))"
+                if [[ "$FORCE" == 1 ]]; then
+                    sudo zfs destroy "$snapshot_name"
+                else
+                    if confirm "Delete $snapshot_name?" </dev/tty; then
+                        sudo zfs destroy "$snapshot_name"
                     fi
                 fi
-            done
-        fi
+            fi
+        done < <(zfs list -t snapshot -H -o name,creation "$dataset" 2>/dev/null || true)
     done
 }
 
 # Function to create snapshots
 create_snapshots() {
-    echo "[CREATE] Creating ZFS snapshots with timestamp: $TIMESTAMP"
-    
+    echo "[CREATE] Creating ZFS snapshots with suffix: $TIMESTAMP"
+
     for dataset in "${DATASETS[@]}"; do
-        snapshot_name="${dataset}@${TIMESTAMP}"
-        
-        if zfs list "$dataset" >/dev/null 2>&1; then
-            echo "Creating snapshot: $snapshot_name"
-            if sudo zfs snapshot "$snapshot_name"; then
-                echo "  [SUCCESS] Snapshot created successfully"
-            else
-                echo "  [ERROR] Failed to create snapshot"
-            fi
+        local snapshot_name="${dataset}@${TIMESTAMP}"
+        echo "Creating snapshot: $snapshot_name"
+        if sudo zfs snapshot "$snapshot_name"; then
+            echo "  [SUCCESS] Snapshot created successfully"
         else
-            echo "  [WARNING] Dataset $dataset not found, skipping"
+            echo "  [ERROR] Failed to create snapshot"
         fi
     done
 }
@@ -281,58 +258,51 @@ create_snapshots() {
 # Function to delete snapshots by suffix
 delete_snapshots() {
     local suffixes=("$@")
-    
+
     if [[ ${#suffixes[@]} -eq 0 ]]; then
         handle_error "No suffix specified for deletion"
     fi
-    
+
     echo "[DELETE] Deleting snapshots with suffixes: ${suffixes[*]}"
-    
+
     local found_snapshots=()
-    
+
     # Search for all matching snapshots
     for dataset in "${DATASETS[@]}"; do
-        if zfs list "$dataset" >/dev/null 2>&1; then
-            for suffix in "${suffixes[@]}"; do
-                # Search for snapshots matching the pattern
-                while IFS= read -r snapshot_name; do
-                    if [[ -n "$snapshot_name" ]]; then
-                        found_snapshots+=("$snapshot_name")
-                    fi
-                done < <(zfs list -t snapshot -H -o name "$dataset" 2>/dev/null | grep "@.*${suffix}")
-            done
-        fi
+        for suffix in "${suffixes[@]}"; do
+            while IFS= read -r snapshot_name; do
+                [[ -n "$snapshot_name" ]] && found_snapshots+=("$snapshot_name")
+            done < <(zfs list -t snapshot -H -o name "$dataset" 2>/dev/null | grep "@.*${suffix}" || true)
+        done
     done
-    
+
     # Check if we found snapshots
     if [[ ${#found_snapshots[@]} -eq 0 ]]; then
         echo "No snapshots found with the specified suffixes"
         return 0
     fi
-    
+
     # Display found snapshots
     echo ""
     echo "Snapshots found to delete:"
     for snapshot in "${found_snapshots[@]}"; do
-        # Get snapshot information
-        snapshot_info=$(zfs list -H -o name,creation,used "$snapshot" 2>/dev/null)
+        local snapshot_info
+        snapshot_info=$(zfs list -H -o name,creation,used "$snapshot" 2>/dev/null || true)
         if [[ -n "$snapshot_info" ]]; then
             IFS=$'\t' read -r name creation used <<< "$snapshot_info"
-            formatted_date=$(date -d "$creation" "+%d/%m/%y %H:%M:%S" 2>/dev/null || echo "$creation")
-            printf "  [DELETE] %-50s %s %s\n" "$name" "$formatted_date" "$used"
+            printf "  [DELETE] %-50s %s %s\n" "$name" "$(format_creation "$creation")" "$used"
         fi
     done
-    
+
     # Ask for confirmation
     if [[ "$FORCE" != 1 ]]; then
         echo ""
-        read -p "Confirm deletion of ${#found_snapshots[@]} snapshot(s)? [y/N] " response
-        if [[ "$response" != "y" && "$response" != "Y" ]]; then
+        if ! confirm "Confirm deletion of ${#found_snapshots[@]} snapshot(s)?"; then
             echo "Deletion cancelled"
             return 0
         fi
     fi
-    
+
     # Delete snapshots
     echo ""
     local success_count=0
@@ -340,17 +310,82 @@ delete_snapshots() {
         echo "Deleting $snapshot..."
         if sudo zfs destroy "$snapshot"; then
             echo "  [SUCCESS] Successfully deleted"
-            ((success_count++))
+            ((success_count++)) || true
         else
             echo "  [ERROR] Failed to delete"
         fi
     done
-    
+
     echo ""
     show_success "$success_count snapshot(s) deleted out of ${#found_snapshots[@]}"
 }
 
-cd "$SCRIPT_DIR"
+# Function to roll every dataset back to the snapshot with the given suffix.
+# Fail-safe: all targets are verified and the stack must be stopped before
+# anything is touched. Without --force, zfs rollback refuses to discard
+# snapshots newer than the target, which is the safe default.
+restore_snapshots() {
+    local suffix="$1"
+    local targets=() missing=() dataset
+
+    echo "[RESTORE] Restoring snapshots with suffix: $suffix"
+
+    for dataset in "${DATASETS[@]}"; do
+        local snapshot_name="${dataset}@${suffix}"
+        if dataset_exists "$snapshot_name"; then
+            targets+=("$snapshot_name")
+        else
+            missing+=("$snapshot_name")
+        fi
+    done
+
+    if (( ${#missing[@]} )); then
+        handle_error "Snapshot(s) not found, nothing restored: ${missing[*]}
+   The suffix must match exactly; use '$0 list' to find it."
+    fi
+
+    local running
+    running=$(docker compose ps -q 2>/dev/null || true)
+    if [[ -n "$running" ]]; then
+        handle_error "The $ENVIRONMENT stack is still running, nothing restored.
+   Stop it first with ./shutdown.sh"
+    fi
+
+    local rollback_flags=()
+    echo ""
+    echo "Datasets will be rolled back to:"
+    for snapshot in "${targets[@]}"; do
+        echo "  - $snapshot"
+    done
+    echo ""
+    if [[ "$FORCE" == 1 ]]; then
+        rollback_flags+=(-r)
+        echo "⚠️  --force: snapshots newer than the target will be DESTROYED (zfs rollback -r)"
+    else
+        echo "Rollback will refuse datasets that have snapshots newer than the target."
+        echo "Use --force to destroy them, or delete them first."
+    fi
+    echo "⚠️  All data written to these volumes after the snapshot will be LOST."
+    echo ""
+    if [[ ! -t 0 ]]; then
+        handle_error "restore needs an interactive terminal to confirm, nothing restored"
+    fi
+    read -r -p "Type the suffix '$suffix' to confirm: " response
+    if [[ "$response" != "$suffix" ]]; then
+        echo "Restore cancelled"
+        exit 0
+    fi
+
+    echo ""
+    for snapshot in "${targets[@]}"; do
+        echo "Rolling back $snapshot..."
+        sudo zfs rollback "${rollback_flags[@]+"${rollback_flags[@]}"}" "$snapshot"
+        echo "  [SUCCESS] Rolled back"
+    done
+
+    echo ""
+    show_success "Restored ${#targets[@]} dataset(s) to suffix $suffix"
+}
 
 # Execute requested action
 case "$ACTION" in
@@ -362,22 +397,23 @@ case "$ACTION" in
         show_success "Cleanup completed"
         ;;
     "delete"|"rm"|"del")
-        # Remaining arguments are suffixes to delete
-        delete_snapshots "$@"
+        delete_snapshots "${DELETE_SUFFIXES[@]+"${DELETE_SUFFIXES[@]}"}"
+        ;;
+    "restore")
+        restore_snapshots "$RESTORE_SUFFIX"
         ;;
     "create"|"new")
         # Confirmation before creation
         if [[ "$FORCE" != 1 ]]; then
-            echo "[CREATE] Creating ZFS snapshots for Hornet Finder"
-            echo "Timestamp: $TIMESTAMP"
+            echo "[CREATE] Creating ZFS snapshots for Hornet Finder ($ENVIRONMENT)"
+            echo "Suffix: $TIMESTAMP"
             echo ""
             echo "Datasets to backup:"
             for dataset in "${DATASETS[@]}"; do
                 echo "  - $dataset"
             done
             echo ""
-            read -p "Continue with snapshot creation? [y/N] " response
-            if [[ "$response" != "y" && "$response" != "Y" ]]; then
+            if ! confirm "Continue with snapshot creation?"; then
                 echo "Creation cancelled"
                 exit 0
             fi
@@ -387,19 +423,17 @@ case "$ACTION" in
         create_snapshots
 
         echo ""
-        show_success "Snapshots created with timestamp: $TIMESTAMP"
+        show_success "Snapshots created with suffix: $TIMESTAMP"
 
         # Display created snapshots
         echo ""
         echo "[LIST] Created snapshots:"
         for dataset in "${DATASETS[@]}"; do
             snapshot_name="${dataset}@${TIMESTAMP}"
-            if zfs list "$snapshot_name" >/dev/null 2>&1; then
+            if dataset_exists "$snapshot_name"; then
                 echo "  [SUCCESS] $snapshot_name"
-                # Display with custom date format
                 zfs list -H -o name,used,creation "$snapshot_name" | while IFS=$'\t' read -r name used creation; do
-                    formatted_date=$(date -d "$creation" "+%d/%m/%y %H:%M:%S" 2>/dev/null || echo "$creation")
-                    printf "     Size: %s, Created on: %s\n" "$used" "$formatted_date"
+                    printf "     Size: %s, Created on: %s\n" "$used" "$(format_creation "$creation")"
                 done
             fi
         done

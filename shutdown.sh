@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 #
 # Shutdown script for Hornet Finder with separate environments
@@ -60,17 +61,18 @@ echo "[SHUTDOWN] Hornet Finder Shutdown - Environment: $MODE"
 # Function to shutdown a specific environment
 shutdown_environment() {
     local env="$1"
-    local yaml_file=$(get_yaml_files "$SCRIPT_DIR" "$env")
-    
+
     echo "[SHUTDOWN] Stopping $env environment..."
-    
+
     if [[ "$REMOVE_VOLUMES" == 1 ]]; then
+        # External volumes are never removed by compose; this only affects
+        # volumes the stack owns (e.g. when the overlay is not in COMPOSE_FILE).
         echo "[WARNING] Removing volumes for $env (data loss!)"
-        eval "docker compose ${yaml_file} down -v"
+        docker compose down -v
     else
-        eval "docker compose ${yaml_file} down"
+        docker compose down
     fi
-    
+
     echo "[SUCCESS] Environment $env stopped"
 }
 
