@@ -8,6 +8,7 @@ import { selectFilteredHornets } from '../../store/slices/hornetsSlice';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useMapDataFetching } from '../../hooks/useMapDataFetching';
 import { MAX_ZOOM, MAX_NATIVE_ZOOM } from '../../utils/constants';
+import { signInFromCurrentPage } from '../../utils/authRedirect';
 import { Hornet } from '../../store/slices/hornetsSlice';
 import { Apiary } from '../../store/slices/apiariesSlice';
 import { Nest } from '../../store/slices/nestsSlice';
@@ -374,8 +375,8 @@ export default function InteractiveMap() {
   const handleQuickHornetCapture = () => {
     // Vérifier d'abord si l'utilisateur est authentifié
     if (!auth.isAuthenticated) {
-      // Rediriger vers l'authentification
-      auth.signinRedirect();
+      // Rediriger vers l'authentification (retour sur la carte après connexion)
+      void signInFromCurrentPage(auth);
       return;
     }
 

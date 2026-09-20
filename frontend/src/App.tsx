@@ -1,13 +1,10 @@
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css'
 import { Container, Alert } from 'react-bootstrap'
-import { useState, useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom'
+import { useEffect } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from 'react-oidc-context';
-import { InteractiveMap } from './components/map';
-import { NavbarComponent } from './components/layout';
-import { WelcomeModal } from './components/modals';
-import { PrivacyPolicy, DataDeletion } from './pages';
+import { Home, Nests, Traps, PrivacyPolicy, DataDeletion } from './pages';
 import { initIOSViewportFix } from './utils/iosViewportFix';
 import { useUrlCleaner } from './utils/urlCleaner';
 import { setupPWAAuthMonitoring, setupTokenMonitoring, syncAuthStateWithServiceWorker } from './utils/pwaAuth';
@@ -20,7 +17,6 @@ if (import.meta.env.DEV) {
 
 function App() {
   const auth = useAuth();
-  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
 
   // Nettoyer automatiquement l'URL après authentification (pour PWA)
   useUrlCleaner(auth.isAuthenticated);
@@ -28,7 +24,7 @@ function App() {
   // Gestion de la persistance de session mobile
   useMobileSessionPersistence();
 
-  // Afficher le modal de bienvenue quand l'utilisateur n'est pas authentifié
+  // Initialisation unique (viewport iOS, monitoring PWA / tokens, service worker)
   useEffect(() => {
     // Initialiser la correction iOS pour le viewport
     initIOSViewportFix();
@@ -41,17 +37,7 @@ function App() {
     
     // Synchroniser l'état avec le service worker
     syncAuthStateWithServiceWorker();
-    
-    if (!auth.isLoading && !auth.isAuthenticated && !auth.activeNavigator) {
-      // Vérifier si l'utilisateur a déjà choisi de continuer sans connexion
-      const hasDeclinedLogin = localStorage.getItem('hornet-finder-declined-login');
-      if (!hasDeclinedLogin) {
-        setShowWelcomeModal(true);
-      }
-    } else {
-      setShowWelcomeModal(false);
-    }
-  }, [auth.isLoading, auth.isAuthenticated, auth.activeNavigator]);
+  }, []);
 
   // Synchroniser l'état d'authentification avec le service worker
   useEffect(() => {
@@ -59,16 +45,6 @@ function App() {
       syncAuthStateWithServiceWorker();
     }
   }, [auth.isAuthenticated, auth.user, auth.isLoading]);
-
-  const handleCloseWelcomeModal = () => {
-    setShowWelcomeModal(false);
-    // Sauvegarder le choix de l'utilisateur pour ne pas réafficher le modal
-    localStorage.setItem('hornet-finder-declined-login', 'true');
-  };
-
-  const handleShowWelcomeModal = () => {
-    setShowWelcomeModal(true);
-  };
 
   switch (auth.activeNavigator) {
     case "signinSilent":
@@ -120,21 +96,12 @@ function App() {
 
   return (
     <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/nests" element={<Nests />} />
+      <Route path="/traps" element={<Traps />} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="/data-deletion" element={<DataDeletion />} />
-      <Route path="/" element={
-        <>
-          <NavbarComponent onShowWelcome={handleShowWelcomeModal} />
-          <div className="map-fullscreen">
-            <InteractiveMap />
-          </div>
-          
-          <WelcomeModal 
-            show={showWelcomeModal}
-            onHide={handleCloseWelcomeModal}
-          />
-        </>
-      } />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

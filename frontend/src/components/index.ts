@@ -18,3 +18,6 @@ export * from './modals';
 
 // Map controls
 export * from './map-controls';
+
+// Landing page components
+export * from './home';

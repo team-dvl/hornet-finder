@@ -128,21 +128,6 @@ export function setupPWAAuthMonitoring(): void {
   });
 }
 
-export function createPWAFriendlyRedirectUri(): string {
-  // Pour PWA, utiliser une URL plus stable
-  const baseUrl = window.location.origin;
-  const path = window.location.pathname;
-  
-  // Si on est dans une PWA, utiliser l'URL de base
-  const state = detectPWAAuthState();
-  if (state.isPWA) {
-    return baseUrl;
-  }
-  
-  // Sinon, utiliser l'URL complète
-  return `${baseUrl}${path}`;
-}
-
 // Nouvelle fonction pour surveiller les tokens en arrière-plan
 export function setupTokenMonitoring(): void {
   // Vérifier périodiquement l'état des tokens

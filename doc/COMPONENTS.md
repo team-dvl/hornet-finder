@@ -10,8 +10,12 @@ src/
 │   ├── forms/           # Composants de formulaires et sélecteurs
 │   │   ├── AddItemSelector.tsx
 │   │   └── index.ts
+│   ├── home/            # Page de garde
+│   │   ├── ModuleCard.tsx
+│   │   └── index.ts
 │   ├── layout/          # Composants de mise en page
 │   │   ├── NavbarComponent.tsx
+│   │   ├── PageLayout.tsx
 │   │   └── index.ts
 │   ├── map/             # Composants liés à la cartographie
 │   │   ├── CompassCapture.tsx
@@ -32,7 +36,6 @@ src/
 │   │   └── index.ts
 │   ├── modals/          # Fenêtres modales
 │   │   ├── UserInfoModal.tsx
-│   │   ├── WelcomeModal.tsx
 │   │   └── index.ts
 │   ├── popups/          # Popups d'informations et formulaires
 │   │   ├── AddApiaryPopup.tsx
@@ -57,9 +60,14 @@ src/
 Contient les composants de formulaires et sélecteurs d'éléments :
 - `AddItemSelector.tsx` : Sélecteur pour choisir le type d'élément à ajouter
 
+### `/components/home/`
+Composants de la page de garde (`pages/Home.tsx`) :
+- `ModuleCard.tsx` : Tuile du menu des modules (définis dans `config/modules.ts`)
+
 ### `/components/layout/`
 Composants de mise en page de l'application :
-- `NavbarComponent.tsx` : Barre de navigation principale
+- `NavbarComponent.tsx` : Barre de navigation principale (partagée par toutes les pages)
+- `PageLayout.tsx` : Navbar + zone de contenu pour les pages qui défilent (accueil, pièges)
 
 ### `/components/map/`
 Composants liés aux fonctionnalités de cartographie :
@@ -75,7 +83,6 @@ Marqueurs affichés sur la carte :
 
 ### `/components/modals/`
 Fenêtres modales de l'application :
-- `WelcomeModal.tsx` : Modal de bienvenue
 - `UserInfoModal.tsx` : Modal d'informations utilisateur
 
 ### `/components/popups/`
@@ -109,13 +116,13 @@ import { InteractiveMap } from './components/map';
 import { NavbarComponent } from './components/layout';
 
 // Import groupé  
-import { WelcomeModal, UserInfoModal } from './components/modals';
+import { UserInfoModal, ConfirmationModal } from './components/modals';
 
 // Import depuis l'index principal
 import { 
   InteractiveMap, 
   NavbarComponent, 
-  WelcomeModal 
+  ModuleCard 
 } from './components';
 ```
 

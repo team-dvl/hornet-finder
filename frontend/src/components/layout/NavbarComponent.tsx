@@ -1,5 +1,6 @@
 import { Navbar, Nav, Button, Container, Spinner } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
+import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { useAppSelector } from '../../store/hooks';
 import { 
@@ -10,14 +11,14 @@ import {
 } from '../../store/store';
 import UserInfoModal from '../modals/UserInfoModal';
 import TokenStatusBadge from '../debug/TokenStatusBadge';
+import { signInFromCurrentPage } from '../../utils/authRedirect';
+import { MODULES } from '../../config/modules';
 
-
-interface NavbarComponentProps {
-  onShowWelcome?: () => void;
-}
-
-export default function NavbarComponent({ onShowWelcome }: NavbarComponentProps) {
+export default function NavbarComponent() {
   const auth = useAuth();
+  const location = useLocation();
+  const isHome = location.pathname === '/';
+  const currentModule = MODULES.find((m) => m.path === location.pathname);
   const [showUserModal, setShowUserModal] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const navbarRef = useRef<HTMLDivElement>(null);
@@ -60,10 +61,13 @@ export default function NavbarComponent({ onShowWelcome }: NavbarComponentProps)
       onFocus={(e) => e.currentTarget.classList.add('navbar-opaque')}
     >
       <Container>
-        <Navbar.Brand href="#" className="d-flex align-items-center">
+        <Navbar.Brand as={Link} to="/" className="d-flex align-items-center">
             <span className="fw-bold">
             Velutina{import.meta.env.DEV && ' DEV'}
             </span>
+          {currentModule && (
+            <span className="text-muted ms-2">· {currentModule.shortTitle}</span>
+          )}
           {isDataLoading && (
             <Spinner 
               animation="border" 
@@ -83,28 +87,21 @@ export default function NavbarComponent({ onShowWelcome }: NavbarComponentProps)
             </span>
           </Nav>
           
-          <Nav>
+          <Nav className="align-items-lg-center">
+            {!isHome && (
+              <Nav.Link as={Link} to="/" className="me-lg-3">
+                <span className="me-1">🏠</span>
+                Accueil
+              </Nav.Link>
+            )}
             {!auth.isAuthenticated && (
-              <div className="d-flex gap-2">
-                {onShowWelcome && (
-                  <Button 
-                    variant="outline-info" 
-                    size="sm"
-                    onClick={onShowWelcome}
-                    className="me-2"
-                  >
-                    <span className="me-1">ℹ️</span>
-                    À propos
-                  </Button>
-                )}
-                <Button 
-                  variant="primary" 
-                  size="sm"
-                  onClick={() => void auth.signinRedirect()}
-                >
-                  Connexion
-                </Button>
-              </div>
+              <Button 
+                variant="primary" 
+                size="sm"
+                onClick={() => void signInFromCurrentPage(auth)}
+              >
+                Connexion
+              </Button>
             )}
             {auth.isAuthenticated && (
               <div className="d-flex align-items-center">

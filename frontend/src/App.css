@@ -8,7 +8,30 @@ body {
   padding: 0;
   display: block;
   width: 100%;
-  height: 100vh;
+  min-height: 100vh;
+}
+
+/* Scrolling pages (landing, placeholders) rendered under the fixed-top navbar */
+.page-content {
+  padding-top: 4.5rem;
+  min-height: 100vh;
+  background-color: var(--bs-light);
+}
+
+/* Module tiles on the landing page */
+.module-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.module-card:hover,
+.module-card:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: var(--bs-box-shadow) !important;
+}
+
+button.module-card {
+  width: 100%;
+  text-align: inherit;
 }
 
 /* Carte en plein écran */
