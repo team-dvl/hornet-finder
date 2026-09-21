@@ -85,6 +85,13 @@ The service requires the following environment variables (set in docker-compose.
 - **Flow**: Authorization Code with PKCE
 - **Redirect URIs**: Development URLs
 
+#### PKCE enforcement
+PKCE is enforced per client through the `pkce.code.challenge.method = S256` client attribute
+(Admin Console: client → Advanced → "Proof Key for Code Exchange Code Challenge Method").
+Keycloak then rejects any authorization request without `code_challenge`/`code_challenge_method=S256`
+and any code exchange without `code_verifier`. Changing it through the Admin API requires the
+`realm-management` client roles `view-clients` and `manage-clients`.
+
 ## Security Features
 
 ### Token Configuration

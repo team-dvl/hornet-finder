@@ -933,6 +933,7 @@
       "frontchannelLogout": true,
       "protocol": "openid-connect",
       "attributes": {
+        "pkce.code.challenge.method": "S256",
         "request.object.signature.alg": "any",
         "request.object.encryption.alg": "any",
         "client.introspection.response.allow.jwt.claim.enabled": "false",

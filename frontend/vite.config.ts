@@ -97,6 +97,22 @@ export default defineConfig(({ mode }) => {
       devDomain,
       keycloakDomain,
     ],
+    fs: {
+      // The dev server is reachable from the Internet and gets probed by
+      // scanners. NOTE: this list REPLACES Vite's defaults, so they must be
+      // repeated here (.env, certificates, .git, ...).
+      deny: [
+        // Vite defaults
+        '.env',
+        '.env.*',
+        '*.{crt,pem,key,p12,pfx,cer,der}',
+        '.npmrc',
+        '.yarnrc.yml',
+        '**/.git/**',
+        // Project files that have no business being served
+        'Dockerfile*',
+      ],
+    },
   },
   }
 })
