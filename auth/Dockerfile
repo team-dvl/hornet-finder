@@ -1,11 +1,11 @@
-FROM quay.io/keycloak/keycloak:26.7.3 AS builder
+FROM quay.io/keycloak/keycloak:26.7.4 AS builder
 ENV KC_HEALTH_ENABLED=true
 ENV KC_METRICS_ENABLED=false
 ENV KC_FEATURES=token-exchange,recovery-codes
 ENV KC_DB=postgres
 RUN /opt/keycloak/bin/kc.sh build
 
-FROM quay.io/keycloak/keycloak:26.7.3
+FROM quay.io/keycloak/keycloak:26.7.4
 COPY --from=builder /opt/keycloak/ /opt/keycloak/
 WORKDIR /opt/keycloak
 
