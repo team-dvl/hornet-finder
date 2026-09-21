@@ -24,7 +24,7 @@
     "react-leaflet": "^5.0.0",
     "react-oidc-context": "^3.3.0",
     "react-redux": "^9.2.0",
-    "react-router-dom": "^7.7.0"
+    "react-router-dom": "^7.18.4"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
