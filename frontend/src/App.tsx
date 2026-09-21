@@ -4,7 +4,7 @@ import { Container, Alert } from 'react-bootstrap'
 import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from 'react-oidc-context';
-import { Home, Nests, Traps, PrivacyPolicy, DataDeletion } from './pages';
+import { Home, Nests, Traps, DocsIndex, DocPage, PrivacyPolicy, DataDeletion } from './pages';
 import { initIOSViewportFix } from './utils/iosViewportFix';
 import { useUrlCleaner } from './utils/urlCleaner';
 import { setupPWAAuthMonitoring, setupTokenMonitoring, syncAuthStateWithServiceWorker } from './utils/pwaAuth';
@@ -99,6 +99,8 @@ function App() {
       <Route path="/" element={<Home />} />
       <Route path="/nests" element={<Nests />} />
       <Route path="/traps" element={<Traps />} />
+      <Route path="/docs" element={<DocsIndex />} />
+      <Route path="/docs/:moduleId" element={<DocPage />} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="/data-deletion" element={<DataDeletion />} />
       <Route path="*" element={<Navigate to="/" replace />} />

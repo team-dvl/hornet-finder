@@ -4,7 +4,7 @@
  * All modules are currently open to everyone; `requiredRoles` is reserved for
  * role-based filtering later (see hooks/useUserPermissions.ts).
  */
-export type ModuleId = 'nests' | 'traps' | 'account';
+export type ModuleId = 'nests' | 'traps' | 'docs' | 'account';
 
 export interface ModuleDefinition {
   id: ModuleId;
@@ -39,6 +39,14 @@ export const MODULES: ModuleDefinition[] = [
     badge: 'Bientôt disponible',
   },
   {
+    id: 'docs',
+    title: 'Documentation',
+    shortTitle: 'Documentation',
+    description: 'Comment utiliser chaque module de la plateforme.',
+    icon: 'bi-book',
+    path: '/docs',
+  },
+  {
     id: 'account',
     title: 'Mon compte',
     shortTitle: 'Compte',
@@ -46,3 +54,10 @@ export const MODULES: ModuleDefinition[] = [
     icon: 'bi-person-circle',
   },
 ];
+
+/** Modules that get a page under /docs (everything except the docs module itself and the account console). */
+export const DOCUMENTED_MODULES = MODULES.filter((m) => m.id !== 'docs' && m.id !== 'account');
+
+export function findModule(id: string): ModuleDefinition | undefined {
+  return MODULES.find((m) => m.id === id);
+}

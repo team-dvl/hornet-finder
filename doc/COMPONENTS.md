@@ -64,9 +64,11 @@ Contient les composants de formulaires et sélecteurs d'éléments :
 Composants de la page de garde (`pages/Home.tsx`) :
 - `ModuleCard.tsx` : Tuile du menu des modules (définis dans `config/modules.ts`)
 
+Les pages de documentation vivent dans `pages/docs/` : une page par module, enregistrée dans `pages/docs/registry.ts` (`DOC_PAGES`). Un module sans entrée affiche « Documentation à venir ».
+
 ### `/components/layout/`
 Composants de mise en page de l'application :
-- `NavbarComponent.tsx` : Barre de navigation principale (partagée par toutes les pages)
+- `NavbarComponent.tsx` : Barre de navigation principale (partagée par toutes les pages), avec fil d'Ariane dérivé de la route (`utils/breadcrumbs.ts`)
 - `PageLayout.tsx` : Navbar + zone de contenu pour les pages qui défilent (accueil, pièges)
 
 ### `/components/map/`

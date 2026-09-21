@@ -1,4 +1,4 @@
-import { Navbar, Nav, Button, Container, Spinner } from 'react-bootstrap';
+import { Navbar, Nav, Button, Container, Spinner, Breadcrumb } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
 import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
@@ -12,13 +12,12 @@ import {
 import UserInfoModal from '../modals/UserInfoModal';
 import TokenStatusBadge from '../debug/TokenStatusBadge';
 import { signInFromCurrentPage } from '../../utils/authRedirect';
-import { MODULES } from '../../config/modules';
+import { getBreadcrumbs } from '../../utils/breadcrumbs';
 
 export default function NavbarComponent() {
   const auth = useAuth();
   const location = useLocation();
-  const isHome = location.pathname === '/';
-  const currentModule = MODULES.find((m) => m.path === location.pathname);
+  const crumbs = getBreadcrumbs(location.pathname);
   const [showUserModal, setShowUserModal] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const navbarRef = useRef<HTMLDivElement>(null);
@@ -61,13 +60,28 @@ export default function NavbarComponent() {
       onFocus={(e) => e.currentTarget.classList.add('navbar-opaque')}
     >
       <Container>
-        <Navbar.Brand as={Link} to="/" className="d-flex align-items-center">
-            <span className="fw-bold">
-            Velutina{import.meta.env.DEV && ' DEV'}
-            </span>
-          {currentModule && (
-            <span className="text-muted ms-2">· {currentModule.shortTitle}</span>
-          )}
+        <Navbar.Brand as="div" className="d-flex align-items-center">
+          {/* Breadcrumb trail: site name (home) followed by the current module path */}
+          <Breadcrumb className="navbar-breadcrumb" listProps={{ className: 'mb-0' }}>
+            <Breadcrumb.Item
+              linkAs={Link}
+              linkProps={{ to: '/' }}
+              active={crumbs.length === 0}
+              className="fw-bold"
+            >
+              Velutina{import.meta.env.DEV && ' DEV'}
+            </Breadcrumb.Item>
+            {crumbs.map((crumb, index) => (
+              <Breadcrumb.Item
+                key={crumb.path}
+                linkAs={Link}
+                linkProps={{ to: crumb.path }}
+                active={index === crumbs.length - 1}
+              >
+                {crumb.label}
+              </Breadcrumb.Item>
+            ))}
+          </Breadcrumb>
           {isDataLoading && (
             <Spinner 
               animation="border" 
@@ -88,12 +102,6 @@ export default function NavbarComponent() {
           </Nav>
           
           <Nav className="align-items-lg-center">
-            {!isHome && (
-              <Nav.Link as={Link} to="/" className="me-lg-3">
-                <span className="me-1">🏠</span>
-                Accueil
-              </Nav.Link>
-            )}
             {!auth.isAuthenticated && (
               <Button 
                 variant="primary" 

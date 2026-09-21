@@ -1,0 +1,39 @@
+import { Container } from 'react-bootstrap';
+import { Link, Navigate, useParams } from 'react-router-dom';
+import { PageLayout } from '../../components/layout';
+import { findModule } from '../../config/modules';
+import { DOC_PAGES } from './registry';
+
+/** Documentation of one module (`/docs/:moduleId`). */
+export default function DocPage() {
+  const { moduleId = '' } = useParams();
+  const module = findModule(moduleId);
+  if (!module) {
+    return <Navigate to="/docs" replace />;
+  }
+
+  const Doc = DOC_PAGES[module.id];
+
+  return (
+    <PageLayout>
+      <Container className="py-4">
+        <div className="col-lg-8 mx-auto">
+          <h2 className="mb-4">
+            <i className={`bi ${module.icon} text-primary me-2`} aria-hidden="true" />
+            {module.title}
+          </h2>
+          {Doc ? (
+            <Doc />
+          ) : (
+            <p className="lead text-muted">Documentation à venir.</p>
+          )}
+          <div className="mt-5">
+            <Link to="/docs" className="btn btn-outline-secondary">
+              ← Toute la documentation
+            </Link>
+          </div>
+        </div>
+      </Container>
+    </PageLayout>
+  );
+}
