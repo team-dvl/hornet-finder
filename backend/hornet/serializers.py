@@ -274,8 +274,12 @@ class TrapSerializer(GPSValidationMixin, serializers.ModelSerializer):
                   'trap_type', 'trap_type_slug', 'photo_url', 'photo_thumbnail_url',
                   'installed_at', 'comments', 'hornet_catch_count', 'owner', 'group',
                   'last_event_at', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'owner', 'group', 'trap_type', 'hornet_catch_count',
-                            'created_at', 'updated_at']
+        # `active` is driven by the installation and removal events, never sent
+        # by a form: DRF reads an absent boolean in form-data as False (the
+        # unchecked-checkbox convention), which would store every new trap as
+        # already put away.
+        read_only_fields = ['id', 'owner', 'group', 'trap_type', 'active',
+                            'hornet_catch_count', 'created_at', 'updated_at']
 
     def get_photo_url(self, instance) -> Optional[str]:
         return instance.photo.url if instance.photo else None

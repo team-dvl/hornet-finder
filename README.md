@@ -107,6 +107,7 @@ hornet-finder/
 ├── deploy.sh, shutdown.sh, logs.sh, deploy-certs.sh  # Operations (environment from .env)
 ├── storage-init.sh    # Provision external volumes (and ZFS datasets when configured)
 ├── status.sh          # Read-only environment status report
+├── smoke-traps.sh     # Traps API walkthrough with the dev test accounts (dev only)
 ├── zfs-snapshot.sh    # Snapshot management for the ZFS backend
 └── lib/               # Shared shell libraries (common.sh, volumes.sh, zfs.sh)
 ```
@@ -257,6 +258,7 @@ Useful commands:
 ./shutdown.sh            # Stop this worktree's environment
 ./deploy-certs.sh        # Generate certificates for this worktree
 ./status.sh              # Read-only status report (config, storage, services, certs, endpoints)
+./smoke-traps.sh         # Traps API end to end, with the dev-only Keycloak test accounts
 ```
 
 The development and production Compose files use different service names,

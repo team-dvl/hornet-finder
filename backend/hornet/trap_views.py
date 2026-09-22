@@ -236,7 +236,7 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
             trap.save(update_fields=['photo', 'photo_thumbnail'])
 
         # Putting a trap in place is itself an intervention: open the journal
-        TrapEvent.objects.create(
+        event = TrapEvent.objects.create(
             trap=trap,
             kind=TrapEvent.KIND_INSTALLATION,
             performed_at=timezone.make_aware(
@@ -244,6 +244,8 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
             ),
             performed_by=owner,
         )
+        # The installation is what puts the trap in service, here as anywhere else
+        trap.apply_event_side_effects(event)
         self._created_trap = trap
 
     def create(self, request, *args, **kwargs):

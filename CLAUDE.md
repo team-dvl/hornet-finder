@@ -15,6 +15,7 @@
 - **SSL Management**: `./deploy-certs.sh` (Let's Encrypt, environment from `.env`)
 - **Debugging**: `./logs.sh [-f] <service>` or `docker compose logs <service>`
 - **Status**: `./status.sh [--no-net]` prints a read-only report (config, compose, storage, services, certificates, endpoints); exit 1 on any failure
+- **Traps smoke test**: `./smoke-traps.sh` walks the traps API with the dev-only Keycloak test accounts (`KC_TEST_*` in `.env`); dev only, creates and deletes its own data
 - **ZFS**: optional backend selected by `ZFS_PARENT` in `.env`; `./zfs-snapshot.sh create|list|clean|delete|restore`. ZFS logic lives ONLY in `lib/zfs.sh`, `storage-init.sh` and `zfs-snapshot.sh`; keep it out of every other script
 
 ## Project-Specific Conventions

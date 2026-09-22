@@ -284,6 +284,22 @@ class TrapCreationTests(TrapTestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['owner']['guid'], str(self.owner_guid))
 
+    def test_a_new_trap_is_in_service(self):
+        # The form posts multipart, where DRF reads an absent boolean as False:
+        # `active` must therefore not be writable, or every trap would be born
+        # already put away.
+        response = self._create(self.owner_user)
+        self.assertTrue(response.data['active'])
+        self.assertTrue(Trap.objects.get(pk=response.data['id']).active)
+
+    def test_status_is_not_writable_from_the_form(self):
+        trap = self._create(self.owner_user)
+        request = self.factory.patch(f"/traps/{trap.data['id']}/", {'active': False})
+        force_authenticate(request, user=self.owner_user)
+        response = TrapViewSet.as_view({'patch': 'partial_update'})(request, pk=trap.data['id'])
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Trap.objects.get(pk=trap.data['id']).active)
+
     def test_platform_admin_cannot_create(self):
         self.assertEqual(self._create(self.admin_user).status_code, 403)
 
