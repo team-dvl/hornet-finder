@@ -7,7 +7,7 @@ export default function Nests() {
     <>
       <NavbarComponent />
       <div className="map-fullscreen">
-        <InteractiveMap />
+        <InteractiveMap preset="nests" />
       </div>
     </>
   );

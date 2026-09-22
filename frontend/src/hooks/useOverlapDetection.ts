@@ -3,6 +3,7 @@ import { Map } from 'leaflet';
 import { Hornet } from '../store/slices/hornetsSlice';
 import { Apiary } from '../store/slices/apiariesSlice';
 import { Nest } from '../store/slices/nestsSlice';
+import { Trap } from '../store/slices/trapsSlice';
 import { MapObject, MapObjectType } from '../components/map/types';
 import { OVERLAP_THRESHOLD_PIXELS, MIN_ZOOM_TO_SEPARATE } from '../utils/constants';
 
@@ -11,9 +12,11 @@ interface UseOverlapDetectionProps {
   hornets: Hornet[];
   apiaries: Apiary[];
   nests: Nest[];
+  traps: Trap[];
   showHornets: boolean;
   showApiaries: boolean;
   showNests: boolean;
+  showTraps: boolean;
 }
 
 interface OverlapDetectionResult {
@@ -27,9 +30,11 @@ export const useOverlapDetection = ({
   hornets,
   apiaries,
   nests,
+  traps,
   showHornets,
   showApiaries,
-  showNests
+  showNests,
+  showTraps
 }: UseOverlapDetectionProps) => {
 
   // Fonction pour convertir un frelon en MapObject
@@ -85,6 +90,20 @@ export const useOverlapDetection = ({
     };
   }, []);
 
+  // Fonction pour convertir un piège en MapObject
+  const trapToMapObject = useCallback((trap: Trap): MapObject => {
+    return {
+      id: trap.id,
+      type: MapObjectType.TRAP,
+      latitude: trap.latitude,
+      longitude: trap.longitude,
+      data: trap,
+      symbol: '🪤',
+      title: `Piège #${trap.id}`,
+      subtitle: trap.active ? trap.trap_type.name : `${trap.trap_type.name} (remisé)`
+    };
+  }, []);
+
   // Fonction pour calculer la distance en pixels entre deux points sur la carte
   const getPixelDistance = useCallback((lat1: number, lng1: number, lat2: number, lng2: number): number => {
     if (!map) return Infinity;
@@ -136,6 +155,16 @@ export const useOverlapDetection = ({
       });
     }
 
+    // Ajouter les pièges visibles
+    if (showTraps) {
+      traps.forEach(trap => {
+        const distance = getPixelDistance(clickLat, clickLng, trap.latitude, trap.longitude);
+        if (distance <= OVERLAP_THRESHOLD_PIXELS) {
+          allObjects.push(trapToMapObject(trap));
+        }
+      });
+    }
+
     const hasOverlap = allObjects.length > 1;
     const currentZoom = map.getZoom();
     const canZoomToSeparate = hasOverlap && currentZoom < MIN_ZOOM_TO_SEPARATE;
@@ -150,13 +179,16 @@ export const useOverlapDetection = ({
     hornets, 
     apiaries, 
     nests, 
+    traps,
     showHornets, 
     showApiaries, 
     showNests,
+    showTraps,
     getPixelDistance,
     hornetToMapObject,
     apiaryToMapObject,
-    nestToMapObject
+    nestToMapObject,
+    trapToMapObject
   ]);
 
   // Fonction pour zoomer afin de tenter de séparer les objets

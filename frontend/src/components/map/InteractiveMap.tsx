@@ -3,19 +3,22 @@ import { MapContainer, TileLayer, ZoomControl, useMapEvents } from "react-leafle
 import { Modal, Spinner } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
 import { Map } from 'leaflet';
-import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowApiaryCircles, selectShowHornets, selectShowReturnZones, selectShowNests, initializeGeolocation, selectMapCenter, selectGeolocationError, setGeolocationError, setIsAdmin } from '../../store/store';
+import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowApiaryCircles, selectShowHornets, selectShowReturnZones, selectShowNests, initializeGeolocation, selectMapCenter, selectGeolocationError, setGeolocationError, setIsAdmin, selectTraps, selectShowTraps, selectMovingTrapId, setShowTraps, toggleNests, toggleApiaries, stopMovingTrap, updateTrap } from '../../store/store';
 import { selectFilteredHornets } from '../../store/slices/hornetsSlice';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useMapDataFetching } from '../../hooks/useMapDataFetching';
 import { MAX_ZOOM, MAX_NATIVE_ZOOM } from '../../utils/constants';
 import { signInFromCurrentPage } from '../../utils/authRedirect';
+import { reverseGeocode } from '../../utils/geocoding';
 import { Hornet } from '../../store/slices/hornetsSlice';
 import { Apiary } from '../../store/slices/apiariesSlice';
 import { Nest } from '../../store/slices/nestsSlice';
+import { Trap } from '../../store/slices/trapsSlice';
 import HornetReturnZone from './HornetReturnZone';
 import ApiaryMarker from '../markers/ApiaryMarker';
 import ApiaryCircle from './ApiaryCircle';
 import NestMarker from '../markers/NestMarker';
+import TrapMarker from '../markers/TrapMarker';
 import MapControlsContainer from '../map-controls';
 import MapEventHandler from './MapEventHandler';
 import HornetInfoPopup from '../popups/HornetInfoPopup';
@@ -26,10 +29,12 @@ import AddItemSelector from '../forms/AddItemSelector';
 import AddHornetPopup from '../popups/AddHornetPopup';
 import AddApiaryPopup from '../popups/AddApiaryPopup';
 import AddNestPopup from '../popups/AddNestPopup';
+import { TrapFormModal, TrapInfoPopup } from '../traps';
 import CompassCapture from './CompassCapture';
 import OverlapDialog from './OverlapDialog';
 import MapRefHandler from './MapRefHandler';
 import { useSmartClickHandlers } from '../../hooks/useSmartClickHandlers';
+import { useMapModals, type MapPoint } from '../../hooks/useMapModals';
 import { MapObject } from './types';
 import "leaflet/dist/leaflet.css";
 import "leaflet/dist/leaflet.js";
@@ -79,10 +84,19 @@ function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number
   return null;
 }
 
-export default function InteractiveMap() {
+interface InteractiveMapProps {
+  /**
+   * Which layers the map opens with. The map itself is the same everywhere: a
+   * view over all the data, filtered by type, so the user can then overlay
+   * whatever they need from the layer controls.
+   */
+  preset?: 'nests' | 'traps';
+}
+
+export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps) {
   const dispatch = useAppDispatch();
   const auth = useAuth();
-  const { isAdmin, canAddApiary, canAddHornet } = useUserPermissions();
+  const { isAdmin, canAddApiary, canAddHornet, canAddTrap, userGuid } = useUserPermissions();
   
   // Redux state
   const mapCenter = useAppSelector(selectMapCenter);
@@ -105,44 +119,17 @@ export default function InteractiveMap() {
   // Local state pour la carte
   const [coordinates, setCoordinates] = useState<[number, number]>([mapCenter.latitude, mapCenter.longitude]);
   
-  const [selectedHornet, setSelectedHornet] = useState<Hornet | null>(null);
-  const [selectedApiary, setSelectedApiary] = useState<Apiary | null>(null);
-  const [selectedNest, setSelectedNest] = useState<Nest | null>(null);
-  const [selectedReturnZoneHornet, setSelectedReturnZoneHornet] = useState<Hornet | null>(null);
-  const [returnZoneClickPosition, setReturnZoneClickPosition] = useState<{lat: number, lng: number} | null>(null);
-  const [showHornetModal, setShowHornetModal] = useState(false);
-  const [showApiaryModal, setShowApiaryModal] = useState(false);
-  const [showNestModal, setShowNestModal] = useState(false);
-  const [showReturnZoneModal, setShowReturnZoneModal] = useState(false);
-  
-  // États pour la sélection d'éléments à ajouter
-  const [showItemSelector, setShowItemSelector] = useState(false);
-  const [clickPosition, setClickPosition] = useState<{ lat: number; lng: number } | null>(null);
-  
-  // États pour l'ajout spécifique de chaque type
-  const [showAddHornetModal, setShowAddHornetModal] = useState(false);
-  const [showAddApiaryModal, setShowAddApiaryModal] = useState(false);
-  const [showAddNestModal, setShowAddNestModal] = useState(false);
-  
+  // Une seule modale est ouverte à la fois : fiche d'un objet, sélecteur
+  // d'ajout, formulaire de création ou dialogue de chevauchement.
+  const { modal, open: openModal, close: closeModal, modalOfKind } = useMapModals();
+
   // États pour la capture rapide avec boussole
   const [showCompassCapture, setShowCompassCapture] = useState(false);
   const [showGeolocationSpinner, setShowGeolocationSpinner] = useState(false);
-  const [compassCapturedDirection, setCompassCapturedDirection] = useState<number | null>(null);
-  const [compassCapturedPosition, setCompassCapturedPosition] = useState<{ lat: number; lng: number } | null>(null);
-  const [pendingHornetData, setPendingHornetData] = useState<{ lat: number; lng: number; direction: number } | null>(null);
-  
-  // États pour le dialogue de chevauchement
-  const [showOverlapDialog, setShowOverlapDialog] = useState(false);
-  const [overlappingObjects, setOverlappingObjects] = useState<MapObject[]>([]);
-  const [overlapPosition, setOverlapPosition] = useState<{ lat: number; lng: number } | null>(null);
-  
-  // Ajout du state pour la déclinaison et la direction corrigée
-  const [returnZoneDeclination, setReturnZoneDeclination] = useState<number | null>(null);
-  const [returnZoneCorrectedDirection, setReturnZoneCorrectedDirection] = useState<number | null>(null);
-  
-  // Ajout du state pour la déclinaison et la direction corrigée du frelon sélectionné
-  const [hornetDeclination, setHornetDeclination] = useState<number | null>(null);
-  const [hornetCorrectedDirection, setHornetCorrectedDirection] = useState<number | null>(null);
+  const [compassCapturedPosition, setCompassCapturedPosition] = useState<MapPoint | null>(null);
+
+  // Position en attente pendant un déplacement de piège (avant validation)
+  const [pendingTrapPosition, setPendingTrapPosition] = useState<MapPoint | null>(null);
   
   // Sélectionner les données depuis le store Redux
   const { error } = useAppSelector((state) => state.hornets);
@@ -154,6 +141,24 @@ export default function InteractiveMap() {
   const showHornets = useAppSelector(selectShowHornets);
   const showReturnZones = useAppSelector(selectShowReturnZones);
   const showNests = useAppSelector(selectShowNests);
+  const traps = useAppSelector(selectTraps);
+  const showTraps = useAppSelector(selectShowTraps);
+  const movingTrapId = useAppSelector(selectMovingTrapId);
+
+  // Couches ouvertes par défaut selon la route d'entrée. L'utilisateur reste
+  // libre de tout superposer ensuite depuis le contrôle des couches.
+  const presetApplied = useRef(false);
+  useEffect(() => {
+    if (presetApplied.current) return;
+    presetApplied.current = true;
+    if (preset === 'traps') {
+      dispatch(setShowTraps(true));
+      // Les nids et les ruchers restent disponibles, mais masqués au départ
+      if (showNests) dispatch(toggleNests());
+      if (showApiaries) dispatch(toggleApiaries());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preset, dispatch]);
 
   // Référence vers la carte Leaflet
   const mapRef = useRef<Map | null>(null);
@@ -181,48 +186,38 @@ export default function InteractiveMap() {
 
   // Gestionnaire de clic sur une zone de frelon
   const handleHornetClick = (hornet: Hornet) => {
-    setSelectedHornet(hornet);
     const declinationInfo = calculateMagneticDeclination(hornet);
-    if (declinationInfo) {
-      setHornetDeclination(declinationInfo.declination);
-      setHornetCorrectedDirection(declinationInfo.correctedDirection);
-    } else {
-      setHornetDeclination(null);
-      setHornetCorrectedDirection(null);
-    }
-    setShowHornetModal(true);
+    openModal({
+      kind: 'hornet',
+      hornet,
+      declination: declinationInfo?.declination ?? null,
+      correctedDirection: declinationInfo?.correctedDirection ?? null,
+    });
   };
 
   // Gestionnaire de clic sur un rucher
-  const handleApiaryClick = (apiary: Apiary) => {
-    setSelectedApiary(apiary);
-    setShowApiaryModal(true);
-  };
+  const handleApiaryClick = (apiary: Apiary) => openModal({ kind: 'apiary', apiary });
 
   // Gestionnaire de clic sur un nid
-  const handleNestClick = (nest: Nest) => {
-    setSelectedNest(nest);
-    setShowNestModal(true);
-  };
+  const handleNestClick = (nest: Nest) => openModal({ kind: 'nest', nest });
+
+  // Gestionnaire de clic sur un piège
+  const handleTrapClick = (trap: Trap) => openModal({ kind: 'trap', trap });
 
   // Gestionnaire de clic sur une zone de retour
   const handleReturnZoneClick = (hornet: Hornet, lat?: number, lng?: number, declination?: number, correctedDirection?: number) => {
-    setSelectedReturnZoneHornet(hornet);
-    if (lat !== undefined && lng !== undefined) {
-      setReturnZoneClickPosition({ lat, lng });
-    } else {
-      setReturnZoneClickPosition(null);
-    }
-    setReturnZoneDeclination(declination ?? null);
-    setReturnZoneCorrectedDirection(correctedDirection ?? null);
-    setShowReturnZoneModal(true);
+    openModal({
+      kind: 'returnZone',
+      hornet,
+      position: lat !== undefined && lng !== undefined ? { lat, lng } : null,
+      declination: declination ?? null,
+      correctedDirection: correctedDirection ?? null,
+    });
   };
 
   // Gestionnaires de clic intelligents avec détection de chevauchement
-  const handleShowOverlapDialog = (objects: MapObject[], position: { lat: number; lng: number }) => {
-    setOverlappingObjects(objects);
-    setOverlapPosition(position);
-    setShowOverlapDialog(true);
+  const handleShowOverlapDialog = (objects: MapObject[], position: MapPoint) => {
+    openModal({ kind: 'overlap', objects, position });
   };
 
   const handleObjectSelection = (object: MapObject) => {
@@ -236,49 +231,30 @@ export default function InteractiveMap() {
       case 'nest':
         handleNestClick(object.data as Nest);
         break;
+      case 'trap':
+        handleTrapClick(object.data as Trap);
+        break;
     }
   };
 
-  const handleCloseOverlapDialog = () => {
-    setShowOverlapDialog(false);
-    setOverlappingObjects([]);
-    setOverlapPosition(null);
-  };
-
-  const { handleSmartHornetClick, handleSmartApiaryClick, handleSmartNestClick } = useSmartClickHandlers({
+  const {
+    handleSmartHornetClick, handleSmartApiaryClick, handleSmartNestClick, handleSmartTrapClick
+  } = useSmartClickHandlers({
     map: mapRef.current,
     hornets: filteredHornets,
     apiaries,
     nests,
+    traps,
     showHornets,
     showApiaries,
     showNests,
+    showTraps,
     onShowOverlapDialog: handleShowOverlapDialog,
     onHornetClick: handleHornetClick,
     onApiaryClick: handleApiaryClick,
-    onNestClick: handleNestClick
+    onNestClick: handleNestClick,
+    onTrapClick: handleTrapClick
   });
-
-  const handleCloseModal = () => {
-    setShowHornetModal(false);
-    setSelectedHornet(null);
-  };
-
-  const handleCloseApiaryModal = () => {
-    setShowApiaryModal(false);
-    setSelectedApiary(null);
-  };
-
-  const handleCloseNestModal = () => {
-    setShowNestModal(false);
-    setSelectedNest(null);
-  };
-
-  const handleCloseReturnZoneModal = () => {
-    setShowReturnZoneModal(false);
-    setSelectedReturnZoneHornet(null);
-    setReturnZoneClickPosition(null);
-  };
 
   // Gestionnaire de clic sur la carte pour afficher le sélecteur d'éléments
   const handleMapClick = (lat: number, lng: number) => {
@@ -286,66 +262,70 @@ export default function InteractiveMap() {
     if (!auth.isAuthenticated) {
       return;
     }
-    
+
     // Vérifier si l'utilisateur peut ajouter quelque chose (y compris les nids pour les utilisateurs authentifiés)
     const canAddNest = auth.isAuthenticated; // Tous les utilisateurs authentifiés peuvent ajouter des nids
-    const canAddSomething = canAddHornet || canAddApiary || canAddNest;
-    
+    const canAddSomething = canAddHornet || canAddApiary || canAddNest || canAddTrap;
+
     if (canAddSomething) {
-      setClickPosition({ lat, lng });
-      setShowItemSelector(true);
+      openModal({ kind: 'item-selector', position: { lat, lng } });
     }
   };
 
   // Gestionnaire pour ajouter un élément à la position du frelon
   const handleAddAtLocation = (lat: number, lng: number) => {
-    setClickPosition({ lat, lng });
-    setShowItemSelector(true);
-    setShowHornetModal(false); // Fermer la popup du frelon
+    openModal({ kind: 'item-selector', position: { lat, lng } });
   };
 
-  // Gestionnaires pour la fermeture des modales
-  const handleCloseItemSelector = () => {
-    setShowItemSelector(false);
-    setClickPosition(null);
+  // Gestionnaires de sélection d'éléments : la position du sélecteur peut avoir
+  // été ajustée par un administrateur avant de choisir le type d'objet.
+  const selectorPosition = (lat?: number, lng?: number): MapPoint => {
+    const current = modalOfKind('item-selector')?.position;
+    if (lat !== undefined && lng !== undefined) return { lat, lng };
+    return current ?? { lat: coordinates[0], lng: coordinates[1] };
   };
 
-  const handleCloseAddModals = () => {
-    setShowAddHornetModal(false);
-    setShowAddApiaryModal(false);
-    setShowAddNestModal(false);
-    setClickPosition(null);
-    // Réinitialiser la direction capturée par la boussole
-    setCompassCapturedDirection(null);
-    setPendingHornetData(null);
-  };
-
-  // Gestionnaires de sélection d'éléments
   const handleSelectHornet = (lat?: number, lng?: number) => {
-    setShowItemSelector(false);
-    // Mettre à jour la position si des coordonnées sont fournies (admin)
-    if (lat !== undefined && lng !== undefined) {
-      setClickPosition({ lat, lng });
-    }
-    setShowAddHornetModal(true);
+    openModal({ kind: 'add-hornet', position: selectorPosition(lat, lng), direction: null });
   };
 
   const handleSelectApiary = (lat?: number, lng?: number) => {
-    setShowItemSelector(false);
-    // Mettre à jour la position si des coordonnées sont fournies (admin)
-    if (lat !== undefined && lng !== undefined) {
-      setClickPosition({ lat, lng });
-    }
-    setShowAddApiaryModal(true);
+    openModal({ kind: 'add-apiary', position: selectorPosition(lat, lng) });
   };
 
   const handleSelectNest = (lat?: number, lng?: number) => {
-    setShowItemSelector(false);
-    // Mettre à jour la position si des coordonnées sont fournies (admin)
-    if (lat !== undefined && lng !== undefined) {
-      setClickPosition({ lat, lng });
+    openModal({ kind: 'add-nest', position: selectorPosition(lat, lng) });
+  };
+
+  const handleSelectTrap = (lat?: number, lng?: number) => {
+    openModal({ kind: 'add-trap', position: selectorPosition(lat, lng) });
+  };
+
+  // Déplacement d'un piège : le marqueur devient déplaçable, la nouvelle
+  // position n'est enregistrée qu'après validation.
+  const handleTrapMoved = (_trap: Trap, latitude: number, longitude: number) => {
+    setPendingTrapPosition({ lat: latitude, lng: longitude });
+  };
+
+  const handleConfirmTrapMove = async () => {
+    if (movingTrapId && pendingTrapPosition) {
+      const address = await reverseGeocode(pendingTrapPosition.lat, pendingTrapPosition.lng);
+      await dispatch(updateTrap({
+        trapId: movingTrapId,
+        values: {
+          latitude: pendingTrapPosition.lat,
+          longitude: pendingTrapPosition.lng,
+          ...(address && { address }),
+        },
+      }));
     }
-    setShowAddNestModal(true);
+    setPendingTrapPosition(null);
+    dispatch(stopMovingTrap());
+  };
+
+  const handleCancelTrapMove = () => {
+    setPendingTrapPosition(null);
+    dispatch(stopMovingTrap());
   };
 
   const handleAddSuccess = () => {
@@ -427,25 +407,14 @@ export default function InteractiveMap() {
 
   // Gestionnaire pour la capture de direction
   const handleCompassDirectionCapture = (direction: number) => {
-    // Stocker toutes les données nécessaires pour le frelon
-    if (compassCapturedPosition) {
-      setPendingHornetData({
-        lat: compassCapturedPosition.lat,
-        lng: compassCapturedPosition.lng,
-        direction: direction
-      });
-      setClickPosition(compassCapturedPosition);
-    }
-    
-    setCompassCapturedDirection(direction);
+    const position = compassCapturedPosition ?? { lat: coordinates[0], lng: coordinates[1] };
     setShowCompassCapture(false);
-    setShowAddHornetModal(true);
+    openModal({ kind: 'add-hornet', position, direction });
   };
 
   // Gestionnaire pour fermer la capture de boussole
   const handleCloseCompassCapture = () => {
     setShowCompassCapture(false);
-    setCompassCapturedDirection(null);
     setCompassCapturedPosition(null);
   };
 
@@ -472,6 +441,9 @@ export default function InteractiveMap() {
           showNestsButton={true} // Tous les utilisateurs peuvent voir les nids (détruits pour non-authentifiés, tous pour authentifiés)
           onQuickHornetCapture={handleQuickHornetCapture}
           canAddHornet={canAddHornet}
+          onAddTrap={canAddTrap && showTraps
+            ? () => openModal({ kind: 'add-trap', position: null })
+            : undefined}
         />
         <MapRefHandler onMapReady={handleMapReady} />
         <MapEventHandler />
@@ -521,79 +493,130 @@ export default function InteractiveMap() {
             onClick={handleSmartNestClick}
           />
         ))}
+        {/* Marqueurs de pièges */}
+        {showTraps && traps.map((trap) => (
+          <TrapMarker
+            key={`trap-${trap.id}`}
+            trap={trap}
+            isMine={Boolean(trap.owner && trap.owner.guid === userGuid)}
+            isMoving={movingTrapId === trap.id}
+            onClick={handleSmartTrapClick}
+            onMoved={handleTrapMoved}
+          />
+        ))}
       </MapContainer>
+
+      {/* Barre de validation du déplacement d'un piège */}
+      {movingTrapId !== null && (
+        <div
+          className="position-absolute bottom-0 start-50 translate-middle-x mb-4 p-3 bg-white rounded shadow text-center"
+          style={{ zIndex: 1002, maxWidth: '90%' }}
+        >
+          <div className="mb-2 small">
+            Faites glisser le marqueur du piège vers sa nouvelle position.
+          </div>
+          <div className="d-flex gap-2 justify-content-center">
+            <button
+              type="button"
+              className="btn btn-sm btn-primary"
+              onClick={handleConfirmTrapMove}
+              disabled={!pendingTrapPosition}
+            >
+              Valider
+            </button>
+            <button type="button" className="btn btn-sm btn-outline-secondary" onClick={handleCancelTrapMove}>
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
       
       <HornetInfoPopup
-        show={showHornetModal}
-        onHide={handleCloseModal}
-        hornet={selectedHornet}
+        show={modal?.kind === 'hornet'}
+        onHide={closeModal}
+        hornet={modalOfKind('hornet')?.hornet ?? null}
         onAddAtLocation={handleAddAtLocation}
-        declination={hornetDeclination}
-        correctedDirection={hornetCorrectedDirection}
+        declination={modalOfKind('hornet')?.declination ?? null}
+        correctedDirection={modalOfKind('hornet')?.correctedDirection ?? null}
       />
-      
+
       <ApiaryInfoPopup
-        show={showApiaryModal}
-        onHide={handleCloseApiaryModal}
-        apiary={selectedApiary}
+        show={modal?.kind === 'apiary'}
+        onHide={closeModal}
+        apiary={modalOfKind('apiary')?.apiary ?? null}
       />
-      
+
       <NestInfoPopup
-        show={showNestModal}
-        onHide={handleCloseNestModal}
-        nest={selectedNest}
+        show={modal?.kind === 'nest'}
+        onHide={closeModal}
+        nest={modalOfKind('nest')?.nest ?? null}
       />
-      
+
+      <TrapInfoPopup
+        show={modal?.kind === 'trap'}
+        onHide={closeModal}
+        trap={modalOfKind('trap')?.trap ?? null}
+      />
+
       <HornetReturnZoneInfoPopup
-        show={showReturnZoneModal}
-        onHide={handleCloseReturnZoneModal}
-        hornet={selectedReturnZoneHornet}
-        clickPosition={returnZoneClickPosition}
+        show={modal?.kind === 'returnZone'}
+        onHide={closeModal}
+        hornet={modalOfKind('returnZone')?.hornet ?? null}
+        clickPosition={modalOfKind('returnZone')?.position ?? null}
         onAddAtLocation={handleAddAtLocation}
-        declination={returnZoneDeclination}
-        correctedDirection={returnZoneCorrectedDirection}
+        declination={modalOfKind('returnZone')?.declination ?? null}
+        correctedDirection={modalOfKind('returnZone')?.correctedDirection ?? null}
       />
-      
-      {showItemSelector && clickPosition && (
+
+      {modalOfKind('item-selector') && (
         <AddItemSelector
-          show={showItemSelector}
-          onHide={handleCloseItemSelector}
-          latitude={clickPosition.lat}
-          longitude={clickPosition.lng}
+          show
+          onHide={closeModal}
+          latitude={modalOfKind('item-selector')!.position.lat}
+          longitude={modalOfKind('item-selector')!.position.lng}
           onSelectHornet={handleSelectHornet}
           onSelectApiary={handleSelectApiary}
           onSelectNest={handleSelectNest}
+          onSelectTrap={handleSelectTrap}
         />
       )}
-      
-      {showAddHornetModal && clickPosition && (
+
+      {modalOfKind('add-hornet') && (
         <AddHornetPopup
-          show={showAddHornetModal}
-          onHide={handleCloseAddModals}
-          latitude={clickPosition.lat}
-          longitude={clickPosition.lng}
+          show
+          onHide={closeModal}
+          latitude={modalOfKind('add-hornet')!.position.lat}
+          longitude={modalOfKind('add-hornet')!.position.lng}
           onSuccess={handleAddSuccess}
-          initialDirection={pendingHornetData?.direction || compassCapturedDirection} // Utiliser pendingHornetData en priorité
+          initialDirection={modalOfKind('add-hornet')!.direction}
         />
       )}
 
-      {showAddApiaryModal && clickPosition && (
+      {modalOfKind('add-apiary') && (
         <AddApiaryPopup
-          show={showAddApiaryModal}
-          onHide={handleCloseAddModals}
-          latitude={clickPosition.lat}
-          longitude={clickPosition.lng}
+          show
+          onHide={closeModal}
+          latitude={modalOfKind('add-apiary')!.position.lat}
+          longitude={modalOfKind('add-apiary')!.position.lng}
           onSuccess={handleAddSuccess}
         />
       )}
 
-      {showAddNestModal && clickPosition && (
+      {modalOfKind('add-nest') && (
         <AddNestPopup
-          show={showAddNestModal}
-          onHide={handleCloseAddModals}
-          latitude={clickPosition.lat}
-          longitude={clickPosition.lng}
+          show
+          onHide={closeModal}
+          latitude={modalOfKind('add-nest')!.position.lat}
+          longitude={modalOfKind('add-nest')!.position.lng}
           onSuccess={handleAddSuccess}
+        />
+      )}
+
+      {modalOfKind('add-trap') && (
+        <TrapFormModal
+          onHide={closeModal}
+          latitude={modalOfKind('add-trap')!.position?.lat ?? coordinates[0]}
+          longitude={modalOfKind('add-trap')!.position?.lng ?? coordinates[1]}
         />
       )}
 
@@ -651,13 +674,13 @@ export default function InteractiveMap() {
       )}
 
       {/* Dialogue de sélection d'objets superposés */}
-      {showOverlapDialog && overlapPosition && (
+      {modalOfKind('overlap') && (
         <OverlapDialog
-          show={showOverlapDialog}
-          onHide={handleCloseOverlapDialog}
-          objects={overlappingObjects}
+          show
+          onHide={closeModal}
+          objects={modalOfKind('overlap')!.objects}
           onSelectObject={handleObjectSelection}
-          position={overlapPosition}
+          position={modalOfKind('overlap')!.position}
         />
       )}
     </div>

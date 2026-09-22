@@ -9,3 +9,4 @@ export { default as MapControlsContainer } from './MapControlsContainer';
 export { default as HornetColorFilterButton } from './HornetColorFilterButton';
 export { default as BulkArchiveButton } from './BulkArchiveButton';
 export { LoadingIndicator, ErrorAlert } from './MapFeedback';
+export { default as AddTrapButton } from './AddTrapButton';

@@ -14,6 +14,10 @@ import {
   selectZoom,
   selectShowArchivedHornets,
   selectShowArchivedNests,
+  fetchTraps,
+  selectShowTraps,
+  selectShowInactiveTraps,
+  selectOnlyMyTraps,
   type ArchiveFilterParams
 } from '../store/store';
 import { useUserPermissions } from './useUserPermissions';
@@ -35,13 +39,21 @@ export const useMapDataFetching = () => {
   const currentZoom = useAppSelector(selectZoom);
   const showArchivedHornets = useAppSelector(selectShowArchivedHornets);
   const showArchivedNests = useAppSelector(selectShowArchivedNests);
-  // Permet de forcer un refetch immédiat quand ce toggle change, même si la zone carte n'a pas bougé
-  const previousArchiveFilters = useRef<{ hornets: boolean; nests: boolean } | null>(null);
+  const showTraps = useAppSelector(selectShowTraps);
+  const showInactiveTraps = useAppSelector(selectShowInactiveTraps);
+  const onlyMyTraps = useAppSelector(selectOnlyMyTraps);
+  // Permet de forcer un refetch immédiat quand un de ces toggles change, même si la zone carte n'a pas bougé
+  const previousFilters = useRef<{
+    hornets: boolean; nests: boolean; traps: boolean; inactiveTraps: boolean; myTraps: boolean;
+  } | null>(null);
 
   useEffect(() => {
-    const archiveFiltersChanged = previousArchiveFilters.current === null ||
-      previousArchiveFilters.current.hornets !== showArchivedHornets ||
-      previousArchiveFilters.current.nests !== showArchivedNests;
+    const archiveFiltersChanged = previousFilters.current === null ||
+      previousFilters.current.hornets !== showArchivedHornets ||
+      previousFilters.current.nests !== showArchivedNests ||
+      previousFilters.current.traps !== showTraps ||
+      previousFilters.current.inactiveTraps !== showInactiveTraps ||
+      previousFilters.current.myTraps !== onlyMyTraps;
 
     // Si on a déjà une zone fetchée, vérifier si la nouvelle vue est incluse
     if (lastFetchedArea && !archiveFiltersChanged) {
@@ -117,6 +129,15 @@ export const useMapDataFetching = () => {
       }));
     }
 
+    // Récupérer les pièges (publics sans token, complets avec)
+    if (showTraps) {
+      dispatch(fetchTraps({
+        geolocation: geolocationParams,
+        onlyMine: onlyMyTraps,
+        showInactive: showInactiveTraps,
+      }));
+    }
+
     // Après chaque fetch, stocker la nouvelle zone
     dispatch(setLastFetchedArea({
       center: mapCenter,
@@ -130,7 +151,13 @@ export const useMapDataFetching = () => {
       zoom: currentZoom,
     }));
 
-    previousArchiveFilters.current = { hornets: showArchivedHornets, nests: showArchivedNests };
+    previousFilters.current = {
+      hornets: showArchivedHornets,
+      nests: showArchivedNests,
+      traps: showTraps,
+      inactiveTraps: showInactiveTraps,
+      myTraps: onlyMyTraps,
+    };
   }, [
     mapCenter,
     searchRadius, 
@@ -142,6 +169,9 @@ export const useMapDataFetching = () => {
     canAddApiary,
     lastFetchedArea,
     showArchivedHornets,
-    showArchivedNests
+    showArchivedNests,
+    showTraps,
+    showInactiveTraps,
+    onlyMyTraps
   ]);
 };

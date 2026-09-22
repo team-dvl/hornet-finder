@@ -2,6 +2,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import hornetsReducer from './slices/hornetsSlice.js';
 import apiariesReducer from './slices/apiariesSlice.js';
 import nestsReducer from './slices/nestsSlice.js';
+import trapsReducer from './slices/trapsSlice.js';
 import mapReducer from './slices/mapSlice.js';
 
 export const store = configureStore({
@@ -9,6 +10,7 @@ export const store = configureStore({
     hornets: hornetsReducer,
     apiaries: apiariesReducer,
     nests: nestsReducer,
+    traps: trapsReducer,
     map: mapReducer,
   },
 });

@@ -1,10 +1,11 @@
 /**
  * Modules offered on the landing page.
  *
- * All modules are currently open to everyone; `requiredRoles` is reserved for
- * role-based filtering later (see hooks/useUserPermissions.ts).
+ * A module carrying `requiredRoles` is only listed for users holding one of
+ * those realm roles (see `visibleModules` below); the route itself is guarded
+ * by RequireRole.
  */
-export type ModuleId = 'nests' | 'traps' | 'docs' | 'account';
+export type ModuleId = 'nests' | 'traps' | 'docs' | 'admin' | 'account';
 
 export interface ModuleDefinition {
   id: ModuleId;
@@ -36,7 +37,6 @@ export const MODULES: ModuleDefinition[] = [
     description: 'Gérez vos pièges et suivez les prises.',
     icon: 'bi-bullseye',
     path: '/traps',
-    badge: 'Bientôt disponible',
   },
   {
     id: 'docs',
@@ -47,6 +47,15 @@ export const MODULES: ModuleDefinition[] = [
     path: '/docs',
   },
   {
+    id: 'admin',
+    title: 'Administration',
+    shortTitle: 'Administration',
+    description: 'Gérez les référentiels de la plateforme.',
+    icon: 'bi-sliders',
+    path: '/admin',
+    requiredRoles: ['admin'],
+  },
+  {
     id: 'account',
     title: 'Mon compte',
     shortTitle: 'Compte',
@@ -55,8 +64,17 @@ export const MODULES: ModuleDefinition[] = [
   },
 ];
 
-/** Modules that get a page under /docs (everything except the docs module itself and the account console). */
-export const DOCUMENTED_MODULES = MODULES.filter((m) => m.id !== 'docs' && m.id !== 'account');
+/** Modules that get a page under /docs (the user-facing ones). */
+export const DOCUMENTED_MODULES = MODULES.filter(
+  (m) => m.id !== 'docs' && m.id !== 'account' && m.id !== 'admin'
+);
+
+/** Modules the given roles give access to. */
+export function visibleModules(roles: string[]): ModuleDefinition[] {
+  return MODULES.filter(
+    (module) => !module.requiredRoles || module.requiredRoles.some((role) => roles.includes(role))
+  );
+}
 
 export function findModule(id: string): ModuleDefinition | undefined {
   return MODULES.find((m) => m.id === id);

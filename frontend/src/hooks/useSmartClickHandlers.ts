@@ -5,19 +5,23 @@ import { MapObject } from '../components/map/types';
 import { Hornet } from '../store/slices/hornetsSlice';
 import { Apiary } from '../store/slices/apiariesSlice';
 import { Nest } from '../store/slices/nestsSlice';
+import { Trap } from '../store/slices/trapsSlice';
 
 interface UseSmartClickHandlersProps {
   map: Map | null;
   hornets: Hornet[];
   apiaries: Apiary[];
   nests: Nest[];
+  traps: Trap[];
   showHornets: boolean;
   showApiaries: boolean;
   showNests: boolean;
+  showTraps: boolean;
   onShowOverlapDialog: (objects: MapObject[], position: { lat: number; lng: number }) => void;
   onHornetClick: (hornet: Hornet) => void;
   onApiaryClick: (apiary: Apiary) => void;
   onNestClick: (nest: Nest) => void;
+  onTrapClick: (trap: Trap) => void;
 }
 
 export const useSmartClickHandlers = ({
@@ -25,13 +29,16 @@ export const useSmartClickHandlers = ({
   hornets,
   apiaries,
   nests,
+  traps,
   showHornets,
   showApiaries,
   showNests,
+  showTraps,
   onShowOverlapDialog,
   onHornetClick,
   onApiaryClick,
-  onNestClick
+  onNestClick,
+  onTrapClick
 }: UseSmartClickHandlersProps) => {
 
   const { detectOverlap, zoomToSeparate } = useOverlapDetection({
@@ -39,9 +46,11 @@ export const useSmartClickHandlers = ({
     hornets,
     apiaries,
     nests,
+    traps,
     showHornets,
     showApiaries,
-    showNests
+    showNests,
+    showTraps
   });
 
   // Gestionnaire de clic intelligent pour les frelons
@@ -89,9 +98,25 @@ export const useSmartClickHandlers = ({
     }
   }, [detectOverlap, zoomToSeparate, onShowOverlapDialog, onNestClick]);
 
+  // Gestionnaire de clic intelligent pour les pièges
+  const handleSmartTrapClick = useCallback((trap: Trap) => {
+    const overlapResult = detectOverlap(trap.latitude, trap.longitude);
+
+    if (overlapResult.hasOverlap && overlapResult.objects.length > 1) {
+      if (overlapResult.canZoomToSeparate) {
+        zoomToSeparate(trap.latitude, trap.longitude);
+      } else {
+        onShowOverlapDialog(overlapResult.objects, { lat: trap.latitude, lng: trap.longitude });
+      }
+    } else {
+      onTrapClick(trap);
+    }
+  }, [detectOverlap, zoomToSeparate, onShowOverlapDialog, onTrapClick]);
+
   return {
     handleSmartHornetClick,
     handleSmartApiaryClick,
-    handleSmartNestClick
+    handleSmartNestClick,
+    handleSmartTrapClick
   };
 };

@@ -4,7 +4,8 @@ import { Container, Alert } from 'react-bootstrap'
 import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from 'react-oidc-context';
-import { Home, Nests, Traps, DocsIndex, DocPage, PrivacyPolicy, DataDeletion } from './pages';
+import { Home, Nests, Traps, DocsIndex, DocPage, AdminIndex, TrapTypesAdmin, PrivacyPolicy, DataDeletion } from './pages';
+import { RequireRole } from './components/common';
 import { initIOSViewportFix } from './utils/iosViewportFix';
 import { useUrlCleaner } from './utils/urlCleaner';
 import { setupPWAAuthMonitoring, setupTokenMonitoring, syncAuthStateWithServiceWorker } from './utils/pwaAuth';
@@ -101,6 +102,11 @@ function App() {
       <Route path="/traps" element={<Traps />} />
       <Route path="/docs" element={<DocsIndex />} />
       <Route path="/docs/:moduleId" element={<DocPage />} />
+      <Route path="/admin" element={<RequireRole roles={['admin']}><AdminIndex /></RequireRole>} />
+      <Route
+        path="/admin/trap-types"
+        element={<RequireRole roles={['admin']}><TrapTypesAdmin /></RequireRole>}
+      />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="/data-deletion" element={<DataDeletion />} />
       <Route path="*" element={<Navigate to="/" replace />} />

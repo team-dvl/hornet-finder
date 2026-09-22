@@ -11,6 +11,7 @@ interface AddItemSelectorProps {
   onSelectHornet: (lat?: number, lng?: number) => void;
   onSelectApiary: (lat?: number, lng?: number) => void;
   onSelectNest: (lat?: number, lng?: number) => void;
+  onSelectTrap: (lat?: number, lng?: number) => void;
 }
 
 export default function AddItemSelector({ 
@@ -20,9 +21,10 @@ export default function AddItemSelector({
   longitude, 
   onSelectHornet, 
   onSelectApiary, 
-  onSelectNest 
+  onSelectNest,
+  onSelectTrap
 }: AddItemSelectorProps) {
-  const { canAddHornet, canAddApiary, roles, isAdmin } = useUserPermissions();
+  const { canAddHornet, canAddApiary, canAddTrap, roles, isAdmin } = useUserPermissions();
   
   // État local pour les coordonnées éditables (pour les admins)
   const [editableLat, setEditableLat] = useState(latitude);
@@ -59,6 +61,14 @@ export default function AddItemSelector({
       onSelectNest(editableLat, editableLng);
     } else {
       onSelectNest();
+    }
+  };
+
+  const handleSelectTrap = () => {
+    if (isAdmin) {
+      onSelectTrap(editableLat, editableLng);
+    } else {
+      onSelectTrap();
     }
   };
 
@@ -185,9 +195,29 @@ export default function AddItemSelector({
               </Card>
             </Col>
           )}
+          {canAddTrap && (
+            <Col md={12}>
+              <Card className="h-100 border-2 border-primary">
+                <Card.Body className="text-center">
+                  <div className="mb-3" style={{ fontSize: '3rem' }}>🪤</div>
+                  <Card.Title>Piège</Card.Title>
+                  <Card.Text className="text-muted">
+                    Installer un piège et suivre ses prises au fil de la saison
+                  </Card.Text>
+                  <Button
+                    variant="primary"
+                    onClick={handleSelectTrap}
+                    className="w-100"
+                  >
+                    Ajouter un piège
+                  </Button>
+                </Card.Body>
+              </Card>
+            </Col>
+          )}
         </Row>
 
-        {!canAddHornet && !canAddApiary && !canAddNest && (
+        {!canAddHornet && !canAddApiary && !canAddNest && !canAddTrap && (
           <div className="text-center p-4">
             <div className="text-muted">
               <span style={{ fontSize: '3rem' }}>🔒</span>

@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 import { PageLayout } from '../components/layout';
 import { ModuleCard } from '../components/home';
-import { MODULES } from '../config/modules';
+import { visibleModules } from '../config/modules';
 import { signInFromCurrentPage } from '../utils/authRedirect';
+import { useUserPermissions } from '../hooks/useUserPermissions';
 
 /** Keycloak account console URL, with a "back to application" link pointing at the landing page. */
 function accountConsoleUrl(authority: string, clientId: string): string {
@@ -15,6 +16,8 @@ function accountConsoleUrl(authority: string, clientId: string): string {
 /** Landing page: title and the module menu. Descriptive content lives in the documentation module. */
 export default function Home() {
   const auth = useAuth();
+  const { roles } = useUserPermissions();
+  const modules = visibleModules(roles);
 
   return (
     <PageLayout>
@@ -30,7 +33,7 @@ export default function Home() {
         </Row>
 
         <Row className="g-3 mb-5 justify-content-center">
-          {MODULES.map((module) => (
+          {modules.map((module) => (
             <Col key={module.id} sm={6} lg={3}>
               {module.id === 'account' ? (
                 auth.isAuthenticated ? (

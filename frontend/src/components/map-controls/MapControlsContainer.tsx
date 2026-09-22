@@ -1,6 +1,7 @@
 import LocateButton from './LocateButton';
 import LayerControlsButton from './LayerControlsButton';
 import QuickCaptureButton from './QuickCaptureButton';
+import AddTrapButton from './AddTrapButton';
 import HornetColorFilterButton from './HornetColorFilterButton';
 import BulkArchiveButton from './BulkArchiveButton';
 import { ErrorAlert } from './MapFeedback';
@@ -14,6 +15,7 @@ interface MapControlsContainerProps {
   showNestsButton?: boolean;
   onQuickHornetCapture?: () => void;
   canAddHornet?: boolean;
+  onAddTrap?: () => void;
 }
 
 export default function MapControlsContainer({ 
@@ -23,7 +25,8 @@ export default function MapControlsContainer({
   showApiariesButton = false, 
   showNestsButton = false,
   onQuickHornetCapture,
-  canAddHornet = false
+  canAddHornet = false,
+  onAddTrap
 }: MapControlsContainerProps) {
   const showHornets = useAppSelector(selectShowHornets);
 
@@ -47,6 +50,7 @@ export default function MapControlsContainer({
             canAddHornet={canAddHornet} 
           />
         )}
+        {onAddTrap && <AddTrapButton onAddTrap={onAddTrap} />}
       </div>
       <ErrorAlert error={error} onClose={() => onErrorUpdate(null)} />
     </>

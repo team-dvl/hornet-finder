@@ -1,0 +1,83 @@
+import { Marker, Tooltip } from 'react-leaflet';
+import { DivIcon } from 'leaflet';
+import * as L from 'leaflet';
+import { useRef } from 'react';
+import { Trap } from '../../store/slices/trapsSlice';
+
+/**
+ * Marker of a trap. The colour carries the status (green in service, grey
+ * stored), a thicker ring marks the traps of the current user, and the badge
+ * shows the number of Asian hornets caught when there is at least one.
+ */
+const createTrapIcon = (trap: Trap, isMine: boolean, isMoving: boolean) => {
+  const color = trap.active ? '#198754' : '#6c757d';
+  const ring = isMine ? '#ffc107' : 'white';
+  const ringWidth = isMine ? 3 : 2;
+  const badge = trap.hornet_catch_count > 0 ? `
+      <circle cx="26" cy="7" r="7" fill="#dc3545" stroke="white" stroke-width="1.5"/>
+      <text x="26" y="10.5" text-anchor="middle" font-size="9" font-weight="bold" fill="white">${
+        trap.hornet_catch_count > 99 ? '99+' : trap.hornet_catch_count
+      }</text>` : '';
+
+  const svg = `
+    <svg width="34" height="34" viewBox="0 0 34 34" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="14" fill="${color}" stroke="${ring}" stroke-width="${ringWidth}"
+              ${isMoving ? 'stroke-dasharray="4 3"' : ''}/>
+      <text x="16" y="21" text-anchor="middle" font-size="15" fill="white">🪤</text>
+      ${badge}
+    </svg>
+  `;
+
+  return new DivIcon({
+    html: svg,
+    iconSize: [34, 34],
+    iconAnchor: [16, 16],
+    popupAnchor: [0, -16],
+    className: 'trap-icon'
+  });
+};
+
+interface TrapMarkerProps {
+  trap: Trap;
+  isMine?: boolean;
+  /** When true the marker can be dragged to reposition the trap */
+  isMoving?: boolean;
+  onClick?: (trap: Trap) => void;
+  onMoved?: (trap: Trap, latitude: number, longitude: number) => void;
+}
+
+export default function TrapMarker({ trap, isMine = false, isMoving = false, onClick, onMoved }: TrapMarkerProps) {
+  const markerRef = useRef<L.Marker | null>(null);
+
+  return (
+    <Marker
+      ref={markerRef}
+      position={[trap.latitude, trap.longitude]}
+      icon={createTrapIcon(trap, isMine, isMoving)}
+      draggable={isMoving}
+      zIndexOffset={150} // Sous les nids, au-dessus des ruchers
+      eventHandlers={{
+        click: () => {
+          // Pendant un déplacement, le clic ne doit pas rouvrir la fiche
+          if (!isMoving) onClick?.(trap);
+        },
+        dragend: (event) => {
+          const { lat, lng } = (event.target as L.Marker).getLatLng();
+          onMoved?.(trap, lat, lng);
+        },
+      }}
+    >
+      <Tooltip direction="top" offset={[0, -16]}>
+        <strong>{trap.trap_type.name}</strong>
+        {!trap.active && ' (remisé)'}
+        {trap.hornet_catch_count > 0 && (
+          <>
+            <br />
+            {trap.hornet_catch_count} frelon{trap.hornet_catch_count > 1 ? 's' : ''} asiatique
+            {trap.hornet_catch_count > 1 ? 's' : ''}
+          </>
+        )}
+      </Tooltip>
+    </Marker>
+  );
+}

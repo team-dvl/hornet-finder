@@ -17,7 +17,13 @@ import {
   toggleShowArchivedHornets,
   selectShowArchivedHornets,
   toggleShowArchivedNests,
-  selectShowArchivedNests
+  selectShowArchivedNests,
+  toggleTraps,
+  selectShowTraps,
+  toggleInactiveTraps,
+  selectShowInactiveTraps,
+  toggleOnlyMyTraps,
+  selectOnlyMyTraps
 } from '../../store/store';
 
 interface LayerControlsButtonProps {
@@ -44,6 +50,9 @@ export default function LayerControlsButton({
   const showNests = useAppSelector(selectShowNests);
   const showArchivedHornets = useAppSelector(selectShowArchivedHornets);
   const showArchivedNests = useAppSelector(selectShowArchivedNests);
+  const showTraps = useAppSelector(selectShowTraps);
+  const showInactiveTraps = useAppSelector(selectShowInactiveTraps);
+  const onlyMyTraps = useAppSelector(selectOnlyMyTraps);
 
   const handleTogglePopover = () => {
     setShowPopover(!showPopover);
@@ -219,6 +228,66 @@ export default function LayerControlsButton({
                     type="checkbox"
                     checked={showApiaryCircles}
                     onChange={handleApiaryCirclesToggle}
+                  />
+                </div>
+              </ListGroup.Item>
+            )}
+
+            {/* Couche Pièges - les pièges publics sont visibles par tous */}
+            <ListGroup.Item
+              className="d-flex justify-content-between align-items-center px-0 py-2"
+              style={{ border: 'none' }}
+            >
+              <div className="d-flex align-items-center">
+                <span className="me-2">🪤</span>
+                <span>Pièges</span>
+              </div>
+              <div className="form-check form-switch mb-0">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  checked={showTraps}
+                  onChange={() => dispatch(toggleTraps())}
+                />
+              </div>
+            </ListGroup.Item>
+
+            {/* Sous-options des pièges */}
+            {showTraps && (
+              <ListGroup.Item
+                className="d-flex justify-content-between align-items-center px-0 py-2 ps-3"
+                style={{ border: 'none', backgroundColor: '#f8f9fa' }}
+              >
+                <div className="d-flex align-items-center">
+                  <span className="me-2">📦</span>
+                  <span className="text-muted small">Pièges remisés</span>
+                </div>
+                <div className="form-check form-switch mb-0">
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    checked={showInactiveTraps}
+                    onChange={() => dispatch(toggleInactiveTraps())}
+                  />
+                </div>
+              </ListGroup.Item>
+            )}
+
+            {showTraps && auth.isAuthenticated && (
+              <ListGroup.Item
+                className="d-flex justify-content-between align-items-center px-0 py-2 ps-3"
+                style={{ border: 'none', backgroundColor: '#f8f9fa' }}
+              >
+                <div className="d-flex align-items-center">
+                  <span className="me-2">👤</span>
+                  <span className="text-muted small">Mes pièges seulement</span>
+                </div>
+                <div className="form-check form-switch mb-0">
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    checked={onlyMyTraps}
+                    onChange={() => dispatch(toggleOnlyMyTraps())}
                   />
                 </div>
               </ListGroup.Item>

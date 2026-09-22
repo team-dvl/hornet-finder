@@ -7,7 +7,7 @@ interface ConfirmationModalProps {
   onHide: () => void;
   onConfirm: () => void;
   itemName: string;
-  itemType: 'frelon' | 'nid' | 'rucher';
+  itemType: 'frelon' | 'nid' | 'rucher' | 'piège' | 'intervention';
   action?: ConfirmationAction;
   isDeleting?: boolean;
   deleteError?: string | null;
@@ -17,6 +17,8 @@ const ICONS: Record<ConfirmationModalProps['itemType'], string> = {
   frelon: '🐝',
   nid: '🏴',
   rucher: '🏠',
+  'piège': '🪤',
+  intervention: '📋',
 };
 
 const ACTION_CONFIG: Record<ConfirmationAction, {

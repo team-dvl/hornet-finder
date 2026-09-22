@@ -18,6 +18,24 @@ export { fetchNests, fetchNestsDestroyedPublic, createNest, deleteNest, archiveN
 export { selectNests, selectNestsLoading, selectNestsError, selectShowNests, selectShowArchivedNests } from './slices/nestsSlice';
 export type { Nest } from './slices/nestsSlice';
 
+// Export des actions et thunks du slice traps
+export {
+  fetchTraps, fetchTrapDetail, createTrap, updateTrap, deleteTrap, addTrapEvent,
+  deleteTrapEvent, fetchTrapDelegation, setTrapDelegation, clearTrapDelegation,
+  setTrapOwner, fetchTrapTypes, fetchSpecies, createTrapType, updateTrapType,
+  deleteTrapType, clearTrapsError, clearTraps, toggleTraps, toggleInactiveTraps,
+  toggleOnlyMyTraps, setShowTraps, setSelectedTrap, startMovingTrap, stopMovingTrap,
+} from './slices/trapsSlice';
+export {
+  selectTraps, selectSelectedTrap, selectTrapTypes, selectSpecies, selectShowTraps,
+  selectShowInactiveTraps, selectOnlyMyTraps, selectMovingTrapId, selectTrapsLoading,
+  selectTrapsError,
+} from './slices/trapsSlice';
+export type {
+  Trap, TrapEvent, TrapEventKind, TrapPhoto, TrapType, Species, DelegationInfo,
+  TrapFormValues, TrapTypeFormValues, UserSummary, GroupSummary,
+} from './slices/trapsSlice';
+
 // Export des actions et selectors du slice map
 export { setMapCenter, setZoom, setGeolocationLoading, setGeolocationError, setIsAdmin, updateMapViewport, initializeGeolocation, setLastFetchedArea } from './slices/mapSlice';
 export { selectMapCenter, selectZoom, selectSearchRadius, selectGeolocationLoading, selectGeolocationError, selectIsInitialized, selectIsAdmin, selectLastFetchedArea } from './slices/mapSlice';

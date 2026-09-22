@@ -21,3 +21,6 @@ export * from './map-controls';
 
 // Landing page components
 export * from './home';
+
+// Traps module components
+export * from './traps';
