@@ -5,3 +5,4 @@ export { EVENT_KINDS, eventKindInfo } from './eventKinds';
 export { default as TrapDelegationPanel } from './TrapDelegationPanel';
 export { default as AddressSearch } from './AddressSearch';
 export { default as PhotoInput } from './PhotoInput';
+export { default as TrapTypeSelect } from './TrapTypeSelect';

@@ -8,6 +8,7 @@ import CoordinateInput from '../common/CoordinateInput';
 import { reverseGeocode } from '../../utils/geocoding';
 import AddressSearch from './AddressSearch';
 import PhotoInput from './PhotoInput';
+import TrapTypeSelect from './TrapTypeSelect';
 
 interface TrapFormModalProps {
   /** Mounted only while open, so every opening starts from the right values */
@@ -104,12 +105,7 @@ export default function TrapFormModal({
 
           <Form.Group className="mb-3">
             <Form.Label>Type de piège</Form.Label>
-            <Form.Select value={typeSlug} onChange={(event) => setTypeSlug(event.target.value)} required>
-              <option value="">Choisissez un type…</option>
-              {trapTypes.map((type) => (
-                <option key={type.slug} value={type.slug}>{type.name}</option>
-              ))}
-            </Form.Select>
+            <TrapTypeSelect trapTypes={trapTypes} value={typeSlug} onChange={setTypeSlug} />
             {selectedType?.description && (
               <Form.Text muted>{selectedType.description}</Form.Text>
             )}
