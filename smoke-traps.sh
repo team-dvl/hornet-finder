@@ -98,9 +98,12 @@ call 403 "t-owner ne peut pas changer de propriétaire"  PUT "/traps/$TRAP/owner
 
 echo "== Référentiel"
 call 200 "t-owner lit les types de pièges"              GET "/trap-types/" "${H_OWNER[@]}"
-call 403 "t-owner ne peut pas créer un type"            POST "/trap-types/" "${H_OWNER[@]}" -H "Content-Type: application/json" -d '{"slug":"e2e","name":"E2E"}'
-call 201 "t-admin crée un type"                         POST "/trap-types/" "${H_ADMIN[@]}" -H "Content-Type: application/json" -d '{"slug":"e2e-type","name":"Type E2E"}'
-TID=$(curl -sk "$BASE/trap-types/" "${H_ADMIN[@]}" | python3 -c "import sys,json;print([t['id'] for t in json.load(sys.stdin) if t['slug']=='e2e-type'][0])")
+call 403 "t-owner ne peut pas créer un type"            POST "/trap-types/" "${H_OWNER[@]}" -H "Content-Type: application/json" -d '{"name":"E2E"}'
+# The slug is internal identity: derived from the name, never taken from the payload
+call 201 "t-admin crée un type"                         POST "/trap-types/" "${H_ADMIN[@]}" -H "Content-Type: application/json" -d '{"slug":"ignore-moi","name":"Type E2E"}'
+SLUG=$(python3 -c "import sys,json;print(json.load(open('$OUT'))['slug'])")
+if [ "$SLUG" = "type-e2e" ]; then PASS=$((PASS+1)); echo "  ok   slug dérivé du nom ($SLUG)"; else FAIL=$((FAIL+1)); echo "  FAIL slug=$SLUG"; fi
+TID=$(curl -sk "$BASE/trap-types/" "${H_ADMIN[@]}" | python3 -c "import sys,json;print([t['id'] for t in json.load(sys.stdin) if t['slug']=='type-e2e'][0])")
 call 204 "t-admin supprime un type inutilisé"           DELETE "/trap-types/$TID/" "${H_ADMIN[@]}"
 BID=$(curl -sk "$BASE/trap-types/" "${H_ADMIN[@]}" | python3 -c "import sys,json;print([t['id'] for t in json.load(sys.stdin) if t['slug']=='bottle'][0])")
 call 409 "suppression d'un type utilisé refusée"        DELETE "/trap-types/$BID/" "${H_ADMIN[@]}"

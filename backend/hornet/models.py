@@ -5,9 +5,26 @@ from django.db import models
 from django.contrib.gis.db import models as geomodels
 from django.contrib.gis.geos import Point
 from django.utils import timezone
+from django.utils.text import slugify
 
 # Slug of the species the trap counter tracks (see Trap.hornet_catch_count)
 HORNET_SPECIES_SLUG = 'vespa-velutina'
+
+
+def unique_slug(model, name, max_length=64):
+    """
+    Derive an unused slug from a display name.
+
+    Slugs are internal identity (they key the seed migration and the API
+    write fields), never a user's choice: nobody is asked to invent one.
+    """
+    base = slugify(name)[:max_length] or 'item'
+    candidate, index = base, 1
+    while model.objects.filter(slug=candidate).exists():
+        suffix = f'-{index}'
+        candidate = f'{base[:max_length - len(suffix)]}{suffix}'
+        index += 1
+    return candidate
 
 
 class User(models.Model):

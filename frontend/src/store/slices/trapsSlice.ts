@@ -362,7 +362,6 @@ export const fetchSpecies = createAsyncThunk(
 // --- Referential administration (admin only) -------------------------------
 
 export interface TrapTypeFormValues {
-  slug?: string;
   name: string;
   description?: string;
   sort_order?: number;

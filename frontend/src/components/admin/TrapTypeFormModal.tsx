@@ -11,36 +11,16 @@ interface TrapTypeFormModalProps {
   trapType?: TrapType | null;
 }
 
-/** Slug derived from the name: lowercase, accent-free, dash-separated. */
-function slugify(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 64);
-}
-
 export default function TrapTypeFormModal({ onHide, trapType = null }: TrapTypeFormModalProps) {
   const dispatch = useAppDispatch();
   const isEdit = Boolean(trapType);
 
   const [name, setName] = useState(trapType?.name ?? '');
-  const [slug, setSlug] = useState(trapType?.slug ?? '');
-  const [slugTouched, setSlugTouched] = useState(false);
   const [description, setDescription] = useState(trapType?.description ?? '');
   const [sortOrder, setSortOrder] = useState(trapType?.sort_order ?? 0);
   const [photo, setPhoto] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const handleNameChange = (value: string) => {
-    setName(value);
-    // The slug identifies the entry across the seed migration: it is derived
-    // once at creation, then frozen.
-    if (!isEdit && !slugTouched) setSlug(slugify(value));
-  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -51,7 +31,8 @@ export default function TrapTypeFormModal({ onHide, trapType = null }: TrapTypeF
       if (trapType) {
         await dispatch(updateTrapType({ id: trapType.id, values })).unwrap();
       } else {
-        await dispatch(createTrapType({ ...values, slug })).unwrap();
+        // The backend derives the technical identifier from the name
+        await dispatch(createTrapType(values)).unwrap();
       }
       onHide();
     } catch (submitError) {
@@ -76,26 +57,10 @@ export default function TrapTypeFormModal({ onHide, trapType = null }: TrapTypeF
             <Form.Control
               type="text"
               value={name}
-              onChange={(event) => handleNameChange(event.target.value)}
+              onChange={(event) => setName(event.target.value)}
               required
               autoFocus
             />
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label>Identifiant technique</Form.Label>
-            <Form.Control
-              type="text"
-              value={slug}
-              readOnly={isEdit}
-              onChange={(event) => { setSlugTouched(true); setSlug(slugify(event.target.value)); }}
-              required
-            />
-            <Form.Text muted>
-              {isEdit
-                ? "L'identifiant ne change pas : il relie l'entrée aux données existantes."
-                : 'Généré à partir du nom, modifiable avant enregistrement.'}
-            </Form.Text>
           </Form.Group>
 
           <Form.Group className="mb-3">
@@ -126,7 +91,7 @@ export default function TrapTypeFormModal({ onHide, trapType = null }: TrapTypeF
 
         <Modal.Footer>
           <Button variant="secondary" onClick={onHide} disabled={saving}>Annuler</Button>
-          <Button type="submit" variant="primary" disabled={saving || !name || !slug}>
+          <Button type="submit" variant="primary" disabled={saving || !name}>
             {saving && <Spinner animation="border" size="sm" className="me-2" />}
             Enregistrer
           </Button>

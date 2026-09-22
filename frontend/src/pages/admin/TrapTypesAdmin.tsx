@@ -21,12 +21,7 @@ const columns: ReferentialColumn<TrapType>[] = [
   {
     key: 'name',
     header: 'Nom',
-    render: (type) => (
-      <>
-        <div>{type.name}</div>
-        <code className="small text-muted">{type.slug}</code>
-      </>
-    ),
+    render: (type) => type.name,
   },
   {
     key: 'description',

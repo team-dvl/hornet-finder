@@ -3,7 +3,7 @@ from typing import Optional
 from rest_framework import serializers
 from .models import (
     Apiary, Hornet, Nest, Species, Trap, TrapEvent, TrapPhoto, TrapType, User,
-    HORNET_SPECIES_SLUG,
+    HORNET_SPECIES_SLUG, unique_slug,
 )
 from hornet_finder_api.utils import user_exists, get_user_display_name
 
@@ -167,7 +167,10 @@ class TrapTypeSerializer(serializers.ModelSerializer):
         model = TrapType
         fields = ['id', 'slug', 'name', 'description', 'sort_order',
                   'photo_url', 'photo_thumbnail_url', 'trap_count']
-        read_only_fields = ['id', 'trap_count']
+        # The slug is internal identity, derived from the name on creation and
+        # frozen afterwards: an administrator names a trap type, they do not
+        # invent an identifier for it.
+        read_only_fields = ['id', 'slug', 'trap_count']
 
     def get_photo_url(self, instance) -> Optional[str]:
         return instance.photo.url if instance.photo else None
@@ -175,11 +178,9 @@ class TrapTypeSerializer(serializers.ModelSerializer):
     def get_photo_thumbnail_url(self, instance) -> Optional[str]:
         return instance.photo_thumbnail.url if instance.photo_thumbnail else None
 
-    def validate_slug(self, value: str) -> str:
-        # The slug identifies a row across the seed migration, so it is set once
-        if self.instance and self.instance.slug != value:
-            raise serializers.ValidationError("The slug of a trap type cannot be changed.")
-        return value
+    def create(self, validated_data):
+        validated_data['slug'] = unique_slug(TrapType, validated_data['name'])
+        return super().create(validated_data)
 
 
 class SpeciesSerializer(serializers.ModelSerializer):

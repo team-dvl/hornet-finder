@@ -552,7 +552,7 @@ class TrapTypeAdminTests(TrapTestCase):
         self.assertTrue(any(t['slug'] == 'homemade' for t in response.data))
 
     def test_only_admin_can_create(self):
-        payload = {'slug': 'new-type', 'name': 'Nouveau type'}
+        payload = {'name': 'Nouveau type'}
         request = self.factory.post('/trap-types/', payload)
         force_authenticate(request, user=self.owner_user)
         self.assertEqual(TrapTypeViewSet.as_view({'post': 'create'})(request).status_code, 403)
@@ -575,12 +575,33 @@ class TrapTypeAdminTests(TrapTestCase):
         response = TrapTypeViewSet.as_view({'delete': 'destroy'})(request, pk=unused.id)
         self.assertEqual(response.status_code, 204)
 
-    def test_slug_cannot_be_changed(self):
-        request = self.factory.patch(f'/trap-types/{self.trap_type.id}/', {'slug': 'renamed'})
+    def test_the_slug_is_derived_from_the_name(self):
+        request = self.factory.post('/trap-types/', {'name': 'Piège cloche'})
+        force_authenticate(request, user=self.admin_user)
+        response = TrapTypeViewSet.as_view({'post': 'create'})(request)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['slug'], 'piege-cloche')
+
+    def test_a_duplicate_name_still_gets_its_own_slug(self):
+        TrapType.objects.create(slug='piege-cloche', name='Piège cloche')
+        request = self.factory.post('/trap-types/', {'name': 'Piège cloche'})
+        force_authenticate(request, user=self.admin_user)
+        response = TrapTypeViewSet.as_view({'post': 'create'})(request)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['slug'], 'piege-cloche-1')
+
+    def test_the_slug_is_not_writable(self):
+        # It keys the seed migration and the API write fields: renaming a type
+        # must not break the traps that point at it.
+        request = self.factory.patch(
+            f'/trap-types/{self.trap_type.id}/', {'slug': 'renamed', 'name': 'Renommé'})
         force_authenticate(request, user=self.admin_user)
         response = TrapTypeViewSet.as_view({'patch': 'partial_update'})(
             request, pk=self.trap_type.id)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 200)
+        self.trap_type.refresh_from_db()
+        self.assertEqual(self.trap_type.slug, 'homemade')
+        self.assertEqual(self.trap_type.name, 'Renommé')
 
 
 class KeycloakGroupLookupTests(TestCase):
