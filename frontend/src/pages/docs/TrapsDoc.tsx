@@ -43,9 +43,14 @@ export default function TrapsDoc() {
           le même formulaire avec une recherche d'adresse, pratique quand le piège n'est pas là où
           vous vous trouvez.
         </p>
-        <p className="mb-0">
+        <p>
           Pour corriger une position, ouvrez la fiche du piège et utilisez <strong>Déplacer</strong> :
           le marqueur devient déplaçable, la nouvelle position n'est enregistrée qu'après validation.
+        </p>
+        <p className="mb-0">
+          L'adresse et les coordonnées sont deux choses distinctes : l'adresse sert surtout à poser
+          le piège et à le retrouver, la position GPS seule le situe. Un déplacement vous propose
+          donc l'adresse du nouvel emplacement, mais ne remplace jamais la vôtre sans confirmation.
         </p>
       </section>
 

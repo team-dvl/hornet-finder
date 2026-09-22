@@ -29,7 +29,7 @@ import AddItemSelector from '../forms/AddItemSelector';
 import AddHornetPopup from '../popups/AddHornetPopup';
 import AddApiaryPopup from '../popups/AddApiaryPopup';
 import AddNestPopup from '../popups/AddNestPopup';
-import { TrapFormModal, TrapInfoPopup } from '../traps';
+import { TrapAddressChangeModal, TrapFormModal, TrapInfoPopup } from '../traps';
 import CompassCapture from './CompassCapture';
 import OverlapDialog from './OverlapDialog';
 import MapRefHandler from './MapRefHandler';
@@ -130,6 +130,9 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
 
   // Position en attente pendant un déplacement de piège (avant validation)
   const [pendingTrapPosition, setPendingTrapPosition] = useState<MapPoint | null>(null);
+  // Address found at the new position, when it differs from the stored one
+  const [trapAddressChange, setTrapAddressChange] = useState<{ current: string; found: string } | null>(null);
+  const [savingTrapMove, setSavingTrapMove] = useState(false);
   
   // Sélectionner les données depuis le store Redux
   const { error } = useAppSelector((state) => state.hornets);
@@ -307,9 +310,9 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
     setPendingTrapPosition({ lat: latitude, lng: longitude });
   };
 
-  const handleConfirmTrapMove = async () => {
+  const saveTrapMove = async (address?: string) => {
     if (movingTrapId && pendingTrapPosition) {
-      const address = await reverseGeocode(pendingTrapPosition.lat, pendingTrapPosition.lng);
+      setSavingTrapMove(true);
       await dispatch(updateTrap({
         trapId: movingTrapId,
         values: {
@@ -318,12 +321,34 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
           ...(address && { address }),
         },
       }));
+      setSavingTrapMove(false);
     }
+    setTrapAddressChange(null);
     setPendingTrapPosition(null);
     dispatch(stopMovingTrap());
   };
 
+  const handleConfirmTrapMove = async () => {
+    if (!movingTrapId || !pendingTrapPosition) {
+      await saveTrapMove();
+      return;
+    }
+    setSavingTrapMove(true);
+    const found = await reverseGeocode(pendingTrapPosition.lat, pendingTrapPosition.lng);
+    setSavingTrapMove(false);
+    const current = traps.find((trap) => trap.id === movingTrapId)?.address?.trim() ?? '';
+    // The coordinates are the trap's position; the address only describes it,
+    // and may have been written by hand. Moving the trap therefore proposes a
+    // new address instead of overwriting the one already there.
+    if (found && current && found !== current) {
+      setTrapAddressChange({ current, found });
+      return;
+    }
+    await saveTrapMove(found && !current ? found : undefined);
+  };
+
   const handleCancelTrapMove = () => {
+    setTrapAddressChange(null);
     setPendingTrapPosition(null);
     dispatch(stopMovingTrap());
   };
@@ -521,7 +546,7 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
               type="button"
               className="btn btn-sm btn-primary"
               onClick={handleConfirmTrapMove}
-              disabled={!pendingTrapPosition}
+              disabled={!pendingTrapPosition || savingTrapMove}
             >
               Valider
             </button>
@@ -532,6 +557,17 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
         </div>
       )}
       
+      {trapAddressChange && (
+        <TrapAddressChangeModal
+          currentAddress={trapAddressChange.current}
+          foundAddress={trapAddressChange.found}
+          saving={savingTrapMove}
+          onReplace={() => void saveTrapMove(trapAddressChange.found)}
+          onKeep={() => void saveTrapMove()}
+          onHide={() => setTrapAddressChange(null)}
+        />
+      )}
+
       <HornetInfoPopup
         show={modal?.kind === 'hornet'}
         onHide={closeModal}
