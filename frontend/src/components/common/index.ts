@@ -6,3 +6,4 @@ export { default as CoordinateInput } from './CoordinateInput';
 export type { CoordinateInputProps } from './CoordinateInput';
 // Ajoutez ici d'autres exports de composants communs si besoin
 export { default as RequireRole } from './RequireRole';
+export { default as ThumbnailPreview } from './ThumbnailPreview';

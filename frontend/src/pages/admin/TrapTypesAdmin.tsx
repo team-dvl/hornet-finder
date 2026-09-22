@@ -3,6 +3,7 @@ import { Alert, Button, Container } from 'react-bootstrap';
 import { PageLayout } from '../../components/layout';
 import { ReferentialTable, TrapTypeFormModal, type ReferentialColumn } from '../../components/admin';
 import { ConfirmationModal } from '../../components/modals';
+import { ThumbnailPreview } from '../../components/common';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   deleteTrapType, fetchTrapTypes, selectTrapTypes, selectTrapsLoading, type TrapType,
@@ -14,7 +15,13 @@ const columns: ReferentialColumn<TrapType>[] = [
     header: '',
     render: (type) => (
       type.photo_thumbnail_url
-        ? <img src={type.photo_thumbnail_url} alt="" style={{ height: 40, width: 40, objectFit: 'cover', borderRadius: 4 }} />
+        ? (
+          <ThumbnailPreview
+            thumbnailUrl={type.photo_thumbnail_url}
+            fullUrl={type.photo_url}
+            alt={type.name}
+          />
+        )
         : <span className="text-muted">—</span>
     ),
   },
