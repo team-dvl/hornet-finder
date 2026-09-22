@@ -24,8 +24,14 @@ interface JWTClaims {
 export const useUserPermissions = () => {
   const auth = useAuth();
 
+  // `auth.user` survives an expired session (and this app persists it across
+  // reloads), so the mere presence of a user object says nothing. The library
+  // computes isAuthenticated as `!user.expired`: that is the signal to trust,
+  // otherwise a stale token keeps granting its roles after the session ended.
+  const isSignedIn = auth.isAuthenticated && Boolean(auth.user);
+
   const profile = auth.user?.profile;
-  const accessToken = auth.user?.access_token;
+  const accessToken = isSignedIn ? auth.user?.access_token : undefined;
   
   const decodedToken = useMemo(() => {
     if (!accessToken) return null;
@@ -59,27 +65,27 @@ export const useUserPermissions = () => {
 
   // Fonction pour vérifier si l'utilisateur peut éditer un frelon
   const canEditHornet = useCallback((hornet: Hornet) => {
-    if (!hornet || !userGuid || !auth.user) return false;
+    if (!hornet || !userGuid || !isSignedIn) return false;
     if (isAdmin) return true;
     if (!hornet.created_by) return false;
     return isOwner(hornet.created_by);
-  }, [isAdmin, userGuid, auth.user]);
+  }, [isAdmin, userGuid, isSignedIn]);
 
   // Fonction pour vérifier si l'utilisateur peut supprimer un frelon
   const canDeleteHornet = useCallback((hornet: Hornet) => {
-    if (!hornet || !userGuid || !auth.user) return false;
+    if (!hornet || !userGuid || !isSignedIn) return false;
     if (isAdmin) return true;
     if (!hornet.created_by) return false;
     return isOwner(hornet.created_by);
-  }, [isAdmin, userGuid, auth.user]);
+  }, [isAdmin, userGuid, isSignedIn]);
 
   // Fonction pour vérifier si l'utilisateur peut supprimer un nid
   const canDeleteNest = useCallback((nest: Nest) => {
-    if (!nest || !userGuid || !auth.user) return false;
+    if (!nest || !userGuid || !isSignedIn) return false;
     if (isAdmin) return true;
     if (!nest.created_by) return false;
     return isOwner(nest.created_by);
-  }, [isAdmin, userGuid, auth.user]);
+  }, [isAdmin, userGuid, isSignedIn]);
 
   // Seuls les admins peuvent archiver (contrairement à la suppression, pas d'exception pour le créateur)
   const canArchiveHornet = useCallback(() => isAdmin, [isAdmin]);
@@ -87,18 +93,18 @@ export const useUserPermissions = () => {
 
   // Fonction pour vérifier si l'utilisateur peut supprimer un rucher
   const canDeleteApiary = useCallback((apiary: Apiary) => {
-    if (!apiary || !userGuid || !auth.user) return false;
+    if (!apiary || !userGuid || !isSignedIn) return false;
     if (isAdmin) return true;
     if (!apiary.created_by) return false;
     return isOwner(apiary.created_by);
-  }, [isAdmin, userGuid, auth.user]);
+  }, [isAdmin, userGuid, isSignedIn]);
 
   // Mémoriser si l'utilisateur peut ajouter des frelons
   const canAddHornet = useMemo(() => {
-    if (!auth.user) return false;
+    if (!isSignedIn) return false;
     // Seuls les utilisateurs avec les rôles volunteer, beekeeper ou admin peuvent ajouter des frelons
     return roles.includes('volunteer') || roles.includes('beekeeper') || roles.includes('admin');
-  }, [roles, auth.user]);
+  }, [roles, isSignedIn]);
 
   // Chemins complets des groupes Keycloak de l'utilisateur (claim `membership`)
   const groups = useMemo(() => decodedToken?.membership || [], [decodedToken]);
@@ -127,8 +133,8 @@ export const useUserPermissions = () => {
   // Seuls les volontaires et apiculteurs possèdent des pièges : l'administrateur
   // administre, il ne fait pas de terrain.
   const canAddTrap = useMemo(
-    () => Boolean(auth.user) && (roles.includes('volunteer') || roles.includes('beekeeper')),
-    [roles, auth.user]
+    () => isSignedIn && (roles.includes('volunteer') || roles.includes('beekeeper')),
+    [roles, isSignedIn]
   );
 
   const isTrapOwner = useCallback(
@@ -138,34 +144,34 @@ export const useUserPermissions = () => {
 
   // Modifier, déplacer ou supprimer un piège : propriétaire ou administrateur
   const canEditTrap = useCallback((trap: Trap) => {
-    if (!trap || !auth.user) return false;
+    if (!trap || !isSignedIn) return false;
     return isAdmin || isTrapOwner(trap);
-  }, [isAdmin, isTrapOwner, auth.user]);
+  }, [isAdmin, isTrapOwner, isSignedIn]);
 
   // Enregistrer une prise ou une action : propriétaire ou groupe délégataire
   const canActOnTrap = useCallback((trap: Trap) => {
-    if (!trap || !auth.user) return false;
+    if (!trap || !isSignedIn) return false;
     return isTrapOwner(trap) || isMemberOfGroup(trap.group?.path);
-  }, [isTrapOwner, isMemberOfGroup, auth.user]);
+  }, [isTrapOwner, isMemberOfGroup, isSignedIn]);
 
   // Désigner ou retirer le groupe délégataire. La liste exacte des groupes
   // autorisés est calculée par le backend (GET /traps/{id}/delegation/).
   const canSetTrapDelegation = useCallback((trap: Trap) => {
-    if (!trap || !auth.user) return false;
+    if (!trap || !isSignedIn) return false;
     if (isAdmin || isTrapOwner(trap)) return true;
     return administeredGroups.length > 0;
-  }, [isAdmin, isTrapOwner, administeredGroups, auth.user]);
+  }, [isAdmin, isTrapOwner, administeredGroups, isSignedIn]);
 
   const canChangeTrapOwner = isAdmin;
 
   // Mémoriser si l'utilisateur peut ajouter des ruchers
   const canAddApiary = useMemo(() => {
-    if (!auth.user) return false;
+    if (!isSignedIn) return false;
     // Seuls les apiculteurs peuvent ajouter des ruchers
     return roles.includes('beekeeper');
-  }, [roles, auth.user]);
+  }, [roles, isSignedIn]);
 
-  if (!auth.user) {
+  if (!isSignedIn) {
     return {
       isAuthenticated: false,
       userEmail: null,
