@@ -182,6 +182,9 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/api/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 MEDIA_ACCEL_PREFIX = '/_media/'
+# Files are handed over to nginx, which serves them from the shared volume.
+# Set to False only when running Django without nginx in front.
+MEDIA_USE_X_ACCEL = os.environ.get('MEDIA_USE_X_ACCEL', 'True') == 'True'
 
 # Photos are resized client-side; this is the server-side safety net and must
 # stay below the `client_max_body_size` of the nginx /api/ location.

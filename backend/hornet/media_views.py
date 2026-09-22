@@ -64,8 +64,10 @@ def media_view(request, path):
     if not full_path.is_file():
         raise Http404
 
-    if getattr(settings, 'DEBUG', False):
-        # No nginx in front when running the dev server directly
+    if not getattr(settings, 'MEDIA_USE_X_ACCEL', True):
+        # Only for a bare `manage.py runserver`, with no nginx in front. Both
+        # the dev and the prod stacks go through nginx, so they take the same
+        # path and the accel handover is exercised in dev too.
         return FileResponse(open(full_path, 'rb'))
 
     response = HttpResponse(status=200)
