@@ -12,3 +12,7 @@ volumes:
   frontend-dist:
     external: true
     name: ${FRONTEND_DIST_VOLUME:?FRONTEND_DIST_VOLUME must be set in .env, then run ./storage-init.sh}
+
+  media:
+    external: true
+    name: ${MEDIA_VOLUME:?MEDIA_VOLUME must be set in .env, then run ./storage-init.sh}

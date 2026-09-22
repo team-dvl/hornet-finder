@@ -54,6 +54,8 @@ services:
       - KC_CLIENT_SECRET=${KC_CLIENT_SECRET}
       - KC_INTERNAL_URL=http://hornet-finder-dev-keycloak:8080/
       - KC_REALM=hornet-finder-dev
+    volumes:
+      - dev-media:/app/media
     depends_on:
       - hornet-finder-dev-api-db
       - hornet-finder-dev-keycloak
@@ -100,6 +102,7 @@ services:
       - ./nginx/include/security-headers-dev.conf:/etc/nginx/include/security-headers-dev.conf:ro
       - ./certbot-dev/conf:/etc/letsencrypt:ro
       - ./certbot-dev/www:/var/www/certbot
+      - dev-media:/srv/media:ro
     depends_on:
       - hornet-finder-dev-api
       - hornet-finder-dev-keycloak
@@ -126,6 +129,7 @@ services:
 volumes:
   dev-api-db:
   dev-keycloak-db:
+  dev-media:
 
 networks:
   default:

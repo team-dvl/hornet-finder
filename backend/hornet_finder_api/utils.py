@@ -129,3 +129,23 @@ def get_user_display_name(guid: str) -> Optional[str]:
         return user.get('preferred_username') or user.get('email') or user.get('id')
     except Exception:
         return None
+
+def get_user_group_paths(guid: str) -> list:
+    """
+    Retrieve the full Keycloak group paths of a user.
+
+    Only used as a fallback for a user who has not authenticated since their
+    groups were last mirrored locally: the normal source is the `membership`
+    claim of the caller's own token.
+
+    :param guid: The Keycloak user ID.
+    :type guid: str
+    :return: The list of full group paths, empty when unknown.
+    :rtype: list
+    """
+    keycloak_admin = _get_keycloak_admin()
+    try:
+        groups = keycloak_admin.get_user_groups(guid, full_hierarchy=False)
+        return [g['path'] for g in groups if g.get('path')]
+    except Exception:
+        return []

@@ -175,6 +175,20 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+# User-uploaded media (trap photos). The directory is a Docker volume shared
+# read-only with nginx; files are never served by URL directly, they go through
+# the permission-checking view in hornet.media_views, which delegates the actual
+# transfer to nginx with X-Accel-Redirect.
+MEDIA_URL = '/api/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ACCEL_PREFIX = '/_media/'
+
+# Photos are resized client-side; this is the server-side safety net and must
+# stay below the `client_max_body_size` of the nginx /api/ location.
+MAX_UPLOAD_SIZE = 10 * 1024 * 1024
+DATA_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 

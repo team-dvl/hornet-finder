@@ -8,3 +8,7 @@ volumes:
   dev-keycloak-db:
     external: true
     name: ${KEYCLOAK_DB_VOLUME:?KEYCLOAK_DB_VOLUME must be set in .env, then run ./storage-init.sh}
+
+  dev-media:
+    external: true
+    name: ${MEDIA_VOLUME:?MEDIA_VOLUME must be set in .env, then run ./storage-init.sh}

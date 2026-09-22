@@ -71,7 +71,7 @@ MODE=$(get_configured_environment)
 echo "[STORAGE] Provisioning storage for environment: $MODE"
 
 if [[ -z "$(managed_volumes)" ]]; then
-    handle_error "No volume declared in .env (API_DB_VOLUME, KEYCLOAK_DB_VOLUME, FRONTEND_DIST_VOLUME are all empty)"
+    handle_error "No volume declared in .env (API_DB_VOLUME, KEYCLOAK_DB_VOLUME, FRONTEND_DIST_VOLUME, MEDIA_VOLUME are all empty)"
 fi
 
 if zfs_backend_configured; then

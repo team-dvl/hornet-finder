@@ -96,11 +96,18 @@ class JWTBearerAuthentication(BaseAuthentication):
             # --- On-the-fly creation of the local user if not existing ---
             guid = token_info.get('sub')
             if guid:
+                # The group paths are mirrored locally because permissions
+                # sometimes depend on *another* user's groups (see
+                # hornet/trap_permissions.py), which no token can provide.
+                group_paths = token_info.get('membership', []) or []
                 try:
-                    User.objects.get(guid=guid)
+                    local_user = User.objects.get(guid=guid)
+                    if local_user.group_paths != group_paths:
+                        local_user.group_paths = group_paths
+                        local_user.save(update_fields=['group_paths'])
                 except User.DoesNotExist:
                     logger.debug(f"Creating new user with GUID: {guid}")
-                    User.objects.create(guid=uuid.UUID(guid))
+                    User.objects.create(guid=uuid.UUID(guid), group_paths=group_paths)
             # ---------------------------------------------------------------
 
             return (user, token_info)

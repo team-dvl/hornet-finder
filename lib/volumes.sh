@@ -4,9 +4,9 @@
 # Docker volume helpers for Hornet Finder.
 #
 # The external volumes used by the stack are declared once in .env
-# (API_DB_VOLUME, KEYCLOAK_DB_VOLUME, FRONTEND_DIST_VOLUME) and referenced by
-# name from the docker-compose.*.external-volumes.yml overlay. This file is the
-# only place scripts get that list from.
+# (API_DB_VOLUME, KEYCLOAK_DB_VOLUME, FRONTEND_DIST_VOLUME, MEDIA_VOLUME) and
+# referenced by name from the docker-compose.*.external-volumes.yml overlay.
+# This file is the only place scripts get that list from.
 #
 # Deployment scripts only ever *verify* that volumes exist. Creating them is
 # provisioning, and belongs to storage-init.sh alone. Nothing here knows about
@@ -20,7 +20,8 @@
 # and prod naturally differ.
 managed_volumes() {
     local v
-    for v in "${API_DB_VOLUME:-}" "${KEYCLOAK_DB_VOLUME:-}" "${FRONTEND_DIST_VOLUME:-}"; do
+    for v in "${API_DB_VOLUME:-}" "${KEYCLOAK_DB_VOLUME:-}" "${FRONTEND_DIST_VOLUME:-}" \
+              "${MEDIA_VOLUME:-}"; do
         [[ -n "$v" ]] && echo "$v"
     done
     return 0

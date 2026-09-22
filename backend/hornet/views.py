@@ -227,10 +227,8 @@ class ApiaryViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
 
     def _get_membership_paths(self, request):
         """Extracts the list of group paths from the JWT token (scope 'membership')."""
-        token_info = getattr(request.user, 'token_info', None)
-        if not token_info:
-            return []
-        return token_info.get('membership', [])
+        from .trap_permissions import membership_paths
+        return membership_paths(request)
 
     def _has_apiary_permission(self, request, apiary, perm_type):
         """
