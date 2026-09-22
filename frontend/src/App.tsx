@@ -10,6 +10,7 @@ import { initIOSViewportFix } from './utils/iosViewportFix';
 import { useUrlCleaner } from './utils/urlCleaner';
 import { setupPWAAuthMonitoring, setupTokenMonitoring, syncAuthStateWithServiceWorker } from './utils/pwaAuth';
 import { useMobileSessionPersistence } from './hooks/useMobileSessionPersistence';
+import { setApiAccessToken } from './utils/api';
 
 // Import conditionnel pour les tests en développement
 if (import.meta.env.DEV) {
@@ -18,6 +19,13 @@ if (import.meta.env.DEV) {
 
 function App() {
   const auth = useAuth();
+
+  // Give the API client the token of the current session. Done during render
+  // and not in an effect: a child's mount effect fires its first requests
+  // before the effects of this component would have run, and those calls must
+  // already carry the token. `isAuthenticated` is `!user.expired`, so an
+  // expired session hands over nothing.
+  setApiAccessToken(auth.isAuthenticated && auth.user ? auth.user.access_token ?? null : null);
 
   // Nettoyer automatiquement l'URL après authentification (pour PWA)
   useUrlCleaner(auth.isAuthenticated);

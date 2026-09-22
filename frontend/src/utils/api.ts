@@ -9,12 +9,21 @@ const api = axios.create({
   },
 });
 
+// Bearer token of the current session, kept in step by `App` (see
+// `setApiAccessToken`). It is held in memory rather than in localStorage: the
+// session lives in the OIDC context, and a copy on disk would outlive it.
+let accessToken: string | null = null;
+
+/** Token attached to every API call, or `null` when nobody is signed in. */
+export function setApiAccessToken(token: string | null): void {
+  accessToken = token;
+}
+
 // Intercepteur pour ajouter automatiquement le token d'authentification
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (accessToken) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
     }
     return config;
   },
@@ -31,9 +40,8 @@ api.interceptors.response.use(
   (error) => {
     // Gestion centralisée des erreurs
     if (error.response?.status === 401) {
-      // Token expiré ou invalide
-      localStorage.removeItem('access_token');
-      // Vous pouvez rediriger vers la page de connexion ici
+      // Token expiré ou invalide : le contexte OIDC en fournira un neuf
+      accessToken = null;
     }
     return Promise.reject(error);
   }
