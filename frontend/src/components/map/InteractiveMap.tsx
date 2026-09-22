@@ -500,6 +500,7 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
             trap={trap}
             isMine={Boolean(trap.owner && trap.owner.guid === userGuid)}
             isMoving={movingTrapId === trap.id}
+            pendingPosition={movingTrapId === trap.id ? pendingTrapPosition : null}
             onClick={handleSmartTrapClick}
             onMoved={handleTrapMoved}
           />

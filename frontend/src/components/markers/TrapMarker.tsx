@@ -1,7 +1,7 @@
 import { Marker, Tooltip } from 'react-leaflet';
 import { DivIcon } from 'leaflet';
 import * as L from 'leaflet';
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { Trap } from '../../store/slices/trapsSlice';
 
 /**
@@ -42,18 +42,36 @@ interface TrapMarkerProps {
   isMine?: boolean;
   /** When true the marker can be dragged to reposition the trap */
   isMoving?: boolean;
+  /** Position reached by the drag, not saved yet; the trap's own otherwise */
+  pendingPosition?: { lat: number; lng: number } | null;
   onClick?: (trap: Trap) => void;
   onMoved?: (trap: Trap, latitude: number, longitude: number) => void;
 }
 
-export default function TrapMarker({ trap, isMine = false, isMoving = false, onClick, onMoved }: TrapMarkerProps) {
+export default function TrapMarker({
+  trap, isMine = false, isMoving = false, pendingPosition = null, onClick, onMoved,
+}: TrapMarkerProps) {
   const markerRef = useRef<L.Marker | null>(null);
+
+  // react-leaflet compares `position` by reference and this array is rebuilt on
+  // every render, so it always calls setLatLng: a marker dragged to a position
+  // that is not in the store yet would be pulled back to the stored one.
+  const position: [number, number] = pendingPosition
+    ? [pendingPosition.lat, pendingPosition.lng]
+    : [trap.latitude, trap.longitude];
+
+  // Same reason: a new icon object on every render means a new DOM element,
+  // which would interrupt a drag in progress.
+  const icon = useMemo(
+    () => createTrapIcon(trap, isMine, isMoving),
+    [trap, isMine, isMoving],
+  );
 
   return (
     <Marker
       ref={markerRef}
-      position={[trap.latitude, trap.longitude]}
-      icon={createTrapIcon(trap, isMine, isMoving)}
+      position={position}
+      icon={icon}
       draggable={isMoving}
       zIndexOffset={150} // Sous les nids, au-dessus des ruchers
       eventHandlers={{
