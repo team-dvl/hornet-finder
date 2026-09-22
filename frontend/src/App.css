@@ -288,3 +288,19 @@ button.module-card {
   animation: none;
   transform: scale(1.2);
 }
+
+/*
+ * A scrollable modal lays out its content as a flex column and hides what
+ * overflows: `.modal-content` is the flex container, `.modal-body` the only
+ * part allowed to scroll. A `<form>` wrapping the body and the footer breaks
+ * that chain — the body then grows past the dialog and the footer, buttons
+ * included, is clipped out of reach. Passing the layout on to the form
+ * restores it.
+ */
+.modal-dialog-scrollable .modal-content > form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
