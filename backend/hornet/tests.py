@@ -565,3 +565,38 @@ class TrapTypeAdminTests(TrapTestCase):
         response = TrapTypeViewSet.as_view({'patch': 'partial_update'})(
             request, pk=self.trap_type.id)
         self.assertEqual(response.status_code, 400)
+
+
+class KeycloakGroupLookupTests(TestCase):
+    """
+    The fallback that reads a user's groups straight from Keycloak.
+
+    It is only reached for a user who has not authenticated since their groups
+    were last mirrored, so a wrong call signature stays invisible until that
+    rare path runs. The mock is built from the real python-keycloak method, so
+    passing an argument it does not accept fails here rather than in production.
+    """
+
+    def test_group_paths_are_read_with_a_supported_call(self):
+        from unittest.mock import create_autospec, patch
+        from keycloak import KeycloakAdmin
+        from hornet_finder_api.utils import get_user_group_paths
+
+        admin = create_autospec(KeycloakAdmin, instance=True)
+        admin.get_user_groups.return_value = [
+            {'id': '1', 'path': '/beekeepers/ena/admin'},
+            {'id': '2', 'path': '/volunteers'},
+            {'id': '3'},  # a group without a path is skipped
+        ]
+        with patch('hornet_finder_api.utils._get_keycloak_admin', return_value=admin):
+            paths = get_user_group_paths('some-guid')
+
+        self.assertEqual(paths, ['/beekeepers/ena/admin', '/volunteers'])
+        admin.get_user_groups.assert_called_once_with('some-guid')
+
+    def test_a_keycloak_failure_yields_no_group(self):
+        from unittest.mock import patch
+        from hornet_finder_api.utils import get_user_group_paths
+
+        with patch('hornet_finder_api.utils._get_keycloak_admin', side_effect=RuntimeError('down')):
+            self.assertEqual(get_user_group_paths('some-guid'), [])

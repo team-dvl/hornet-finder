@@ -143,9 +143,10 @@ def get_user_group_paths(guid: str) -> list:
     :return: The list of full group paths, empty when unknown.
     :rtype: list
     """
-    keycloak_admin = _get_keycloak_admin()
     try:
-        groups = keycloak_admin.get_user_groups(guid, full_hierarchy=False)
+        groups = _get_keycloak_admin().get_user_groups(guid)
         return [g['path'] for g in groups if g.get('path')]
-    except Exception:
+    except Exception as e:
+        # Never fatal: the caller falls back to the locally mirrored paths
+        logger.warning(f"Failed to retrieve Keycloak groups of {guid}: {type(e).__name__}: {e}")
         return []
