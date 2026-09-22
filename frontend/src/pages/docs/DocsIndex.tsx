@@ -1,17 +1,20 @@
 import { Container, Row, Col } from 'react-bootstrap';
 import { PageLayout } from '../../components/layout';
 import { ModuleCard } from '../../components/home';
-import { DOCUMENTED_MODULES } from '../../config/modules';
+import { documentedModules } from '../../config/modules';
+import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { DOC_PAGES } from './registry';
 
-/** Documentation entry point: one tile per module. */
+/** Documentation entry point: one tile per module the user can open. */
 export default function DocsIndex() {
+  const { roles } = useUserPermissions();
+
   return (
     <PageLayout>
       <Container className="py-4">
         <h2 className="mb-4 text-center">Documentation</h2>
         <Row className="g-3 justify-content-center">
-          {DOCUMENTED_MODULES.map((module) => (
+          {documentedModules(roles).map((module) => (
             <Col key={module.id} md={4}>
               <ModuleCard
                 title={module.title}

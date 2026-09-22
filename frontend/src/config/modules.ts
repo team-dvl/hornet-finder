@@ -64,16 +64,20 @@ export const MODULES: ModuleDefinition[] = [
   },
 ];
 
-/** Modules that get a page under /docs (the user-facing ones). */
-export const DOCUMENTED_MODULES = MODULES.filter(
-  (m) => m.id !== 'docs' && m.id !== 'account' && m.id !== 'admin'
-);
-
 /** Modules the given roles give access to. */
 export function visibleModules(roles: string[]): ModuleDefinition[] {
   return MODULES.filter(
     (module) => !module.requiredRoles || module.requiredRoles.some((role) => roles.includes(role))
   );
+}
+
+/**
+ * Modules that get a page under /docs: the user-facing ones the given roles
+ * open, which leaves out the documentation module itself and the account
+ * console. A module nobody but an admin can use is not named to others.
+ */
+export function documentedModules(roles: string[]): ModuleDefinition[] {
+  return visibleModules(roles).filter((m) => m.id !== 'docs' && m.id !== 'account');
 }
 
 export function findModule(id: string): ModuleDefinition | undefined {
