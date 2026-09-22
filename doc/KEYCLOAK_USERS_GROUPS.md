@@ -127,7 +127,33 @@ Le champ `path` doit correspondre exactement, y compris le premier `/` et la cas
 
 Créer le groupe dans Keycloak ne crée pas automatiquement le groupe dans Django. Inversement, une ligne Django sans chemin présent dans `membership` ne donnera aucun accès.
 
-## 7. Différences entre les environnements
+## 7. Administrateurs de groupe
+
+Un **administrateur de groupe** est membre du sous-groupe `admin` de son groupe :
+
+| Groupe | Administrateurs |
+| --- | --- |
+| `/beekeepers/vsab` | `/beekeepers/vsab/admin` |
+| `/volunteers/vsa` | `/volunteers/vsa/admin` |
+
+Ces sous-groupes portent le rôle realm `group-admin` (les sous-groupes d'apiculteurs
+conservent aussi `beekeeper-group-admin`, antérieur). Le backend ne se fie pas au rôle
+mais au **chemin** : est administrateur de `G` quiconque possède dans son claim
+`membership` un chemin égal à `G/admin` ou commençant par `G/admin/`. La comparaison
+se fait par préfixe car Keycloak ne liste que les groupes d'appartenance directe : un
+membre de `/beekeepers/vsab/admin` n'a pas forcément `/beekeepers/vsab` dans son jeton,
+et il est pourtant membre du groupe.
+
+Dans le module *Pièges*, un administrateur de groupe peut désigner ou retirer le groupe
+délégataire des pièges appartenant aux membres de son groupe. Pour connaître les groupes
+du *propriétaire* d'un piège — que le jeton du demandeur ne porte pas — le backend garde
+une copie locale des chemins de groupe de chaque utilisateur (`User.group_paths`),
+rafraîchie à chaque requête authentifiée.
+
+L'import de realm ne s'applique qu'à un realm neuf : sur un environnement existant, créez
+le sous-groupe `admin` à la main dans la console Keycloak et attribuez-lui `group-admin`.
+
+## 8. Différences entre les environnements
 
 Les realms sont distincts :
 
@@ -138,7 +164,7 @@ Les realms sont distincts :
 
 Les groupes de développement et de production ne doivent pas être mélangés. Les exports contiennent des exemples de sous-groupes différents ; toute organisation ajoutée dans un environnement doit être créée dans le realm correspondant et synchronisée avec la base Django de cet environnement.
 
-## 8. Vérification rapide
+## 9. Vérification rapide
 
 Pour valider une configuration utilisateur :
 

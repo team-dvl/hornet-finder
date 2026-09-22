@@ -32,6 +32,21 @@ A RESTful API built with Django and Django REST Framework for managing hornet de
 - `GET|POST /api/apiaries/` - List all apiaries or create a new apiary record
 - `GET|PUT|PATCH|DELETE /api/apiaries/{id}/` - Retrieve, update, or delete a specific apiary
 
+### Traps
+
+- `GET|POST /api/traps/` - Traps around a position (`lat`, `lon`, `radius`, `active`, `mine`), or create one. The listing is open to anonymous visitors, who get the public shape (no owner, no group, no journal) and only public traps
+- `GET|PATCH|DELETE /api/traps/{id}/` - Detail with its journal, update (owner or platform admin), delete
+- `GET /api/traps/my/` - Traps of the caller
+- `POST|DELETE /api/traps/{id}/photo/` - Replace or remove the trap photo (multipart)
+- `GET|POST /api/traps/{id}/events/` - Journal of the trap, or record an intervention (multipart, `photos` repeated). Reserved to the owner and the delegated group: platform admins do not record field work
+- `GET|PUT|DELETE /api/traps/{id}/delegation/` - Current delegation and the groups the caller may pick, set a group, or withdraw the delegation
+- `PUT /api/traps/{id}/owner/` - Reassign a bequeathed trap (platform admin only)
+- `PATCH|DELETE /api/trap-events/{id}/` - Correct or remove a journal entry
+- `DELETE /api/trap-photos/{id}/` - Remove one photo
+- `GET|POST /api/trap-types/`, `GET|PATCH|DELETE /api/trap-types/{id}/` - Trap type referential; readable by any authenticated user, writable by platform admins. Deleting a type still in use answers 409 with its trap count
+- `GET|POST /api/species/`, `GET|PATCH|DELETE /api/species/{id}/` - Species referential, same rules
+- `GET /api/media/{path}` - Uploaded photo, served only to users allowed to see the owning trap (nginx does the transfer through X-Accel-Redirect)
+
 ### Documentation
 
 - `GET /api/docs/` - Interactive Swagger UI documentation (development only)

@@ -68,6 +68,15 @@
         "attributes": {}
       },
       {
+        "name": "group-admin",
+        "description": "Group administrator: administers a group of beekeepers or volunteers (membership, trap delegation)",
+        "composite": false,
+        "clientRole": false,
+        "attributes": {},
+        "id": "f00093d6-b7a1-4ac2-a105-48969ea8c9e2",
+        "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049"
+      },
+      {
         "id": "6828d02c-06de-443e-88ac-fd31e6b20c4a",
         "name": "admin",
         "description": "",
@@ -456,7 +465,8 @@
         "beekeeper",
         "beekeeper-group-admin",
         "admin",
-        "volunteer"
+        "volunteer",
+        "group-admin"
       ],
       "clientRoles": {}
     },
@@ -479,7 +489,8 @@
               "subGroups": [],
               "attributes": {},
               "realmRoles": [
-                "beekeeper-group-admin"
+                "beekeeper-group-admin",
+                "group-admin"
               ],
               "clientRoles": {}
             }
@@ -506,7 +517,8 @@
               "subGroups": [],
               "attributes": {},
               "realmRoles": [
-                "beekeeper-group-admin"
+                "beekeeper-group-admin",
+                "group-admin"
               ],
               "clientRoles": {}
             }
@@ -536,7 +548,20 @@
           "name": "vsa",
           "path": "/volunteers/vsa",
           "parentId": "c80bc5ca-7840-411c-8754-bf78a85db170",
-          "subGroups": [],
+          "subGroups": [
+            {
+              "id": "f5991a3b-6088-4729-ad8a-7fc96032e2d6",
+              "name": "admin",
+              "path": "/volunteers/vsa/admin",
+              "parentId": "f085ce47-ef5f-491a-acaf-f86cdc89f7bc",
+              "subGroups": [],
+              "attributes": {},
+              "realmRoles": [
+                "group-admin"
+              ],
+              "clientRoles": {}
+            }
+          ],
           "attributes": {
             "fancy_name": [
               "Vedrin s'anime"

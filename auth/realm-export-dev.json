@@ -68,6 +68,15 @@
         "attributes": {}
       },
       {
+        "name": "group-admin",
+        "description": "Group administrator: administers a group of beekeepers or volunteers (membership, trap delegation)",
+        "composite": false,
+        "clientRole": false,
+        "attributes": {},
+        "id": "341a01f3-1421-4aec-a286-78c363bacc2b",
+        "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049"
+      },
+      {
         "id": "6828d02c-06de-443e-88ac-fd31e6b20c4a",
         "name": "admin",
         "description": "",
@@ -455,7 +464,8 @@
         "beekeeper",
         "beekeeper-group-admin",
         "admin",
-        "volunteer"
+        "volunteer",
+        "group-admin"
       ],
       "clientRoles": {}
     },
@@ -478,7 +488,8 @@
               "subGroups": [],
               "attributes": {},
               "realmRoles": [
-                "beekeeper-group-admin"
+                "beekeeper-group-admin",
+                "group-admin"
               ],
               "clientRoles": {}
             }
@@ -505,7 +516,8 @@
               "subGroups": [],
               "attributes": {},
               "realmRoles": [
-                "beekeeper-group-admin"
+                "beekeeper-group-admin",
+                "group-admin"
               ],
               "clientRoles": {}
             }
@@ -535,7 +547,20 @@
           "name": "vol-group-a",
           "path": "/volunteers/vol-group-a",
           "parentId": "c80bc5ca-7840-411c-8754-bf78a85db170",
-          "subGroups": [],
+          "subGroups": [
+            {
+              "id": "17f49250-91d4-4834-b877-074982dd87d0",
+              "name": "admin",
+              "path": "/volunteers/vol-group-a/admin",
+              "parentId": "f085ce47-ef5f-491a-acaf-f86cdc89f7bc",
+              "subGroups": [],
+              "attributes": {},
+              "realmRoles": [
+                "group-admin"
+              ],
+              "clientRoles": {}
+            }
+          ],
           "attributes": {
             "fancy_name": [
               "Vedrin s'anime"
