@@ -2,9 +2,12 @@ import { useEffect, useState } from 'react';
 import { Alert, Button, Form, Modal, Spinner } from 'react-bootstrap';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
-  addTrapEvent, fetchSpecies, selectSpecies, type Trap, type TrapEventKind,
+  addTrapCatch, addTrapEvent, fetchSpecies, selectSpecies, type Trap, type TrapEventKind,
 } from '../../store/store';
 import PhotoInput from './PhotoInput';
+import SpeciesCard from './SpeciesCard';
+import { SPECIES_GRID_STYLE } from './speciesGrid';
+import SpeciesPicker from './SpeciesPicker';
 import { EVENT_KINDS, eventKindInfo } from './eventKinds';
 
 /** Local datetime string accepted by <input type="datetime-local"> */
@@ -12,6 +15,16 @@ function nowLocal(): string {
   const now = new Date();
   now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
   return now.toISOString().slice(0, 16);
+}
+
+/** Species the catch starts with: the one the traps are there for */
+const DEFAULT_SPECIES = 'vespa-velutina';
+
+/** One card of the catch being recorded */
+interface CatchLine {
+  slug: string;
+  quantity: number;
+  photo: File | null;
 }
 
 interface TrapEventModalProps {
@@ -29,8 +42,8 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
 
   const [kind, setKind] = useState<TrapEventKind>(initialKind);
   const [performedAt, setPerformedAt] = useState(nowLocal);
-  const [speciesSlug, setSpeciesSlug] = useState('vespa-velutina');
-  const [quantity, setQuantity] = useState(1);
+  const [lines, setLines] = useState<CatchLine[]>([{ slug: DEFAULT_SPECIES, quantity: 1, photo: null }]);
+  const [picking, setPicking] = useState(false);
   const [comments, setComments] = useState('');
   const [photos, setPhotos] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
@@ -42,22 +55,39 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
     }
   }, [species.length, dispatch]);
 
+  // A card brought down to zero stays on screen but is not recorded
+  const counted = lines.filter((line) => line.quantity > 0);
+
+  const updateLine = (slug: string, change: Partial<CatchLine>) =>
+    setLines((current) => current.map((line) => (line.slug === slug ? { ...line, ...change } : line)));
+
+  const addLine = (slug: string) => {
+    setLines((current) => [...current, { slug, quantity: 1, photo: null }]);
+    setPicking(false);
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!trap) return;
+    if (kind === 'catch' && counted.length === 0) {
+      setError('Indiquez au moins une capture.');
+      return;
+    }
     setSaving(true);
     setError(null);
+    // The input has no timezone, the browser's one applies
+    const performed_at = new Date(performedAt).toISOString();
     try {
-      await dispatch(addTrapEvent({
-        trapId: trap.id,
-        kind,
-        // The input has no timezone, the browser's one applies
-        performed_at: new Date(performedAt).toISOString(),
-        species_slug: speciesSlug,
-        quantity,
-        comments,
-        photos,
-      })).unwrap();
+      if (kind === 'catch') {
+        await dispatch(addTrapCatch({
+          trapId: trap.id,
+          performed_at,
+          comments,
+          items: counted.map(({ slug, quantity, photo }) => ({ species_slug: slug, quantity, photo })),
+        })).unwrap();
+      } else {
+        await dispatch(addTrapEvent({ trapId: trap.id, kind, performed_at, comments, photos })).unwrap();
+      }
       onHide();
     } catch (submitError) {
       setError(submitError as string);
@@ -66,14 +96,12 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
     }
   };
 
-  const selectedSpecies = species.find((item) => item.slug === speciesSlug);
-
   return (
     <Modal show onHide={onHide} centered scrollable>
       <Modal.Header closeButton>
         <Modal.Title>
           <span className="me-2">{eventKindInfo(kind).icon}</span>
-          {kind === 'catch' ? 'Enregistrer une prise' : 'Ajouter une action'}
+          {kind === 'catch' ? 'Enregistrer une capture' : 'Ajouter une action'}
         </Modal.Title>
       </Modal.Header>
 
@@ -111,42 +139,55 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
           </Form.Group>
 
           {kind === 'catch' && (
-            <>
-              <Form.Group className="mb-3">
-                <Form.Label>Espèce</Form.Label>
-                <Form.Select
-                  value={speciesSlug}
-                  onChange={(event) => setSpeciesSlug(event.target.value)}
-                >
-                  {species.map((item) => (
-                    <option key={item.slug} value={item.slug}>
-                      {item.name}{item.scientific_name ? ` — ${item.scientific_name}` : ''}
-                    </option>
-                  ))}
-                </Form.Select>
-                {selectedSpecies?.wikipedia_url && (
-                  <Form.Text>
-                    <a href={selectedSpecies.wikipedia_url} target="_blank" rel="noopener">
-                      Fiche Wikipédia de {selectedSpecies.name}
-                    </a>
+            <Form.Group className="mb-3">
+              <Form.Label className="d-flex justify-content-between align-items-baseline">
+                <span>Captures constatées</span>
+                {!picking && (
+                  <Form.Text muted className="m-0">
+                    Touchez une image pour compter
                   </Form.Text>
                 )}
-              </Form.Group>
-
-              <Form.Group className="mb-3">
-                <Form.Label>Quantité constatée</Form.Label>
-                <Form.Control
-                  type="number"
-                  min={1}
-                  value={quantity}
-                  onChange={(event) => setQuantity(Number(event.target.value))}
-                  required
+              </Form.Label>
+              {picking ? (
+                <SpeciesPicker
+                  species={species}
+                  excluded={lines.map((line) => line.slug)}
+                  onPick={addLine}
+                  onCancel={() => setPicking(false)}
                 />
-              </Form.Group>
-            </>
+              ) : (
+                <div style={SPECIES_GRID_STYLE}>
+                  {lines.map((line) => (
+                    <SpeciesCard
+                      key={line.slug}
+                      species={species.find((item) => item.slug === line.slug)}
+                      fallbackName={line.slug}
+                      quantity={line.quantity}
+                      photo={line.photo}
+                      onQuantityChange={(quantity) => updateLine(line.slug, { quantity })}
+                      onPhotoChange={(photo) => updateLine(line.slug, { photo })}
+                      onRemove={() => setLines((current) => current.filter((l) => l.slug !== line.slug))}
+                      disabled={saving}
+                    />
+                  ))}
+                  <button
+                    type="button"
+                    className="card d-flex flex-column align-items-center justify-content-center text-muted p-2"
+                    style={{ borderStyle: 'dashed', minHeight: 120 }}
+                    onClick={() => setPicking(true)}
+                    disabled={saving}
+                  >
+                    <i className="bi bi-plus-circle fs-3" aria-hidden="true" />
+                    <span className="small">Ajouter une espèce</span>
+                  </button>
+                </div>
+              )}
+            </Form.Group>
           )}
 
-          <PhotoInput label="Photos (facultatif)" multiple onChange={setPhotos} />
+          {kind !== 'catch' && (
+            <PhotoInput label="Photos (facultatif)" multiple onChange={setPhotos} />
+          )}
 
           <Form.Group className="mb-0">
             <Form.Label>Commentaire</Form.Label>
@@ -163,7 +204,7 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
           <Button variant="secondary" onClick={onHide} disabled={saving}>
             Annuler
           </Button>
-          <Button type="submit" variant="primary" disabled={saving}>
+          <Button type="submit" variant="primary" disabled={saving || picking}>
             {saving && <Spinner animation="border" size="sm" className="me-2" />}
             Enregistrer
           </Button>

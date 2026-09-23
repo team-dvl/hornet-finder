@@ -34,6 +34,13 @@ export interface Species {
   scientific_name: string;
   wikipedia_url: string;
   sort_order: number;
+  photo_url: string | null;
+  photo_thumbnail_url: string | null;
+  /** Author and licence of the photo (Wikimedia Commons pictures must be credited) */
+  photo_credit: string;
+  photo_source_url: string;
+  /** Number of journal entries naming this species */
+  event_count?: number;
 }
 
 export type TrapEventKind =
@@ -58,8 +65,15 @@ export interface TrapEvent {
   kind: TrapEventKind;
   performed_at: string;
   performed_by: UserSummary | null;
-  species: { slug: string; name: string; wikipedia_url: string } | null;
+  species: {
+    slug: string;
+    name: string;
+    wikipedia_url: string;
+    photo_thumbnail_url: string | null;
+  } | null;
   quantity: number | null;
+  /** Shared by the catch events recorded together during one visit */
+  batch: string | null;
   comments: string;
   photos: TrapPhoto[];
   created_at: string;
@@ -267,6 +281,57 @@ export const addTrapEvent = createAsyncThunk(
   }
 );
 
+/** One species found during a visit, with its optional photo. */
+export interface CatchItem {
+  species_slug: string;
+  quantity: number;
+  photo?: File | null;
+}
+
+/** Record one visit's catches: one journal entry per species, sharing a batch. */
+export const addTrapCatch = createAsyncThunk(
+  'traps/addTrapCatch',
+  async ({ trapId, performed_at, comments, items }: {
+    trapId: number;
+    performed_at: string;
+    comments?: string;
+    items: CatchItem[];
+  }, { rejectWithValue, dispatch }) => {
+    try {
+      const form = new FormData();
+      form.append('performed_at', performed_at);
+      if (comments) form.append('comments', comments);
+      form.append('items', JSON.stringify(
+        items.map(({ species_slug, quantity }) => ({ species_slug, quantity })),
+      ));
+      // A photo is matched to its item by position
+      items.forEach((item, index) => {
+        if (item.photo) form.append(`photo_${index}`, item.photo);
+      });
+
+      const response = await api.post(`/traps/${trapId}/catches/`, form, MULTIPART);
+      dispatch(fetchTrapDetail(trapId));
+      return response.data as TrapEvent[];
+    } catch (error: unknown) {
+      return rejectWithValue(getAxiosErrorMessage(error));
+    }
+  }
+);
+
+/** Remove every catch event of a visit. */
+export const deleteTrapCatch = createAsyncThunk(
+  'traps/deleteTrapCatch',
+  async ({ trapId, batch }: { trapId: number; batch: string }, { rejectWithValue, dispatch }) => {
+    try {
+      await api.delete(`/traps/${trapId}/catches/${batch}/`);
+      dispatch(fetchTrapDetail(trapId));
+      return batch;
+    } catch (error: unknown) {
+      return rejectWithValue(getAxiosErrorMessage(error));
+    }
+  }
+);
+
 export const deleteTrapEvent = createAsyncThunk(
   'traps/deleteTrapEvent',
   async ({ trapId, eventId }: { trapId: number; eventId: number }, { rejectWithValue, dispatch }) => {
@@ -370,7 +435,16 @@ export interface TrapTypeFormValues {
   photo?: File | null;
 }
 
-function trapTypeFormData(values: TrapTypeFormValues): FormData {
+export interface SpeciesFormValues {
+  name: string;
+  scientific_name?: string;
+  wikipedia_url?: string;
+  sort_order?: number;
+  photo?: File | null;
+}
+
+/** Multipart body of a referential form: plain fields plus an optional photo. */
+function referentialFormData(values: TrapTypeFormValues | SpeciesFormValues): FormData {
   const form = new FormData();
   Object.entries(values).forEach(([key, value]) => {
     if (value === undefined || value === null || key === 'photo') return;
@@ -384,7 +458,7 @@ export const createTrapType = createAsyncThunk(
   'traps/createTrapType',
   async (values: TrapTypeFormValues, { rejectWithValue }) => {
     try {
-      const response = await api.post('/trap-types/', trapTypeFormData(values), MULTIPART);
+      const response = await api.post('/trap-types/', referentialFormData(values), MULTIPART);
       return response.data as TrapType;
     } catch (error: unknown) {
       return rejectWithValue(getAxiosErrorMessage(error));
@@ -396,7 +470,7 @@ export const updateTrapType = createAsyncThunk(
   'traps/updateTrapType',
   async ({ id, values }: { id: number; values: TrapTypeFormValues }, { rejectWithValue }) => {
     try {
-      const response = await api.patch(`/trap-types/${id}/`, trapTypeFormData(values), MULTIPART);
+      const response = await api.patch(`/trap-types/${id}/`, referentialFormData(values), MULTIPART);
       return response.data as TrapType;
     } catch (error: unknown) {
       return rejectWithValue(getAxiosErrorMessage(error));
@@ -412,6 +486,43 @@ export const deleteTrapType = createAsyncThunk(
       return id;
     } catch (error: unknown) {
       // A type still in use comes back as a 409 carrying the trap count
+      return rejectWithValue(getAxiosErrorMessage(error));
+    }
+  }
+);
+
+export const createSpecies = createAsyncThunk(
+  'traps/createSpecies',
+  async (values: SpeciesFormValues, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/species/', referentialFormData(values), MULTIPART);
+      return response.data as Species;
+    } catch (error: unknown) {
+      return rejectWithValue(getAxiosErrorMessage(error));
+    }
+  }
+);
+
+export const updateSpecies = createAsyncThunk(
+  'traps/updateSpecies',
+  async ({ id, values }: { id: number; values: SpeciesFormValues }, { rejectWithValue }) => {
+    try {
+      const response = await api.patch(`/species/${id}/`, referentialFormData(values), MULTIPART);
+      return response.data as Species;
+    } catch (error: unknown) {
+      return rejectWithValue(getAxiosErrorMessage(error));
+    }
+  }
+);
+
+export const deleteSpecies = createAsyncThunk(
+  'traps/deleteSpecies',
+  async (id: number, { rejectWithValue }) => {
+    try {
+      await api.delete(`/species/${id}/`);
+      return id;
+    } catch (error: unknown) {
+      // A species still named by the journal comes back as a 409
       return rejectWithValue(getAxiosErrorMessage(error));
     }
   }
@@ -509,6 +620,16 @@ const trapsSlice = createSlice({
       })
       .addCase(deleteTrapType.fulfilled, (state, action) => {
         state.trapTypes = state.trapTypes.filter((t) => t.id !== action.payload);
+      })
+      .addCase(createSpecies.fulfilled, (state, action) => {
+        state.species.push(action.payload);
+      })
+      .addCase(updateSpecies.fulfilled, (state, action) => {
+        const index = state.species.findIndex((s) => s.id === action.payload.id);
+        if (index >= 0) state.species[index] = action.payload;
+      })
+      .addCase(deleteSpecies.fulfilled, (state, action) => {
+        state.species = state.species.filter((s) => s.id !== action.payload);
       })
       // Every trap-returning thunk refreshes the cached copies the same way
       .addMatcher(

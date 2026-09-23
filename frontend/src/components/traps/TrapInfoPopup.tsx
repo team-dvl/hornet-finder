@@ -3,7 +3,7 @@ import { Alert, Badge, Button, Modal, Spinner } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
-  deleteTrap, deleteTrapEvent, fetchTrapDetail, selectSelectedTrap, startMovingTrap,
+  deleteTrap, deleteTrapCatch, deleteTrapEvent, fetchTrapDetail, selectSelectedTrap, startMovingTrap,
   type Trap, type TrapEvent, type TrapEventKind,
 } from '../../store/store';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
@@ -42,7 +42,6 @@ function EventRow({ event, canDelete, onDelete, onPreview }: {
         <div className="d-flex justify-content-between align-items-start">
           <strong className="small">
             {info.label}
-            {event.species && event.quantity ? ` — ${event.quantity} × ${event.species.name}` : ''}
           </strong>
           <span className="text-muted" style={{ fontSize: '0.75rem' }}>
             {formatDateTime(event.performed_at)}
@@ -84,6 +83,119 @@ function EventRow({ event, canDelete, onDelete, onPreview }: {
   );
 }
 
+/**
+ * Journal entries as displayed: the catch events recorded during one visit
+ * (same batch) form one entry, every other event stands alone.
+ */
+function journalEntries(events: TrapEvent[]): TrapEvent[][] {
+  const entries: TrapEvent[][] = [];
+  const byBatch = new Map<string, TrapEvent[]>();
+  events.forEach((event) => {
+    if (!event.batch) {
+      entries.push([event]);
+      return;
+    }
+    const entry = byBatch.get(event.batch);
+    if (entry) {
+      entry.push(event);
+    } else {
+      const created = [event];
+      byBatch.set(event.batch, created);
+      entries.push(created);
+    }
+  });
+  return entries;
+}
+
+/** One visit's catches: a small card per species, with its count. */
+function CatchRow({ events, canDelete, onDelete, onPreview }: {
+  events: TrapEvent[];
+  canDelete: boolean;
+  onDelete: (events: TrapEvent[]) => void;
+  onPreview: (url: string) => void;
+}) {
+  const first = events[0];
+  const info = eventKindInfo('catch');
+  const total = events.reduce((sum, event) => sum + (event.quantity ?? 0), 0);
+  const comments = events.map((event) => event.comments).filter(Boolean);
+  return (
+    <div className="d-flex gap-2 py-2 border-bottom">
+      <div style={{ fontSize: '1.4rem', lineHeight: 1 }}>{info.icon}</div>
+      <div className="flex-grow-1">
+        <div className="d-flex justify-content-between align-items-start">
+          <strong className="small">
+            {info.label}
+            {events.length > 1 ? ` — ${total} insectes` : ''}
+          </strong>
+          <span className="text-muted" style={{ fontSize: '0.75rem' }}>
+            {formatDateTime(first.performed_at)}
+          </span>
+        </div>
+        {first.performed_by && (
+          <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+            par {first.performed_by.display_name}
+          </div>
+        )}
+        <div className="d-flex flex-wrap gap-2 mt-1">
+          {events.map((event) => {
+            const photo = event.photos[0];
+            const thumbnail = photo?.thumbnail_url ?? event.species?.photo_thumbnail_url ?? null;
+            const name = event.species?.name ?? '';
+            return (
+              <div key={event.id} className="text-center" style={{ width: 64 }}>
+                <div
+                  className="position-relative"
+                  role={photo?.url ? 'button' : undefined}
+                  onClick={() => photo?.url && onPreview(photo.url)}
+                  title={photo ? `Photo de la capture : ${name}` : name}
+                >
+                  {thumbnail ? (
+                    <img
+                      src={thumbnail}
+                      alt={name}
+                      style={{ height: 56, width: 56, objectFit: 'cover', borderRadius: 4 }}
+                      className={photo ? 'border border-2 border-success' : ''}
+                    />
+                  ) : (
+                    <span
+                      className="d-inline-flex align-items-center justify-content-center bg-body-secondary"
+                      style={{ height: 56, width: 56, borderRadius: 4, fontSize: '1.5rem' }}
+                      aria-hidden="true"
+                    >
+                      🪲
+                    </span>
+                  )}
+                  <Badge
+                    pill
+                    bg="danger"
+                    className="position-absolute top-0 end-0"
+                    style={{ transform: 'translate(25%, -25%)' }}
+                  >
+                    {event.quantity}
+                  </Badge>
+                </div>
+                <div className="text-truncate" style={{ fontSize: '0.7rem' }}>{name}</div>
+              </div>
+            );
+          })}
+        </div>
+        {comments.map((text) => <div key={text} className="small mt-1">{text}</div>)}
+      </div>
+      {canDelete && (
+        <Button
+          variant="link"
+          size="sm"
+          className="text-danger p-0 align-self-start"
+          title="Supprimer cette capture"
+          onClick={() => onDelete(events)}
+        >
+          <i className="bi bi-trash" aria-hidden="true" />
+        </Button>
+      )}
+    </div>
+  );
+}
+
 /** Detail of a trap: identity, journal and the actions the user is allowed to take. */
 export default function TrapInfoPopup({ show, onHide, trap, onAddAtLocation }: TrapInfoPopupProps) {
   const dispatch = useAppDispatch();
@@ -97,7 +209,7 @@ export default function TrapInfoPopup({ show, onHide, trap, onAddAtLocation }: T
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [eventToDelete, setEventToDelete] = useState<TrapEvent | null>(null);
+  const [entryToDelete, setEntryToDelete] = useState<TrapEvent[] | null>(null);
 
   // The list only carries a summary; the journal comes with the detail
   useEffect(() => {
@@ -111,6 +223,7 @@ export default function TrapInfoPopup({ show, onHide, trap, onAddAtLocation }: T
   // Prefer the detailed copy once it has arrived
   const current = detailed?.id === trap.id ? detailed : trap;
   const events = current.events ?? [];
+  const entries = journalEntries(events);
   const mayEdit = canEditTrap(current);
   const mayAct = canActOnTrap(current);
 
@@ -128,14 +241,19 @@ export default function TrapInfoPopup({ show, onHide, trap, onAddAtLocation }: T
     }
   };
 
-  const handleDeleteEvent = async (event: TrapEvent) => {
+  const handleDeleteEntry = async (entry: TrapEvent[]) => {
     setError(null);
+    const { batch, id } = entry[0];
     try {
-      await dispatch(deleteTrapEvent({ trapId: current.id, eventId: event.id })).unwrap();
+      if (batch) {
+        await dispatch(deleteTrapCatch({ trapId: current.id, batch })).unwrap();
+      } else {
+        await dispatch(deleteTrapEvent({ trapId: current.id, eventId: id })).unwrap();
+      }
     } catch (deleteError) {
       setError(deleteError as string);
     } finally {
-      setEventToDelete(null);
+      setEntryToDelete(null);
     }
   };
 
@@ -218,7 +336,7 @@ export default function TrapInfoPopup({ show, onHide, trap, onAddAtLocation }: T
                 {mayAct && (
                   <>
                     <Button size="sm" variant="primary" onClick={() => setEventKind('catch')}>
-                      🐝 Enregistrer une prise
+                      🐝 Enregistrer une capture
                     </Button>
                     <Button size="sm" variant="outline-primary" onClick={() => setEventKind('inspection')}>
                       📋 Ajouter une action
@@ -242,7 +360,7 @@ export default function TrapInfoPopup({ show, onHide, trap, onAddAtLocation }: T
 
               <h6>
                 Journal
-                {events.length > 0 && <Badge bg="light" text="dark" className="ms-2">{events.length}</Badge>}
+                {entries.length > 0 && <Badge bg="light" text="dark" className="ms-2">{entries.length}</Badge>}
               </h6>
               {events.length === 0 ? (
                 <p className="text-muted small">
@@ -250,15 +368,23 @@ export default function TrapInfoPopup({ show, onHide, trap, onAddAtLocation }: T
                 </p>
               ) : (
                 <div className="trap-journal mb-3">
-                  {events.map((event) => (
-                    <EventRow
-                      key={event.id}
-                      event={event}
-                      canDelete={canDeleteEvent(event)}
-                      onDelete={setEventToDelete}
+                  {entries.map((entry) => (entry[0].kind === 'catch' ? (
+                    <CatchRow
+                      key={entry[0].id}
+                      events={entry}
+                      canDelete={entry.every(canDeleteEvent)}
+                      onDelete={setEntryToDelete}
                       onPreview={setPreview}
                     />
-                  ))}
+                  ) : (
+                    <EventRow
+                      key={entry[0].id}
+                      event={entry[0]}
+                      canDelete={canDeleteEvent(entry[0])}
+                      onDelete={(event) => setEntryToDelete([event])}
+                      onPreview={setPreview}
+                    />
+                  )))}
                 </div>
               )}
 
@@ -303,10 +429,10 @@ export default function TrapInfoPopup({ show, onHide, trap, onAddAtLocation }: T
       />
 
       <ConfirmationModal
-        show={eventToDelete !== null}
-        onHide={() => setEventToDelete(null)}
-        onConfirm={() => eventToDelete && handleDeleteEvent(eventToDelete)}
-        itemName={eventToDelete ? eventKindInfo(eventToDelete.kind).label : ''}
+        show={entryToDelete !== null}
+        onHide={() => setEntryToDelete(null)}
+        onConfirm={() => entryToDelete && handleDeleteEntry(entryToDelete)}
+        itemName={entryToDelete ? eventKindInfo(entryToDelete[0].kind).label : ''}
         itemType="intervention"
       />
 
