@@ -67,7 +67,7 @@ export default function TrapTags() {
           <p className="text-muted">
             Imprimez une planche de QR Codes vierges, collez-en un sur chaque piège, puis scannez-le
             depuis la carte (bouton 📷) pour l'associer au piège. Ensuite, un scan ouvre directement
-            la fiche du piège pour y enregistrer les prises.
+            la fiche du piège pour y enregistrer les captures.
           </p>
           {error && <Alert variant="danger">{error}</Alert>}
 

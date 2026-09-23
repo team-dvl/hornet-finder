@@ -2,7 +2,7 @@ import type { TrapEventKind } from '../../store/slices/trapsSlice';
 
 /** Labels and icons of the journal entries, shared by the form and the timeline. */
 export const EVENT_KINDS: { value: TrapEventKind; label: string; icon: string }[] = [
-  { value: 'catch', label: 'Prise', icon: '🐝' },
+  { value: 'catch', label: 'Capture', icon: '🐝' },
   { value: 'inspection', label: 'Inspection', icon: '🔍' },
   { value: 'cleaning', label: 'Nettoyage', icon: '🧽' },
   { value: 'refill', label: 'Recharge de consommable', icon: '🧪' },

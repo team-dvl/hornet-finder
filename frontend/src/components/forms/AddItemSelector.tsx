@@ -202,7 +202,7 @@ export default function AddItemSelector({
                   <div className="mb-3" style={{ fontSize: '3rem' }}>🪤</div>
                   <Card.Title>Piège</Card.Title>
                   <Card.Text className="text-muted">
-                    Installer un piège et suivre ses prises au fil de la saison
+                    Installer un piège et suivre ses captures au fil de la saison
                   </Card.Text>
                   <Button
                     variant="primary"

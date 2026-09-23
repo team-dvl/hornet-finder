@@ -34,7 +34,7 @@ export const MODULES: ModuleDefinition[] = [
     id: 'traps',
     title: 'Gestion des pièges',
     shortTitle: 'Pièges',
-    description: 'Gérez vos pièges et suivez les prises.',
+    description: 'Gérez vos pièges et suivez les captures.',
     icon: 'bi-bullseye',
     path: '/traps',
   },

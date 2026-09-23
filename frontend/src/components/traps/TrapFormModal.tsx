@@ -174,7 +174,7 @@ export default function TrapFormModal({
           </Form.Group>
 
           <Alert variant="light" className="small mb-0">
-            Le piège est <strong>public</strong> par défaut : sa position et ses prises sont
+            Le piège est <strong>public</strong> par défaut : sa position et ses captures sont
             visibles de tous. La délégation à une association se règle depuis la fiche du piège.
           </Alert>
         </Modal.Body>

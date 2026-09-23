@@ -5,7 +5,7 @@ export default function TrapsDoc() {
   return (
     <>
       <p className="lead text-muted">
-        Cartographiez vos pièges, notez chaque passage et suivez les prises au fil de la saison.
+        Cartographiez vos pièges, notez chaque passage et suivez les captures au fil de la saison.
       </p>
 
       <Row className="my-4">
@@ -27,7 +27,7 @@ export default function TrapsDoc() {
           <div style={{ fontSize: '3rem' }}>🐝</div>
           <h6 className="mt-2">Compter</h6>
           <p className="small text-muted">
-            Enregistrez vos prises par espèce ; le compteur de frelons asiatiques se met à jour
+            Enregistrez vos captures par espèce ; le compteur de frelons asiatiques se met à jour
           </p>
         </Col>
       </Row>
@@ -60,12 +60,13 @@ export default function TrapsDoc() {
           Le journal du piège
         </h5>
         <p>
-          Prises et entretien vivent dans un même journal, en ordre chronologique : constater une
+          Captures et entretien vivent dans un même journal, en ordre chronologique : constater une
           capture, c'est aussi passer au piège. Chaque intervention porte une date, son auteur, un
           commentaire et des photos facultatives.
         </p>
         <ul className="mb-0">
-          <li><strong>Prise</strong> : espèce (frelon asiatique par défaut) et quantité constatée</li>
+          <li><strong>Capture</strong> : une carte par espèce trouvée dans le piège (frelon asiatique
+            par défaut), avec son décompte et une photo facultative</li>
           <li><strong>Inspection, nettoyage, recharge, réparation</strong> : l'entretien courant</li>
           <li><strong>Installation</strong> : remet le piège en service, à la date indiquée</li>
           <li><strong>Retrait</strong> : marque le piège comme remisé — il reste sur la carte, en gris</li>
@@ -79,12 +80,12 @@ export default function TrapsDoc() {
         </h5>
         <p>
           Un piège est <strong>public</strong> par défaut : sa position, son type et son compteur de
-          prises sont visibles de tous, y compris sans compte. Le journal, lui, n'est lisible que par
+          captures sont visibles de tous, y compris sans compte. Le journal, lui, n'est lisible que par
           les utilisateurs connectés, et le propriétaire n'est jamais montré aux visiteurs anonymes.
         </p>
         <p className="mb-0">
           Vous pouvez déléguer l'entretien à une association dont vous êtes membre, par exemple
-          pendant une absence : ses membres peuvent alors enregistrer prises et interventions. En
+          pendant une absence : ses membres peuvent alors enregistrer captures et interventions. En
           option, la visibilité du piège se restreint à ce groupe. La délégation se retire à tout
           moment, par vous, par un administrateur de ce groupe ou par un administrateur de la
           plateforme.
