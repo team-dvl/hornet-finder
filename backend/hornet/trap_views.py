@@ -1,9 +1,10 @@
 """API of the traps module: referentials, traps, journal and photos."""
 
 import logging
+import uuid
 
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import models as db_models
+from django.db import models as db_models, transaction
 from django.db.models import Prefetch, ProtectedError
 from django.utils import timezone
 
@@ -21,7 +22,7 @@ from . import trap_permissions as perms
 from .images import processed_image
 from .models import BeekeeperGroup, Species, Tag, Trap, TrapEvent, TrapPhoto, TrapType, User
 from .serializers import (
-    PublicTrapSerializer, SpeciesSerializer, TrapDetailSerializer, TrapEventSerializer,
+    CatchSerializer, PublicTrapSerializer, SpeciesSerializer, TrapDetailSerializer, TrapEventSerializer,
     TrapPhotoSerializer, TrapSerializer, TrapTypeSerializer,
 )
 from .views import GeographicFilterMixin, geographic_list_schema
@@ -61,7 +62,12 @@ def _delete_files(*image_fields):
 
 
 class ReferentialViewSet(viewsets.ModelViewSet):
-    """Read-only for authenticated users, writable by platform admins."""
+    """
+    Read-only for authenticated users, writable by platform admins.
+
+    Referential entries carry an optional illustration (`photo` plus
+    `photo_thumbnail`), replaced by sending a `photo` file with the form.
+    """
 
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
@@ -73,6 +79,20 @@ class ReferentialViewSet(viewsets.ModelViewSet):
             return [HasAnyRole(['volunteer', 'beekeeper', 'admin'])]
         return [HasAnyRole(['admin'])]
 
+    def perform_create(self, serializer):
+        self._attach_photo(serializer.save())
+
+    def perform_update(self, serializer):
+        self._attach_photo(serializer.save())
+
+    def _attach_photo(self, instance):
+        uploaded = self.request.FILES.get('photo')
+        if not uploaded:
+            return
+        _delete_files(instance.photo, instance.photo_thumbnail)
+        _store_photo(instance, 'photo', 'photo_thumbnail', uploaded)
+        instance.save(update_fields=['photo', 'photo_thumbnail'])
+
 
 class TrapTypeViewSet(ReferentialViewSet):
     serializer_class = TrapTypeSerializer
@@ -80,22 +100,6 @@ class TrapTypeViewSet(ReferentialViewSet):
 
     def get_queryset(self):
         return TrapType.objects.annotate(trap_count=db_models.Count('traps'))
-
-    def perform_create(self, serializer):
-        trap_type = serializer.save()
-        self._attach_photo(trap_type)
-
-    def perform_update(self, serializer):
-        trap_type = serializer.save()
-        self._attach_photo(trap_type)
-
-    def _attach_photo(self, trap_type):
-        uploaded = self.request.FILES.get('photo')
-        if not uploaded:
-            return
-        _delete_files(trap_type.photo, trap_type.photo_thumbnail)
-        _store_photo(trap_type, 'photo', 'photo_thumbnail', uploaded)
-        trap_type.save(update_fields=['photo', 'photo_thumbnail'])
 
     @extend_schema(responses={204: OpenApiResponse(description='Deleted'),
                               409: OpenApiResponse(description='Trap type still in use')})
@@ -118,12 +122,25 @@ class SpeciesViewSet(ReferentialViewSet):
     serializer_class = SpeciesSerializer
     queryset = Species.objects.all()
 
+    def get_queryset(self):
+        return Species.objects.annotate(event_count=db_models.Count('trap_events'))
+
+    def _attach_photo(self, instance):
+        # A replaced picture must not keep the credit of the Wikipedia one
+        if self.request.FILES.get('photo') and 'photo_credit' not in self.request.data:
+            instance.photo_credit = ''
+            instance.photo_source_url = ''
+            instance.save(update_fields=['photo_credit', 'photo_source_url'])
+        super()._attach_photo(instance)
+
     @extend_schema(responses={204: OpenApiResponse(description='Deleted'),
                               409: OpenApiResponse(description='Species still in use')})
     def destroy(self, request, *args, **kwargs):
         species = self.get_object()
         try:
-            species.delete()
+            with transaction.atomic():
+                species.delete()
+            _delete_files(species.photo, species.photo_thumbnail)
         except ProtectedError:
             count = TrapEvent.objects.filter(species=species).count()
             return Response(
@@ -329,6 +346,82 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
 
         trap.apply_event_side_effects(event)
         return Response(TrapEventSerializer(event).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(
+        request={'multipart/form-data': {
+            'type': 'object',
+            'properties': {
+                'performed_at': {'type': 'string', 'format': 'date-time'},
+                'comments': {'type': 'string'},
+                'items': {'type': 'string',
+                          'description': 'JSON list of {"species_slug", "quantity"}'},
+                'photo_0': {'type': 'string', 'format': 'binary',
+                            'description': 'Optional photo of item 0 (photo_1 for item 1, ...)'},
+            },
+        }, 'application/json': CatchSerializer},
+        responses={201: TrapEventSerializer(many=True)},
+    )
+    @action(detail=True, methods=['post'], url_path='catches')
+    def catches(self, request, pk=None):
+        """Record one visit's catches: one event per species, sharing a batch."""
+        trap = self.get_object()
+        if not perms.can_act_on_trap(request, trap):
+            raise PermissionDenied(
+                "Only the owner and the members of the group in charge can record an event."
+            )
+        serializer = CatchSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        performed_by = perms.local_user(request)
+        batch = uuid.uuid4()
+
+        events, stored = [], []
+        try:
+            with transaction.atomic():
+                for index, item in enumerate(data['items']):
+                    event = TrapEvent.objects.create(
+                        trap=trap, kind=TrapEvent.KIND_CATCH, performed_at=data['performed_at'],
+                        performed_by=performed_by, species=item['species'],
+                        quantity=item['quantity'], batch=batch,
+                        # Said once for the whole visit, not repeated per species
+                        comments=data['comments'] if index == 0 else '',
+                    )
+                    uploaded = request.FILES.get(f'photo_{index}')
+                    if uploaded:
+                        photo = TrapPhoto(trap=trap, event=event, uploaded_by=performed_by)
+                        _store_photo(photo, 'image', 'thumbnail', uploaded)
+                        stored.append(photo)
+                        photo.save()
+                    events.append(event)
+                trap.recompute_hornet_catch_count()
+        except Exception:
+            # The rows are rolled back, the files written so far are not
+            for photo in stored:
+                _delete_files(photo.image, photo.thumbnail)
+            raise
+
+        return Response(TrapEventSerializer(events, many=True).data,
+                        status=status.HTTP_201_CREATED)
+
+    @extend_schema(responses={204: OpenApiResponse(description='Deleted'),
+                              404: OpenApiResponse(description='Unknown batch')})
+    @action(detail=True, methods=['delete'], url_path=r'catches/(?P<batch>[0-9a-f-]{36})')
+    def delete_catches(self, request, pk=None, batch=None):
+        """Remove every catch event recorded together, or none of them."""
+        trap = self.get_object()
+        events = list(trap.events.filter(batch=batch).select_related('trap'))
+        if not events:
+            return Response({'error': "Unknown batch."}, status=status.HTTP_404_NOT_FOUND)
+        if not all(perms.can_delete_event(request, event) for event in events):
+            raise PermissionDenied("You do not have permission to delete these events.")
+
+        photos = list(TrapPhoto.objects.filter(event__in=events))
+        with transaction.atomic():
+            TrapEvent.objects.filter(pk__in=[event.pk for event in events]).delete()
+            trap.recompute_hornet_catch_count()
+        for photo in photos:
+            _delete_files(photo.image, photo.thumbnail)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     # -- delegation ----------------------------------------------------------
 

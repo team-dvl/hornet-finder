@@ -71,6 +71,17 @@ call 400 "inspection avec quantité refusée"             POST "/traps/$TRAP/eve
 COUNT=$(curl -sk "$BASE/traps/$TRAP/" "${H_OWNER[@]}" | python3 -c "import sys,json;print(json.load(sys.stdin)['hornet_catch_count'])")
 if [ "$COUNT" = "5" ]; then PASS=$((PASS+1)); echo "  ok   compteur de frelons = 5"; else FAIL=$((FAIL+1)); echo "  FAIL compteur = $COUNT, attendu 5"; fi
 
+echo "== Prise multi-espèces"
+ITEMS='[{"species_slug":"vespa-velutina","quantity":7},{"species_slug":"apis-mellifera","quantity":2}]'
+call 201 "t-owner enregistre une prise à deux espèces"   POST "/traps/$TRAP/catches/" "${H_OWNER[@]}" -F "items=$ITEMS" -F "performed_at=$(date -Is)"
+BATCH=$(python3 -c "import sys,json;d=json.load(open(sys.argv[1]));print(d[0]['batch'] if len({e['batch'] for e in d})==1 and len(d)==2 else '')" "$OUT")
+if [ -n "$BATCH" ]; then PASS=$((PASS+1)); echo "  ok   deux événements, un seul lot"; else FAIL=$((FAIL+1)); echo "  FAIL lot incohérent"; fi
+call 400 "espèce en double refusée"                     POST "/traps/$TRAP/catches/" "${H_OWNER[@]}" -F 'items=[{"species_slug":"vespa-velutina","quantity":1},{"species_slug":"vespa-velutina","quantity":1}]' -F "performed_at=$(date -Is)"
+call 403 "t-member ne supprime pas le lot d'un autre"   DELETE "/traps/$TRAP/catches/$BATCH/" "${H_MEMBER[@]}"
+call 204 "t-owner supprime le lot"                      DELETE "/traps/$TRAP/catches/$BATCH/" "${H_OWNER[@]}"
+COUNT=$(curl -sk "$BASE/traps/$TRAP/" "${H_OWNER[@]}" | python3 -c "import sys,json;print(json.load(sys.stdin)['hornet_catch_count'])")
+if [ "$COUNT" = "5" ]; then PASS=$((PASS+1)); echo "  ok   compteur revenu à 5"; else FAIL=$((FAIL+1)); echo "  FAIL compteur = $COUNT, attendu 5"; fi
+
 echo "== Avant délégation"
 call 403 "t-member ne peut pas agir (pas encore délégué)" POST "/traps/$TRAP/events/" "${H_MEMBER[@]}" -F "kind=inspection" -F "performed_at=$(date -Is)"
 

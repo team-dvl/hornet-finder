@@ -166,6 +166,11 @@ def trap_type_photo_path(instance, filename):
     return f"trap-types/{uuid.uuid4().hex}.jpg"
 
 
+def species_photo_path(instance, filename):
+    """Upload path of a species illustration. These are public."""
+    return f"species/{uuid.uuid4().hex}.jpg"
+
+
 class TrapType(models.Model):
     """A model of trap, e.g. a commercial one or `Fait maison`."""
 
@@ -190,6 +195,11 @@ class Species(models.Model):
     name = models.CharField(max_length=128)
     scientific_name = models.CharField(max_length=128, blank=True, default='')
     wikipedia_url = models.URLField(max_length=255, blank=True, default='')
+    photo = models.ImageField(upload_to=species_photo_path, null=True, blank=True)
+    photo_thumbnail = models.ImageField(upload_to=species_photo_path, null=True, blank=True)
+    # Author and licence of the photo, mandatory for Wikimedia Commons pictures
+    photo_credit = models.CharField(max_length=255, blank=True, default='')
+    photo_source_url = models.URLField(max_length=500, blank=True, default='')
     sort_order = models.IntegerField(default=0)
 
     class Meta:
@@ -277,6 +287,9 @@ class TrapEvent(models.Model):
     A catch is an intervention like any other (someone came, looked and emptied
     the trap), so catches and maintenance share this single model; only catches
     carry a species and a quantity.
+
+    One visit usually finds several species: each gets its own catch event,
+    and the events recorded together share a `batch` and a `performed_at`.
     """
 
     KIND_INSTALLATION = 'installation'
@@ -305,6 +318,8 @@ class TrapEvent(models.Model):
     species = models.ForeignKey(Species, null=True, blank=True, on_delete=models.PROTECT,
                                 related_name='trap_events')
     quantity = models.PositiveIntegerField(null=True, blank=True)
+    # Groups the catch events recorded together; NULL for a lone event
+    batch = models.UUIDField(null=True, blank=True, db_index=True)
     comments = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 

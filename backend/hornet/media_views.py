@@ -25,7 +25,7 @@ from .models import Trap
 # Files of a trap live under `traps/<trap id>/`, which is what makes the
 # permission check possible from the path alone.
 TRAP_FILE_RE = re.compile(r'^traps/(?P<trap_id>\d+)/[^/]+$')
-PUBLIC_PREFIXES = ('trap-types/',)
+PUBLIC_PREFIXES = ('trap-types/', 'species/')
 
 
 def _is_safe(path: str) -> bool:

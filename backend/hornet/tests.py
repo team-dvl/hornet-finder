@@ -140,14 +140,16 @@ class NestArchiveFilterTests(TestCase):
 # ---------------------------------------------------------------------------
 
 import io
+import json
 import uuid as uuid_module
 from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
 from PIL import Image
 
 from .models import BeekeeperGroup, Species, Trap, TrapEvent, TrapPhoto, TrapType, User
-from .trap_views import TrapEventViewSet, TrapTypeViewSet, TrapViewSet
+from .trap_views import SpeciesViewSet, TrapEventViewSet, TrapTypeViewSet, TrapViewSet
 from .media_views import media_view
 
 
@@ -879,3 +881,214 @@ class TagAdminApiTests(TrapTestCase):
         again = self._admin('post', f'/admin/tags/{self.attached.id}/revoke/', {'post': 'revoke'},
                             self.admin_user, pk=self.attached.id)
         self.assertEqual(again.status_code, 409)
+
+
+class TrapCatchTests(TrapTestCase):
+    """One visit's catches: several species recorded together."""
+
+    def _post_catches(self, items, user=None, **extra):
+        data = {'performed_at': timezone.now().isoformat(), 'items': json.dumps(items)}
+        data.update(extra)
+        request = self.factory.post(f'/traps/{self.trap.id}/catches/', data, format='multipart')
+        force_authenticate(request, user=user or self.owner_user)
+        return TrapViewSet.as_view({'post': 'catches'})(request, pk=self.trap.id)
+
+    def _delete_batch(self, batch, user=None):
+        request = self.factory.delete(f'/traps/{self.trap.id}/catches/{batch}/')
+        force_authenticate(request, user=user or self.owner_user)
+        return TrapViewSet.as_view({'delete': 'delete_catches'})(
+            request, pk=self.trap.id, batch=batch)
+
+    def _cleanup_photos(self):
+        for photo in TrapPhoto.objects.filter(trap=self.trap):
+            self.addCleanup(photo.image.delete, save=False)
+            self.addCleanup(photo.thumbnail.delete, save=False)
+
+    def test_one_event_per_species_sharing_a_batch_and_a_time(self):
+        response = self._post_catches([
+            {'species_slug': 'vespa-velutina', 'quantity': 12},
+            {'species_slug': 'apis-mellifera', 'quantity': 3},
+            {'species_slug': 'vespa-crabro', 'quantity': 1},
+        ], comments='Harpe pleine')
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(len(response.data), 3)
+
+        events = TrapEvent.objects.filter(trap=self.trap)
+        self.assertEqual({event.batch for event in events}, {events[0].batch})
+        self.assertIsNotNone(events[0].batch)
+        self.assertEqual(len({event.performed_at for event in events}), 1)
+        # The comment belongs to the visit, it is not repeated per species
+        self.assertEqual([e.comments for e in events if e.comments], ['Harpe pleine'])
+
+        self.trap.refresh_from_db()
+        self.assertEqual(self.trap.hornet_catch_count, 12)
+
+    def test_each_item_gets_its_own_photo(self):
+        response = self._post_catches(
+            [{'species_slug': 'vespa-velutina', 'quantity': 2},
+             {'species_slug': 'apis-mellifera', 'quantity': 1}],
+            photo_1=_image_file(),
+        )
+        self._cleanup_photos()
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data[0]['photos'], [])
+        self.assertEqual(len(response.data[1]['photos']), 1)
+
+    def test_an_invalid_item_records_nothing(self):
+        response = self._post_catches([
+            {'species_slug': 'vespa-velutina', 'quantity': 2},
+            {'species_slug': 'unknown-species', 'quantity': 1},
+        ])
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(TrapEvent.objects.filter(trap=self.trap).exists())
+
+    def test_a_bad_photo_rolls_the_whole_visit_back(self):
+        bad = SimpleUploadedFile('note.txt', b'not an image', content_type='text/plain')
+        response = self._post_catches(
+            [{'species_slug': 'vespa-velutina', 'quantity': 2},
+             {'species_slug': 'apis-mellifera', 'quantity': 1}],
+            photo_0=_image_file(), photo_1=bad,
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(TrapEvent.objects.filter(trap=self.trap).exists())
+        self.assertFalse(TrapPhoto.objects.filter(trap=self.trap).exists())
+
+    def test_zero_quantity_duplicates_and_empty_lists_are_refused(self):
+        self.assertEqual(self._post_catches(
+            [{'species_slug': 'vespa-velutina', 'quantity': 0}]).status_code, 400)
+        self.assertEqual(self._post_catches(
+            [{'species_slug': 'vespa-velutina', 'quantity': 1},
+             {'species_slug': 'vespa-velutina', 'quantity': 2}]).status_code, 400)
+        self.assertEqual(self._post_catches([]).status_code, 400)
+
+    def test_a_stranger_cannot_record_catches(self):
+        response = self._post_catches([{'species_slug': 'vespa-velutina', 'quantity': 1}],
+                                      user=self.stranger_user)
+        self.assertEqual(response.status_code, 403)
+
+    def test_deleting_a_batch_removes_all_its_events(self):
+        created = self._post_catches(
+            [{'species_slug': 'vespa-velutina', 'quantity': 5},
+             {'species_slug': 'apis-mellifera', 'quantity': 1}],
+            photo_0=_image_file(),
+        )
+        photo = TrapPhoto.objects.get(trap=self.trap)
+        batch = created.data[0]['batch']
+
+        response = self._delete_batch(batch)
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(TrapEvent.objects.filter(trap=self.trap).exists())
+        self.assertFalse(photo.image.storage.exists(photo.image.name))
+        self.trap.refresh_from_db()
+        self.assertEqual(self.trap.hornet_catch_count, 0)
+
+    def test_deleting_a_batch_requires_every_event_to_be_deletable(self):
+        created = self._post_catches([{'species_slug': 'vespa-velutina', 'quantity': 5}])
+        response = self._delete_batch(created.data[0]['batch'], user=self.stranger_user)
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(TrapEvent.objects.filter(trap=self.trap).exists())
+
+    def test_unknown_batch_is_404(self):
+        self.assertEqual(self._delete_batch(str(uuid_module.uuid4())).status_code, 404)
+
+
+class SpeciesAdminTests(TrapTestCase):
+    def test_admin_uploads_a_photo_served_publicly(self):
+        self.other_species.photo_credit = 'Someone — CC BY-SA 4.0, Wikimedia Commons'
+        self.other_species.save()
+        request = self.factory.patch(f'/species/{self.other_species.id}/',
+                                     {'photo': _image_file()}, format='multipart')
+        force_authenticate(request, user=self.admin_user)
+        response = SpeciesViewSet.as_view({'patch': 'partial_update'})(
+            request, pk=self.other_species.id)
+        self.assertEqual(response.status_code, 200)
+
+        self.other_species.refresh_from_db()
+        self.addCleanup(self.other_species.photo.delete, save=False)
+        self.addCleanup(self.other_species.photo_thumbnail.delete, save=False)
+        path = self.other_species.photo_thumbnail.name
+        self.assertTrue(path.startswith('species/'))
+        # The Wikipedia credit does not describe the uploaded picture
+        self.assertEqual(self.other_species.photo_credit, '')
+
+        # No authentication at all: species pictures are public
+        anonymous = self.factory.get(f'/api/media/{path}')
+        self.assertEqual(media_view(anonymous, path=path).status_code, 200)
+
+    def test_the_slug_is_derived_on_creation(self):
+        request = self.factory.post('/species/', {'name': 'Frelon oriental',
+                                                  'scientific_name': 'Vespa orientalis'})
+        force_authenticate(request, user=self.admin_user)
+        response = SpeciesViewSet.as_view({'post': 'create'})(request)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['slug'], 'vespa-orientalis')
+
+    def test_the_listing_counts_the_events(self):
+        TrapEvent.objects.create(trap=self.trap, kind=TrapEvent.KIND_CATCH,
+                                 performed_at=timezone.now(), species=self.velutina, quantity=2)
+        request = self.factory.get('/species/')
+        force_authenticate(request, user=self.owner_user)
+        response = SpeciesViewSet.as_view({'get': 'list'})(request)
+        counts = {row['slug']: row['event_count'] for row in response.data}
+        self.assertEqual(counts['vespa-velutina'], 1)
+        self.assertEqual(counts['apis-mellifera'], 0)
+
+
+class FetchSpeciesPhotosTests(TestCase):
+    """The Wikipedia lookup, with the network replaced by canned answers."""
+
+    def setUp(self):
+        self.species = Species.objects.get(slug='apis-mellifera')
+        buffer = io.BytesIO()
+        Image.new('RGB', (800, 600), (200, 180, 40)).save(buffer, format='JPEG')
+        self.jpeg = buffer.getvalue()
+
+    def _fake_get(self, url):
+        if '/api/rest_v1/page/summary/' in url:
+            # The accented title must reach the API percent-encoded
+            self.assertIn('Abeille_europ%C3%A9enne', url)
+            return json.dumps({'originalimage': {
+                'source': 'https://upload.wikimedia.org/wikipedia/commons/a/ab/Apis_%281%29.jpg',
+            }}).encode()
+        if '/w/api.php' in url:
+            self.assertIn('File%3AApis_%281%29.jpg', url)
+            return json.dumps({'query': {'pages': [{'imageinfo': [{
+                'url': 'https://upload.wikimedia.org/full.jpg',
+                'thumburl': 'https://upload.wikimedia.org/thumb.jpg',
+                'descriptionurl': 'https://commons.wikimedia.org/wiki/File:Apis_(1).jpg',
+                'extmetadata': {
+                    'Artist': {'value': '<a href="//commons.wikimedia.org/wiki/User:X">Jane &amp; Co</a>'},
+                    'LicenseShortName': {'value': 'CC BY-SA 4.0'},
+                },
+            }]}]}}).encode()
+        self.assertEqual(url, 'https://upload.wikimedia.org/thumb.jpg')
+        return self.jpeg
+
+    def test_stores_the_lead_image_with_its_credit(self):
+        with patch('hornet.management.commands.fetch_species_photos._get', side_effect=self._fake_get), \
+                patch('hornet.management.commands.fetch_species_photos.time.sleep'):
+            call_command('fetch_species_photos', slug=['apis-mellifera'], stdout=io.StringIO())
+
+        self.species.refresh_from_db()
+        self.addCleanup(self.species.photo.delete, save=False)
+        self.addCleanup(self.species.photo_thumbnail.delete, save=False)
+        self.assertTrue(self.species.photo.name.startswith('species/'))
+        self.assertTrue(self.species.photo_thumbnail)
+        self.assertEqual(self.species.photo_credit, 'Jane & Co — CC BY-SA 4.0, Wikimedia Commons')
+        self.assertEqual(self.species.photo_source_url,
+                         'https://commons.wikimedia.org/wiki/File:Apis_(1).jpg')
+
+    def test_the_original_name_is_read_behind_a_thumbnail_url(self):
+        from hornet.management.commands.fetch_species_photos import _file_name
+        self.assertEqual(_file_name(
+            'https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/'
+            '%28MHNT%29_Apis.jpg/3840px-%28MHNT%29_Apis.jpg'), '(MHNT)_Apis.jpg')
+        self.assertEqual(_file_name(
+            'https://upload.wikimedia.org/wikipedia/commons/a/ab/Apis_%281%29.jpg'), 'Apis_(1).jpg')
+
+    def test_species_with_a_photo_are_skipped_without_force(self):
+        self.species.photo = 'species/existing.jpg'
+        self.species.save()
+        with patch('hornet.management.commands.fetch_species_photos._get') as fake_get:
+            call_command('fetch_species_photos', slug=['apis-mellifera'], stdout=io.StringIO())
+        fake_get.assert_not_called()

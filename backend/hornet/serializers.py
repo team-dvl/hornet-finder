@@ -1,3 +1,4 @@
+import json
 from typing import Optional
 
 from rest_framework import serializers
@@ -184,10 +185,29 @@ class TrapTypeSerializer(serializers.ModelSerializer):
 
 
 class SpeciesSerializer(serializers.ModelSerializer):
+    photo_url = serializers.SerializerMethodField()
+    photo_thumbnail_url = serializers.SerializerMethodField()
+    event_count = serializers.IntegerField(read_only=True)
+
     class Meta:
         model = Species
-        fields = ['id', 'slug', 'name', 'scientific_name', 'wikipedia_url', 'sort_order']
-        read_only_fields = ['id']
+        fields = ['id', 'slug', 'name', 'scientific_name', 'wikipedia_url', 'sort_order',
+                  'photo_url', 'photo_thumbnail_url', 'photo_credit', 'photo_source_url',
+                  'event_count']
+        # Same rule as the trap types: the slug is derived, never typed
+        read_only_fields = ['id', 'slug', 'event_count']
+
+    def get_photo_url(self, instance) -> Optional[str]:
+        return instance.photo.url if instance.photo else None
+
+    def get_photo_thumbnail_url(self, instance) -> Optional[str]:
+        return instance.photo_thumbnail.url if instance.photo_thumbnail else None
+
+    def create(self, validated_data):
+        validated_data['slug'] = unique_slug(
+            Species, validated_data.get('scientific_name') or validated_data['name'],
+        )
+        return super().create(validated_data)
 
 
 class TrapPhotoSerializer(serializers.ModelSerializer):
@@ -216,8 +236,8 @@ class TrapEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrapEvent
         fields = ['id', 'trap', 'kind', 'performed_at', 'performed_by', 'species',
-                  'species_slug', 'quantity', 'comments', 'photos', 'created_at']
-        read_only_fields = ['id', 'trap', 'performed_by', 'species', 'created_at']
+                  'species_slug', 'quantity', 'batch', 'comments', 'photos', 'created_at']
+        read_only_fields = ['id', 'trap', 'performed_by', 'species', 'batch', 'created_at']
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -227,6 +247,10 @@ class TrapEventSerializer(serializers.ModelSerializer):
                 'slug': instance.species.slug,
                 'name': instance.species.name,
                 'wikipedia_url': instance.species.wikipedia_url,
+                'photo_thumbnail_url': (
+                    instance.species.photo_thumbnail.url
+                    if instance.species.photo_thumbnail else None
+                ),
             }
             if instance.species else None
         )
@@ -256,6 +280,41 @@ class TrapEventSerializer(serializers.ModelSerializer):
                 "Only a catch can carry a species and a quantity."
             )
         return attrs
+
+
+class CatchItemSerializer(serializers.Serializer):
+    species_slug = serializers.SlugRelatedField(
+        source='species', slug_field='slug', queryset=Species.objects.all(),
+    )
+    quantity = serializers.IntegerField(min_value=1)
+
+
+class CatchSerializer(serializers.Serializer):
+    """
+    One visit's findings: a quantity per species, recorded as one catch event
+    per species. Write-only, the response is the list of created events.
+    """
+
+    performed_at = serializers.DateTimeField()
+    comments = serializers.CharField(required=False, allow_blank=True, default='')
+    items = CatchItemSerializer(many=True, allow_empty=False)
+
+    def to_internal_value(self, data):
+        # A multipart request (the one carrying photos) sends the items as JSON
+        items = data.get('items')
+        if isinstance(items, str):
+            try:
+                items = json.loads(items)
+            except ValueError as exc:
+                raise serializers.ValidationError({'items': "Invalid JSON."}) from exc
+            data = {key: data.get(key) for key in data if key != 'items'} | {'items': items}
+        return super().to_internal_value(data)
+
+    def validate_items(self, items):
+        slugs = [item['species'].slug for item in items]
+        if len(slugs) != len(set(slugs)):
+            raise serializers.ValidationError("Each species can appear only once.")
+        return items
 
 
 class TrapSerializer(GPSValidationMixin, serializers.ModelSerializer):
