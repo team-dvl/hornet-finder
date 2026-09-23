@@ -304,3 +304,59 @@ button.module-card {
   min-height: 0;
   overflow: hidden;
 }
+
+/*
+ * The journal of a trap grows with every intervention. Left to the modal body,
+ * it would push the delegation panel and the footer far below the fold; it
+ * scrolls in its own box instead, capped to part of the visible height (`dvh`
+ * follows the mobile browser bars, `vh` is the fallback).
+ */
+.trap-journal {
+  max-height: 45vh;
+  max-height: 45dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-top: 1px solid var(--bs-border-color);
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+/* The box already draws the bottom line */
+.trap-journal > :last-child {
+  border-bottom: 0 !important;
+}
+
+/* --- Planche de QR Codes (/traps/tags) --- */
+.tag-sheet {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 4cm);
+  gap: 0.5cm;
+}
+
+.tag-label {
+  width: 4cm;
+  padding: 0.2cm;
+  border: 1px dashed #adb5bd;
+  text-align: center;
+  break-inside: avoid;
+}
+
+.tag-label img {
+  width: 100%;
+  display: block;
+}
+
+.tag-label-code {
+  font-family: var(--bs-font-monospace);
+  font-size: 9pt;
+  letter-spacing: 0.05em;
+}
+
+@media print {
+  .navbar {
+    display: none !important;
+  }
+
+  .page-content {
+    padding-top: 0 !important;
+  }
+}

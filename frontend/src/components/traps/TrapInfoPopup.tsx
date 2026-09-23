@@ -7,6 +7,7 @@ import {
   type Trap, type TrapEvent, type TrapEventKind,
 } from '../../store/store';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
+import { AddAtLocationButton } from '../common';
 import { ConfirmationModal } from '../modals';
 import TrapDelegationPanel from './TrapDelegationPanel';
 import TrapEventModal from './TrapEventModal';
@@ -17,6 +18,7 @@ interface TrapInfoPopupProps {
   show: boolean;
   onHide: () => void;
   trap: Trap | null;
+  onAddAtLocation?: (lat: number, lng: number) => void;
 }
 
 const formatDateTime = (value: string) =>
@@ -83,7 +85,7 @@ function EventRow({ event, canDelete, onDelete, onPreview }: {
 }
 
 /** Detail of a trap: identity, journal and the actions the user is allowed to take. */
-export default function TrapInfoPopup({ show, onHide, trap }: TrapInfoPopupProps) {
+export default function TrapInfoPopup({ show, onHide, trap, onAddAtLocation }: TrapInfoPopupProps) {
   const dispatch = useAppDispatch();
   const auth = useAuth();
   const detailed = useAppSelector(selectSelectedTrap);
@@ -189,6 +191,12 @@ export default function TrapInfoPopup({ show, onHide, trap }: TrapInfoPopupProps
                 <span className="small">{current.owner.display_name}</span>
               </div>
             )}
+            {current.tag_short && (
+              <div className="d-flex justify-content-between">
+                <span className="text-muted small">QR Code</span>
+                <code className="small">{current.tag_short}</code>
+              </div>
+            )}
             {current.address && (
               <div className="text-muted small mt-2">
                 <i className="bi bi-geo-alt me-1" aria-hidden="true" />
@@ -232,13 +240,16 @@ export default function TrapInfoPopup({ show, onHide, trap }: TrapInfoPopupProps
                 )}
               </div>
 
-              <h6>Journal</h6>
+              <h6>
+                Journal
+                {events.length > 0 && <Badge bg="light" text="dark" className="ms-2">{events.length}</Badge>}
+              </h6>
               {events.length === 0 ? (
                 <p className="text-muted small">
                   {current.events ? 'Aucune intervention enregistrée.' : <Spinner animation="border" size="sm" />}
                 </p>
               ) : (
-                <div>
+                <div className="trap-journal mb-3">
                   {events.map((event) => (
                     <EventRow
                       key={event.id}
@@ -257,6 +268,11 @@ export default function TrapInfoPopup({ show, onHide, trap }: TrapInfoPopupProps
         </Modal.Body>
 
         <Modal.Footer>
+          <AddAtLocationButton
+            latitude={current.latitude}
+            longitude={current.longitude}
+            onAddAtLocation={onAddAtLocation}
+          />
           <Button variant="secondary" onClick={onHide}>Fermer</Button>
         </Modal.Footer>
       </Modal>

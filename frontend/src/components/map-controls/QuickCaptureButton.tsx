@@ -50,7 +50,7 @@ export default function QuickCaptureButton({ onQuickCapture, canAddHornet }: Qui
       }
     >
       <span className="map-control-button-icon">🎯</span>
-      <span className="map-control-button-text">Encoder{isPWA ? ' PWA' : ''}</span>
+      <span className="map-control-button-text">Vol de frelon{isPWA ? ' PWA' : ''}</span>
     </Button>
   );
 }

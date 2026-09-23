@@ -7,6 +7,9 @@ import { Trap } from '../store/slices/trapsSlice';
 import { MapObject, MapObjectType } from '../components/map/types';
 import { OVERLAP_THRESHOLD_PIXELS, MIN_ZOOM_TO_SEPARATE } from '../utils/constants';
 
+// Below this difference (about 10 cm) two objects are considered at the same spot
+const SAME_SPOT_DEGREES = 1e-6;
+
 interface UseOverlapDetectionProps {
   map: Map | null;
   hornets: Hornet[];
@@ -22,7 +25,6 @@ interface UseOverlapDetectionProps {
 interface OverlapDetectionResult {
   hasOverlap: boolean;
   objects: MapObject[];
-  canZoomToSeparate: boolean;
 }
 
 export const useOverlapDetection = ({
@@ -120,7 +122,7 @@ export const useOverlapDetection = ({
   // Fonction principale pour détecter les chevauchements
   const detectOverlap = useCallback((clickLat: number, clickLng: number): OverlapDetectionResult => {
     if (!map) {
-      return { hasOverlap: false, objects: [], canZoomToSeparate: false };
+      return { hasOverlap: false, objects: [] };
     }
 
     const allObjects: MapObject[] = [];
@@ -165,14 +167,9 @@ export const useOverlapDetection = ({
       });
     }
 
-    const hasOverlap = allObjects.length > 1;
-    const currentZoom = map.getZoom();
-    const canZoomToSeparate = hasOverlap && currentZoom < MIN_ZOOM_TO_SEPARATE;
-
     return {
-      hasOverlap,
-      objects: allObjects,
-      canZoomToSeparate
+      hasOverlap: allObjects.length > 1,
+      objects: allObjects
     };
   }, [
     map, 
@@ -191,6 +188,17 @@ export const useOverlapDetection = ({
     trapToMapObject
   ]);
 
+  // Zoomer n'aide que si la carte peut encore grossir et que les objets ne
+  // sont pas tous exactement au même endroit.
+  const canZoomToSeparate = useCallback((objects: MapObject[]): boolean => {
+    if (!map || map.getZoom() >= MIN_ZOOM_TO_SEPARATE || objects.length < 2) return false;
+    const [first, ...others] = objects;
+    return others.some(object =>
+      Math.abs(object.latitude - first.latitude) > SAME_SPOT_DEGREES
+      || Math.abs(object.longitude - first.longitude) > SAME_SPOT_DEGREES
+    );
+  }, [map]);
+
   // Fonction pour zoomer afin de tenter de séparer les objets
   const zoomToSeparate = useCallback((lat: number, lng: number) => {
     if (!map) return;
@@ -203,6 +211,7 @@ export const useOverlapDetection = ({
 
   return {
     detectOverlap,
+    canZoomToSeparate,
     zoomToSeparate
   };
 };

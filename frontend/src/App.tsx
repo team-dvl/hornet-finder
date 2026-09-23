@@ -4,7 +4,7 @@ import { Container, Alert } from 'react-bootstrap'
 import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from 'react-oidc-context';
-import { Home, Nests, Traps, DocsIndex, DocPage, AdminIndex, TrapTypesAdmin, PrivacyPolicy, DataDeletion } from './pages';
+import { Home, Nests, Traps, TrapTags, DocsIndex, DocPage, AdminIndex, TrapTypesAdmin, TagsAdmin, PrivacyPolicy, DataDeletion } from './pages';
 import { RequireRole } from './components/common';
 import { initIOSViewportFix } from './utils/iosViewportFix';
 import { useUrlCleaner } from './utils/urlCleaner';
@@ -107,13 +107,25 @@ function App() {
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/nests" element={<Nests />} />
-      <Route path="/traps" element={<Traps />} />
+      {/* One map for both paths, so resolving a tag and returning to /traps keeps it mounted */}
+      <Route element={<Traps />}>
+        <Route path="/traps" element={null} />
+        <Route path="/tag/:tagValue" element={null} />
+      </Route>
+      <Route
+        path="/traps/tags"
+        element={<RequireRole roles={['volunteer', 'beekeeper', 'admin']}><TrapTags /></RequireRole>}
+      />
       <Route path="/docs" element={<DocsIndex />} />
       <Route path="/docs/:moduleId" element={<DocPage />} />
       <Route path="/admin" element={<RequireRole roles={['admin']}><AdminIndex /></RequireRole>} />
       <Route
         path="/admin/trap-types"
         element={<RequireRole roles={['admin']}><TrapTypesAdmin /></RequireRole>}
+      />
+      <Route
+        path="/admin/tags"
+        element={<RequireRole roles={['admin']}><TagsAdmin /></RequireRole>}
       />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="/data-deletion" element={<DataDeletion />} />

@@ -7,14 +7,16 @@ import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { ConfirmationModal } from '../modals';
 import { AppDispatch } from '../../store/store';
 import CoordinateInput from '../common/CoordinateInput';
+import AddAtLocationButton from '../common/AddAtLocationButton';
 
 interface NestInfoPopupProps {
   show: boolean;
   onHide: () => void;
   nest: Nest | null;
+  onAddAtLocation?: (lat: number, lng: number) => void;
 }
 
-export default function NestInfoPopup({ show, onHide, nest }: NestInfoPopupProps) {
+export default function NestInfoPopup({ show, onHide, nest, onAddAtLocation }: NestInfoPopupProps) {
   const dispatch = useDispatch<AppDispatch>();
   const auth = useAuth();
   const { canDeleteNest, canArchiveNest, accessToken } = useUserPermissions();
@@ -178,6 +180,12 @@ export default function NestInfoPopup({ show, onHide, nest }: NestInfoPopupProps
       </Modal.Body>
       
       <Modal.Footer>
+        <AddAtLocationButton
+          latitude={nest.latitude}
+          longitude={nest.longitude}
+          onAddAtLocation={onAddAtLocation}
+        />
+
         {/* Bouton de suppression pour les administrateurs et propriétaires */}
         {auth.isAuthenticated && canDeleteNest(nest) && (
           <Button 
@@ -195,7 +203,7 @@ export default function NestInfoPopup({ show, onHide, nest }: NestInfoPopupProps
           <Button
             variant="outline-warning"
             onClick={() => setShowArchiveModal(true)}
-            className="me-auto"
+            className="me-2"
           >
             <i className="fas fa-box-archive me-1"></i>
             Archiver

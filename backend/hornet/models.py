@@ -356,3 +356,52 @@ class TrapPhoto(models.Model):
 
     def __str__(self):
         return f"Photo {self.id} of trap {self.trap_id}"
+
+
+class Tag(models.Model):
+    """
+    A signed QR tag (see `hornet/tags.py`), recorded when it is generated.
+
+    A tag is valid only when its signature checks out *and* it is known here.
+    It starts free, is then associated with one object (a trap for now) and,
+    when replaced, is revoked rather than deleted: scanning it later reports
+    "revoked" instead of "unknown", which would look like a forgery.
+    """
+
+    id = models.AutoField(primary_key=True)
+    value = models.CharField(max_length=44, unique=True)
+    key_index = models.PositiveSmallIntegerField(db_index=True)
+    generated_by = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL,
+                                     related_name='generated_tags')
+    generated_at = models.DateTimeField(auto_now_add=True)
+    trap = models.ForeignKey(Trap, null=True, blank=True, on_delete=models.SET_NULL,
+                             related_name='tags')
+    associated_by = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL,
+                                      related_name='associated_tags')
+    associated_at = models.DateTimeField(null=True, blank=True)
+    revoked_by = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL,
+                                   related_name='revoked_tags')
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-generated_at', '-id']
+        constraints = [
+            # At most one live tag per trap
+            models.UniqueConstraint(
+                fields=['trap'],
+                condition=models.Q(revoked_at__isnull=True, trap__isnull=False),
+                name='tag_one_active_per_trap',
+            ),
+        ]
+
+    def __str__(self):
+        return f"Tag {self.value[2:10]}"
+
+    @property
+    def short(self) -> str:
+        from .tags import short_code
+        return short_code(self.value)
+
+    @property
+    def is_revoked(self) -> bool:
+        return self.revoked_at is not None

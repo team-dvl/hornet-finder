@@ -41,7 +41,7 @@ export const useSmartClickHandlers = ({
   onTrapClick
 }: UseSmartClickHandlersProps) => {
 
-  const { detectOverlap, zoomToSeparate } = useOverlapDetection({
+  const { detectOverlap, canZoomToSeparate, zoomToSeparate } = useOverlapDetection({
     map,
     hornets,
     apiaries,
@@ -53,70 +53,31 @@ export const useSmartClickHandlers = ({
     showTraps
   });
 
-  // Gestionnaire de clic intelligent pour les frelons
-  const handleSmartHornetClick = useCallback((hornet: Hornet) => {
-    const overlapResult = detectOverlap(hornet.latitude, hornet.longitude);
-    
-    if (overlapResult.hasOverlap && overlapResult.objects.length > 1) {
-      if (overlapResult.canZoomToSeparate) {
-        zoomToSeparate(hornet.latitude, hornet.longitude);
+  // Objects placed at the same spot never separate by zooming, so a click on
+  // overlapping markers always asks which one is meant before opening a sheet.
+  const smartClick = useCallback(
+    <T extends { latitude: number; longitude: number }>(object: T, onClick: (object: T) => void) => {
+      const overlapResult = detectOverlap(object.latitude, object.longitude);
+      if (overlapResult.hasOverlap) {
+        onShowOverlapDialog(overlapResult.objects, { lat: object.latitude, lng: object.longitude });
       } else {
-        onShowOverlapDialog(overlapResult.objects, { lat: hornet.latitude, lng: hornet.longitude });
+        onClick(object);
       }
-    } else {
-      onHornetClick(hornet);
-    }
-  }, [detectOverlap, zoomToSeparate, onShowOverlapDialog, onHornetClick]);
+    },
+    [detectOverlap, onShowOverlapDialog]
+  );
 
-  // Gestionnaire de clic intelligent pour les ruchers
-  const handleSmartApiaryClick = useCallback((apiary: Apiary) => {
-    const overlapResult = detectOverlap(apiary.latitude, apiary.longitude);
-    
-    if (overlapResult.hasOverlap && overlapResult.objects.length > 1) {
-      if (overlapResult.canZoomToSeparate) {
-        zoomToSeparate(apiary.latitude, apiary.longitude);
-      } else {
-        onShowOverlapDialog(overlapResult.objects, { lat: apiary.latitude, lng: apiary.longitude });
-      }
-    } else {
-      onApiaryClick(apiary);
-    }
-  }, [detectOverlap, zoomToSeparate, onShowOverlapDialog, onApiaryClick]);
-
-  // Gestionnaire de clic intelligent pour les nids
-  const handleSmartNestClick = useCallback((nest: Nest) => {
-    const overlapResult = detectOverlap(nest.latitude, nest.longitude);
-    
-    if (overlapResult.hasOverlap && overlapResult.objects.length > 1) {
-      if (overlapResult.canZoomToSeparate) {
-        zoomToSeparate(nest.latitude, nest.longitude);
-      } else {
-        onShowOverlapDialog(overlapResult.objects, { lat: nest.latitude, lng: nest.longitude });
-      }
-    } else {
-      onNestClick(nest);
-    }
-  }, [detectOverlap, zoomToSeparate, onShowOverlapDialog, onNestClick]);
-
-  // Gestionnaire de clic intelligent pour les pièges
-  const handleSmartTrapClick = useCallback((trap: Trap) => {
-    const overlapResult = detectOverlap(trap.latitude, trap.longitude);
-
-    if (overlapResult.hasOverlap && overlapResult.objects.length > 1) {
-      if (overlapResult.canZoomToSeparate) {
-        zoomToSeparate(trap.latitude, trap.longitude);
-      } else {
-        onShowOverlapDialog(overlapResult.objects, { lat: trap.latitude, lng: trap.longitude });
-      }
-    } else {
-      onTrapClick(trap);
-    }
-  }, [detectOverlap, zoomToSeparate, onShowOverlapDialog, onTrapClick]);
+  const handleSmartHornetClick = useCallback((hornet: Hornet) => smartClick(hornet, onHornetClick), [smartClick, onHornetClick]);
+  const handleSmartApiaryClick = useCallback((apiary: Apiary) => smartClick(apiary, onApiaryClick), [smartClick, onApiaryClick]);
+  const handleSmartNestClick = useCallback((nest: Nest) => smartClick(nest, onNestClick), [smartClick, onNestClick]);
+  const handleSmartTrapClick = useCallback((trap: Trap) => smartClick(trap, onTrapClick), [smartClick, onTrapClick]);
 
   return {
     handleSmartHornetClick,
     handleSmartApiaryClick,
     handleSmartNestClick,
-    handleSmartTrapClick
+    handleSmartTrapClick,
+    canZoomToSeparate,
+    zoomToSeparate
   };
 };

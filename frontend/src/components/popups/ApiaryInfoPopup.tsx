@@ -9,6 +9,7 @@ import { ConfirmationModal } from '../modals';
 import CoordinateInput from '../common/CoordinateInput';
 import InfestationLevelInput, { InfestationLevel } from '../common/InfestationLevelInput';
 import ApiaryGroupPermissions from '../common/ApiaryGroupPermissions';
+import AddAtLocationButton from '../common/AddAtLocationButton';
 
 const infestationLevelMap = {
   1: 'low',
@@ -25,9 +26,10 @@ interface ApiaryInfoPopupProps {
   show: boolean;
   onHide: () => void;
   apiary: Apiary | null;
+  onAddAtLocation?: (lat: number, lng: number) => void;
 }
 
-export default function ApiaryInfoPopup({ show, onHide, apiary }: ApiaryInfoPopupProps) {
+export default function ApiaryInfoPopup({ show, onHide, apiary, onAddAtLocation }: ApiaryInfoPopupProps) {
   const dispatch = useDispatch<AppDispatch>();
   const auth = useAuth();
   const { canAddApiary, canDeleteApiary, accessToken } = useUserPermissions(); // Les apiculteurs peuvent modifier leurs ruchers
@@ -196,12 +198,18 @@ export default function ApiaryInfoPopup({ show, onHide, apiary }: ApiaryInfoPopu
       </Modal.Body>
       
       <Modal.Footer>
+        <AddAtLocationButton
+          latitude={currentApiary.latitude}
+          longitude={currentApiary.longitude}
+          onAddAtLocation={onAddAtLocation}
+        />
+
         {/* Bouton de suppression pour les administrateurs et propriétaires */}
         {auth.isAuthenticated && canDeleteApiary(currentApiary) && (
           <Button 
             variant="outline-danger" 
             onClick={() => setShowDeleteModal(true)}
-            className="me-auto"
+            className="me-2"
           >
             <i className="fas fa-trash me-1"></i>
             Supprimer

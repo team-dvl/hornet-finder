@@ -8,6 +8,12 @@ export interface Crumb {
 /** Sections of the administration module, for the breadcrumb trail. */
 const ADMIN_SECTIONS: Record<string, string> = {
   'trap-types': 'Types de pièges',
+  tags: 'QR Codes',
+};
+
+/** Sections of the traps module. */
+const TRAP_SECTIONS: Record<string, string> = {
+  tags: 'QR Codes',
 };
 
 /**
@@ -26,6 +32,12 @@ export function getBreadcrumbs(pathname: string): Crumb[] {
     const documented = findModule(segments[1]);
     if (documented) {
       crumbs.push({ label: documented.shortTitle, path: `/docs/${documented.id}` });
+    }
+  }
+  if (module.id === 'traps' && segments[1]) {
+    const section = TRAP_SECTIONS[segments[1]];
+    if (section) {
+      crumbs.push({ label: section, path: `/traps/${segments[1]}` });
     }
   }
   if (module.id === 'admin' && segments[1]) {

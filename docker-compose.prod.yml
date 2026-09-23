@@ -52,6 +52,9 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - KC_CLIENT_ID=${KC_CLIENT_ID}
       - KC_CLIENT_SECRET=${KC_CLIENT_SECRET}
+      - TAG_HMAC_KEYS=${TAG_HMAC_KEYS}
+      - TAG_HMAC_ACTIVE_INDEX=${TAG_HMAC_ACTIVE_INDEX}
+      - TAG_SITE_ID=${TAG_SITE_ID}
       - KC_INTERNAL_URL=http://hornet-finder-keycloak:8080/
       - KC_REALM=hornet-finder
     volumes:

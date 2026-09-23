@@ -1,4 +1,4 @@
-import { Modal, ListGroup, Badge } from 'react-bootstrap';
+import { Modal, ListGroup, Badge, Button } from 'react-bootstrap';
 import { Hornet } from '../../store/slices/hornetsSlice';
 import { Apiary } from '../../store/slices/apiariesSlice';
 import { Nest } from '../../store/slices/nestsSlice';
@@ -12,6 +12,8 @@ interface OverlapDialogProps {
   objects: MapObject[];
   onSelectObject: (object: MapObject) => void;
   position: { lat: number; lng: number };
+  /** Shown when zooming in would pull the markers apart */
+  onZoomToSeparate?: () => void;
 }
 
 // Fonction pour obtenir le badge du niveau d'infestation
@@ -30,12 +32,14 @@ export default function OverlapDialog({
   onHide, 
   objects, 
   onSelectObject, 
-  position 
+  position,
+  onZoomToSeparate
 }: OverlapDialogProps) {
   
+  // The map shows a single modal: opening the selected sheet replaces this
+  // dialog, so closing it here as well would close the sheet just opened.
   const handleObjectClick = (object: MapObject) => {
     onSelectObject(object);
-    onHide();
   };
 
   return (
@@ -155,10 +159,24 @@ export default function OverlapDialog({
         
         <div className="mt-3">
           <small className="text-muted">
-            💡 Cliquez sur un objet pour l'afficher ou zoomer plus pour les distinguer.
+            💡 Cliquez sur un objet pour afficher sa fiche.
           </small>
         </div>
       </Modal.Body>
+
+      {onZoomToSeparate && (
+        <Modal.Footer>
+          <Button
+            variant="outline-secondary"
+            onClick={() => {
+              onZoomToSeparate();
+              onHide();
+            }}
+          >
+            🔍 Zoomer pour les distinguer
+          </Button>
+        </Modal.Footer>
+      )}
     </Modal>
   );
 }

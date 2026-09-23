@@ -68,9 +68,8 @@ export const MAX_NATIVE_ZOOM = 18;
 export const OVERLAP_THRESHOLD_PIXELS = 50;
 
 /**
- * Zoom minimum requis pour tenter de séparer automatiquement les objets superposés
- * Si le zoom actuel est inférieur à cette valeur, le système tente un zoom automatique
- * pour séparer les objets, sinon il affiche le dialogue de sélection
+ * Zoom au-delà duquel le dialogue de sélection des objets superposés ne
+ * propose plus de zoomer pour les distinguer
  */
 export const MIN_ZOOM_TO_SEPARATE = 18;
 

@@ -19,6 +19,14 @@ export default function AdminIndex() {
               to="/admin/trap-types"
             />
           </Col>
+          <Col sm={6} lg={4}>
+            <ModuleCard
+              title="QR Codes"
+              description="Suivez les QR Codes des pièges, leurs clés de signature, et révoquez ceux qui sont perdus ou compromis."
+              icon="bi-qr-code"
+              to="/admin/tags"
+            />
+          </Col>
         </Row>
       </Container>
     </PageLayout>

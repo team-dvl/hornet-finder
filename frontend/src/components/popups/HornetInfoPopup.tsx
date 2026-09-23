@@ -4,7 +4,7 @@ import { Hornet, updateHornetDuration, updateHornetColors, deleteHornet, archive
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useAuth } from 'react-oidc-context';
-import { ColorSelector } from '../common';
+import { AddAtLocationButton, ColorSelector } from '../common';
 import { ConfirmationModal } from '../modals';
 import { HORNET_RETURN_ZONE_ANGLE_DEG, HORNET_FLIGHT_SPEED_M_PER_MIN, HORNET_RETURN_ZONE_ABSOLUTE_MAX_DISTANCE_M } from '../../utils/constants';
 import CoordinateInput from '../common/CoordinateInput';
@@ -21,7 +21,7 @@ interface HornetInfoPopupProps {
 
 export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation, declination, correctedDirection }: HornetInfoPopupProps) {
   const dispatch = useAppDispatch();
-  const { canEditHornet, canDeleteHornet, canArchiveHornet, canAddHornet, canAddApiary, accessToken } = useUserPermissions();
+  const { canEditHornet, canDeleteHornet, canArchiveHornet, accessToken } = useUserPermissions();
   const auth = useAuth();
   
   // Récupérer les données mises à jour depuis le store Redux
@@ -418,15 +418,11 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation,
       </Modal.Body>
       
       <Modal.Footer>
-        {auth.isAuthenticated && (canAddHornet || canAddApiary) && onAddAtLocation && hornet && (
-          <Button 
-            variant="outline-primary" 
-            onClick={() => onAddAtLocation(hornet.latitude, hornet.longitude)}
-            className="me-auto"
-          >
-            📍 Ajouter à cette position
-          </Button>
-        )}
+        <AddAtLocationButton
+          latitude={currentHornet.latitude}
+          longitude={currentHornet.longitude}
+          onAddAtLocation={onAddAtLocation}
+        />
         
         {/* Bouton de suppression pour les administrateurs et propriétaires */}
         {auth.isAuthenticated && canDeleteHornet(currentHornet) && (

@@ -108,6 +108,24 @@ call 204 "t-admin supprime un type inutilisé"           DELETE "/trap-types/$TI
 BID=$(curl -sk "$BASE/trap-types/" "${H_ADMIN[@]}" | python3 -c "import sys,json;print([t['id'] for t in json.load(sys.stdin) if t['slug']=='bottle'][0])")
 call 409 "suppression d'un type utilisé refusée"        DELETE "/trap-types/$BID/" "${H_ADMIN[@]}"
 
+echo "== QR Codes"
+J=(-H "Content-Type: application/json")
+call 201 "t-owner génère deux QR Codes"                 POST "/tags/batch/" "${H_OWNER[@]}" "${J[@]}" -d '{"count":2}'
+read -r TAG_A TAG_B < <(python3 -c "import json;d=json.load(open('$OUT'));print(d[0]['value'],d[1]['value'])")
+# Same length, one bit flipped in the MAC: well formed but not authentic
+FORGED=$(python3 -c "import base64;r=bytearray(base64.urlsafe_b64decode('$TAG_A'+'=' * (-len('$TAG_A')%4)));r[-1]^=1;print(base64.urlsafe_b64encode(bytes(r)).decode().rstrip('='))")
+call 200 "QR Code neuf lu comme libre"                  GET "/tags/$TAG_A/" "${H_OWNER[@]}"
+call 400 "QR Code falsifié refusé"                      GET "/tags/$FORGED/" "${H_OWNER[@]}"
+call 400 "valeur mal formée refusée"                    GET "/tags/pas-un-qr-code/" "${H_OWNER[@]}"
+call 403 "t-member ne peut pas associer au piège"       POST "/tags/$TAG_A/associate/" "${H_MEMBER[@]}" "${J[@]}" -d "{\"trap_id\":$TRAP}"
+call 200 "t-owner associe le QR Code A"                 POST "/tags/$TAG_A/associate/" "${H_OWNER[@]}" "${J[@]}" -d "{\"trap_id\":$TRAP}"
+call 409 "B sans confirmation : le piège a déjà A"      POST "/tags/$TAG_B/associate/" "${H_OWNER[@]}" "${J[@]}" -d "{\"trap_id\":$TRAP}"
+call 200 "B remplace A après confirmation"              POST "/tags/$TAG_B/associate/" "${H_OWNER[@]}" "${J[@]}" -d "{\"trap_id\":$TRAP,\"replace\":true}"
+call 410 "l'ancien QR Code A est révoqué"               GET "/tags/$TAG_A/" "${H_OWNER[@]}"
+call 200 "B ouvre le piège"                             GET "/tags/$TAG_B/" "${H_OWNER[@]}"
+TID_OF_B=$(python3 -c "import json;print(json.load(open('$OUT'))['trap']['id'])")
+if [ "$TID_OF_B" = "$TRAP" ]; then PASS=$((PASS+1)); echo "  ok   B résout vers le piège #$TRAP"; else FAIL=$((FAIL+1)); echo "  FAIL B résout vers $TID_OF_B"; fi
+
 echo "== Ménage"
 call 204 "t-admin supprime le piège d'essai"            DELETE "/traps/$TRAP/" "${H_ADMIN[@]}"
 

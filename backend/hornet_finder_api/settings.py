@@ -186,6 +186,15 @@ MEDIA_ACCEL_PREFIX = '/_media/'
 # Set to False only when running Django without nginx in front.
 MEDIA_USE_X_ACCEL = os.environ.get('MEDIA_USE_X_ACCEL', 'True') == 'True'
 
+# Signed QR tags (see hornet/tags.py). TAG_HMAC_KEYS is `index:key,...`,
+# TAG_HMAC_ACTIVE_INDEX the key new tags are signed with, TAG_SITE_ID a stable
+# site identifier mixed into the signature. Checked on use, not at startup.
+TAG_HMAC_KEYS = os.environ.get('TAG_HMAC_KEYS', '')
+TAG_HMAC_ACTIVE_INDEX = os.environ.get('TAG_HMAC_ACTIVE_INDEX', '')
+TAG_SITE_ID = os.environ.get('TAG_SITE_ID', '')
+# Host of the URL printed in the QR codes
+TAG_URL_HOST = os.environ.get('HOST') or 'localhost'
+
 # Photos are resized client-side; this is the server-side safety net and must
 # stay below the `client_max_body_size` of the nginx /api/ location.
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024

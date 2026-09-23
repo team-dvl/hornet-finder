@@ -82,6 +82,8 @@ export interface Trap {
   owner?: UserSummary | null;
   group?: GroupSummary | null;
   last_event_at?: string | null;
+  /** Short code of the trap's QR tag, if it has one */
+  tag_short?: string | null;
   created_at?: string;
   updated_at?: string;
   events?: TrapEvent[];

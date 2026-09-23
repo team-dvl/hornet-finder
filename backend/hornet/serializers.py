@@ -268,13 +268,14 @@ class TrapSerializer(GPSValidationMixin, serializers.ModelSerializer):
     photo_url = serializers.SerializerMethodField()
     photo_thumbnail_url = serializers.SerializerMethodField()
     last_event_at = serializers.SerializerMethodField()
+    tag_short = serializers.SerializerMethodField()
 
     class Meta:
         model = Trap
         fields = ['id', 'latitude', 'longitude', 'address', 'active', 'visibility',
                   'trap_type', 'trap_type_slug', 'photo_url', 'photo_thumbnail_url',
                   'installed_at', 'comments', 'hornet_catch_count', 'owner', 'group',
-                  'last_event_at', 'created_at', 'updated_at']
+                  'last_event_at', 'tag_short', 'created_at', 'updated_at']
         # `active` is driven by the installation and removal events, never sent
         # by a form: DRF reads an absent boolean in form-data as False (the
         # unchecked-checkbox convention), which would store every new trap as
@@ -287,6 +288,13 @@ class TrapSerializer(GPSValidationMixin, serializers.ModelSerializer):
 
     def get_photo_thumbnail_url(self, instance) -> Optional[str]:
         return instance.photo_thumbnail.url if instance.photo_thumbnail else None
+
+    def get_tag_short(self, instance) -> Optional[str]:
+        # `active_tags` is prefetched by the trap viewset; query otherwise
+        active = getattr(instance, 'active_tags', None)
+        if active is None:
+            active = list(instance.tags.filter(revoked_at__isnull=True)[:1])
+        return active[0].short if active else None
 
     def get_last_event_at(self, instance) -> Optional[str]:
         last = instance.events.first()  # ordered by -performed_at

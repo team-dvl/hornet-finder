@@ -36,6 +36,9 @@ export type MapModal =
   /** A trap can also be placed from an address, hence a position that may be missing */
   | { kind: 'add-trap'; position: MapPoint | null }
   | { kind: 'overlap'; objects: MapObject[]; position: MapPoint }
+  /** A scanned QR tag not attached to any trap yet */
+  | { kind: 'tag-associate'; value: string; short: string }
+  | { kind: 'tag-scanner' }
   | null;
 
 export type MapModalKind = NonNullable<MapModal>['kind'];

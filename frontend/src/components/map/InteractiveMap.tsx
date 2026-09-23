@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { MapContainer, TileLayer, ZoomControl, useMapEvents } from "react-leaflet";
 import { Modal, Spinner } from 'react-bootstrap';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 import { Map } from 'leaflet';
-import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowApiaryCircles, selectShowHornets, selectShowReturnZones, selectShowNests, initializeGeolocation, selectMapCenter, selectGeolocationError, setGeolocationError, setIsAdmin, selectTraps, selectShowTraps, selectMovingTrapId, setShowTraps, toggleNests, toggleApiaries, stopMovingTrap, updateTrap } from '../../store/store';
+import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowApiaryCircles, selectShowHornets, selectShowReturnZones, selectShowNests, initializeGeolocation, selectMapCenter, selectGeolocationError, setGeolocationError, setIsAdmin, selectTraps, selectShowTraps, selectMovingTrapId, setShowTraps, toggleNests, toggleApiaries, stopMovingTrap, updateTrap, setMapCenter } from '../../store/store';
 import { selectFilteredHornets } from '../../store/slices/hornetsSlice';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useMapDataFetching } from '../../hooks/useMapDataFetching';
@@ -35,6 +36,9 @@ import OverlapDialog from './OverlapDialog';
 import MapRefHandler from './MapRefHandler';
 import { useSmartClickHandlers } from '../../hooks/useSmartClickHandlers';
 import { useMapModals, type MapPoint } from '../../hooks/useMapModals';
+import { useTagDeepLink } from '../../hooks/useTagDeepLink';
+import { TagAssociateModal, TagScannerModal } from '../tags';
+import type { TagResolution } from '../../utils/tagsApi';
 import { MapObject } from './types';
 import "leaflet/dist/leaflet.css";
 import "leaflet/dist/leaflet.js";
@@ -163,12 +167,13 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preset, dispatch]);
 
-  // Référence vers la carte Leaflet
-  const mapRef = useRef<Map | null>(null);
+  // Carte Leaflet, gardée en état pour que la détection des chevauchements
+  // la reçoive dès qu'elle est prête (une ref ne déclencherait pas de rendu)
+  const [leafletMap, setLeafletMap] = useState<Map | null>(null);
 
   // Fonction pour stocker la référence de la carte
   const handleMapReady = (map: Map) => {
-    mapRef.current = map;
+    setLeafletMap(map);
     
     // Créer un pane personnalisé pour les frelons avec un z-index plus bas
     if (!map.getPane('hornetPane')) {
@@ -207,6 +212,42 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
   // Gestionnaire de clic sur un piège
   const handleTrapClick = (trap: Trap) => openModal({ kind: 'trap', trap });
 
+  // --- QR Codes -----------------------------------------------------------
+  const navigate = useNavigate();
+  const [tagError, setTagError] = useState<string | null>(null);
+
+  /** Centre the map on a trap reached from its tag, then open its sheet. */
+  const focusTrap = useCallback((trap: Trap) => {
+    if (leafletMap) {
+      leafletMap.setView([trap.latitude, trap.longitude], Math.max(leafletMap.getZoom(), 17));
+    } else {
+      dispatch(setMapCenter({ latitude: trap.latitude, longitude: trap.longitude }));
+    }
+    dispatch(setShowTraps(true));
+    openModal({ kind: 'trap', trap });
+  }, [leafletMap, dispatch, openModal]);
+
+  const handleTagResolved = useCallback((value: string, resolution: TagResolution) => {
+    setTagError(null);
+    if (resolution.status === 'associated') {
+      focusTrap(resolution.trap);
+    } else {
+      openModal({ kind: 'tag-associate', value, short: resolution.short });
+    }
+  }, [focusTrap, openModal]);
+
+  const { needsSignIn: tagNeedsSignIn, resolving: resolvingTag } = useTagDeepLink({
+    onResolved: handleTagResolved,
+    onError: setTagError,
+  });
+
+  // The scanner only extracts the value: `/tag/<value>` does the rest, as for
+  // a tag scanned outside the app
+  const handleScannedTag = (value: string) => {
+    closeModal();
+    navigate(`/tag/${value}`);
+  };
+
   // Gestionnaire de clic sur une zone de retour
   const handleReturnZoneClick = (hornet: Hornet, lat?: number, lng?: number, declination?: number, correctedDirection?: number) => {
     openModal({
@@ -240,16 +281,20 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
     }
   };
 
+  // Les ruchers ne sont affichés qu'aux apiculteurs et aux administrateurs
+  const apiariesVisible = showApiaries && auth.isAuthenticated && (isAdmin || canAddApiary);
+
   const {
-    handleSmartHornetClick, handleSmartApiaryClick, handleSmartNestClick, handleSmartTrapClick
+    handleSmartHornetClick, handleSmartApiaryClick, handleSmartNestClick, handleSmartTrapClick,
+    canZoomToSeparate, zoomToSeparate
   } = useSmartClickHandlers({
-    map: mapRef.current,
+    map: leafletMap,
     hornets: filteredHornets,
     apiaries,
     nests,
     traps,
     showHornets,
-    showApiaries,
+    showApiaries: apiariesVisible,
     showNests,
     showTraps,
     onShowOverlapDialog: handleShowOverlapDialog,
@@ -275,7 +320,7 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
     }
   };
 
-  // Gestionnaire pour ajouter un élément à la position du frelon
+  // Gestionnaire pour ajouter un élément à la position d'un objet existant
   const handleAddAtLocation = (lat: number, lng: number) => {
     openModal({ kind: 'item-selector', position: { lat, lng } });
   };
@@ -469,6 +514,9 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
           onAddTrap={canAddTrap && showTraps
             ? () => openModal({ kind: 'add-trap', position: null })
             : undefined}
+          onScanTag={auth.isAuthenticated && showTraps
+            ? () => openModal({ kind: 'tag-scanner' })
+            : undefined}
         />
         <MapRefHandler onMapReady={handleMapReady} />
         <MapEventHandler />
@@ -496,14 +544,14 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
           );
         })}
         {/* Disques de ruchers - au-dessus des frelons */}
-        {showApiaryCircles && showApiaries && auth.isAuthenticated && (isAdmin || canAddApiary) && apiaries.map((apiary, index) => (
+        {showApiaryCircles && apiariesVisible && apiaries.map((apiary, index) => (
           <ApiaryCircle
             key={`circle-${apiary.id || index}`}
             apiary={apiary}
           />
         ))}
         {/* Marqueurs de ruchers - au-dessus des disques */}
-        {showApiaries && auth.isAuthenticated && (isAdmin || canAddApiary) && apiaries.map((apiary, index) => (
+        {apiariesVisible && apiaries.map((apiary, index) => (
           <ApiaryMarker
             key={apiary.id || index}
             apiary={apiary}
@@ -581,18 +629,21 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
         show={modal?.kind === 'apiary'}
         onHide={closeModal}
         apiary={modalOfKind('apiary')?.apiary ?? null}
+        onAddAtLocation={handleAddAtLocation}
       />
 
       <NestInfoPopup
         show={modal?.kind === 'nest'}
         onHide={closeModal}
         nest={modalOfKind('nest')?.nest ?? null}
+        onAddAtLocation={handleAddAtLocation}
       />
 
       <TrapInfoPopup
         show={modal?.kind === 'trap'}
         onHide={closeModal}
         trap={modalOfKind('trap')?.trap ?? null}
+        onAddAtLocation={handleAddAtLocation}
       />
 
       <HornetReturnZoneInfoPopup
@@ -710,6 +761,44 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
         </div>
       )}
 
+      {/* QR Codes : scanner, association, lecture d'un lien /tag/<valeur> */}
+      {modalOfKind('tag-scanner') && (
+        <TagScannerModal onHide={closeModal} onTag={handleScannedTag} />
+      )}
+
+      {modalOfKind('tag-associate') && (
+        <TagAssociateModal
+          value={modalOfKind('tag-associate')!.value}
+          short={modalOfKind('tag-associate')!.short}
+          onHide={closeModal}
+          onAssociated={focusTrap}
+        />
+      )}
+
+      {(tagError || tagNeedsSignIn || resolvingTag) && (
+        <div
+          className={`position-absolute top-0 start-50 translate-middle-x mt-5 alert ${tagError ? 'alert-danger alert-dismissible' : 'alert-info'}`}
+          style={{ zIndex: 1001, maxWidth: '90%' }}
+          role="alert"
+        >
+          {tagError ? (
+            <>
+              <strong>QR Code :</strong> {tagError}
+              <button type="button" className="btn-close" onClick={() => setTagError(null)} aria-label="Close" />
+            </>
+          ) : tagNeedsSignIn ? (
+            <>
+              Connectez-vous pour lire ce QR Code.{' '}
+              <button type="button" className="btn btn-sm btn-primary ms-2" onClick={() => void signInFromCurrentPage(auth)}>
+                Connexion
+              </button>
+            </>
+          ) : (
+            <><Spinner animation="border" size="sm" className="me-2" />Lecture du QR Code…</>
+          )}
+        </div>
+      )}
+
       {/* Dialogue de sélection d'objets superposés */}
       {modalOfKind('overlap') && (
         <OverlapDialog
@@ -718,6 +807,9 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
           objects={modalOfKind('overlap')!.objects}
           onSelectObject={handleObjectSelection}
           position={modalOfKind('overlap')!.position}
+          onZoomToSeparate={canZoomToSeparate(modalOfKind('overlap')!.objects)
+            ? () => zoomToSeparate(modalOfKind('overlap')!.position.lat, modalOfKind('overlap')!.position.lng)
+            : undefined}
         />
       )}
     </div>

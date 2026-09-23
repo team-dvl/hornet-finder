@@ -637,3 +637,245 @@ class KeycloakGroupLookupTests(TestCase):
 
         with patch('hornet_finder_api.utils._get_keycloak_admin', side_effect=RuntimeError('down')):
             self.assertEqual(get_user_group_paths('some-guid'), [])
+
+
+# -- signed QR tags ------------------------------------------------------------
+
+import base64 as _base64
+import secrets as _secrets
+
+from django.test import override_settings
+
+from .models import Tag
+from .tag_views import TagViewSet
+from . import tags as tag_crypto
+
+_KEY0 = _base64.urlsafe_b64encode(_secrets.token_bytes(32)).decode().rstrip('=')
+_KEY1 = _base64.urlsafe_b64encode(_secrets.token_bytes(32)).decode().rstrip('=')
+TAG_SETTINGS = dict(TAG_HMAC_KEYS=f'0:{_KEY0},1:{_KEY1}', TAG_HMAC_ACTIVE_INDEX='1',
+                    TAG_SITE_ID='test.velutina', TAG_URL_HOST='test.velutina.ovh')
+
+
+def _tamper(value, position):
+    """Flip one bit of the decoded tag and re-encode it."""
+    raw = bytearray(tag_crypto._b64decode(value))
+    raw[position] ^= 0x01
+    return _base64.urlsafe_b64encode(bytes(raw)).decode().rstrip('=')
+
+
+@override_settings(**TAG_SETTINGS)
+class TagCryptoTests(TestCase):
+    def test_round_trip_with_the_active_key(self):
+        value = tag_crypto.generate_tag_value()
+        self.assertEqual(len(value), 44)
+        self.assertEqual(tag_crypto._b64decode(value)[0], 1)
+        self.assertTrue(tag_crypto.verify_tag_value(value).valid)
+
+    def test_an_older_key_stays_valid_after_rotation(self):
+        value = tag_crypto.generate_tag_value()
+        with override_settings(TAG_HMAC_KEYS=f'1:{_KEY1},2:{_KEY0}', TAG_HMAC_ACTIVE_INDEX='2'):
+            self.assertTrue(tag_crypto.verify_tag_value(value).valid)
+
+    def test_a_retired_key_invalidates_its_tags(self):
+        value = tag_crypto.generate_tag_value()
+        with override_settings(TAG_HMAC_KEYS=f'0:{_KEY0}', TAG_HMAC_ACTIVE_INDEX='0'):
+            result = tag_crypto.verify_tag_value(value)
+        self.assertFalse(result.valid)
+        self.assertEqual((result.key_index, result.reason), (1, 'unknown key'))
+
+    def test_any_altered_byte_is_rejected(self):
+        value = tag_crypto.generate_tag_value()
+        # 0: key index (both keys exist), 5: random part, 30: MAC
+        for position in (0, 5, 30):
+            self.assertFalse(tag_crypto.verify_tag_value(_tamper(value, position)).valid, position)
+
+    def test_another_site_id_is_rejected(self):
+        value = tag_crypto.generate_tag_value()
+        with override_settings(TAG_SITE_ID='other.site'):
+            self.assertFalse(tag_crypto.verify_tag_value(value).valid)
+
+    def test_malformed_values_are_rejected(self):
+        value = tag_crypto.generate_tag_value()
+        for bad in ('', value[:43], value + 'A', value[:43] + '=', value[:43] + '+', None):
+            self.assertEqual(tag_crypto.verify_tag_value(bad).reason, 'format', bad)
+
+    def test_configuration_is_validated(self):
+        bad_specs = [f'{_KEY0}', f'x:{_KEY0}', f'300:{_KEY0}', f'0:{_KEY0},0:{_KEY1}', '0:c2hvcnQ']
+        for spec in bad_specs:
+            with self.assertRaises(tag_crypto.TagConfigurationError, msg=spec):
+                tag_crypto.parse_keys(spec)
+        for overrides in ({'TAG_HMAC_KEYS': ''}, {'TAG_SITE_ID': ''},
+                          {'TAG_HMAC_ACTIVE_INDEX': '7'}, {'TAG_HMAC_ACTIVE_INDEX': ''}):
+            with override_settings(**overrides), self.assertRaises(
+                    tag_crypto.TagConfigurationError, msg=str(overrides)):
+                tag_crypto.get_config()
+
+
+@override_settings(**TAG_SETTINGS)
+class TagApiTests(TrapTestCase):
+    def _tag_call(self, method, url, actions, user, data=None, **view_kwargs):
+        request = getattr(self.factory, method)(url, data, format='json')
+        force_authenticate(request, user=user)
+        return TagViewSet.as_view(actions)(request, **view_kwargs)
+
+    def _batch(self, user, count=2):
+        return self._tag_call('post', '/tags/batch/', {'post': 'batch'}, user, {'count': count})
+
+    def _resolve(self, value, user):
+        return self._tag_call('get', f'/tags/{value}/', {'get': 'retrieve'}, user, value=value)
+
+    def _associate(self, value, user, trap_id, replace=None):
+        data = {'trap_id': trap_id}
+        if replace is not None:
+            data['replace'] = replace
+        return self._tag_call('post', f'/tags/{value}/associate/', {'post': 'associate'},
+                              user, data, value=value)
+
+    def _new_tag(self, user=None):
+        return self._batch(user or self.owner_user, 1).data[0]['value']
+
+    def test_batch_creates_signed_free_tags(self):
+        response = self._batch(self.owner_user, 3)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(len(response.data), 3)
+        first = response.data[0]
+        self.assertTrue(first['url'].startswith('https://test.velutina.ovh/tag/'))
+        self.assertTrue(first['qr_svg'].startswith('data:image/svg+xml'))
+        tag = Tag.objects.get(value=first['value'])
+        self.assertEqual((tag.key_index, tag.generated_by_id), (1, self.owner_guid))
+        self.assertEqual(self._resolve(first['value'], self.owner_user).data['status'],
+                         'unassociated')
+
+    def test_batch_size_is_bounded(self):
+        self.assertEqual(self._batch(self.owner_user, 0).status_code, 400)
+        self.assertEqual(self._batch(self.owner_user, 49).status_code, 400)
+
+    def test_a_forged_tag_is_rejected_and_logged(self):
+        forged = _tamper(self._new_tag(), 30)
+        with self.assertLogs('hornet.tag_views', level='WARNING') as logs:
+            response = self._resolve(forged, self.owner_user)
+        self.assertEqual((response.status_code, response.data['code']), (400, 'invalid'))
+        self.assertIn('invalid signature', logs.output[0])
+
+    def test_a_signed_but_unknown_tag_is_rejected_and_logged(self):
+        value = tag_crypto.generate_tag_value()
+        with self.assertLogs('hornet.tag_views', level='WARNING'):
+            response = self._resolve(value, self.owner_user)
+        self.assertEqual(response.status_code, 404)
+
+    def test_owner_associates_and_the_tag_resolves_to_the_trap(self):
+        value = self._new_tag()
+        response = self._associate(value, self.owner_user, self.trap.id)
+        self.assertEqual(response.status_code, 200)
+        resolved = self._resolve(value, self.member_user)
+        self.assertEqual(resolved.data['status'], 'associated')
+        self.assertEqual(resolved.data['trap']['id'], self.trap.id)
+        self.assertEqual(resolved.data['trap']['tag_short'], value[2:10])
+
+    def test_a_stranger_cannot_associate(self):
+        value = self._new_tag(self.stranger_user)
+        with self.assertLogs('hornet.tag_views', level='WARNING'):
+            response = self._associate(value, self.stranger_user, self.trap.id)
+        self.assertEqual(response.status_code, 403)
+        self.assertIsNone(Tag.objects.get(value=value).trap_id)
+
+    def test_an_admin_associates_any_tag_with_any_trap(self):
+        value = self._new_tag(self.stranger_user)
+        self.assertEqual(self._associate(value, self.admin_user, self.trap.id).status_code, 200)
+
+    def test_replacing_needs_confirmation_and_revokes_the_old_tag(self):
+        old, new = self._new_tag(), self._new_tag()
+        self._associate(old, self.owner_user, self.trap.id)
+
+        refused = self._associate(new, self.owner_user, self.trap.id)
+        self.assertEqual((refused.status_code, refused.data['code']), (409, 'trap_has_tag'))
+        self.assertEqual(refused.data['existing_short'], old[2:10])
+
+        self.assertEqual(self._associate(new, self.owner_user, self.trap.id, True).status_code, 200)
+        self.assertEqual(self._resolve(old, self.owner_user).status_code, 410)
+        self.assertEqual(self._resolve(new, self.owner_user).data['trap']['id'], self.trap.id)
+        self.assertEqual(Tag.objects.filter(trap=self.trap, revoked_at__isnull=True).count(), 1)
+
+    def test_an_associated_tag_cannot_be_moved(self):
+        value = self._new_tag()
+        self._associate(value, self.owner_user, self.trap.id)
+        other = Trap.objects.create(latitude=50.6, longitude=4.6, owner=self.owner,
+                                    trap_type=self.trap_type, installed_at=timezone.now().date())
+        self.assertEqual(self._associate(value, self.owner_user, other.id).status_code, 409)
+
+    def test_a_group_trap_is_hidden_from_strangers(self):
+        value = self._new_tag()
+        self._associate(value, self.owner_user, self.trap.id)
+        self.trap.group, self.trap.visibility = self.group, Trap.VISIBILITY_GROUP
+        self.trap.save()
+        with self.assertLogs('hornet.tag_views', level='WARNING'):
+            self.assertEqual(self._resolve(value, self.stranger_user).status_code, 403)
+
+    def test_candidates_are_the_owners_traps(self):
+        value = self._new_tag()
+        def candidates(user):
+            return self._tag_call('get', f'/tags/{value}/candidates/', {'get': 'candidates'},
+                                  user, value=value).data
+        self.assertEqual([c['id'] for c in candidates(self.owner_user)], [self.trap.id])
+        self.assertEqual(candidates(self.stranger_user), [])
+        self.assertEqual([c['id'] for c in candidates(self.admin_user)], [self.trap.id])
+
+    def test_missing_configuration_answers_503(self):
+        with override_settings(TAG_HMAC_KEYS=''):
+            with self.assertLogs('hornet.tag_views', level='ERROR'):
+                self.assertEqual(self._batch(self.owner_user).status_code, 503)
+
+
+@override_settings(**TAG_SETTINGS)
+class TagAdminApiTests(TrapTestCase):
+    """The administration endpoints: listing, key usage, revocation."""
+
+    def setUp(self):
+        super().setUp()
+        request = self.factory.post('/tags/batch/', {'count': 3}, format='json')
+        force_authenticate(request, user=self.owner_user)
+        values = [t['value'] for t in TagViewSet.as_view({'post': 'batch'})(request).data]
+        self.free, self.attached, self.revoked = (Tag.objects.get(value=v) for v in values)
+        self.attached.trap = self.trap
+        self.attached.save()
+        self.revoked.revoked_at = timezone.now()
+        self.revoked.save()
+
+    def _admin(self, method, url, actions, user, **view_kwargs):
+        request = getattr(self.factory, method)(url)
+        force_authenticate(request, user=user)
+        from .tag_views import TagAdminViewSet
+        return TagAdminViewSet.as_view(actions)(request, **view_kwargs)
+
+    def test_only_admins_get_in(self):
+        self.assertEqual(self._admin('get', '/admin/tags/', {'get': 'list'}, self.owner_user).status_code, 403)
+
+    def test_list_filters_by_status(self):
+        for state, expected in (('free', self.free), ('associated', self.attached), ('revoked', self.revoked)):
+            response = self._admin('get', f'/admin/tags/?status={state}', {'get': 'list'}, self.admin_user)
+            self.assertEqual([row['id'] for row in response.data['results']], [expected.id], state)
+            self.assertEqual(response.data['results'][0]['status'], state)
+        everything = self._admin('get', '/admin/tags/', {'get': 'list'}, self.admin_user)
+        self.assertEqual(everything.data['count'], 3)
+
+    def test_search_by_trap_id(self):
+        response = self._admin('get', f'/admin/tags/?q={self.trap.id}', {'get': 'list'}, self.admin_user)
+        self.assertIn(self.attached.id, [row['id'] for row in response.data['results']])
+
+    def test_key_usage(self):
+        response = self._admin('get', '/admin/tags/keys/', {'get': 'keys'}, self.admin_user)
+        rows = {row['index']: row for row in response.data}
+        self.assertEqual(rows[1], {'index': 1, 'state': 'active', 'associated': 1, 'free': 1, 'revoked': 1})
+        self.assertEqual(rows[0]['state'], 'configured')
+
+    def test_revoke_then_scan_is_refused(self):
+        response = self._admin('post', f'/admin/tags/{self.attached.id}/revoke/', {'post': 'revoke'},
+                               self.admin_user, pk=self.attached.id)
+        self.assertEqual((response.status_code, response.data['status']), (200, 'revoked'))
+        request = self.factory.get(f'/tags/{self.attached.value}/')
+        force_authenticate(request, user=self.owner_user)
+        scanned = TagViewSet.as_view({'get': 'retrieve'})(request, value=self.attached.value)
+        self.assertEqual(scanned.status_code, 410)
+        again = self._admin('post', f'/admin/tags/{self.attached.id}/revoke/', {'post': 'revoke'},
+                            self.admin_user, pk=self.attached.id)
+        self.assertEqual(again.status_code, 409)

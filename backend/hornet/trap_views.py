@@ -4,7 +4,7 @@ import logging
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import models as db_models
-from django.db.models import ProtectedError
+from django.db.models import Prefetch, ProtectedError
 from django.utils import timezone
 
 from rest_framework import status, viewsets
@@ -19,7 +19,7 @@ from hornet_finder_api.authentication import HasAnyRole, JWTBearerAuthentication
 
 from . import trap_permissions as perms
 from .images import processed_image
-from .models import BeekeeperGroup, Species, Trap, TrapEvent, TrapPhoto, TrapType, User
+from .models import BeekeeperGroup, Species, Tag, Trap, TrapEvent, TrapPhoto, TrapType, User
 from .serializers import (
     PublicTrapSerializer, SpeciesSerializer, TrapDetailSerializer, TrapEventSerializer,
     TrapPhotoSerializer, TrapSerializer, TrapTypeSerializer,
@@ -142,7 +142,10 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
     rules themselves live in `trap_permissions.py`.
     """
 
-    queryset = Trap.objects.select_related('trap_type', 'owner', 'group')
+    queryset = Trap.objects.select_related('trap_type', 'owner', 'group').prefetch_related(
+        Prefetch('tags', queryset=Tag.objects.filter(revoked_at__isnull=True),
+                 to_attr='active_tags'),
+    )
     serializer_class = TrapSerializer
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
