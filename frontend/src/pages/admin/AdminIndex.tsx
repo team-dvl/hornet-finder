@@ -21,6 +21,14 @@ export default function AdminIndex() {
           </Col>
           <Col sm={6} lg={4}>
             <ModuleCard
+              title="Espèces"
+              description="Tenez à jour les espèces proposées lors d'un constat de capture, et leur photo."
+              icon="bi-bug"
+              to="/admin/species"
+            />
+          </Col>
+          <Col sm={6} lg={4}>
+            <ModuleCard
               title="QR Codes"
               description="Suivez les QR Codes des pièges, leurs clés de signature, et révoquez ceux qui sont perdus ou compromis."
               icon="bi-qr-code"

@@ -8,6 +8,7 @@ export interface Crumb {
 /** Sections of the administration module, for the breadcrumb trail. */
 const ADMIN_SECTIONS: Record<string, string> = {
   'trap-types': 'Types de pièges',
+  species: 'Espèces',
   tags: 'QR Codes',
 };
 

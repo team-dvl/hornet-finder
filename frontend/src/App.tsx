@@ -4,7 +4,7 @@ import { Container, Alert } from 'react-bootstrap'
 import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from 'react-oidc-context';
-import { Home, Nests, Traps, TrapTags, DocsIndex, DocPage, AdminIndex, TrapTypesAdmin, TagsAdmin, PrivacyPolicy, DataDeletion } from './pages';
+import { Home, Nests, Traps, TrapTags, DocsIndex, DocPage, AdminIndex, TrapTypesAdmin, SpeciesAdmin, TagsAdmin, PrivacyPolicy, DataDeletion } from './pages';
 import { RequireRole } from './components/common';
 import { initIOSViewportFix } from './utils/iosViewportFix';
 import { useUrlCleaner } from './utils/urlCleaner';
@@ -122,6 +122,10 @@ function App() {
       <Route
         path="/admin/trap-types"
         element={<RequireRole roles={['admin']}><TrapTypesAdmin /></RequireRole>}
+      />
+      <Route
+        path="/admin/species"
+        element={<RequireRole roles={['admin']}><SpeciesAdmin /></RequireRole>}
       />
       <Route
         path="/admin/tags"
