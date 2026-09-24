@@ -111,6 +111,8 @@ function App() {
       <Route element={<Traps />}>
         <Route path="/traps" element={null} />
         <Route path="/tag/:tagValue" element={null} />
+        {/* Shortcut of the installed app (long press on its icon): opens the scanner */}
+        <Route path="/scan" element={null} />
       </Route>
       {/* Former printing page, now a tab of the QR Codes administration */}
       <Route path="/traps/tags" element={<Navigate to="/admin/tags?tab=print" replace />} />

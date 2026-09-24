@@ -13,6 +13,9 @@ function accountConsoleUrl(authority: string, clientId: string): string {
   return `${authority}/account?referrer=${clientId}&referrer_uri=${referrerUri}`;
 }
 
+/** App icon, the dev one (purple outline) on the dev server, as for the installed PWA. */
+const APP_ICON = import.meta.env.DEV ? '/icons/pwa-dev-192x192.png' : '/icons/pwa-192x192.png';
+
 /** Landing page: title and the module menu. Descriptive content lives in the documentation module. */
 export default function Home() {
   const auth = useAuth();
@@ -24,7 +27,7 @@ export default function Home() {
       <Container className="py-4">
         <Row className="text-center mb-4">
           <Col>
-            <div style={{ fontSize: '3rem' }}>🐝</div>
+            <img src={APP_ICON} alt="" width={96} height={96} className="mb-3" />
             <h1 className="mb-2">Bienvenue sur Velutina</h1>
             <h5 className="text-primary fw-normal">
               Plateforme collaborative de surveillance du frelon asiatique

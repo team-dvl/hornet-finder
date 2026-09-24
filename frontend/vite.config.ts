@@ -16,16 +16,27 @@ export default defineConfig(({ mode }) => {
   // Determine dev domain (dev.velutina.ovh if using dev keycloak, localhost otherwise)
   const isLocalEnvironment = env.VITE_ENVIRONMENT === 'local'
   const devDomain = isLocalEnvironment ? 'localhost' : 'dev.velutina.ovh'
-  
+
+  // DEV runs the Vite dev server, prod a build: the dev icons (purple outline)
+  // tell the two installed PWAs apart
+  const isDevServer = mode !== 'production'
+  const iconSuffix = isDevServer ? '-dev' : ''
+
   return {
     plugins: [
       react(),
+      {
+        name: 'env-icons',
+        transformIndexHtml: (html: string) => html
+          .replace('href="/favicon.ico"', `href="/favicon${iconSuffix}.ico"`)
+          .replace('href="/apple-touch-icon.png"', `href="/apple-touch-icon${iconSuffix}.png"`),
+      },
       VitePWA({
         registerType: 'autoUpdate',
         devOptions: {
           enabled: true,
         },
-        includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
+        includeAssets: [`favicon${iconSuffix}.ico`, 'robots.txt', `apple-touch-icon${iconSuffix}.png`],
         workbox: {
           // Configuration pour améliorer la persistance des données
           clientsClaim: true,
@@ -74,16 +85,26 @@ export default defineConfig(({ mode }) => {
         scope: '/',
         icons: [
           {
-            src: 'icons/pwa-192x192.png',
+            src: `icons/pwa${iconSuffix}-192x192.png`,
             sizes: '192x192',
             type: 'image/png',
           },
           {
-            src: 'icons/pwa-512x512.png',
+            src: `icons/pwa${iconSuffix}-512x512.png`,
             sizes: '512x512',
             type: 'image/png',
           }
-        ]
+        ],
+        // Long press on the installed app icon (Android, desktop; not iOS)
+        shortcuts: [
+          {
+            name: 'Scanner un QR Code',
+            short_name: 'Scanner',
+            description: 'Ouvrir l\'appareil photo pour lire le QR Code d\'un piège',
+            url: '/scan',
+            icons: [{ src: 'icons/shortcut-scan-96x96.png', sizes: '96x96', type: 'image/png' }],
+          },
+        ],
       }
     })
   ],

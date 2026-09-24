@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { MapContainer, TileLayer, ZoomControl, useMapEvents } from "react-leaflet";
 import { Modal, Spinner } from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 import { Map } from 'leaflet';
 import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowApiaryCircles, selectShowHornets, selectShowReturnZones, selectShowNests, initializeGeolocation, selectMapCenter, selectGeolocationError, setGeolocationError, setIsAdmin, selectTraps, selectShowTraps, selectMovingTrapId, setShowTraps, toggleNests, toggleApiaries, stopMovingTrap, updateTrap, setMapCenter } from '../../store/store';
@@ -247,6 +247,18 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
     closeModal();
     navigate(`/tag/${value}`);
   };
+
+  // `/scan` (shortcut of the installed app): open the scanner once signed in,
+  // and go back to `/traps` so a reload does not reopen it
+  const location = useLocation();
+  const scanRequested = location.pathname === '/scan';
+  const scanNeedsSignIn = scanRequested && !auth.isLoading && !auth.isAuthenticated;
+  useEffect(() => {
+    if (!scanRequested || auth.isLoading || !auth.isAuthenticated) return;
+    dispatch(setShowTraps(true));
+    openModal({ kind: 'tag-scanner' });
+    navigate('/traps', { replace: true });
+  }, [scanRequested, auth.isLoading, auth.isAuthenticated, dispatch, openModal, navigate]);
 
   // Gestionnaire de clic sur une zone de retour
   const handleReturnZoneClick = (hornet: Hornet, lat?: number, lng?: number, declination?: number, correctedDirection?: number) => {
@@ -775,7 +787,7 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
         />
       )}
 
-      {(tagError || tagNeedsSignIn || resolvingTag) && (
+      {(tagError || tagNeedsSignIn || scanNeedsSignIn || resolvingTag) && (
         <div
           className={`position-absolute top-0 start-50 translate-middle-x mt-5 alert ${tagError ? 'alert-danger alert-dismissible' : 'alert-info'}`}
           style={{ zIndex: 1001, maxWidth: '90%' }}
@@ -786,9 +798,9 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
               <strong>QR Code :</strong> {tagError}
               <button type="button" className="btn-close" onClick={() => setTagError(null)} aria-label="Close" />
             </>
-          ) : tagNeedsSignIn ? (
+          ) : tagNeedsSignIn || scanNeedsSignIn ? (
             <>
-              Connectez-vous pour lire ce QR Code.{' '}
+              {scanNeedsSignIn ? 'Connectez-vous pour scanner un QR Code.' : 'Connectez-vous pour lire ce QR Code.'}{' '}
               <button type="button" className="btn btn-sm btn-primary ms-2" onClick={() => void signInFromCurrentPage(auth)}>
                 Connexion
               </button>
