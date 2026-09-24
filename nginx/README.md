@@ -70,6 +70,11 @@ Development configuration for the development domain (`dev.velutina.ovh`):
 - **Hot Module Replacement**: WebSocket support for instant code updates
 - **API Proxying**: Same backend proxy as production
 
+#### Catch-all mailbox (`app-dev.conf`)
+- **`/mail/`**: Mailpit UI and API, gated by `auth_request` to oauth2-proxy (Keycloak SSO or bearer token, realm role `mail-reader`)
+- **`/mail/oauth2/`**: oauth2-proxy endpoints (login, callback); larger proxy and header buffers because the session cookie carries the Keycloak tokens
+- Mailpit keeps its own CSP (HTML preview iframe), so only HSTS is added there. See [doc/mail-catcher.md](../doc/mail-catcher.md)
+
 ### `auth.conf`
 Authentication service configuration for Keycloak (`auth.velutina.ovh`):
 

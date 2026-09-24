@@ -93,6 +93,12 @@ resolve_service_name() {
         "keycloak-db")
             echo "hornet-finder${suffix}-keycloak-db"
             ;;
+        "mail"|"mailpit")
+            echo "hornet-finder-dev-mailpit"
+            ;;
+        "mail-proxy")
+            echo "hornet-finder-dev-mail-proxy"
+            ;;
         *)
             echo "$service"
             ;;

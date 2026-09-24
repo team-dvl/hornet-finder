@@ -108,6 +108,7 @@ hornet-finder/
 ├── storage-init.sh    # Provision external volumes (and ZFS datasets when configured)
 ├── status.sh          # Read-only environment status report
 ├── smoke-traps.sh     # Traps API walkthrough with the dev test accounts (dev only)
+├── mail-api.sh        # Catch-all mailbox (Mailpit) from the command line (dev only)
 ├── zfs-snapshot.sh    # Snapshot management for the ZFS backend
 └── lib/               # Shared shell libraries (common.sh, volumes.sh, zfs.sh)
 ```
@@ -259,6 +260,7 @@ Useful commands:
 ./deploy-certs.sh        # Generate certificates for this worktree
 ./status.sh              # Read-only status report (config, storage, services, certs, endpoints)
 ./smoke-traps.sh         # Traps API end to end, with the dev-only Keycloak test accounts
+./mail-api.sh list       # Emails captured by the dev catch-all mailbox (dev only)
 ```
 
 The development and production Compose files use different service names,
@@ -293,6 +295,7 @@ Each major component has detailed documentation:
 - **[Authentication](./auth/README.md)**: Keycloak setup and Google OAuth integration
 - **[Database](./postgis/README.md)**: PostGIS spatial database configuration
 - **[Reverse Proxy](./nginx/README.md)**: Nginx SSL termination and routing
+- **[Catch-all mailbox](./doc/mail-catcher.md)**: Mailpit behind Keycloak SSO, capturing every dev email (dev only)
 - **[Frontend](./frontend/README.md)**: *Documentation coming soon*
 
 ## Security Features

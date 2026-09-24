@@ -30,10 +30,13 @@ export default defineConfig(({ mode }) => {
           // Configuration pour améliorer la persistance des données
           clientsClaim: true,
           skipWaiting: true,
+          // Dev catch-all mailbox (Mailpit behind nginx): never the SPA shell
+          navigateFallbackDenylist: [/^\/mail\//],
           // Stratégies de cache pour les ressources d'authentification
           runtimeCaching: [
             {
-              urlPattern: ({ request }) => request.destination === 'document',
+              urlPattern: ({ request, url }) =>
+                request.destination === 'document' && !url.pathname.startsWith('/mail/'),
               handler: 'NetworkFirst',
               options: {
                 cacheName: 'pages-cache',

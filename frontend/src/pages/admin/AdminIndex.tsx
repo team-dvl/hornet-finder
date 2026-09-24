@@ -35,6 +35,17 @@ export default function AdminIndex() {
               to="/admin/tags"
             />
           </Col>
+          {import.meta.env.DEV && (
+            <Col sm={6} lg={4}>
+              <ModuleCard
+                title="Internal mail server"
+                description="Consultez tous les emails envoyés par l'environnement de développement (catch-all, rien n'est relayé)."
+                icon="bi-envelope"
+                href="/mail/"
+                badge="DEV"
+              />
+            </Col>
+          )}
         </Row>
       </Container>
     </PageLayout>

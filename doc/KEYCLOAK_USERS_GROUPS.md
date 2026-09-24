@@ -46,10 +46,12 @@ Les mappings de rôles des groupes sont les suivants :
 
 | Groupe | Role mapping de realm |
 | --- | --- |
-| `/admins` | `admin`, `beekeeper`, `volunteer`, `beekeeper-group-admin` |
+| `/admins` | `admin`, `beekeeper`, `volunteer`, `beekeeper-group-admin` (en dev : aussi `mail-reader`) |
 | `/beekeepers` | `beekeeper` |
 | `/beekeepers/<identifiant-groupe>/admin` | `beekeeper-group-admin` |
 | `/volunteers` | `volunteer` |
+
+En dev seulement, le rôle `mail-reader` donne accès à la boîte catch-all (voir [mail-catcher.md](mail-catcher.md)).
 
 Le rôle placé sur un groupe parent est transmis à ses sous-groupes. Un membre de `/beekeepers/vsab` reçoit donc `beekeeper` et un membre de `/beekeepers/vsab/admin` reçoit en plus `beekeeper-group-admin`.
 

@@ -132,6 +132,15 @@
         "clientRole": false,
         "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
         "attributes": {}
+      },
+      {
+        "id": "6e63e2d7-7bd6-4606-9e8e-a621da391db5",
+        "name": "mail-reader",
+        "description": "Read the dev catch-all mailbox (Mailpit)",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
+        "attributes": {}
       }
     ],
     "client": {
@@ -465,7 +474,8 @@
         "beekeeper-group-admin",
         "admin",
         "volunteer",
-        "group-admin"
+        "group-admin",
+        "mail-reader"
       ],
       "clientRoles": {}
     },
@@ -651,6 +661,22 @@
           "view-users"
         ]
       },
+      "notBefore": 0,
+      "groups": []
+    },
+    {
+      "id": "ff3ac2cc-a797-43d6-b6ea-4c2a4922bd7e",
+      "username": "service-account-mail-proxy-dev",
+      "emailVerified": false,
+      "enabled": true,
+      "totp": false,
+      "serviceAccountClientId": "mail-proxy-dev",
+      "disableableCredentialTypes": [],
+      "requiredActions": [],
+      "realmRoles": [
+        "default-roles-hornet-finder",
+        "mail-reader"
+      ],
       "notBefore": 0,
       "groups": []
     }
@@ -1113,6 +1139,69 @@
         "offline_access",
         "microprofile-jwt"
       ]
+    },
+    {
+      "id": "509e62d0-64d1-4e04-81bf-b7d64a65e600",
+      "clientId": "mail-proxy-dev",
+      "name": "mail-proxy-dev",
+      "description": "oauth2-proxy in front of the dev catch-all mailbox; service account for scripts",
+      "rootUrl": "https://dev.velutina.ovh",
+      "adminUrl": "",
+      "baseUrl": "/mail/",
+      "surrogateAuthRequired": false,
+      "enabled": true,
+      "alwaysDisplayInConsole": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "**********",
+      "redirectUris": [
+        "https://dev.velutina.ovh/mail/oauth2/callback"
+      ],
+      "webOrigins": [
+        "+"
+      ],
+      "notBefore": 0,
+      "bearerOnly": false,
+      "consentRequired": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "publicClient": false,
+      "frontchannelLogout": true,
+      "protocol": "openid-connect",
+      "attributes": {
+        "realm_client": "false",
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "https://dev.velutina.ovh/mail/*"
+      },
+      "authenticationFlowBindingOverrides": {},
+      "fullScopeAllowed": true,
+      "nodeReRegistrationTimeout": -1,
+      "protocolMappers": [
+        {
+          "id": "f401b3e4-7aa2-49c8-9e74-b21ff8ba75ff",
+          "name": "audience mail-proxy-dev",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "mail-proxy-dev",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ],
+      "defaultClientScopes": [
+        "service_account",
+        "web-origins",
+        "acr",
+        "roles",
+        "profile",
+        "basic",
+        "email"
+      ],
+      "optionalClientScopes": []
     }
   ],
   "clientScopes": [
@@ -1864,17 +1953,15 @@
     "debug": "false",
     "replyToDisplayName": "",
     "starttls": "false",
-    "auth": "true",
+    "auth": "false",
     "envelopeFrom": "",
-    "ssl": "true",
-    "password": "**********",
-    "port": "465",
-    "host": "ssl0.ovh.net",
+    "ssl": "false",
+    "port": "1025",
+    "host": "hornet-finder-dev-mailpit",
     "replyTo": "",
     "from": "contact@velutina.ovh",
     "fromDisplayName": "Velutina DEV administrator",
-    "authType": "basic",
-    "user": "admin@velutina.ovh"
+    "authType": "basic"
   },
   "loginTheme": "velutina",
   "accountTheme": "",

@@ -252,3 +252,10 @@ LOGGING = {
         },
     },
 }
+
+# Outgoing email. In dev, EMAIL_HOST points at the Mailpit catch-all, which
+# never relays; unset, Django keeps its defaults (localhost:25).
+if os.environ.get('EMAIL_HOST'):
+    EMAIL_HOST = os.environ['EMAIL_HOST']
+    EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '25'))
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'contact@velutina.ovh')

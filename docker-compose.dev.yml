@@ -57,6 +57,8 @@ services:
       - TAG_SITE_ID=${TAG_SITE_ID}
       - KC_INTERNAL_URL=http://hornet-finder-dev-keycloak:8080/
       - KC_REALM=hornet-finder-dev
+      - EMAIL_HOST=hornet-finder-dev-mailpit
+      - EMAIL_PORT=1025
     volumes:
       - dev-media:/app/media
     depends_on:
@@ -110,6 +112,58 @@ services:
       - hornet-finder-dev-api
       - hornet-finder-dev-keycloak
       - hornet-finder-dev-vite
+      - hornet-finder-dev-mailpit
+      - hornet-finder-dev-mail-proxy
+
+  # Catch-all mailbox for DEV: every email sent by Keycloak or Django lands
+  # here and is never relayed. Storage is ephemeral (no volume). UI and REST
+  # API are served under https://dev.velutina.ovh/mail/, behind the proxy below.
+  hornet-finder-dev-mailpit:
+    image: axllent/mailpit:v1.31.2
+    container_name: hornet-finder-dev-mailpit
+    environment:
+      - MP_WEBROOT=/mail/
+      - MP_MAX_MESSAGES=500
+      - MP_ALLOWED_HOSTS=dev.velutina.ovh
+      - MP_LABEL=Velutina DEV
+
+  # SSO gate in front of Mailpit (nginx auth_request). Browsers log in through
+  # Keycloak; scripts send a Keycloak bearer token. Both need the realm role
+  # mail-reader. Token redemption and JWKS go through the internal Keycloak URL.
+  hornet-finder-dev-mail-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.4
+    container_name: hornet-finder-dev-mail-proxy
+    environment:
+      - OAUTH2_PROXY_PROVIDER=keycloak-oidc
+      - OAUTH2_PROXY_CLIENT_ID=mail-proxy-dev
+      - OAUTH2_PROXY_CLIENT_SECRET=${MAIL_PROXY_CLIENT_SECRET}
+      - OAUTH2_PROXY_COOKIE_SECRET=${MAIL_PROXY_COOKIE_SECRET}
+      - OAUTH2_PROXY_COOKIE_NAME=_mail_proxy
+      - OAUTH2_PROXY_COOKIE_PATH=/mail
+      - OAUTH2_PROXY_COOKIE_SECURE=true
+      - OAUTH2_PROXY_COOKIE_SAMESITE=lax
+      - OAUTH2_PROXY_PROXY_PREFIX=/mail/oauth2
+      - OAUTH2_PROXY_REDIRECT_URL=https://dev.velutina.ovh/mail/oauth2/callback
+      - OAUTH2_PROXY_OIDC_ISSUER_URL=https://auth.dev.velutina.ovh/realms/hornet-finder-dev
+      - OAUTH2_PROXY_SKIP_OIDC_DISCOVERY=true
+      - OAUTH2_PROXY_LOGIN_URL=https://auth.dev.velutina.ovh/realms/hornet-finder-dev/protocol/openid-connect/auth
+      - OAUTH2_PROXY_REDEEM_URL=http://hornet-finder-dev-keycloak:8080/realms/hornet-finder-dev/protocol/openid-connect/token
+      - OAUTH2_PROXY_OIDC_JWKS_URL=http://hornet-finder-dev-keycloak:8080/realms/hornet-finder-dev/protocol/openid-connect/certs
+      - OAUTH2_PROXY_CODE_CHALLENGE_METHOD=S256
+      # The realm signs with PS256; without discovery only RS256 is expected.
+      - OAUTH2_PROXY_OIDC_ENABLED_SIGNING_ALGS=PS256,RS256
+      - OAUTH2_PROXY_ALLOWED_ROLES=mail-reader
+      - OAUTH2_PROXY_SKIP_JWT_BEARER_TOKENS=true
+      # Service accounts carry no email: identify everyone by username.
+      - OAUTH2_PROXY_OIDC_EMAIL_CLAIM=preferred_username
+      - OAUTH2_PROXY_EMAIL_DOMAINS=*
+      - OAUTH2_PROXY_INSECURE_OIDC_ALLOW_UNVERIFIED_EMAIL=true
+      - OAUTH2_PROXY_REVERSE_PROXY=true
+      - OAUTH2_PROXY_UPSTREAMS=static://202
+      - OAUTH2_PROXY_HTTP_ADDRESS=0.0.0.0:4180
+      - OAUTH2_PROXY_SKIP_PROVIDER_BUTTON=true
+    depends_on:
+      - hornet-finder-dev-keycloak
 
   # Serveur Vite pour DEV
   hornet-finder-dev-vite:
