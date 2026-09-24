@@ -1947,9 +1947,9 @@
     "user": "admin@velutina.ovh"
   },
   "loginTheme": "velutina",
-  "accountTheme": "",
+  "accountTheme": "velutina",
   "adminTheme": "",
-  "emailTheme": "",
+  "emailTheme": "velutina",
   "eventsEnabled": true,
   "eventsExpiration": 604800,
   "eventsListeners": [

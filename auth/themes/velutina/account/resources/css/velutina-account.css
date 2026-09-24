@@ -1,0 +1,133 @@
+/* Velutina look for the Keycloak account console (keycloak.v3, PatternFly 5) */
+
+:root {
+    --pf-v5-global--primary-color--100: #1f6fb2;
+    --pf-v5-global--primary-color--200: #185a91;
+    --pf-v5-global--link--Color: #1f6fb2;
+    --pf-v5-global--link--Color--hover: #185a91;
+}
+
+/* Page background: soft green taken from the login photo */
+.pf-v5-c-page {
+    --pf-v5-c-page--BackgroundColor: #e6eddf;
+}
+
+/* Masthead: white with the VSAB logo and the colour strip of the logo blocks */
+.pf-v5-c-masthead {
+    --pf-v5-c-masthead--BackgroundColor: #ffffff;
+    --pf-v5-c-masthead--m-display-inline--BackgroundColor: #ffffff;
+    --pf-v5-c-masthead--item-border-color--base: transparent;
+    --pf-v5-global--Color--100: #2b2f2a;
+    --pf-v5-global--Color--200: #5c6259;
+    --pf-v5-c-button--m-plain--Color: #2b2f2a;
+    --pf-v5-c-button--m-plain--hover--Color: #000000;
+    --pf-v5-c-menu-toggle--Color: #2b2f2a;
+    --pf-v5-c-menu-toggle--BackgroundColor: #ffffff;
+    --pf-v5-c-menu-toggle--before--BorderColor: #d2d6cf;
+    --pf-v5-c-menu-toggle--m-plain--Color: #2b2f2a;
+    --pf-v5-c-toolbar--BackgroundColor: transparent;
+    background-color: #ffffff;
+    color: #2b2f2a;
+    border-bottom: 4px solid transparent;
+    border-image: linear-gradient(to right,
+        #f7c21a 0 20%, #f39200 20% 40%, #e8483f 40% 60%, #1aa89a 60% 80%, #2a8fd6 80% 100%) 1;
+}
+
+.pf-v5-c-masthead__brand img {
+    height: 52px;
+    width: auto;
+    max-width: none;
+}
+
+/* Sidebar: light, current entry marked in the yellow of the logo */
+.pf-v5-c-page__sidebar {
+    --pf-v5-c-page__sidebar--BackgroundColor: #f5f8f2;
+    box-shadow: 1px 0 0 #d8dfd2;
+}
+
+.pf-v5-c-page__sidebar .pf-v5-c-nav {
+    --pf-v5-c-nav__link--Color: #2b2f2a;
+    --pf-v5-c-nav__link--hover--Color: #000000;
+    --pf-v5-c-nav__link--focus--Color: #000000;
+    --pf-v5-c-nav__link--active--Color: #000000;
+    --pf-v5-c-nav__link--m-current--Color: #000000;
+    --pf-v5-c-nav__link--BackgroundColor: transparent;
+    --pf-v5-c-nav__link--hover--BackgroundColor: #e6eddf;
+    --pf-v5-c-nav__link--focus--BackgroundColor: #e6eddf;
+    --pf-v5-c-nav__link--active--BackgroundColor: #e6eddf;
+    --pf-v5-c-nav__link--m-current--BackgroundColor: #ffffff;
+    --pf-v5-c-nav__link--before--BorderColor: #e1e7dc;
+    --pf-v5-c-nav__link--after--BorderColor: transparent;
+    --pf-v5-c-nav__link--hover--after--BorderColor: #d2d6cf;
+    --pf-v5-c-nav__link--m-current--after--BorderColor: #f7c21a;
+    --pf-v5-c-nav__link--after--BorderLeftWidth: 4px;
+    --pf-v5-c-nav__link--m-current--after--BorderLeftWidth: 4px;
+    --pf-v5-c-nav__item--before--BorderColor: #e1e7dc;
+    --pf-v5-c-nav__toggle--Color: #5c6259;
+    --pf-v5-c-nav__subnav--before--BorderColor: #e1e7dc;
+    --pf-v5-c-nav__section-title--Color: #5c6259;
+    background-color: transparent;
+}
+
+.pf-v5-c-page__sidebar .pf-v5-c-nav__link.pf-m-current {
+    font-weight: 600;
+}
+
+/* Content: white card on the green background, like the login card */
+.pf-v5-c-page__main {
+    padding: 24px;
+}
+
+.pf-v5-c-page__main > section.pf-v5-c-page__main-section {
+    background-color: #ffffff;
+}
+
+.pf-v5-c-page__main > section.pf-v5-c-page__main-section:first-of-type {
+    border-radius: 8px 8px 0 0;
+    border-bottom: 1px solid #eceee9;
+}
+
+.pf-v5-c-page__main > section.pf-v5-c-page__main-section:last-of-type {
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+@media (max-width: 768px) {
+    .pf-v5-c-page__main {
+        padding: 12px;
+    }
+
+    .pf-v5-c-masthead__brand img {
+        height: 40px;
+    }
+}
+
+/* Masthead details the variables above do not reach */
+.pf-v5-c-masthead .pf-v5-c-masthead__toggle .pf-v5-c-button.pf-m-plain {
+    --pf-v5-c-button--m-plain--Color: #2b2f2a;
+    --pf-v5-c-button--m-plain--hover--Color: #000000;
+    color: #2b2f2a;
+}
+
+.pf-v5-c-masthead a:not(.pf-v5-c-masthead__brand) {
+    color: #1f6fb2;
+}
+
+/* Current entry, sub-navigation included */
+.pf-v5-c-page__sidebar .pf-v5-c-nav__link.pf-m-current::after {
+    border-color: #f7c21a;
+    border-left-width: 4px;
+}
+
+/* Avatar: on narrow phones the toolbar squeezed it into an oval */
+.pf-v5-c-masthead .pf-v5-c-avatar {
+    flex-shrink: 0;
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    object-fit: cover;
+}
+
+.pf-v5-c-masthead .pf-v5-c-toolbar__item:has(> .pf-v5-c-avatar) {
+    flex-shrink: 0;
+}
