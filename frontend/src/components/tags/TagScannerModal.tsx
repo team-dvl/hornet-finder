@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Button, Modal } from 'react-bootstrap';
-import { Link } from 'react-router-dom';
 import QrScanner from 'qr-scanner';
 import { extractTagValue } from '../../utils/tagsApi';
 
@@ -90,8 +89,7 @@ export default function TagScannerModal({ onHide, onTag }: TagScannerModalProps)
           </>
         )}
       </Modal.Body>
-      <Modal.Footer className="justify-content-between">
-        <Link to="/traps/tags" className="small">Imprimer des QR Codes</Link>
+      <Modal.Footer>
         <Button variant="secondary" onClick={onHide}>Fermer</Button>
       </Modal.Footer>
     </Modal>

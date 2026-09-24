@@ -6,4 +6,5 @@ Pillow==12.3.0
 psycopg2-binary==2.9.13
 PyJWT==2.13.0
 python-keycloak==7.1.1
+reportlab==5.0.1
 segno==1.6.6

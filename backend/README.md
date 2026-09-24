@@ -47,6 +47,21 @@ A RESTful API built with Django and Django REST Framework for managing hornet de
 - `GET|POST /api/species/`, `GET|PATCH|DELETE /api/species/{id}/` - Species referential, same rules
 - `GET /api/media/{path}` - Uploaded photo, served only to users allowed to see the owning trap (nginx does the transfer through X-Accel-Redirect)
 
+### QR tags
+
+Signed QR labels stuck on traps (`hornet/tags.py`). A tag is generated blank, then attached to a trap by scanning it. The QR code carries the Vedrin s'Abeille pictogram in its centre (`hornet/assets/tag-logo.png`), on error correction level Q so it stays readable. Printing lives in the frontend under Administration → QR Codes, open to every role; management is admin only.
+
+- `GET /api/tags/?unassociated=1` - Free tags of the caller (every free tag for a platform admin), with their QR code as an SVG data URI
+- `POST /api/tags/batch/` - Generate `count` (1–48) blank tags signed with the active key
+- `POST /api/tags/sheet/` - A4 PDF of the given `values` (up to 200): 4 × 6 labels of 45 mm with cut lines, vector QR codes (`hornet/tag_pdf.py`). Only non-revoked tags are printed, and a non-admin only gets their own free ones; 400 when nothing is printable
+- `GET /api/tags/{value}/` - Resolve a scanned tag: free, or the trap it is attached to. Every refusal (bad signature, unknown, revoked) is logged
+- `GET /api/tags/{value}/candidates/` - Traps the caller may attach the tag to (`q` filters)
+- `POST /api/tags/{value}/associate/` - Attach a free tag to `trap_id`; `replace: true` revokes the trap's current tag
+- `GET /api/admin/tags/` - Every tag with its state (`status`, `key_index`, `q`, `offset`), platform admin only
+- `GET /api/admin/tags/keys/` - Tags per signing key, to check before retiring a key
+- `GET /api/admin/tags/{id}/qr/` - QR code of any tag, to reprint it
+- `POST /api/admin/tags/{id}/revoke/` - Revoke a tag, free or attached
+
 ### Documentation
 
 - `GET /api/docs/` - Interactive Swagger UI documentation (development only)
@@ -84,6 +99,7 @@ The application requires several environment variables to be configured. These a
 - `DEBUG` - Enable/disable debug mode (default: False)
 - `DATABASE_*` - PostgreSQL database connection settings
 - `KEYCLOAK_*` - Keycloak authentication server configuration
+- `TAG_HMAC_KEYS`, `TAG_HMAC_ACTIVE_INDEX`, `TAG_SITE_ID` - Signing keys of the QR tags, the key new tags are signed with, and the site identifier (see `.env.example` for rotation)
 
 Refer to the main project's [docker-compose.yml](../docker-compose.yml) file for the complete list of required environment variables.
 

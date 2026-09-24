@@ -4,7 +4,7 @@ import { Container, Alert } from 'react-bootstrap'
 import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from 'react-oidc-context';
-import { Home, Nests, Traps, TrapTags, DocsIndex, DocPage, AdminIndex, TrapTypesAdmin, SpeciesAdmin, TagsAdmin, PrivacyPolicy, DataDeletion } from './pages';
+import { Home, Nests, Traps, DocsIndex, DocPage, AdminIndex, TrapTypesAdmin, SpeciesAdmin, TagsAdmin, PrivacyPolicy, DataDeletion } from './pages';
 import { RequireRole } from './components/common';
 import { initIOSViewportFix } from './utils/iosViewportFix';
 import { useUrlCleaner } from './utils/urlCleaner';
@@ -112,13 +112,14 @@ function App() {
         <Route path="/traps" element={null} />
         <Route path="/tag/:tagValue" element={null} />
       </Route>
-      <Route
-        path="/traps/tags"
-        element={<RequireRole roles={['volunteer', 'beekeeper', 'admin']}><TrapTags /></RequireRole>}
-      />
+      {/* Former printing page, now a tab of the QR Codes administration */}
+      <Route path="/traps/tags" element={<Navigate to="/admin/tags?tab=print" replace />} />
       <Route path="/docs" element={<DocsIndex />} />
       <Route path="/docs/:moduleId" element={<DocPage />} />
-      <Route path="/admin" element={<RequireRole roles={['admin']}><AdminIndex /></RequireRole>} />
+      <Route
+        path="/admin"
+        element={<RequireRole roles={['volunteer', 'beekeeper', 'admin']}><AdminIndex /></RequireRole>}
+      />
       <Route
         path="/admin/trap-types"
         element={<RequireRole roles={['admin']}><TrapTypesAdmin /></RequireRole>}
@@ -129,7 +130,7 @@ function App() {
       />
       <Route
         path="/admin/tags"
-        element={<RequireRole roles={['admin']}><TagsAdmin /></RequireRole>}
+        element={<RequireRole roles={['volunteer', 'beekeeper', 'admin']}><TagsAdmin /></RequireRole>}
       />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="/data-deletion" element={<DataDeletion />} />

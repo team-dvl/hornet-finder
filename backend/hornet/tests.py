@@ -667,6 +667,16 @@ def _tamper(value, position):
 
 @override_settings(**TAG_SETTINGS)
 class TagCryptoTests(TestCase):
+    def test_the_qr_code_carries_the_logo_on_its_centre(self):
+        url = 'https://test.velutina.ovh/tag/' + tag_crypto.generate_tag_value()
+        qr = tag_crypto.qr_code(url)
+        self.assertEqual(qr.error, 'Q')
+        offset, size = tag_crypto.logo_plate(qr)
+        self.assertEqual(2 * offset + size, len(qr.matrix))
+        svg = _base64.b64decode(tag_crypto.qr_svg_data_uri(url).split(',', 1)[1]).decode()
+        self.assertIn('<image ', svg)
+        self.assertIn('viewBox', svg)
+
     def test_round_trip_with_the_active_key(self):
         value = tag_crypto.generate_tag_value()
         self.assertEqual(len(value), 44)
@@ -881,6 +891,26 @@ class TagAdminApiTests(TrapTestCase):
         again = self._admin('post', f'/admin/tags/{self.attached.id}/revoke/', {'post': 'revoke'},
                             self.admin_user, pk=self.attached.id)
         self.assertEqual(again.status_code, 409)
+
+    def _sheet(self, user, values):
+        request = self.factory.post('/tags/sheet/', {'values': values}, format='json')
+        force_authenticate(request, user=user)
+        return TagViewSet.as_view({'post': 'sheet'})(request)
+
+    def test_owner_prints_a_pdf_of_their_free_tags_only(self):
+        values = [self.free.value, self.attached.value, self.revoked.value]
+        response = self._sheet(self.owner_user, values)
+        self.assertEqual((response.status_code, response['Content-Type']), (200, 'application/pdf'))
+        self.assertTrue(response.content.startswith(b'%PDF'))
+        # Somebody else's tag, or only unprintable ones: nothing to print
+        self.assertEqual(self._sheet(self.member_user, [self.free.value]).status_code, 400)
+        self.assertEqual(self._sheet(self.owner_user, [self.revoked.value]).status_code, 400)
+        self.assertEqual(self._sheet(self.owner_user, []).status_code, 400)
+
+    def test_an_admin_prints_any_live_tag(self):
+        response = self._sheet(self.admin_user, [self.attached.value])
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self._sheet(self.admin_user, [self.revoked.value]).status_code, 400)
 
 
 class TrapCatchTests(TrapTestCase):

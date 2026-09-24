@@ -12,11 +12,6 @@ const ADMIN_SECTIONS: Record<string, string> = {
   tags: 'QR Codes',
 };
 
-/** Sections of the traps module. */
-const TRAP_SECTIONS: Record<string, string> = {
-  tags: 'QR Codes',
-};
-
 /**
  * Breadcrumb trail for the current route, derived from the module config:
  * `/nests` → [Nids], `/docs/nests` → [Documentation, Nids],
@@ -33,12 +28,6 @@ export function getBreadcrumbs(pathname: string): Crumb[] {
     const documented = findModule(segments[1]);
     if (documented) {
       crumbs.push({ label: documented.shortTitle, path: `/docs/${documented.id}` });
-    }
-  }
-  if (module.id === 'traps' && segments[1]) {
-    const section = TRAP_SECTIONS[segments[1]];
-    if (section) {
-      crumbs.push({ label: section, path: `/traps/${segments[1]}` });
     }
   }
   if (module.id === 'admin' && segments[1]) {

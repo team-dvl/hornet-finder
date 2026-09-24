@@ -120,6 +120,37 @@ export async function fetchFreeTags(): Promise<PrintableTag[]> {
   }
 }
 
+/**
+ * Download the A4 PDF sheet of the given tags. The request carries the JWT in
+ * a header, so the file comes back as a blob rather than through a plain link.
+ */
+export async function downloadTagSheet(values: string[]): Promise<void> {
+  let pdf: Blob;
+  try {
+    pdf = (await api.post('/tags/sheet/', { values }, { responseType: 'blob' })).data;
+  } catch (error) {
+    // The error body is a blob too: turn it back into JSON for toTagError
+    const response = (error as AxiosErrorResponse).response;
+    if (response?.data instanceof Blob) {
+      try {
+        response.data = JSON.parse(await response.data.text());
+      } catch {
+        // not JSON: the generic message will do
+      }
+    }
+    throw toTagError(error);
+  }
+  const url = URL.createObjectURL(pdf);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'qr-codes.pdf';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  // Give the browser time to start the download before releasing the blob
+  window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
 // -- administration ----------------------------------------------------------
 
 export type TagStatus = 'free' | 'associated' | 'revoked';

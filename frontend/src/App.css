@@ -325,7 +325,7 @@ button.module-card {
   border-bottom: 0 !important;
 }
 
-/* --- Planche de QR Codes (/traps/tags) --- */
+/* --- Planche de QR Codes (/admin/tags?tab=print) --- */
 .tag-sheet {
   display: grid;
   grid-template-columns: repeat(auto-fill, 4cm);

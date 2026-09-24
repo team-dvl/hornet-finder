@@ -50,10 +50,11 @@ export const MODULES: ModuleDefinition[] = [
     id: 'admin',
     title: 'Administration',
     shortTitle: 'Administration',
-    description: 'Gérez les référentiels de la plateforme.',
+    description: 'Référentiels et outils de la plateforme.',
     icon: 'bi-sliders',
     path: '/admin',
-    requiredRoles: ['admin'],
+    // Every role gets in for the QR Codes printing; each section filters further
+    requiredRoles: ['admin', 'volunteer', 'beekeeper'],
   },
   {
     id: 'account',

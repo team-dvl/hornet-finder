@@ -4,6 +4,7 @@ import logging
 
 from django.db import IntegrityError, transaction
 from django.db.models import Exists, OuterRef, Q
+from django.http import HttpResponse
 from django.utils import timezone
 
 from rest_framework import status, viewsets
@@ -16,6 +17,7 @@ from hornet_finder_api.authentication import HasAnyRole
 from . import trap_permissions as perms
 from .models import Tag, Trap
 from .serializers import TrapSerializer, user_summary
+from .tag_pdf import render_sheet
 from .tags import (
     TagConfigurationError, generate_tag_value, get_config, key_usage, qr_svg_data_uri,
     short_code, tag_url, verify_tag_value,
@@ -131,6 +133,29 @@ class TagViewSet(viewsets.ViewSet):
         logger.info("%s tag(s) generated with key %s by %s",
                     count, config.active_index, getattr(request.user, 'guid', None))
         return Response([_tag_payload(tag) for tag in tags], status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['post'])
+    def sheet(self, request):
+        """
+        PDF sheet of the given tags, to print. Only non-revoked tags are
+        printed, and a non-admin only gets their own free ones (as in `list`).
+        """
+        values = request.data.get('values')
+        if not isinstance(values, list) or not 1 <= len(values) <= MAX_LISTED:
+            raise DRFValidationError({'values': f"Between 1 and {MAX_LISTED} tag values."})
+        tags = Tag.objects.filter(value__in=[str(v) for v in values], revoked_at__isnull=True)
+        if not perms.is_platform_admin(request.user):
+            tags = tags.filter(trap__isnull=True, generated_by__guid=getattr(request.user, 'guid', None))
+        # Keep the order of the request, i.e. the order shown on screen
+        by_value = {tag.value: tag for tag in tags}
+        printable = [by_value[v] for v in dict.fromkeys(map(str, values)) if v in by_value]
+        if not printable:
+            return _error('not_found', "None of these tags can be printed.", status.HTTP_400_BAD_REQUEST)
+        logger.info("PDF sheet of %s tag(s) printed by %s",
+                    len(printable), getattr(request.user, 'guid', None))
+        response = HttpResponse(render_sheet(printable), content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="qr-codes.pdf"'
+        return response
 
     def retrieve(self, request, value=None):
         """Resolve a scanned tag: free, or the object it is attached to."""

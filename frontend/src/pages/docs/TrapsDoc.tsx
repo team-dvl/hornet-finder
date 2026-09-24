@@ -56,6 +56,18 @@ export default function TrapsDoc() {
 
       <section className="mb-4">
         <h5 className="text-primary">
+          <span className="me-2">🏷️</span>
+          Le QR Code du piège
+        </h5>
+        <p className="mb-0">
+          Imprimez des QR Codes vierges depuis <em>Administration → QR Codes</em>, en PDF A4 à
+          découper, puis collez-en un sur chaque piège. Scannez-le depuis la carte des pièges
+          (bouton 📷) pour l'associer au piège ; ensuite, le même scan ouvre directement sa fiche.
+        </p>
+      </section>
+
+      <section className="mb-4">
+        <h5 className="text-primary">
           <span className="me-2">📖</span>
           Le journal du piège
         </h5>
