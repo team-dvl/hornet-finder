@@ -8,3 +8,5 @@ export type { CoordinateInputProps } from './CoordinateInput';
 export { default as RequireRole } from './RequireRole';
 export { default as ThumbnailPreview } from './ThumbnailPreview';
 export { default as AddAtLocationButton } from './AddAtLocationButton';
+export { default as HelpTip } from './HelpTip';
+export { default as ClampedText } from './ClampedText';

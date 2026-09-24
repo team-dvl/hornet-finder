@@ -325,6 +325,14 @@ button.module-card {
   border-bottom: 0 !important;
 }
 
+/* Text cut after a few lines (the count comes from -webkit-line-clamp inline) */
+.text-clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
 /* --- Planche de QR Codes (/admin/tags?tab=print) --- */
 .tag-sheet {
   display: grid;
@@ -349,6 +357,11 @@ button.module-card {
   font-family: var(--bs-font-monospace);
   font-size: 9pt;
   letter-spacing: 0.05em;
+}
+
+.tag-label-caption {
+  font-size: 7pt;
+  line-height: 1.1;
 }
 
 @media print {

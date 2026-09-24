@@ -2,9 +2,11 @@
 
 import logging
 
+from django.core import signing
 from django.db import IntegrityError, transaction
 from django.db.models import Exists, OuterRef, Q
 from django.http import HttpResponse
+from django.urls import reverse
 from django.utils import timezone
 
 from rest_framework import status, viewsets
@@ -20,7 +22,7 @@ from .serializers import TrapSerializer, user_summary
 from .tag_pdf import render_sheet
 from .tags import (
     TagConfigurationError, generate_tag_value, get_config, key_usage, qr_svg_data_uri,
-    short_code, tag_url, verify_tag_value,
+    short_code, tag_caption, tag_url, verify_tag_value,
 )
 
 logger = logging.getLogger(__name__)
@@ -28,6 +30,10 @@ logger = logging.getLogger(__name__)
 MAX_BATCH = 48
 MAX_LISTED = 200
 MAX_CANDIDATES = 50
+# A sheet link carries the ids of the tags to print, signed: it opens without
+# the JWT, so a phone can hand it to its own PDF viewer (see `sheet_pdf`)
+SHEET_SALT = 'hornet.tag-sheet'
+SHEET_LINK_SECONDS = 15 * 60
 
 
 def _client_ip(request) -> str:
@@ -55,8 +61,60 @@ def _tag_payload(tag) -> dict:
         'short': tag.short,
         'url': url,
         'qr_svg': qr_svg_data_uri(url),
+        'caption': tag_caption(tag),
         'generated_at': tag.generated_at.isoformat() if tag.generated_at else None,
     }
+
+
+def _sheet_link(request, tags):
+    """
+    A signed, short-lived link to the PDF sheet of `tags` (already filtered by
+    the caller's rights), or a 400 when none is left.
+    """
+    if not tags:
+        return _error('not_found', "None of these tags can be printed.", status.HTTP_400_BAD_REQUEST)
+    token = signing.dumps({'ids': [tag.id for tag in tags], 'by': str(getattr(request.user, 'guid', ''))},
+                          salt=SHEET_SALT, compress=True)
+    return Response({'url': reverse('tag-sheet-pdf', args=[token]), 'count': len(tags),
+                     'expires_in': SHEET_LINK_SECONDS})
+
+
+def sheet_pdf(request, token):
+    """
+    The PDF behind a sheet link. No JWT here: the signature stands for the
+    rights checked when the link was made. Revoked tags are skipped.
+    """
+    try:
+        payload = signing.loads(token, salt=SHEET_SALT, max_age=SHEET_LINK_SECONDS)
+    except signing.SignatureExpired:
+        return HttpResponse("Ce lien d'impression a expiré : relancez l'impression depuis Velutina.",
+                            status=410, content_type='text/plain; charset=utf-8')
+    except signing.BadSignature:
+        _log_rejection(request, token, "forged sheet link")
+        return HttpResponse("Lien invalide.", status=404, content_type='text/plain; charset=utf-8')
+    ids = payload['ids']
+    by_id = {tag.id: tag for tag in Tag.objects.filter(id__in=ids, revoked_at__isnull=True)}
+    tags = [by_id[i] for i in ids if i in by_id]
+    if not tags:
+        return HttpResponse("Plus rien à imprimer : ces QR Codes ont été révoqués.",
+                            status=410, content_type='text/plain; charset=utf-8')
+    logger.info("PDF sheet of %s tag(s) printed by %s", len(tags), payload.get('by'))
+    response = HttpResponse(render_sheet(tags), content_type='application/pdf')
+    # Inline: shown by the browser's PDF viewer, which prints and saves it
+    response['Content-Disposition'] = 'inline; filename="qr-codes.pdf"'
+    response['Cache-Control'] = 'private, no-store'
+    return response
+
+
+def _requested(request, field, cast):
+    """The list `field` of the request body, cast and deduplicated in order."""
+    items = request.data.get(field)
+    if not isinstance(items, list) or not 1 <= len(items) <= MAX_LISTED:
+        raise DRFValidationError({field: f"Between 1 and {MAX_LISTED} items."})
+    try:
+        return list(dict.fromkeys(cast(item) for item in items))
+    except (TypeError, ValueError):
+        raise DRFValidationError({field: "Invalid item."})
 
 
 class TagViewSet(viewsets.ViewSet):
@@ -106,13 +164,30 @@ class TagViewSet(viewsets.ViewSet):
 
     # -- endpoints -----------------------------------------------------------
 
+    @staticmethod
+    def _own_tags(request):
+        """
+        Live tags a user may print: the free ones they generated, and those
+        attached to their traps.
+        """
+        guid = getattr(request.user, 'guid', None)
+        return Tag.objects.filter(revoked_at__isnull=True).filter(
+            Q(trap__isnull=True, generated_by__guid=guid) | Q(trap__owner__guid=guid))
+
     def list(self, request):
-        """Free tags: the requester's own ones, or every one for an admin."""
-        tags = Tag.objects.filter(revoked_at__isnull=True)
+        """
+        Live tags of the requester. `unassociated=1`: free tags (every free
+        one for an admin); `associated=1`: tags attached to their own traps.
+        """
+        admin = perms.is_platform_admin(request.user)
         if request.query_params.get('unassociated') in ('1', 'true'):
-            tags = tags.filter(trap__isnull=True)
-        if not perms.is_platform_admin(request.user):
-            tags = tags.filter(generated_by__guid=getattr(request.user, 'guid', None))
+            tags = (Tag.objects.filter(revoked_at__isnull=True) if admin
+                    else self._own_tags(request)).filter(trap__isnull=True)
+        elif request.query_params.get('associated') in ('1', 'true'):
+            # Their own traps even for an admin, who picks others from the management
+            tags = self._own_tags(request).filter(trap__isnull=False).order_by('trap_id')
+        else:
+            tags = self._own_tags(request)
         return Response([_tag_payload(tag) for tag in tags[:MAX_LISTED]])
 
     @action(detail=False, methods=['post'])
@@ -137,25 +212,18 @@ class TagViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['post'])
     def sheet(self, request):
         """
-        PDF sheet of the given tags, to print. Only non-revoked tags are
-        printed, and a non-admin only gets their own free ones (as in `list`).
+        Link to the PDF sheet of the given tag `values`. Only live tags are
+        printed: any of them for an admin, otherwise the requester's own (as
+        in `list`).
         """
-        values = request.data.get('values')
-        if not isinstance(values, list) or not 1 <= len(values) <= MAX_LISTED:
-            raise DRFValidationError({'values': f"Between 1 and {MAX_LISTED} tag values."})
-        tags = Tag.objects.filter(value__in=[str(v) for v in values], revoked_at__isnull=True)
-        if not perms.is_platform_admin(request.user):
-            tags = tags.filter(trap__isnull=True, generated_by__guid=getattr(request.user, 'guid', None))
+        values = _requested(request, 'values', str)
+        if perms.is_platform_admin(request.user):
+            tags = Tag.objects.filter(revoked_at__isnull=True)
+        else:
+            tags = self._own_tags(request)
         # Keep the order of the request, i.e. the order shown on screen
-        by_value = {tag.value: tag for tag in tags}
-        printable = [by_value[v] for v in dict.fromkeys(map(str, values)) if v in by_value]
-        if not printable:
-            return _error('not_found', "None of these tags can be printed.", status.HTTP_400_BAD_REQUEST)
-        logger.info("PDF sheet of %s tag(s) printed by %s",
-                    len(printable), getattr(request.user, 'guid', None))
-        response = HttpResponse(render_sheet(printable), content_type='application/pdf')
-        response['Content-Disposition'] = 'attachment; filename="qr-codes.pdf"'
-        return response
+        by_value = {tag.value: tag for tag in tags.filter(value__in=values)}
+        return _sheet_link(request, [by_value[v] for v in values if v in by_value])
 
     def retrieve(self, request, value=None):
         """Resolve a scanned tag: free, or the object it is attached to."""
@@ -343,6 +411,13 @@ class TagAdminViewSet(viewsets.ViewSet):
         if tag is None:
             return _error('not_found', "Tag not found.", status.HTTP_404_NOT_FOUND)
         return Response(_tag_payload(tag))
+
+    @action(detail=False, methods=['post'])
+    def sheet(self, request):
+        """Link to the PDF sheet of the selected tags (`ids`); revoked ones are skipped."""
+        ids = _requested(request, 'ids', int)
+        by_id = {tag.id: tag for tag in Tag.objects.filter(id__in=ids, revoked_at__isnull=True)}
+        return _sheet_link(request, [by_id[i] for i in ids if i in by_id])
 
     @action(detail=True, methods=['post'])
     def revoke(self, request, pk=None):

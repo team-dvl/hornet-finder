@@ -141,6 +141,7 @@ class NestArchiveFilterTests(TestCase):
 
 import io
 import json
+import time
 import uuid as uuid_module
 from unittest.mock import patch
 
@@ -897,13 +898,16 @@ class TagAdminApiTests(TrapTestCase):
         force_authenticate(request, user=user)
         return TagViewSet.as_view({'post': 'sheet'})(request)
 
-    def test_owner_prints_a_pdf_of_their_free_tags_only(self):
+    def test_owner_prints_a_pdf_of_their_live_tags_only(self):
         values = [self.free.value, self.attached.value, self.revoked.value]
         response = self._sheet(self.owner_user, values)
-        self.assertEqual((response.status_code, response['Content-Type']), (200, 'application/pdf'))
-        self.assertTrue(response.content.startswith(b'%PDF'))
-        # Somebody else's tag, or only unprintable ones: nothing to print
-        self.assertEqual(self._sheet(self.member_user, [self.free.value]).status_code, 400)
+        self.assertEqual((response.status_code, response.data['count']), (200, 2))
+        pdf = self.client.get(response.data['url'])
+        self.assertEqual((pdf.status_code, pdf['Content-Type']), (200, 'application/pdf'))
+        self.assertTrue(pdf.content.startswith(b'%PDF'))
+        self.assertTrue(pdf['Content-Disposition'].startswith('inline'))
+        # Somebody else's tags, or only unprintable ones: nothing to print
+        self.assertEqual(self._sheet(self.member_user, [self.free.value, self.attached.value]).status_code, 400)
         self.assertEqual(self._sheet(self.owner_user, [self.revoked.value]).status_code, 400)
         self.assertEqual(self._sheet(self.owner_user, []).status_code, 400)
 
@@ -911,6 +915,45 @@ class TagAdminApiTests(TrapTestCase):
         response = self._sheet(self.admin_user, [self.attached.value])
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self._sheet(self.admin_user, [self.revoked.value]).status_code, 400)
+
+    def test_a_sheet_link_is_signed_and_expires(self):
+        from django.core import signing
+        from .tag_views import SHEET_LINK_SECONDS
+        url = self._sheet(self.owner_user, [self.free.value]).data['url']
+        self.assertEqual(self.client.get(url).status_code, 200)
+        # A link naming other tags cannot be forged
+        forged = url.replace(url.rstrip('/').rsplit('/', 1)[1], signing.dumps({'ids': [self.attached.id]}))
+        with self.assertLogs('hornet.tag_views', level='WARNING'):
+            self.assertEqual(self.client.get(forged).status_code, 404)
+        with patch('django.core.signing.time.time', return_value=time.time() + SHEET_LINK_SECONDS + 5):
+            self.assertEqual(self.client.get(url).status_code, 410)
+        # Revoked since the link was made: nothing left to print
+        self.free.revoked_at = timezone.now()
+        self.free.save()
+        self.assertEqual(self.client.get(url).status_code, 410)
+
+    def test_tags_in_use_are_listed_with_their_trap(self):
+        request = self.factory.get('/tags/?associated=1')
+        force_authenticate(request, user=self.owner_user)
+        rows = TagViewSet.as_view({'get': 'list'})(request).data
+        self.assertEqual([row['value'] for row in rows], [self.attached.value])
+        self.assertEqual(rows[0]['caption'], f"Piège #{self.trap.id}")
+        request = self.factory.get('/tags/?associated=1')
+        force_authenticate(request, user=self.member_user)
+        self.assertEqual(TagViewSet.as_view({'get': 'list'})(request).data, [])
+
+    def test_an_admin_reprints_a_selection(self):
+        from .tag_views import TagAdminViewSet
+        def sheet(user, ids):
+            request = self.factory.post('/admin/tags/sheet/', {'ids': ids}, format='json')
+            force_authenticate(request, user=user)
+            return TagAdminViewSet.as_view({'post': 'sheet'})(request)
+        response = sheet(self.admin_user, [self.attached.id, self.free.id, self.revoked.id])
+        self.assertEqual(response.data['count'], 2)
+        self.assertTrue(self.client.get(response.data['url']).content.startswith(b'%PDF'))
+        self.assertEqual(sheet(self.admin_user, [self.revoked.id]).status_code, 400)
+        self.assertEqual(sheet(self.admin_user, ['x']).status_code, 400)
+        self.assertEqual(sheet(self.owner_user, [self.free.id]).status_code, 403)
 
 
 class TrapCatchTests(TrapTestCase):

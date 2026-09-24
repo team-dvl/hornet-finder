@@ -13,13 +13,14 @@ from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 
-from .tags import QR_BORDER, logo_box, logo_plate, logo_png, qr_code, tag_url
+from .tags import QR_BORDER, logo_box, logo_plate, logo_png, qr_code, tag_caption, tag_url
 
 COLUMNS = 4
 ROWS = 6
 CELL = 45 * mm
-QR_SIDE = 38 * mm
+QR_SIDE = 36 * mm
 CODE_FONT = ('Courier', 9)
+CAPTION_FONT = ('Helvetica', 7)
 
 
 def _draw_qr(pdf, url, x, y, logo):
@@ -57,7 +58,10 @@ def _draw_qr(pdf, url, x, y, logo):
 
 
 def render_sheet(tags) -> bytes:
-    """A4 sheets of 4 × 6 labels of 45 mm, with dashed cut lines."""
+    """
+    A4 sheets of 4 × 6 labels of 45 mm, with dashed cut lines. An attached
+    tag gets its caption (e.g. "Piège #12") under the code.
+    """
     buffer = io.BytesIO()
     pdf = canvas.Canvas(buffer, pagesize=A4)
     pdf.setTitle('QR Codes')
@@ -86,7 +90,11 @@ def render_sheet(tags) -> bytes:
 
         pdf.setFillColorRGB(0, 0, 0)
         pdf.setFont(*CODE_FONT)
-        pdf.drawCentredString(cell_x + CELL / 2, cell_y + 2.5 * mm, tag.short)
+        pdf.drawCentredString(cell_x + CELL / 2, cell_y + 4.2 * mm, tag.short)
+        caption = tag_caption(tag)
+        if caption:
+            pdf.setFont(*CAPTION_FONT)
+            pdf.drawCentredString(cell_x + CELL / 2, cell_y + 1.4 * mm, caption)
 
     pdf.save()
     return buffer.getvalue()

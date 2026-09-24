@@ -51,15 +51,17 @@ A RESTful API built with Django and Django REST Framework for managing hornet de
 
 Signed QR labels stuck on traps (`hornet/tags.py`). A tag is generated blank, then attached to a trap by scanning it. The QR code carries the Vedrin s'Abeille pictogram in its centre (`hornet/assets/tag-logo.png`), on error correction level Q so it stays readable. Printing lives in the frontend under Administration → QR Codes, open to every role; management is admin only.
 
-- `GET /api/tags/?unassociated=1` - Free tags of the caller (every free tag for a platform admin), with their QR code as an SVG data URI
+- `GET /api/tags/` - Live tags of the caller, with their QR code as an SVG data URI and their `caption` ("Piège #12" for an attached tag, empty when free). `unassociated=1`: free tags (every free tag for a platform admin); `associated=1`: tags attached to the caller's own traps, to reprint a damaged label
 - `POST /api/tags/batch/` - Generate `count` (1–48) blank tags signed with the active key
-- `POST /api/tags/sheet/` - A4 PDF of the given `values` (up to 200): 4 × 6 labels of 45 mm with cut lines, vector QR codes (`hornet/tag_pdf.py`). Only non-revoked tags are printed, and a non-admin only gets their own free ones; 400 when nothing is printable
+- `POST /api/tags/sheet/` - Signed link (`url`, valid 15 minutes) to the A4 PDF of the given `values` (up to 200): 4 × 6 labels of 45 mm with cut lines, vector QR codes (`hornet/tag_pdf.py`). An attached tag gets its caption under the code, so a reprint can be matched to its trap. Only non-revoked tags are printed, and a non-admin only gets their own (free ones they generated, attached ones on their traps); 400 when nothing is printable
 - `GET /api/tags/{value}/` - Resolve a scanned tag: free, or the trap it is attached to. Every refusal (bad signature, unknown, revoked) is logged
 - `GET /api/tags/{value}/candidates/` - Traps the caller may attach the tag to (`q` filters)
 - `POST /api/tags/{value}/associate/` - Attach a free tag to `trap_id`; `replace: true` revokes the trap's current tag
 - `GET /api/admin/tags/` - Every tag with its state (`status`, `key_index`, `q`, `offset`), platform admin only
 - `GET /api/admin/tags/keys/` - Tags per signing key, to check before retiring a key
 - `GET /api/admin/tags/{id}/qr/` - QR code of any tag, to reprint it
+- `POST /api/admin/tags/sheet/` - Same signed link, for the selected `ids` (up to 200); revoked tags are skipped
+- `GET /api/tags/sheet/{token}/` - The PDF behind a signed link, shown inline. No JWT: the signature stands for the rights checked when the link was made, so the browser's own PDF viewer can open it (an iOS home-screen app ignores `window.print()` and blob downloads). Tags revoked since then are left out; 410 once expired
 - `POST /api/admin/tags/{id}/revoke/` - Revoke a tag, free or attached
 
 ### Documentation

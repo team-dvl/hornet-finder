@@ -63,6 +63,8 @@ export default function TrapsDoc() {
           Imprimez des QR Codes vierges depuis <em>Administration → QR Codes</em>, en PDF A4 à
           découper, puis collez-en un sur chaque piège. Scannez-le depuis la carte des pièges
           (bouton 📷) pour l'associer au piège ; ensuite, le même scan ouvre directement sa fiche.
+          Une étiquette abîmée ? Réimprimez-la depuis <em>Mes QR Codes en service</em> : le QR Code
+          reste le même, et le numéro du piège est imprimé sous le code.
         </p>
       </section>
 

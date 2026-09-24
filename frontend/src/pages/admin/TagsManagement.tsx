@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Badge, Button, Col, Form, Modal, Row, Spinner, Table } from 'react-bootstrap';
+import { ClampedText, HelpTip } from '../../components/common';
+import { SheetPdfButton } from '../../components/tags';
 import { ReferentialTable, type ReferentialColumn } from '../../components/admin';
 import {
-  downloadTagSheet, fetchAdminTagQr, fetchAdminTags, fetchTagKeyUsage, revokeTag, TagError,
+  fetchAdminTagQr, fetchAdminTagSheetLink, fetchTagSheetLink, fetchAdminTags, fetchTagKeyUsage, revokeTag, TagError,
   type AdminTag, type AdminTagUser, type PrintableTag, type TagKeyUsage, type TagStatus,
 } from '../../utils/tagsApi';
 
@@ -18,7 +20,10 @@ const KEY_STATES: Record<TagKeyUsage['state'], { label: string; bg: string }> = 
   retired: { label: 'retirée', bg: 'danger' },
 };
 
-const formatDate = (value: string | null) =>
+/** Tags per PDF sheet, see MAX_LISTED in `hornet/tag_views.py` */
+const MAX_SHEET = 200;
+
+const formatDate =(value: string | null) =>
   value ? new Date(value).toLocaleDateString('fr-BE', { dateStyle: 'short' }) : '—';
 
 const errorMessage = (e: unknown) => (e instanceof TagError ? e.message : String(e));
@@ -50,7 +55,8 @@ export default function TagsManagement() {
   const [qr, setQr] = useState<PrintableTag | null>(null);
   const [toRevoke, setToRevoke] = useState<AdminTag | null>(null);
   const [revoking, setRevoking] = useState(false);
-  const [downloading, setDownloading] = useState(false);
+  /** Ids of the tags picked for a reprint; kept across filters to gather a sheet */
+  const [selected, setSelected] = useState<Set<number>>(new Set());
 
   const loadKeys = useCallback(() => {
     fetchTagKeyUsage().then(setKeys).catch((e: unknown) => setError(errorMessage(e)));
@@ -97,16 +103,26 @@ export default function TagsManagement() {
     }
   };
 
-  const downloadQr = async (tag: PrintableTag) => {
-    setDownloading(true);
-    try {
-      await downloadTagSheet([tag.value]);
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setDownloading(false);
+  const toggle = (id: number, on: boolean) => setSelected((previous) => {
+    const next = new Set(previous);
+    if (on) next.add(id);
+    else next.delete(id);
+    return next;
+  });
+
+  const selectable = (rows ?? []).filter((tag) => tag.status !== 'revoked');
+  const allSelected = selectable.length > 0 && selectable.every((tag) => selected.has(tag.id));
+
+  const toggleAll = () => setSelected((previous) => {
+    const next = new Set(previous);
+    for (const tag of selectable) {
+      if (allSelected) next.delete(tag.id);
+      else next.add(tag.id);
     }
-  };
+    return next;
+  });
+
+  const selectedIds = [...selected].sort((a, b) => a - b);
 
   const handleRevoke = async () => {
     if (!toRevoke) return;
@@ -114,6 +130,7 @@ export default function TagsManagement() {
     try {
       const updated = await revokeTag(toRevoke.id);
       setRows((previous) => previous?.map((row) => (row.id === updated.id ? updated : row)) ?? null);
+      toggle(updated.id, false);
       setToRevoke(null);
       loadKeys();
     } catch (e) {
@@ -125,6 +142,24 @@ export default function TagsManagement() {
   };
 
   const columns: ReferentialColumn<AdminTag>[] = [
+    {
+      key: 'select',
+      header: (
+        <Form.Check
+          aria-label="Sélectionner les QR Codes affichés"
+          checked={allSelected}
+          disabled={selectable.length === 0}
+          onChange={toggleAll}
+        />
+      ),
+      render: (tag) => (tag.status === 'revoked' ? null : (
+        <Form.Check
+          aria-label={`Sélectionner ${tag.short}`}
+          checked={selected.has(tag.id)}
+          onChange={(e) => toggle(tag.id, e.target.checked)}
+        />
+      )),
+    },
     { key: 'code', header: 'Code', render: (tag) => <code>{tag.short}</code> },
     {
       key: 'status',
@@ -135,7 +170,14 @@ export default function TagsManagement() {
       key: 'trap',
       header: 'Piège',
       render: (tag) => (tag.trap
-        ? <span className="small">n° {tag.trap.id}{tag.trap.address && ` · ${tag.trap.address}`}</span>
+        ? (
+          <span className="small d-block" style={{ minWidth: '6rem', maxWidth: '18rem' }}>
+            <ClampedText
+              id={`tag-trap-${tag.id}`}
+              text={`n° ${tag.trap.id}${tag.trap.address ? ` · ${tag.trap.address}` : ''}`}
+            />
+          </span>
+        )
         : <span className="text-muted">—</span>),
     },
     { key: 'key', header: 'Clé', secondary: true, render: (tag) => tag.key_index },
@@ -146,37 +188,38 @@ export default function TagsManagement() {
       key: 'actions',
       header: '',
       render: (tag) => (
-        <span className="text-nowrap">
-          <Button variant="outline-secondary" size="sm" className="me-2" onClick={() => void showQr(tag)}>
-            <i className="bi bi-qr-code" aria-hidden="true" /> Voir
+        <div className="d-flex flex-column gap-1">
+          {/* Icons only on a phone, so the column fits without scrolling */}
+          <Button variant="outline-secondary" size="sm" className="text-nowrap" title="Voir" aria-label="Voir"
+            onClick={() => void showQr(tag)}>
+            <i className="bi bi-qr-code" aria-hidden="true" /><span className="d-none d-sm-inline"> Voir</span>
           </Button>
           {tag.status !== 'revoked' && (
-            <Button variant="outline-danger" size="sm" onClick={() => setToRevoke(tag)}>
-              <i className="bi bi-x-octagon" aria-hidden="true" /> Révoquer
+            <Button variant="outline-danger" size="sm" className="text-nowrap" title="Révoquer" aria-label="Révoquer"
+              onClick={() => setToRevoke(tag)}>
+              <i className="bi bi-x-octagon" aria-hidden="true" /><span className="d-none d-sm-inline"> Révoquer</span>
             </Button>
           )}
-        </span>
+        </div>
       ),
     },
   ];
 
   return (
     <>
-      <p className="text-muted">
-        Tous les QR Codes générés, leur piège et leur état. Un QR Code révoqué ne peut plus être scanné.
-      </p>
-
       {error && <Alert variant="warning" onClose={() => setError(null)} dismissible>{error}</Alert>}
 
-      <h3 className="h5 mt-4">Clés de signature</h3>
-      <p className="text-muted small mb-2">
-        Retirer une clé de la configuration (<code>TAG_HMAC_KEYS</code>) invalide d'un coup tous les QR Codes
-        qu'elle a signés : vérifiez ici combien sont encore en service.
-      </p>
+      <h3 className="h5">
+        Clés de signature
+        <HelpTip id="help-tag-keys" title="Clés de signature">
+          Retirer une clé de la configuration (<code>TAG_HMAC_KEYS</code>) invalide d'un coup tous les QR Codes
+          qu'elle a signés : vérifiez ici combien sont encore en service.
+        </HelpTip>
+      </h3>
       {keys === null ? (
         <Spinner animation="border" size="sm" />
       ) : (
-        <Table size="sm" className="align-middle" style={{ maxWidth: 560 }}>
+        <Table size="sm" responsive className="align-middle" style={{ maxWidth: 560 }}>
           <thead>
             <tr><th>Index</th><th>État</th><th className="text-end">Associés</th><th className="text-end">Libres</th><th className="text-end">Révoqués</th></tr>
           </thead>
@@ -194,7 +237,14 @@ export default function TagsManagement() {
         </Table>
       )}
 
-      <h3 className="h5 mt-4">QR Codes{rows !== null && ` (${count})`}</h3>
+      <h3 className="h5 mt-4">
+        QR Codes{rows !== null && ` (${count})`}
+        <HelpTip id="help-tag-list" title="QR Codes">
+          Tous les QR Codes générés, leur piège et leur état. Un QR Code révoqué ne peut plus être
+          scanné. Cochez des QR Codes pour les réimprimer : ceux qui sont associés portent le numéro
+          de leur piège sous le code.
+        </HelpTip>
+      </h3>
       <Row className="g-2 mb-3">
         <Col xs={12} md={5}>
           <Form.Control
@@ -223,6 +273,29 @@ export default function TagsManagement() {
         </Col>
       </Row>
 
+      {selected.size > 0 && (
+        <Alert variant="light" className="d-flex flex-wrap gap-2 justify-content-between align-items-center py-2">
+          <span>{selected.size} sélectionné{selected.size > 1 ? 's' : ''}</span>
+          <span className="d-flex flex-wrap gap-2">
+            {selected.size > MAX_SHEET ? (
+              <span className="small text-danger">Au plus {MAX_SHEET} QR Codes par PDF.</span>
+            ) : (
+              <SheetPdfButton
+                variant="primary"
+                request={() => fetchAdminTagSheetLink(selectedIds)}
+                requestKey={selectedIds.join()}
+                onError={setError}
+              >
+                Réimprimer (PDF)
+              </SheetPdfButton>
+            )}
+            <Button variant="outline-secondary" size="sm" onClick={() => setSelected(new Set())}>
+              <i className="bi bi-x-lg me-1" aria-hidden="true" />Désélectionner
+            </Button>
+          </span>
+        </Alert>
+      )}
+
       {rows === null ? (
         <Spinner animation="border" size="sm" />
       ) : (
@@ -245,13 +318,13 @@ export default function TagsManagement() {
           </Modal.Header>
           <Modal.Body className="text-center">
             <img src={qr.qr_svg} alt={`QR Code ${qr.short}`} className="w-100" />
+            {qr.caption && <div className="small mt-1">{qr.caption}</div>}
             <div className="small text-muted text-break mt-2">{qr.url}</div>
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="outline-primary" size="sm" onClick={() => void downloadQr(qr)} disabled={downloading}>
-              <i className="bi bi-file-earmark-pdf me-1" aria-hidden="true" />
-              {downloading ? 'Préparation…' : 'PDF'}
-            </Button>
+            <SheetPdfButton request={() => fetchTagSheetLink([qr.value])} requestKey={qr.value} onError={setError}>
+              Imprimer (PDF)
+            </SheetPdfButton>
           </Modal.Footer>
         </Modal>
       )}

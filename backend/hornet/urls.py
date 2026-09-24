@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .media_views import media_view
 from .views import HornetViewSet, NestViewSet, ApiaryViewSet
-from .tag_views import TagAdminViewSet, TagViewSet
+from .tag_views import TagAdminViewSet, TagViewSet, sheet_pdf
 from .trap_views import (
     SpeciesViewSet, TrapEventViewSet, TrapPhotoViewSet, TrapTypeViewSet, TrapViewSet,
 )
@@ -22,5 +22,7 @@ router.register(r'admin/tags', TagAdminViewSet, basename='tagadmin')
 
 urlpatterns = [
     path('media/<path:path>', media_view, name='media'),
+    # Before the router, so `sheet` is not read as a tag value
+    path('tags/sheet/<str:token>/', sheet_pdf, name='tag-sheet-pdf'),
     path('', include(router.urls)),
 ]

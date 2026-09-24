@@ -3,7 +3,7 @@ import { Button, Table } from 'react-bootstrap';
 
 export interface ReferentialColumn<T> {
   key: string;
-  header: string;
+  header: ReactNode;
   render: (row: T) => ReactNode;
   /** Hidden below the `md` breakpoint, for the secondary columns */
   secondary?: boolean;

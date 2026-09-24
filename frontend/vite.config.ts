@@ -41,13 +41,15 @@ export default defineConfig(({ mode }) => {
           // Configuration pour améliorer la persistance des données
           clientsClaim: true,
           skipWaiting: true,
-          // Dev catch-all mailbox (Mailpit behind nginx): never the SPA shell
-          navigateFallbackDenylist: [/^\/mail\//],
+          // Never the SPA shell for the dev catch-all mailbox (Mailpit behind
+          // nginx), nor for the API: a printing sheet opens as a page (PDF)
+          navigateFallbackDenylist: [/^\/mail\//, /^\/api\//],
           // Stratégies de cache pour les ressources d'authentification
           runtimeCaching: [
             {
               urlPattern: ({ request, url }) =>
-                request.destination === 'document' && !url.pathname.startsWith('/mail/'),
+                request.destination === 'document'
+                && !url.pathname.startsWith('/mail/') && !url.pathname.startsWith('/api/'),
               handler: 'NetworkFirst',
               options: {
                 cacheName: 'pages-cache',

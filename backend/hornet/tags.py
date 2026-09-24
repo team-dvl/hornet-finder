@@ -152,6 +152,14 @@ def short_code(value: str) -> str:
     return value[2:10]
 
 
+def tag_caption(tag) -> str:
+    """
+    Text printed under the code of an attached tag, so a reprinted label can
+    be matched to its item; empty for a free tag.
+    """
+    return f"Piège #{tag.trap_id}" if tag.trap_id else ''
+
+
 def tag_url(value: str) -> str:
     """The URL encoded in the QR code; opens the app on the tag."""
     return f"https://{settings.TAG_URL_HOST}/tag/{value}"
