@@ -195,6 +195,10 @@ TAG_SITE_ID = os.environ.get('TAG_SITE_ID', '')
 # Host of the URL printed in the QR codes
 TAG_URL_HOST = os.environ.get('HOST') or 'localhost'
 
+# Public host of the application, for absolute URLs handed to other services
+# (the profile photo URL stored in Keycloak)
+PUBLIC_HOST = os.environ.get('HOST') or 'localhost'
+
 # Photos are resized client-side; this is the server-side safety net and must
 # stay below the `client_max_body_size` of the nginx /api/ location.
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024

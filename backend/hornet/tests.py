@@ -1165,3 +1165,147 @@ class FetchSpeciesPhotosTests(TestCase):
         with patch('hornet.management.commands.fetch_species_photos._get') as fake_get:
             call_command('fetch_species_photos', slug=['apis-mellifera'], stdout=io.StringIO())
         fake_get.assert_not_called()
+
+
+# -- profile photo -------------------------------------------------------------
+
+import os
+import shutil as _shutil
+import tempfile as _tempfile
+from pathlib import Path
+
+from .profile_views import my_avatar
+
+_AVATAR_MEDIA = Path(_tempfile.mkdtemp(prefix='avatar-tests-'))
+
+
+@override_settings(MEDIA_ROOT=_AVATAR_MEDIA, PUBLIC_HOST='test.velutina.ovh')
+class AvatarTests(TestCase):
+    """Upload, replacement and removal of the signed-in user's photo."""
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        _shutil.rmtree(_AVATAR_MEDIA, ignore_errors=True)
+
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.guid = uuid_module.uuid4()
+        self.user = User.objects.create(guid=self.guid)
+        self.jwt_user = FakeTrapUser(['volunteer'], self.guid)
+        patcher = patch('hornet.profile_views.set_user_picture')
+        self.set_picture = patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _call(self, method, data=None, user='self'):
+        kwargs = {'format': 'multipart'} if data is not None else {}
+        request = getattr(self.factory, method)('/api/me/avatar/', data, **kwargs)
+        if user == 'self':
+            force_authenticate(request, user=self.jwt_user)
+        return my_avatar(request)
+
+    def test_upload_stores_a_public_square_photo_and_updates_keycloak(self):
+        response = self._call('post', {'photo': _image_file(size=(1200, 800))})
+        self.assertEqual(response.status_code, 200)
+
+        self.user.refresh_from_db()
+        with Image.open(self.user.avatar.path) as image:
+            self.assertEqual(image.size, (256, 256))
+        url = response.data['url']
+        self.assertEqual(
+            url, f'https://test.velutina.ovh/api/media/{self.user.avatar.name}')
+        self.assertTrue(self.user.avatar.name.startswith(f'avatars/{self.guid}/'))
+        self.set_picture.assert_called_once_with(str(self.guid), url)
+
+        # Public: the Keycloak account console loads it without any token
+        anonymous = self.factory.get(f'/api/media/{self.user.avatar.name}')
+        self.assertEqual(media_view(anonymous, path=self.user.avatar.name).status_code, 200)
+
+    def test_replacing_the_photo_removes_the_previous_file(self):
+        self._call('post', {'photo': _image_file()})
+        self.user.refresh_from_db()
+        first = self.user.avatar.path
+
+        self._call('post', {'photo': _image_file()})
+        self.user.refresh_from_db()
+        self.assertNotEqual(self.user.avatar.path, first)
+        self.assertFalse(os.path.exists(first))
+
+    def test_removal_deletes_the_file_and_the_keycloak_attribute(self):
+        self._call('post', {'photo': _image_file()})
+        self.user.refresh_from_db()
+        path = self.user.avatar.path
+
+        response = self._call('delete')
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.data['url'])
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.avatar)
+        self.assertFalse(os.path.exists(path))
+        self.set_picture.assert_called_with(str(self.guid), None)
+
+    def test_get_returns_the_current_url(self):
+        self.assertIsNone(self._call('get').data['url'])
+        self.set_picture.assert_not_called()
+
+    def test_social_photo_is_used_and_synced_without_upload(self):
+        self.jwt_user.token_info = {'social_picture': 'https://lh3.example/me.jpg'}
+        self.assertEqual(self._call('get').data['url'], 'https://lh3.example/me.jpg')
+        self.set_picture.assert_called_once_with(str(self.guid), 'https://lh3.example/me.jpg')
+
+        # Already in step with the token: no Keycloak write
+        self.set_picture.reset_mock()
+        self.jwt_user.token_info['picture'] = 'https://lh3.example/me.jpg'
+        self._call('get')
+        self.set_picture.assert_not_called()
+
+    def test_uploaded_photo_wins_over_the_social_one(self):
+        self.jwt_user.token_info = {'social_picture': 'https://lh3.example/me.jpg'}
+        url = self._call('post', {'photo': _image_file()}).data['url']
+        self.assertIn('/api/media/avatars/', url)
+        self.assertEqual(self._call('get').data['url'], url)
+
+        # Removing the upload falls back to the social photo
+        response = self._call('delete')
+        self.assertEqual(response.data['url'], 'https://lh3.example/me.jpg')
+        self.set_picture.assert_called_with(str(self.guid), 'https://lh3.example/me.jpg')
+
+    def test_non_image_is_rejected(self):
+        bad = SimpleUploadedFile('note.txt', b'not an image', content_type='text/plain')
+        self.assertEqual(self._call('post', {'photo': bad}).status_code, 400)
+        self.set_picture.assert_not_called()
+
+    def test_anonymous_is_refused(self):
+        self.assertIn(self._call('get', user=None).status_code, (401, 403))
+
+
+class KeycloakPictureTests(TestCase):
+    """The `picture` attribute is written without losing the other attributes."""
+
+    def _admin(self, attributes):
+        from unittest.mock import create_autospec
+        from keycloak import KeycloakAdmin
+
+        admin = create_autospec(KeycloakAdmin, instance=True)
+        admin.get_user.return_value = {'id': 'g', 'username': 'u', 'attributes': attributes}
+        return admin
+
+    def test_setting_keeps_other_attributes(self):
+        from hornet_finder_api.utils import set_user_picture
+
+        admin = self._admin({'facebook_id': ['42']})
+        with patch('hornet_finder_api.utils._get_keycloak_admin', return_value=admin):
+            set_user_picture('g', 'https://x/a.jpg')
+        payload = admin.update_user.call_args.args[1]
+        self.assertEqual(payload['attributes'],
+                         {'facebook_id': ['42'], 'picture': ['https://x/a.jpg']})
+        self.assertEqual(payload['username'], 'u')
+
+    def test_removal_drops_only_the_picture(self):
+        from hornet_finder_api.utils import set_user_picture
+
+        admin = self._admin({'facebook_id': ['42'], 'picture': ['https://x/a.jpg']})
+        with patch('hornet_finder_api.utils._get_keycloak_admin', return_value=admin):
+            set_user_picture('g', None)
+        self.assertEqual(admin.update_user.call_args.args[1]['attributes'],
+                         {'facebook_id': ['42']})

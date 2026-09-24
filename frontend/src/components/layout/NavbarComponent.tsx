@@ -2,23 +2,36 @@ import { Navbar, Nav, Button, Container, Spinner, Breadcrumb } from 'react-boots
 import { useAuth } from 'react-oidc-context';
 import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
-import { useAppSelector } from '../../store/hooks';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { 
   selectGeolocationLoading,
   selectApiariesLoading, 
   selectNestsLoading,
-  selectHornetsLoading 
+  selectHornetsLoading,
+  fetchAvatar,
 } from '../../store/store';
 import UserInfoModal from '../modals/UserInfoModal';
 import TokenStatusBadge from '../debug/TokenStatusBadge';
 import { signInFromCurrentPage } from '../../utils/authRedirect';
 import { getBreadcrumbs } from '../../utils/breadcrumbs';
+import { UserAvatar } from '../common';
+import { useAvatarUrl } from '../../hooks/useAvatarUrl';
 
 export default function NavbarComponent() {
   const auth = useAuth();
   const location = useLocation();
   const crumbs = getBreadcrumbs(location.pathname);
   const [showUserModal, setShowUserModal] = useState(false);
+  const avatarUrl = useAvatarUrl();
+  const dispatch = useAppDispatch();
+  const userId = auth.user?.profile.sub;
+  const accessToken = auth.user?.access_token;
+
+  // Effective photo, once per signed-in user (and once the API has the token)
+  useEffect(() => {
+    if (userId && accessToken) void dispatch(fetchAvatar());
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- not on every token refresh
+  }, [userId, dispatch]);
   const [expanded, setExpanded] = useState(false);
   const navbarRef = useRef<HTMLDivElement>(null);
 
@@ -117,8 +130,9 @@ export default function NavbarComponent() {
                   variant="outline-primary"
                   size="sm"
                   onClick={() => setShowUserModal(true)}
-                  className="me-3"
+                  className="me-3 d-inline-flex align-items-center gap-2"
                 >
+                  <UserAvatar url={avatarUrl} size={22} />
                   Bienvenue, {auth.user?.profile.name}
                 </Button>
                 {/* Badge de diagnostic des tokens - uniquement en développement */}

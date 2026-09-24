@@ -4,6 +4,7 @@ import apiariesReducer from './slices/apiariesSlice.js';
 import nestsReducer from './slices/nestsSlice.js';
 import trapsReducer from './slices/trapsSlice.js';
 import mapReducer from './slices/mapSlice.js';
+import profileReducer from './slices/profileSlice.js';
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ export const store = configureStore({
     nests: nestsReducer,
     traps: trapsReducer,
     map: mapReducer,
+    profile: profileReducer,
   },
 });
 

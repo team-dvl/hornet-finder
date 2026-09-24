@@ -150,3 +150,24 @@ def get_user_group_paths(guid: str) -> list:
         # Never fatal: the caller falls back to the locally mirrored paths
         logger.warning(f"Failed to retrieve Keycloak groups of {guid}: {type(e).__name__}: {e}")
         return []
+
+def set_user_picture(guid: str, url: Optional[str]) -> None:
+    """
+    Set (or remove, with `url=None`) the `picture` attribute of a Keycloak user.
+
+    The attribute feeds the standard `picture` claim of the tokens. The whole
+    representation is sent back, because an update replaces the attribute map.
+    Requires the `manage-users` role on the backend service account.
+
+    :param guid: The Keycloak user ID.
+    :param url: Absolute URL of the photo, or None to remove it.
+    :raises Exception: Any Keycloak failure, left to the caller.
+    """
+    keycloak_admin = _get_keycloak_admin()
+    user = keycloak_admin.get_user(guid)
+    attributes = dict(user.get('attributes') or {})
+    if url:
+        attributes['picture'] = [url]
+    else:
+        attributes.pop('picture', None)
+    keycloak_admin.update_user(guid, {**user, 'attributes': attributes})

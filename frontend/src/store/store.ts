@@ -41,3 +41,7 @@ export type {
 export { setMapCenter, setZoom, setGeolocationLoading, setGeolocationError, setIsAdmin, updateMapViewport, initializeGeolocation, setLastFetchedArea } from './slices/mapSlice';
 export { selectMapCenter, selectZoom, selectSearchRadius, selectGeolocationLoading, selectGeolocationError, selectIsInitialized, selectIsAdmin, selectLastFetchedArea } from './slices/mapSlice';
 export type { MapPosition, MapState, MapBounds } from './slices/mapSlice';
+
+// Export des actions et selectors du slice profile
+export { fetchAvatar, uploadAvatar, deleteAvatar, clearProfileError } from './slices/profileSlice';
+export { selectAvatarOverride, selectProfileSaving, selectProfileError } from './slices/profileSlice';

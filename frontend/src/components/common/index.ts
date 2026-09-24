@@ -10,3 +10,4 @@ export { default as ThumbnailPreview } from './ThumbnailPreview';
 export { default as AddAtLocationButton } from './AddAtLocationButton';
 export { default as HelpTip } from './HelpTip';
 export { default as ClampedText } from './ClampedText';
+export { default as UserAvatar } from './UserAvatar';

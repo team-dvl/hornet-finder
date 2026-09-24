@@ -1,5 +1,5 @@
 """
-Image processing for the user-uploaded photos of the traps module.
+Image processing for the user-uploaded photos (traps module, profile photos).
 
 Photos come from phones and weigh several MB; the frontend already resizes
 them, this module is the server-side counterpart: it validates the upload,
@@ -15,6 +15,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 MAX_SIDE = 1600
 THUMBNAIL_SIDE = 320
+AVATAR_SIDE = 256
 JPEG_QUALITY = 85
 
 
@@ -60,3 +61,23 @@ def processed_image(uploaded) -> tuple[str, ContentFile, ContentFile]:
     validate_image_upload(uploaded)
     basename = uuid.uuid4().hex
     return basename, _to_jpeg(uploaded, MAX_SIDE), _to_jpeg(uploaded, THUMBNAIL_SIDE)
+
+
+def processed_avatar(uploaded) -> tuple[str, ContentFile]:
+    """
+    Validate an uploaded profile photo and return `(basename, square JPEG)`.
+
+    The photo is cropped to its centred square and scaled to AVATAR_SIDE, the
+    size avatars are displayed at (with room for high-density screens).
+    """
+    validate_image_upload(uploaded)
+    uploaded.seek(0)
+    image = ImageOps.exif_transpose(Image.open(uploaded))
+    if image.mode not in ('RGB', 'L'):
+        image = image.convert('RGB')
+    image = ImageOps.fit(image, (AVATAR_SIDE, AVATAR_SIDE), Image.LANCZOS)
+
+    buffer = ContentFile(b'')
+    image.save(buffer, format='JPEG', quality=JPEG_QUALITY, optimize=True)
+    uploaded.seek(0)
+    return uuid.uuid4().hex, buffer

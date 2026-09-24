@@ -25,7 +25,9 @@ from .models import Trap
 # Files of a trap live under `traps/<trap id>/`, which is what makes the
 # permission check possible from the path alone.
 TRAP_FILE_RE = re.compile(r'^traps/(?P<trap_id>\d+)/[^/]+$')
-PUBLIC_PREFIXES = ('trap-types/', 'species/')
+# Profile photos are public too: the Keycloak account console loads them
+# without any token, and their file names are random.
+PUBLIC_PREFIXES = ('trap-types/', 'species/', 'avatars/')
 
 
 def _is_safe(path: str) -> bool:

@@ -27,6 +27,11 @@ def unique_slug(model, name, max_length=64):
     return candidate
 
 
+def avatar_upload_path(instance, filename):
+    """Profile photos live under `avatars/<user guid>/`, a public media prefix."""
+    return f'avatars/{instance.guid}/{filename}'
+
+
 class User(models.Model):
     guid = models.UUIDField(primary_key=True, editable=False)
     date_created = models.DateTimeField(auto_now_add=True)
@@ -35,6 +40,9 @@ class User(models.Model):
     # user's groups, which the requester's own token cannot tell us (see
     # hornet/trap_permissions.py).
     group_paths = models.JSONField(default=list, blank=True)
+    # Profile photo uploaded in the app. Its public URL is also written to the
+    # Keycloak `picture` attribute, so the account console and the tokens show it.
+    avatar = models.ImageField(upload_to=avatar_upload_path, null=True, blank=True)
 
     def __str__(self):
         return str(self.guid)

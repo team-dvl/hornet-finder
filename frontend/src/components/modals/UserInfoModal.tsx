@@ -1,6 +1,13 @@
-import { Modal, Button, ListGroup, Badge } from 'react-bootstrap';
+import { useRef } from 'react';
+import { Modal, Button, ListGroup, Badge, Alert, Spinner } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
 import { jwtDecode } from 'jwt-decode';
+import { UserAvatar } from '../common';
+import { useAvatarUrl } from '../../hooks/useAvatarUrl';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import {
+  uploadAvatar, deleteAvatar, clearProfileError, selectProfileSaving, selectProfileError,
+} from '../../store/store';
 
 interface UserInfoModalProps {
   show: boolean;
@@ -21,6 +28,18 @@ interface JWTClaims {
 
 export default function UserInfoModal({ show, onHide }: UserInfoModalProps) {
   const auth = useAuth();
+  const dispatch = useAppDispatch();
+  const avatarUrl = useAvatarUrl();
+  const saving = useAppSelector(selectProfileSaving);
+  const photoError = useAppSelector(selectProfileError);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  const handlePhotoChosen = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    // Reset so that choosing the same file again still fires a change
+    event.target.value = '';
+    if (file) void dispatch(uploadAvatar(file));
+  };
 
   if (!auth.user) {
     return null;
@@ -59,6 +78,52 @@ export default function UserInfoModal({ show, onHide }: UserInfoModalProps) {
       </Modal.Header>
       
       <Modal.Body>
+        {/* Profile photo, also shown in the Keycloak account console */}
+        <div className="d-flex align-items-center gap-3 mb-3">
+          <UserAvatar url={avatarUrl} size={80} />
+          <div className="d-flex flex-column align-items-start gap-2">
+            <div className="d-flex flex-wrap gap-2">
+              <Button
+                variant="outline-primary"
+                size="sm"
+                disabled={saving}
+                onClick={() => fileInput.current?.click()}
+              >
+                {saving ? (
+                  <Spinner animation="border" size="sm" className="me-1" />
+                ) : (
+                  <i className="bi bi-camera me-1" />
+                )}
+                {avatarUrl ? 'Changer la photo' : 'Ajouter une photo'}
+              </Button>
+              {avatarUrl && (
+                <Button
+                  variant="outline-danger"
+                  size="sm"
+                  disabled={saving}
+                  onClick={() => void dispatch(deleteAvatar())}
+                >
+                  <i className="bi bi-trash me-1" />
+                  Supprimer
+                </Button>
+              )}
+            </div>
+            <small className="text-muted">Visible dans l'application et dans « Mon compte ».</small>
+          </div>
+          <input
+            ref={fileInput}
+            type="file"
+            accept="image/*"
+            className="d-none"
+            onChange={handlePhotoChosen}
+          />
+        </div>
+        {photoError && (
+          <Alert variant="danger" dismissible onClose={() => dispatch(clearProfileError())}>
+            {photoError}
+          </Alert>
+        )}
+
         <ListGroup variant="flush">
           <ListGroup.Item className="d-flex justify-content-between align-items-center">
             <strong>Nom d'utilisateur:</strong>
