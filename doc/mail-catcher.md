@@ -23,7 +23,9 @@ browser / script ─▶ nginx /mail/ ─auth_request─▶ oauth2-proxy ─▶ K
 - **Admin page**: in dev, the "Internal mail server" tile under Administration
   links to the UI. The PWA service worker leaves `/mail/` alone (no SPA
   fallback, no page cache).
-- **Label**: the UI shows "Velutina DEV" (`MP_LABEL`).
+- **Label and logo**: the UI shows "Velutina DEV" (`MP_LABEL`). Mailpit has
+  no logo option, so nginx answers `/mail/mailpit.svg` itself with the VSAB
+  emblem (the coloured hive bars only: the full logo is unreadable at 40 px).
 - **Back link**: nginx injects a "← Velutina" link (to `/admin`) into the
   Mailpit UI shell with `sub_filter`, since the installed PWA has no back
   button.
