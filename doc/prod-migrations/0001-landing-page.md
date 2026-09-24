@@ -1,3 +1,5 @@
+status: applied
+
 # Migration prod : page de garde, modules et documentation (`main` → `devel`)
 
 **Procédure à exécuter depuis le worktree `main` (`/home/debian/hornet-finder`), PAS depuis le worktree `devel`.**
