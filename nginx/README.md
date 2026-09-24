@@ -73,6 +73,7 @@ Development configuration for the development domain (`dev.velutina.ovh`):
 #### Catch-all mailbox (`app-dev.conf`)
 - **`/mail/`**: Mailpit UI and API, gated by `auth_request` to oauth2-proxy (Keycloak SSO or bearer token, realm role `mail-reader`)
 - **`/mail/oauth2/`**: oauth2-proxy endpoints (login, callback); larger proxy and header buffers because the session cookie carries the Keycloak tokens
+- A `sub_filter` injects a "← Velutina" back link into the Mailpit UI shell (the installed PWA has no back button); upstream compression is disabled for it
 - Mailpit keeps its own CSP (HTML preview iframe), so only HSTS is added there. See [doc/mail-catcher.md](../doc/mail-catcher.md)
 
 ### `auth.conf`

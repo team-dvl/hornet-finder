@@ -24,6 +24,9 @@ browser / script ─▶ nginx /mail/ ─auth_request─▶ oauth2-proxy ─▶ K
   links to the UI. The PWA service worker leaves `/mail/` alone (no SPA
   fallback, no page cache).
 - **Label**: the UI shows "Velutina DEV" (`MP_LABEL`).
+- **Back link**: nginx injects a "← Velutina" link (to `/admin`) into the
+  Mailpit UI shell with `sub_filter`, since the installed PWA has no back
+  button.
 - **Storage**: ephemeral, capped at 500 messages. Recreating the container
   empties the mailbox.
 
