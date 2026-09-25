@@ -35,7 +35,7 @@ const ACTION_CONFIG: Record<ConfirmationAction, {
     variant: 'danger',
     confirmLabel: 'Supprimer définitivement',
     confirmingLabel: 'Suppression...',
-    confirmIcon: 'fa-trash',
+    confirmIcon: 'bi-trash',
     getWarningMessage: (itemType) => {
       switch (itemType) {
         case 'frelon':
@@ -45,7 +45,7 @@ const ACTION_CONFIG: Record<ConfirmationAction, {
         case 'rucher':
           return 'Toutes les informations de ce rucher seront définitivement perdues.';
         default:
-          return 'Cette action est irréversible.';
+          return '';
       }
     },
   },
@@ -54,7 +54,7 @@ const ACTION_CONFIG: Record<ConfirmationAction, {
     variant: 'warning',
     confirmLabel: 'Archiver',
     confirmingLabel: 'Archivage...',
-    confirmIcon: 'fa-box-archive',
+    confirmIcon: 'bi-archive',
     getWarningMessage: () => "Cet élément ne sera plus affiché par défaut, mais restera consultable via les données archivées.",
   },
 };
@@ -75,7 +75,7 @@ export default function ConfirmationModal({
     <Modal show={show} onHide={onHide} centered>
       <Modal.Header closeButton className="border-0">
         <Modal.Title className={`text-${config.variant}`}>
-          <i className="fas fa-exclamation-triangle me-2"></i>
+          <i className="bi bi-exclamation-triangle me-2"></i>
           {config.title}
         </Modal.Title>
       </Modal.Header>
@@ -128,7 +128,7 @@ export default function ConfirmationModal({
             </>
           ) : (
             <>
-              <i className={`fas ${config.confirmIcon} me-2`}></i>
+              <i className={`bi ${config.confirmIcon} me-2`}></i>
               {config.confirmLabel}
             </>
           )}

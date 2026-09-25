@@ -252,7 +252,7 @@ export default function AddHornetPopup({
                 <Form.Text className="text-muted">
                   Temps écoulé entre le départ et le retour du frelon (en secondes)
                 </Form.Text>
-                <div className="d-flex gap-1 mt-2">
+                <div className="d-flex flex-wrap align-items-center gap-1 mt-2">
                   <small className="text-muted me-2">Durées courantes:</small>
                   {[1, 2, 5, 10, 15, 30].map(minutes => (
                     <Button

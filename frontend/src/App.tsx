@@ -59,13 +59,13 @@ function App() {
     case "signinSilent":
       return (
         <Container className="d-flex justify-content-center align-items-center vh-100">
-          <Alert variant="info">Signing you in...</Alert>
+          <Alert variant="info">Connexion en cours…</Alert>
         </Container>
       );
     case "signoutRedirect":
       return (
         <Container className="d-flex justify-content-center align-items-center vh-100">
-          <Alert variant="info">Signing you out...</Alert>
+          <Alert variant="info">Déconnexion en cours…</Alert>
         </Container>
       );
   }
@@ -73,7 +73,7 @@ function App() {
   if (auth.isLoading) {
     return (
       <Container className="d-flex justify-content-center align-items-center vh-100">
-        <Alert variant="info">Loading...</Alert>
+        <Alert variant="info">Chargement…</Alert>
       </Container>
     );
   }

@@ -512,7 +512,7 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
         zoom={15}
         maxZoom={MAX_ZOOM}
         scrollWheelZoom={true}
-        style={{ height: "100vh", width: "100%" }}
+        style={{ height: "100%", width: "100%" }}
         zoomControl={false} // Désactiver les contrôles par défaut
       >
         <MapControlsContainer 
@@ -768,7 +768,7 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
             type="button" 
             className="btn-close" 
             onClick={() => dispatch(setGeolocationError(null))}
-            aria-label="Close"
+            aria-label="Fermer"
           ></button>
         </div>
       )}
@@ -796,7 +796,7 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
           {tagError ? (
             <>
               <strong>QR Code :</strong> {tagError}
-              <button type="button" className="btn-close" onClick={() => setTagError(null)} aria-label="Close" />
+              <button type="button" className="btn-close" onClick={() => setTagError(null)} aria-label="Fermer" />
             </>
           ) : tagNeedsSignIn || scanNeedsSignIn ? (
             <>

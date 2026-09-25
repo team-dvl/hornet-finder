@@ -69,7 +69,7 @@ export default function BulkArchiveButton() {
         title="Archiver en masse les données d'une année passée"
         style={{ opacity: 0.85, borderRadius: '12px', backgroundColor: '#b8860b', borderColor: '#b8860b', color: '#fff' }}
       >
-        <i className="fas fa-box-archive"></i>
+        <i className="bi bi-archive"></i>
         <span className="map-control-button-text ms-1">Archivage</span>
       </Button>
 

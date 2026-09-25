@@ -193,7 +193,7 @@ export default function NestInfoPopup({ show, onHide, nest, onAddAtLocation }: N
             onClick={() => setShowDeleteModal(true)}
             className="me-2"
           >
-            <i className="fas fa-trash me-1"></i>
+            <i className="bi bi-trash me-1"></i>
             Supprimer
           </Button>
         )}
@@ -205,7 +205,7 @@ export default function NestInfoPopup({ show, onHide, nest, onAddAtLocation }: N
             onClick={() => setShowArchiveModal(true)}
             className="me-2"
           >
-            <i className="fas fa-box-archive me-1"></i>
+            <i className="bi bi-archive me-1"></i>
             Archiver
           </Button>
         )}

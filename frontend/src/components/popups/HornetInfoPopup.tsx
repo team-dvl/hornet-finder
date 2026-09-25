@@ -296,7 +296,7 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation,
                       Annuler
                     </Button>
                   </div>
-                  <div className="d-flex gap-1">
+                  <div className="d-flex flex-wrap align-items-center gap-1">
                     <small className="text-muted me-2">Durées courantes:</small>
                     {[1, 2, 5, 10, 15, 30].map(minutes => (
                       <Button
@@ -431,7 +431,7 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation,
             onClick={() => setShowDeleteModal(true)}
             className="me-2"
           >
-            <i className="fas fa-trash me-1"></i>
+            <i className="bi bi-trash me-1"></i>
             Supprimer
           </Button>
         )}
@@ -443,7 +443,7 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation,
             onClick={() => setShowArchiveModal(true)}
             className="me-2"
           >
-            <i className="fas fa-box-archive me-1"></i>
+            <i className="bi bi-archive me-1"></i>
             Archiver
           </Button>
         )}

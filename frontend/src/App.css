@@ -9,12 +9,14 @@ body {
   display: block;
   width: 100%;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* Scrolling pages (landing, placeholders) rendered under the fixed-top navbar */
 .page-content {
   padding-top: 4.5rem;
   min-height: 100vh;
+  min-height: 100dvh;
   background-color: var(--bs-light);
 }
 
@@ -61,7 +63,9 @@ button.module-card {
   right: 0;
   bottom: 0;
   width: 100vw;
+  /* dvh follows the mobile browser bars, which otherwise hide the bottom of the map */
   height: 100vh;
+  height: 100dvh;
   z-index: 1;
 }
 
@@ -112,6 +116,18 @@ button.module-card {
 @media screen and (max-width: 768px) {
   body {
     -webkit-text-size-adjust: 100%;
+  }
+}
+
+/* On a touch screen, iOS zooms into any field under 16px when it gets focus */
+@media (pointer: coarse) {
+  .form-control,
+  .form-select,
+  .form-control-sm,
+  .form-select-sm,
+  .input-group-sm > .form-control,
+  .input-group-sm > .form-select {
+    font-size: 16px;
   }
 }
 

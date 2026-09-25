@@ -211,7 +211,7 @@ export default function ApiaryInfoPopup({ show, onHide, apiary, onAddAtLocation 
             onClick={() => setShowDeleteModal(true)}
             className="me-2"
           >
-            <i className="fas fa-trash me-1"></i>
+            <i className="bi bi-trash me-1"></i>
             Supprimer
           </Button>
         )}
