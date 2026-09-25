@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { MapContainer, TileLayer, ZoomControl, useMapEvents } from "react-leaflet";
 import { Spinner } from 'react-bootstrap';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 import L, { Map } from 'leaflet';
-import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowApiaryCircles, selectShowHornets, selectShowReturnZones, selectShowNests, initializeGeolocation, selectMapCenter, selectGeolocationError, setGeolocationError, setIsAdmin, selectTraps, selectShowTraps, selectMovingTrapId, setShowTraps, toggleNests, toggleApiaries, stopMovingTrap, updateTrap, setMapCenter, fetchTrapDetail } from '../../store/store';
+import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowApiaryCircles, selectShowHornets, selectShowReturnZones, selectShowNests, initializeGeolocation, selectMapCenter, selectGeolocationError, setGeolocationError, setIsAdmin, selectTraps, selectShowTraps, selectMovingTrapId, setShowTraps, setShowNests, setShowApiaries, setShowHornets, startMovingTrap, stopMovingTrap, updateTrap, fetchTrapDetail } from '../../store/store';
 import { selectFilteredHornets } from '../../store/slices/hornetsSlice';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useMapDataFetching } from '../../hooks/useMapDataFetching';
@@ -29,7 +29,7 @@ import ApiaryInfoPopup from '../popups/ApiaryInfoPopup';
 import NestInfoPopup from '../popups/NestInfoPopup';
 import AddItemSelector from '../forms/AddItemSelector';
 import AddHornetPopup from '../popups/AddHornetPopup';
-import AddApiaryPopup from '../popups/AddApiaryPopup';
+import { ApiaryFormModal } from '../apiaries';
 import AddNestPopup from '../popups/AddNestPopup';
 import { TrapAddressChangeModal, TrapFormModal, TrapInfoPopup } from '../traps';
 import CompassCapture from './CompassCapture';
@@ -38,9 +38,8 @@ import MapRefHandler from './MapRefHandler';
 import MarkerClusterGroup from './MarkerClusterGroup';
 import { useSmartClickHandlers } from '../../hooks/useSmartClickHandlers';
 import { useMapModals, type MapPoint } from '../../hooks/useMapModals';
-import { useTagDeepLink } from '../../hooks/useTagDeepLink';
-import { TagAssociateModal, TagScannerModal } from '../tags';
-import type { TagResolution } from '../../utils/tagsApi';
+import { MAP_VIEW_MODES, type MapViewMode } from './viewModes';
+import { ACTION_ICONS } from '../../utils/icons';
 import { MapObject } from './types';
 import "leaflet/dist/leaflet.css";
 import geomagnetism from "geomagnetism";
@@ -93,17 +92,23 @@ function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number
 
 interface InteractiveMapProps {
   /**
-   * Which layers the map opens with. The map itself is the same everywhere: a
+   * View mode: how the map opens for its caller (layers, focus, move, back
+   * button), see `viewModes.ts`. The map itself is the same everywhere: a
    * view over all the data, filtered by type, so the user can then overlay
    * whatever they need from the layer controls.
    */
-  preset?: 'nests' | 'traps';
+  preset?: MapViewMode;
+  /** Trap to centre on and highlight, for the view modes that focus one */
+  focusTrapId?: number | null;
+  /** Page of the caller, reached by the back button (and after a move) */
+  returnTo?: string;
 }
 
-export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps) {
+export default function InteractiveMap({ preset = 'nests', focusTrapId = null, returnTo }: InteractiveMapProps) {
+  const viewMode = MAP_VIEW_MODES[preset];
   const dispatch = useAppDispatch();
   const auth = useAuth();
-  const { isAdmin, canAddApiary, canAddHornet, canAddTrap, userGuid } = useUserPermissions();
+  const { isAdmin, canAddApiary, canAddHornet, canAddTrap, userGuid, roles } = useUserPermissions();
   
   // Redux state
   const mapCenter = useAppSelector(selectMapCenter);
@@ -155,20 +160,21 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
   const showTraps = useAppSelector(selectShowTraps);
   const movingTrapId = useAppSelector(selectMovingTrapId);
 
-  // Couches ouvertes par défaut selon la route d'entrée. L'utilisateur reste
+  // Couches ouvertes par défaut selon le mode de vue. L'utilisateur reste
   // libre de tout superposer ensuite depuis le contrôle des couches.
-  const presetApplied = useRef(false);
+  // Applied once the session is known, since some modes depend on the roles;
+  // again whenever the caller switches to another mode.
+  const appliedPreset = useRef<MapViewMode | null>(null);
   useEffect(() => {
-    if (presetApplied.current) return;
-    presetApplied.current = true;
-    if (preset === 'traps') {
-      dispatch(setShowTraps(true));
-      // Les nids et les ruchers restent disponibles, mais masqués au départ
-      if (showNests) dispatch(toggleNests());
-      if (showApiaries) dispatch(toggleApiaries());
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preset, dispatch]);
+    if (appliedPreset.current === preset || auth.isLoading) return;
+    appliedPreset.current = preset;
+    const layers = MAP_VIEW_MODES[preset].layers?.(roles);
+    if (!layers) return;
+    dispatch(setShowTraps(layers.traps));
+    dispatch(setShowNests(layers.nests));
+    dispatch(setShowApiaries(layers.apiaries));
+    if (layers.hornets !== undefined) dispatch(setShowHornets(layers.hornets));
+  }, [preset, dispatch, auth.isLoading, roles]);
 
   // Carte Leaflet, gardée en état pour que la détection des chevauchements
   // la reçoive dès qu'elle est prête (une ref ne déclencherait pas de rendu)
@@ -215,69 +221,39 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
   // Gestionnaire de clic sur un piège
   const handleTrapClick = (trap: Trap) => openModal({ kind: 'trap', trap });
 
-  // --- QR Codes -----------------------------------------------------------
+  // --- Caller of the map ---------------------------------------------------
   const navigate = useNavigate();
-  const [tagError, setTagError] = useState<string | null>(null);
+  // QR codes belong to the trap manager: the scanner opens there
+  const openScanner = () => navigate('/scan');
 
-  /** Centre the map on a trap reached from its tag, then open its sheet. */
-  const focusTrap = useCallback((trap: Trap) => {
-    if (leafletMap) {
-      leafletMap.setView([trap.latitude, trap.longitude], Math.max(leafletMap.getZoom(), 17));
-    } else {
-      dispatch(setMapCenter({ latitude: trap.latitude, longitude: trap.longitude }));
-    }
-    dispatch(setShowTraps(true));
-    openModal({ kind: 'trap', trap });
-  }, [leafletMap, dispatch, openModal]);
-
-  const handleTagResolved = useCallback((value: string, resolution: TagResolution) => {
-    setTagError(null);
-    if (resolution.status === 'associated') {
-      focusTrap(resolution.trap);
-    } else {
-      openModal({ kind: 'tag-associate', value, short: resolution.short });
-    }
-  }, [focusTrap, openModal]);
-
-  const { needsSignIn: tagNeedsSignIn, resolving: resolvingTag } = useTagDeepLink({
-    onResolved: handleTagResolved,
-    onError: setTagError,
-  });
-
-  // The scanner only extracts the value: `/tag/<value>` does the rest, as for
-  // a tag scanned outside the app
-  const handleScannedTag = (value: string) => {
-    closeModal();
-    navigate(`/tag/${value}`);
-  };
-
-  // `/scan` (shortcut of the installed app): open the scanner once signed in,
-  // and go back to `/traps` so a reload does not reopen it
-  const location = useLocation();
-  // `/traps?trap=<id>` (link to an object, e.g. from the QR Codes
-  // administration): centre the map on it and open its sheet, if the user
-  // may see it; the URL then goes back to `/traps`
-  const requestedTrapId = location.pathname === '/traps'
-    ? Number(new URLSearchParams(location.search).get('trap')) || null
-    : null;
+  // Focused trap (view modes `trap` and `trap-move`): centre on it, highlight
+  // it and, for a move, make it draggable. It may lie outside the loaded
+  // area, hence the detail request.
+  const [focusError, setFocusError] = useState<string | null>(null);
+  const focusedTrapId = viewMode.focusTrap ? focusTrapId : null;
+  const focusApplied = useRef<string | null>(null);
   useEffect(() => {
-    if (!requestedTrapId || auth.isLoading || !auth.isAuthenticated) return;
+    if (!focusedTrapId || !leafletMap || auth.isLoading) return;
+    const key = `${preset}:${focusedTrapId}`;
+    if (focusApplied.current === key) return;
+    focusApplied.current = key;
     let cancelled = false;
-    dispatch(fetchTrapDetail(requestedTrapId)).unwrap()
-      .then((trap) => { if (!cancelled) focusTrap(trap); })
-      .catch(() => { if (!cancelled) setTagError("Cet objet est introuvable, ou vous n'y avez pas accès."); })
-      .finally(() => { if (!cancelled) navigate('/traps', { replace: true }); });
+    dispatch(fetchTrapDetail(focusedTrapId)).unwrap()
+      .then((trap) => {
+        if (cancelled) return;
+        leafletMap.setView([trap.latitude, trap.longitude], Math.max(leafletMap.getZoom(), 17));
+        if (viewMode.moveTrap) dispatch(startMovingTrap(trap.id));
+      })
+      .catch(() => { if (!cancelled) setFocusError("Ce piège est introuvable, ou vous n'y avez pas accès."); });
     return () => { cancelled = true; };
-  }, [requestedTrapId, auth.isLoading, auth.isAuthenticated, dispatch, focusTrap, navigate]);
+  }, [focusedTrapId, preset, viewMode.moveTrap, leafletMap, auth.isLoading, dispatch]);
 
-  const scanRequested = location.pathname === '/scan';
-  const scanNeedsSignIn = scanRequested && !auth.isLoading && !auth.isAuthenticated;
-  useEffect(() => {
-    if (!scanRequested || auth.isLoading || !auth.isAuthenticated) return;
-    dispatch(setShowTraps(true));
-    openModal({ kind: 'tag-scanner' });
-    navigate('/traps', { replace: true });
-  }, [scanRequested, auth.isLoading, auth.isAuthenticated, dispatch, openModal, navigate]);
+  // A move started by the caller ends by going back to it
+  const backToCaller = viewMode.moveTrap && returnTo ? returnTo : null;
+  const endMove = (trapId: number | null) => {
+    dispatch(stopMovingTrap());
+    if (backToCaller && trapId === focusedTrapId) navigate(backToCaller);
+  };
 
   // Gestionnaire de clic sur une zone de retour
   const handleReturnZoneClick = (hornet: Hornet, lat?: number, lng?: number, declination?: number, correctedDirection?: number) => {
@@ -450,7 +426,7 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
     }
     setTrapAddressChange(null);
     setPendingTrapPosition(null);
-    dispatch(stopMovingTrap());
+    endMove(movingTrapId);
   };
 
   const handleConfirmTrapMove = async () => {
@@ -475,7 +451,7 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
   const handleCancelTrapMove = () => {
     setTrapAddressChange(null);
     setPendingTrapPosition(null);
-    dispatch(stopMovingTrap());
+    endMove(movingTrapId);
   };
 
   const handleAddSuccess = () => {
@@ -593,9 +569,7 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
           onAddTrap={canAddTrap && showTraps
             ? () => openModal({ kind: 'add-trap', position: null })
             : undefined}
-          onScanTag={auth.isAuthenticated && showTraps
-            ? () => openModal({ kind: 'tag-scanner' })
-            : undefined}
+          onScanTag={auth.isAuthenticated && showTraps ? openScanner : undefined}
         />
         <MapRefHandler onMapReady={handleMapReady} />
         <MapEventHandler />
@@ -645,7 +619,7 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
               onClick={(item) => (spiderOpen.current ? handleNestClick(item) : handleSmartNestClick(item))}
             />
           ))}
-          {showTraps && traps.filter((trap) => trap.id !== movingTrapId).map((trap) => (
+          {showTraps && traps.filter((trap) => trap.id !== movingTrapId && trap.id !== focusedTrapId).map((trap) => (
             <TrapMarker
               key={`trap-${trap.id}`}
               trap={trap}
@@ -657,6 +631,16 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
             />
           ))}
         </MarkerClusterGroup>
+        {/* Le piège mis en avant reste hors groupe, pour ne jamais disparaître dans un cluster */}
+        {showTraps && traps.filter((trap) => trap.id === focusedTrapId && trap.id !== movingTrapId).map((trap) => (
+          <TrapMarker
+            key={`trap-${trap.id}-focused`}
+            trap={trap}
+            isMine={Boolean(trap.owner && trap.owner.guid === userGuid)}
+            highlighted
+            onClick={handleTrapClick}
+          />
+        ))}
         {/* Le piège en cours de déplacement reste hors groupe, pour pouvoir le faire glisser */}
         {showTraps && traps.filter((trap) => trap.id === movingTrapId).map((trap) => (
           <TrapMarker
@@ -664,6 +648,7 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
             trap={trap}
             isMine={Boolean(trap.owner && trap.owner.guid === userGuid)}
             isMoving
+            highlighted={trap.id === focusedTrapId}
             pendingPosition={pendingTrapPosition}
             onClick={handleSmartTrapClick}
             onMoved={handleTrapMoved}
@@ -769,12 +754,10 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
       )}
 
       {modalOfKind('add-apiary') && (
-        <AddApiaryPopup
-          show
+        <ApiaryFormModal
           onHide={closeModal}
           latitude={modalOfKind('add-apiary')!.position.lat}
           longitude={modalOfKind('add-apiary')!.position.lng}
-          onSuccess={handleAddSuccess}
         />
       )}
 
@@ -827,40 +810,24 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
         </div>
       )}
 
-      {/* QR Codes : scanner, association, lecture d'un lien /tag/<valeur> */}
-      {modalOfKind('tag-scanner') && (
-        <TagScannerModal onHide={closeModal} onTag={handleScannedTag} />
-      )}
-
-      {modalOfKind('tag-associate') && (
-        <TagAssociateModal
-          value={modalOfKind('tag-associate')!.value}
-          short={modalOfKind('tag-associate')!.short}
-          onHide={closeModal}
-          onAssociated={focusTrap}
-        />
-      )}
-
-      {(tagError || tagNeedsSignIn || scanNeedsSignIn || resolvingTag) && (
-        <div
-          className={`map-banner alert py-2 ${tagError ? 'alert-danger alert-dismissible' : 'alert-info'}`}
-          role="alert"
+      {/* Retour vers la page qui a ouvert la carte (gestionnaire de pièges...) */}
+      {returnTo && viewMode.backLabel && (
+        <button
+          type="button"
+          className="map-fab map-back-button"
+          onClick={() => { dispatch(stopMovingTrap()); navigate(returnTo); }}
+          aria-label={`Retour : ${viewMode.backLabel}`}
+          title={`Retour : ${viewMode.backLabel}`}
         >
-          {tagError ? (
-            <>
-              {tagError}
-              <button type="button" className="btn-close" onClick={() => setTagError(null)} aria-label="Fermer" />
-            </>
-          ) : tagNeedsSignIn || scanNeedsSignIn ? (
-            <>
-              {scanNeedsSignIn ? 'Connectez-vous pour scanner un QR Code.' : 'Connectez-vous pour lire ce QR Code.'}{' '}
-              <button type="button" className="btn btn-sm btn-primary ms-2" onClick={() => void signInFromCurrentPage(auth)}>
-                Connexion
-              </button>
-            </>
-          ) : (
-            <><Spinner animation="border" size="sm" className="me-2" />Lecture du QR Code…</>
-          )}
+          <i className={`bi bi-${ACTION_ICONS.back}`} aria-hidden="true" />
+          <span>{viewMode.backLabel}</span>
+        </button>
+      )}
+
+      {focusError && (
+        <div className="map-banner map-banner-below-back alert alert-danger alert-dismissible py-2" role="alert">
+          {focusError}
+          <button type="button" className="btn-close" onClick={() => setFocusError(null)} aria-label="Fermer" />
         </div>
       )}
 

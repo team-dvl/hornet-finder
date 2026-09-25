@@ -5,7 +5,7 @@
  * those realm roles (see `visibleModules` below); the route itself is guarded
  * by RequireRole.
  */
-export type ModuleId = 'nests' | 'traps' | 'docs' | 'admin' | 'account';
+export type ModuleId = 'map' | 'nests' | 'traps' | 'apiaries' | 'docs' | 'admin' | 'account';
 
 export interface ModuleDefinition {
   id: ModuleId;
@@ -23,6 +23,14 @@ export interface ModuleDefinition {
 
 export const MODULES: ModuleDefinition[] = [
   {
+    id: 'map',
+    title: 'Carte',
+    shortTitle: 'Carte',
+    description: 'Accédez directement à la carte des pièges, des nids et des ruchers.',
+    icon: 'bi-map',
+    path: '/map',
+  },
+  {
     id: 'nests',
     title: 'Recherche des nids',
     shortTitle: 'Nids',
@@ -37,6 +45,15 @@ export const MODULES: ModuleDefinition[] = [
     description: 'Gérez vos pièges et suivez les captures.',
     icon: 'bi-bullseye',
     path: '/traps',
+  },
+  {
+    id: 'apiaries',
+    title: 'Gestion des ruchers',
+    shortTitle: 'Ruchers',
+    description: 'Gérez vos ruchers et ceux que vos associations partagent avec vous.',
+    icon: 'bi-hexagon-fill',
+    path: '/apiaries',
+    requiredRoles: ['beekeeper', 'admin'],
   },
   {
     id: 'docs',
@@ -74,11 +91,12 @@ export function visibleModules(roles: string[]): ModuleDefinition[] {
 
 /**
  * Modules that get a page under /docs: the user-facing ones the given roles
- * open, which leaves out the documentation module itself and the account
- * console. A module nobody but an admin can use is not named to others.
+ * open, which leaves out the documentation module itself, the account
+ * console and the map shortcut (its layers are documented with the nest and
+ * trap modules). A module nobody but an admin can use is not named to others.
  */
 export function documentedModules(roles: string[]): ModuleDefinition[] {
-  return visibleModules(roles).filter((m) => m.id !== 'docs' && m.id !== 'account');
+  return visibleModules(roles).filter((m) => m.id !== 'docs' && m.id !== 'account' && m.id !== 'map');
 }
 
 export function findModule(id: string): ModuleDefinition | undefined {

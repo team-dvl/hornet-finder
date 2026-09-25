@@ -249,6 +249,9 @@ const nestsSlice = createSlice({
     toggleNests: (state) => {
       state.showNests = !state.showNests;
     },
+    setShowNests: (state, action) => {
+      state.showNests = action.payload as boolean;
+    },
     toggleShowArchived: (state) => {
       state.showArchived = !state.showArchived;
     },
@@ -329,7 +332,7 @@ export const selectNestsError = (state: { nests: NestsState }) => state.nests.er
 export const selectShowNests = (state: { nests: NestsState }) => state.nests.showNests;
 export const selectShowArchivedNests = (state: { nests: NestsState }) => state.nests.showArchived;
 
-export const { clearError, clearNests, addNest, toggleNests, toggleShowArchived } = nestsSlice.actions;
+export const { clearError, clearNests, addNest, toggleNests, setShowNests, toggleShowArchived } = nestsSlice.actions;
 export default nestsSlice.reducer;
 
 // Utilisation dans un composant React

@@ -3,7 +3,6 @@ import { jwtDecode } from 'jwt-decode';
 import { useMemo, useCallback } from 'react';
 import { Hornet } from '../store/store';
 import { Nest } from '../store/slices/nestsSlice';
-import { Apiary } from '../store/slices/apiariesSlice';
 import { Trap } from '../store/slices/trapsSlice';
 
 // Interface pour les claims JWT
@@ -91,14 +90,6 @@ export const useUserPermissions = () => {
   const canArchiveHornet = useCallback(() => isAdmin, [isAdmin]);
   const canArchiveNest = useCallback(() => isAdmin, [isAdmin]);
 
-  // Fonction pour vérifier si l'utilisateur peut supprimer un rucher
-  const canDeleteApiary = useCallback((apiary: Apiary) => {
-    if (!apiary || !userGuid || !isSignedIn) return false;
-    if (isAdmin) return true;
-    if (!apiary.created_by) return false;
-    return isOwner(apiary.created_by);
-  }, [isAdmin, userGuid, isSignedIn]);
-
   // Mémoriser si l'utilisateur peut ajouter des frelons
   const canAddHornet = useMemo(() => {
     if (!isSignedIn) return false;
@@ -181,7 +172,6 @@ export const useUserPermissions = () => {
       canEditHornet: () => false,
       canDeleteHornet: () => false,
       canDeleteNest: () => false,
-      canDeleteApiary: () => false,
       canArchiveHornet: () => false,
       canArchiveNest: () => false,
       canAddHornet: false,
@@ -205,7 +195,6 @@ export const useUserPermissions = () => {
     canEditHornet,
     canDeleteHornet,
     canDeleteNest,
-    canDeleteApiary,
     canArchiveHornet,
     canArchiveNest,
     canAddHornet,

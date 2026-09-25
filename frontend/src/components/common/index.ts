@@ -11,3 +11,4 @@ export { default as AddAtLocationButton } from './AddAtLocationButton';
 export { default as HelpTip } from './HelpTip';
 export { default as ClampedText } from './ClampedText';
 export { default as UserAvatar } from './UserAvatar';
+export { default as AuthImage } from './AuthImage';

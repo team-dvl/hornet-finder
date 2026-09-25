@@ -122,8 +122,45 @@ export interface TrapFormValues {
   photo?: File | null;
 }
 
+/** Whose traps the manager lists */
+export type TrapScope = 'mine' | 'delegated' | 'all';
+
+/** Sort keys of the manager; a leading `-` sorts in descending order */
+export type TrapOrdering =
+  | 'last_event_at' | '-last_event_at'
+  | 'hornet_catch_count' | '-hornet_catch_count'
+  | 'installed_at' | '-installed_at'
+  | 'address' | 'id' | '-id'
+  | 'distance';
+
+/** Query of the trap manager (`GET /traps/managed/`) */
+export interface ManagedTrapsQuery {
+  scope: TrapScope;
+  active: 'true' | 'false' | 'all';
+  ordering: TrapOrdering;
+  q?: string;
+  group?: string;
+  trap_type?: string;
+  has_tag?: 'true' | 'false';
+  /** Needed by the `distance` ordering */
+  lat?: number;
+  lon?: number;
+}
+
+interface ManagedTrapsState {
+  items: Trap[];
+  count: number;
+  page: number;
+  hasMore: boolean;
+  loading: boolean;
+  error: string | null;
+  /** Request whose answer is awaited: an older one is ignored when it lands */
+  requestId: string | null;
+}
+
 interface TrapsState {
   traps: Trap[];
+  managed: ManagedTrapsState;
   selectedTrap: Trap | null;
   trapTypes: TrapType[];
   species: Species[];
@@ -138,6 +175,15 @@ interface TrapsState {
 
 const initialState: TrapsState = {
   traps: [],
+  managed: {
+    items: [],
+    count: 0,
+    page: 0,
+    hasMore: false,
+    loading: false,
+    error: null,
+    requestId: null,
+  },
   selectedTrap: null,
   trapTypes: [],
   species: [],
@@ -186,6 +232,26 @@ export const fetchTraps = createAsyncThunk(
       });
       const response = await api.get(`/traps/?${params}`);
       return response.data as Trap[];
+    } catch (error: unknown) {
+      return rejectWithValue(getAxiosErrorMessage(error));
+    }
+  }
+);
+
+/** Page size of the trap manager */
+export const MANAGED_PAGE_SIZE = 50;
+
+/** One page of the trap manager: owned, delegated or (admins) all traps. */
+export const fetchManagedTraps = createAsyncThunk(
+  'traps/fetchManagedTraps',
+  async ({ query, page = 1 }: { query: ManagedTrapsQuery; page?: number }, { rejectWithValue }) => {
+    try {
+      const params = new URLSearchParams({ page: String(page), page_size: String(MANAGED_PAGE_SIZE) });
+      Object.entries(query).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
+      });
+      const response = await api.get(`/traps/managed/?${params}`);
+      return { page, ...(response.data as { count: number; next: string | null; results: Trap[] }) };
     } catch (error: unknown) {
       return rejectWithValue(getAxiosErrorMessage(error));
     }
@@ -574,9 +640,39 @@ const trapsSlice = createSlice({
       if (state.selectedTrap?.id === trap.id) {
         state.selectedTrap = { ...state.selectedTrap, ...trap };
       }
+      // The manager keeps its own page; refresh the row without its journal
+      const row = state.managed.items.findIndex((t) => t.id === trap.id);
+      if (row >= 0) {
+        const summary: Trap = { ...trap };
+        delete summary.events;
+        state.managed.items[row] = { ...state.managed.items[row], ...summary };
+      }
     };
 
     builder
+      .addCase(fetchManagedTraps.pending, (state, action) => {
+        state.managed.loading = true;
+        state.managed.error = null;
+        state.managed.requestId = action.meta.requestId;
+      })
+      .addCase(fetchManagedTraps.fulfilled, (state, action) => {
+        if (action.meta.requestId !== state.managed.requestId) return;
+        const { page, count, next, results } = action.payload;
+        const managed = state.managed;
+        managed.loading = false;
+        managed.count = count;
+        managed.page = page;
+        managed.hasMore = Boolean(next);
+        managed.items = page === 1
+          ? results
+          // A row may have shifted to the next page since the previous load
+          : [...managed.items, ...results.filter((t) => !managed.items.some((i) => i.id === t.id))];
+      })
+      .addCase(fetchManagedTraps.rejected, (state, action) => {
+        if (action.meta.requestId !== state.managed.requestId) return;
+        state.managed.loading = false;
+        state.managed.error = (action.payload as string) ?? action.error.message ?? null;
+      })
       .addCase(fetchTraps.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -603,6 +699,10 @@ const trapsSlice = createSlice({
       })
       .addCase(deleteTrap.fulfilled, (state, action) => {
         state.traps = state.traps.filter((trap) => trap.id !== action.payload);
+        if (state.managed.items.some((trap) => trap.id === action.payload)) {
+          state.managed.items = state.managed.items.filter((trap) => trap.id !== action.payload);
+          state.managed.count = Math.max(0, state.managed.count - 1);
+        }
         if (state.selectedTrap?.id === action.payload) state.selectedTrap = null;
       })
       .addCase(fetchTrapTypes.fulfilled, (state, action) => {
@@ -662,6 +762,7 @@ export const selectSpecies = (state: { traps: TrapsState }) => state.traps.speci
 export const selectShowTraps = (state: { traps: TrapsState }) => state.traps.showTraps;
 export const selectShowInactiveTraps = (state: { traps: TrapsState }) => state.traps.showInactiveTraps;
 export const selectOnlyMyTraps = (state: { traps: TrapsState }) => state.traps.onlyMyTraps;
+export const selectManagedTraps = (state: { traps: TrapsState }) => state.traps.managed;
 export const selectMovingTrapId = (state: { traps: TrapsState }) => state.traps.movingTrapId;
 export const selectTrapsLoading = (state: { traps: TrapsState }) => state.traps.loading;
 export const selectTrapsError = (state: { traps: TrapsState }) => state.traps.error;

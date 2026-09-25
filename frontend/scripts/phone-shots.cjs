@@ -151,16 +151,13 @@ async function walk(name) {
     await escape();
   });
 
-  await step('traps-map', async () => {
-    await open('/traps');
-    await shot('traps-map', 2500);
-  });
-
-  await step('layers', async () => {
-    await tap(page.locator('[aria-label="Couches"], [title="Gérer les couches affichées"]'));
-    await shot('layers');
+  await step('map', async () => {
+    await open('/map');
+    await shot('map', 2500);
+    await tap(page.locator('[aria-label="Couches"]'));
+    await shot('map-layers');
     await scrollDown();
-    await shot('layers-bottom', 400);
+    await shot('map-layers-bottom', 400);
     await escape();
     await tapAt(viewport.width / 2, 10);
   });
@@ -173,7 +170,7 @@ async function walk(name) {
     await escape();
   });
 
-  /** Tap the fixture traps: through their cluster first when they are grouped */
+  /** Tap the fixture traps on the map: through their cluster first when they are grouped */
   const tapFixtureTrap = async (label) => {
     if (await page.locator('.map-cluster').count()) {
       await tapAt(...(await markerAt('.map-cluster')));
@@ -183,19 +180,48 @@ async function walk(name) {
     await tapAt(...(await markerAt('.trap-icon')));
   };
 
+  // Nests, apiaries and traps share one cluster group: the map module shows them together
   await step('clusters', async () => {
-    if (await page.locator('.map-cluster').count()) await shot('traps-clusters');
+    if (await page.locator('.map-cluster').count()) await shot('map-clusters');
   });
 
   await step('overlap', async () => {
     await tapFixtureTrap('cluster-fanned-out');
     await shot('overlap', 1500);
+    await escape();
+  });
+
+  // Trap manager, narrowed to the fixtures (their comment) so real traps never get in the way
+  const FIXTURE_TRAPS = '/traps?q=ui-shots&active=all';
+  const openFixtureSheet = async () => {
+    if (!page.url().includes('/traps')) {
+      await open(FIXTURE_TRAPS);
+      await page.waitForTimeout(1500);
+    }
+    await tap(page.locator('[aria-label^="Fiche du piège"]').first());
+    await page.waitForTimeout(1500);
+  };
+
+  await step('traps-list', async () => {
+    await open(FIXTURE_TRAPS);
+    await shot('traps-list', 2000);
+  });
+
+  await step('trap-filters', async () => {
+    await tap(page.locator('[aria-label="Filtres"]'));
+    await shot('trap-filters', 600);
+    await tap(page.locator('[aria-label="Filtres"]'));
+  });
+
+  await step('trap-row-actions', async () => {
+    await tap(page.locator('[aria-label="Plus d\'actions"]').first());
+    await shot('trap-row-actions', 800);
+    await escape();
   });
 
   await step('trap-sheet', async () => {
-    const choice = page.locator('.offcanvas.show .list-group-item, .modal.show .list-group-item').filter({ hasText: 'Piège' });
-    if (await choice.count()) await tap(choice);
-    await shot('trap-sheet', 2000);
+    await openFixtureSheet();
+    await shot('trap-sheet', 1500);
     await scrollDown();
     await shot('trap-sheet-bottom', 400);
   });
@@ -206,17 +232,7 @@ async function walk(name) {
   });
 
   await step('catch-form', async () => {
-    if (!(await page.locator('.modal.show').count())) {
-      if (!(await page.locator('.leaflet-container').count())) {
-        await open('/traps');
-        await page.waitForTimeout(2500);
-      }
-      await tapFixtureTrap();
-      await page.waitForTimeout(1200);
-      const choice = page.locator('.offcanvas.show .list-group-item, .modal.show .list-group-item').filter({ hasText: 'Piège' });
-      if (await choice.count()) await tap(choice);
-      await page.waitForTimeout(1500);
-    }
+    if (!(await page.locator('.modal.show').count())) await openFixtureSheet();
     await tap(page.locator('.modal.show button:has-text("capture"), .modal.show [aria-label="Enregistrer une capture"]'));
     await shot('catch-form', 1500);
     await scrollDown();
@@ -236,6 +252,7 @@ async function walk(name) {
   });
 
   await step('action-form', async () => {
+    if (!(await page.locator('.modal.show').count())) await openFixtureSheet();
     await tap(page.locator('.modal.show button:has-text("action"), .modal.show [aria-label="Ajouter une action"]'));
     await shot('action-form', 1500);
     await tap(page.locator('.modal.show button:has-text("Annuler"), .modal.show .btn-close'));
@@ -243,6 +260,7 @@ async function walk(name) {
   });
 
   await step('trap-edit', async () => {
+    if (!(await page.locator('.modal.show').count())) await openFixtureSheet();
     await tap(page.locator('.modal.show [aria-label="Modifier"], .modal.show button:has-text("Modifier")'));
     await shot('trap-edit', 1500);
     await scrollDown();
@@ -252,10 +270,21 @@ async function walk(name) {
   });
 
   await step('trap-delete', async () => {
+    if (!(await page.locator('.modal.show').count())) await openFixtureSheet();
     await tap(page.locator('.modal.show [aria-label="Supprimer"], .modal.show button:has-text("Supprimer")'));
     await shot('trap-delete-confirm', 1200);
     await tap(page.locator('.modal.show button:has-text("Annuler")'));
     await escape();
+  });
+
+  // "Voir sur la carte": the map module on the trap, with a way back to the list
+  await step('trap-locate', async () => {
+    await open(FIXTURE_TRAPS);
+    await page.waitForTimeout(1500);
+    await tap(page.locator('.trap-list-actions [aria-label="Voir sur la carte"]').first());
+    await shot('trap-locate', 2500);
+    await tap(page.locator('.map-back-button'));
+    await shot('trap-locate-back', 1500);
   });
 
   await step('nests-map', async () => {
@@ -304,6 +333,39 @@ async function walk(name) {
     await escape();
   });
 
+  await step('apiaries-map', async () => {
+    await open('/apiaries');
+    await shot('apiaries-map', 2500);
+    await tap(page.locator('[aria-label="Couches"]'));
+    await shot('apiaries-layers');
+    await escape();
+    await tapAt(viewport.width / 2, 10);
+  });
+
+  await step('apiary-sheet', async () => {
+    await tapAt(...(await markerAt('.apiary-icon')));
+    await shot('apiary-sheet', 2000);
+    await tap(page.locator('.modal.show .accordion-button').filter({ hasText: 'Partage' }));
+    await scrollDown();
+    await shot('apiary-sharing', 800);
+  });
+
+  await step('apiary-edit', async () => {
+    await tap(page.locator('.modal.show [aria-label="Modifier"]'));
+    await shot('apiary-edit', 1200);
+    await escape();
+  });
+
+  await step('add-apiary', async () => {
+    await open('/apiaries');
+    await page.waitForTimeout(2000);
+    await tapAt(viewport.width * 0.2, viewport.height * 0.8);
+    await page.waitForTimeout(1000);
+    await tap(page.locator('.show button:has-text("Rucher")'));
+    await shot('add-apiary', 1200);
+    await escape();
+  });
+
   for (const [path, label] of [
     ['/admin', 'admin'],
     ['/admin/species', 'admin-species'],
@@ -312,6 +374,7 @@ async function walk(name) {
     ['/admin/tags?tab=print', 'admin-tags-print'],
     ['/docs', 'docs'],
     ['/docs/traps', 'docs-traps'],
+    ['/docs/apiaries', 'docs-apiaries'],
   ]) {
     await step(label, async () => {
       await open(path);

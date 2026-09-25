@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 import type { ModuleId } from '../../config/modules';
+import ApiariesDoc from './ApiariesDoc';
 import NestsDoc from './NestsDoc';
 import TrapsDoc from './TrapsDoc';
 
@@ -10,4 +11,5 @@ import TrapsDoc from './TrapsDoc';
 export const DOC_PAGES: Partial<Record<ModuleId, ComponentType>> = {
   nests: NestsDoc,
   traps: TrapsDoc,
+  apiaries: ApiariesDoc,
 };

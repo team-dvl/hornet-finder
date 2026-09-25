@@ -132,17 +132,30 @@ class ApiaryGroupPermission(models.Model):
             perms.append('delete')
         return f"{self.group.name} on {self.apiary.id}: {', '.join(perms)}"
 
+def apiary_photo_path(instance, filename):
+    """Every file of an apiary lives under `apiaries/<apiary id>/`, which lets
+    the media view resolve the apiary (and its permissions) from the path."""
+    return f"apiaries/{instance.pk}/{uuid.uuid4().hex}.jpg"
+
+
 class Apiary(GeolocatedModel):
     INFESTATION_LEVEL_CHOICES = [
         (1, "Light"),
         (2, "Medium"),
         (3, "High"),
     ]
-    
+
     id = models.AutoField(primary_key=True)
     infestation_level = models.IntegerField(choices=INFESTATION_LEVEL_CHOICES)
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL)
+    # The beekeeper in charge: the creator at first, reassignable by an admin
+    owner = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL,
+                              related_name='owned_apiaries')
+    # Registration number at the Belgian food safety agency (AFSCA / FAVV)
+    afsca_number = models.CharField(max_length=32, blank=True, default='')
+    photo = models.ImageField(upload_to=apiary_photo_path, null=True, blank=True)
+    photo_thumbnail = models.ImageField(upload_to=apiary_photo_path, null=True, blank=True)
     comments = models.TextField(null=True, blank=True)
     # groups that can access this apiary, with permissions
     allowed_groups = models.ManyToManyField(

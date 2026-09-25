@@ -1309,3 +1309,339 @@ class KeycloakPictureTests(TestCase):
             set_user_picture('g', None)
         self.assertEqual(admin.update_user.call_args.args[1]['attributes'],
                          {'facebook_id': ['42']})
+
+
+# ---------------------------------------------------------------------------
+# Apiaries
+# ---------------------------------------------------------------------------
+
+from .apiary_permissions import association_path
+from .apiary_views import ApiaryViewSet
+from .models import Apiary, ApiaryGroupPermission
+
+
+class ApiaryTestCase(TrapTestCase):
+    """The trap fixtures (owner, group member, group admin, stranger, admin) as beekeepers."""
+
+    def setUp(self):
+        super().setUp()
+        self.owner_user.roles = ['beekeeper']
+        self.stranger_user.roles = ['beekeeper']
+        self.apiary = Apiary.objects.create(
+            latitude=50.5, longitude=4.5, infestation_level=1,
+            created_by=self.owner, owner=self.owner,
+        )
+
+    def _api(self, method, url, actions, user, data=None, pk=None, **kwargs):
+        request = getattr(self.factory, method)(url, data, **kwargs)
+        force_authenticate(request, user=user)
+        view_kwargs = {'pk': pk} if pk is not None else {}
+        return ApiaryViewSet.as_view(actions)(request, **view_kwargs)
+
+    def _ids(self, user, query=''):
+        response = self._api('get', f'/apiaries/?lat=50.5&lon=4.5&radius=5{query}',
+                             {'get': 'list'}, user)
+        self.assertEqual(response.status_code, 200)
+        return {a['id'] for a in response.data}
+
+    def _share(self, can_update=False, can_read=True):
+        return ApiaryGroupPermission.objects.create(
+            apiary=self.apiary, group=self.group, can_read=can_read, can_update=can_update,
+        )
+
+
+class ApiaryVisibilityTests(ApiaryTestCase):
+    def test_private_apiary_seen_by_owner_and_admin_only(self):
+        self.assertEqual(self._ids(self.owner_user), {self.apiary.id})
+        self.assertEqual(self._ids(self.admin_user), {self.apiary.id})
+        self.assertEqual(self._ids(self.member_user), set())
+        self.assertEqual(self._ids(self.stranger_user), set())
+
+    def test_shared_apiary_seen_by_members_including_admin_subgroup(self):
+        self._share()
+        for user in (self.member_user, self.group_admin_user):
+            with self.subTest(user=user.guid):
+                self.assertEqual(self._ids(user), {self.apiary.id})
+        self.assertEqual(self._ids(self.stranger_user), set())
+
+    def test_mine_keeps_own_apiaries_only(self):
+        self._share()
+        own = Apiary.objects.create(latitude=50.5, longitude=4.5, infestation_level=2,
+                                    created_by=self.member, owner=self.member)
+        self.assertEqual(self._ids(self.member_user), {self.apiary.id, own.id})
+        self.assertEqual(self._ids(self.member_user, '&mine=true'), {own.id})
+
+    def test_volunteers_have_no_access(self):
+        self.member_user.roles = ['volunteer']
+        response = self._api('get', '/apiaries/?lat=50.5&lon=4.5', {'get': 'list'},
+                             self.member_user)
+        self.assertEqual(response.status_code, 403)
+
+    def test_representation_carries_owner_and_permissions(self):
+        self._share(can_update=True)
+        response = self._api('get', f'/apiaries/{self.apiary.id}/', {'get': 'retrieve'},
+                             self.member_user, pk=self.apiary.id)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['owner']['guid'], str(self.owner_guid))
+        self.assertEqual(response.data['permissions'],
+                         {'update': True, 'delete': False, 'share': False})
+
+
+class ApiaryWriteTests(ApiaryTestCase):
+    def test_creation_sets_creator_and_owner_and_ignores_sent_owner(self):
+        response = self._api('post', '/apiaries/', {'post': 'create'}, self.member_user, {
+            'latitude': 50.4, 'longitude': 4.4, 'infestation_level': 2,
+            'afsca_number': ' 2.123.456.789 ', 'owner': str(self.stranger_guid),
+        }, format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+        apiary = Apiary.objects.get(pk=response.data['id'])
+        self.assertEqual(apiary.owner_id, self.member_guid)
+        self.assertEqual(apiary.created_by_id, self.member_guid)
+        self.assertEqual(apiary.afsca_number, '2.123.456.789')
+
+    def test_update_needs_owner_or_update_grant(self):
+        patch_data = {'afsca_number': 'X1'}
+        response = self._api('patch', '/', {'patch': 'partial_update'}, self.member_user,
+                             patch_data, pk=self.apiary.id, format='json')
+        self.assertEqual(response.status_code, 403)
+
+        self._share(can_update=False)
+        response = self._api('patch', '/', {'patch': 'partial_update'}, self.member_user,
+                             patch_data, pk=self.apiary.id, format='json')
+        self.assertEqual(response.status_code, 403)
+
+        ApiaryGroupPermission.objects.filter(apiary=self.apiary).update(can_update=True)
+        response = self._api('patch', '/', {'patch': 'partial_update'}, self.member_user,
+                             patch_data, pk=self.apiary.id, format='json')
+        self.assertEqual(response.status_code, 200)
+
+    def test_delete_stays_with_owner(self):
+        self._share(can_update=True)
+        response = self._api('delete', '/', {'delete': 'destroy'}, self.member_user,
+                             pk=self.apiary.id)
+        self.assertEqual(response.status_code, 403)
+        response = self._api('delete', '/', {'delete': 'destroy'}, self.owner_user,
+                             pk=self.apiary.id)
+        self.assertEqual(response.status_code, 204)
+
+    def test_photo_is_stored_and_served_to_readers_only(self):
+        response = self._api('post', '/', {'post': 'photo'}, self.owner_user,
+                             {'photo': _image_file()}, pk=self.apiary.id, format='multipart')
+        self.assertEqual(response.status_code, 200)
+        self.apiary.refresh_from_db()
+        self.addCleanup(self.apiary.photo.delete, save=False)
+        self.addCleanup(self.apiary.photo_thumbnail.delete, save=False)
+        path = self.apiary.photo.name
+        self.assertTrue(path.startswith(f'apiaries/{self.apiary.id}/'))
+
+        def fetch(user):
+            request = self.factory.get(f'/api/media/{path}')
+            force_authenticate(request, user=user)
+            return media_view(request, path=path).status_code
+
+        self.assertEqual(fetch(self.owner_user), 200)
+        self.assertEqual(fetch(self.member_user), 404)
+        self._share()
+        self.assertEqual(fetch(self.member_user), 200)
+        self.assertEqual(fetch(self.stranger_user), 404)
+
+
+class ApiarySharingTests(ApiaryTestCase):
+    def test_association_path(self):
+        self.assertEqual(association_path('/beekeepers/ena'), '/beekeepers/ena')
+        self.assertEqual(association_path('/beekeepers/ena/admin'), '/beekeepers/ena')
+        self.assertIsNone(association_path('/beekeepers'))
+
+    def test_owner_is_offered_their_associations(self):
+        self.owner.group_paths = ['/beekeepers', '/beekeepers/vsab/admin', self.group_path]
+        self.owner.save()
+        response = self._api('get', '/', {'get': 'sharing'}, self.owner_user, pk=self.apiary.id)
+        self.assertTrue(response.data['can_share'])
+        self.assertEqual([g['path'] for g in response.data['allowed_groups']],
+                         ['/beekeepers/ena', '/beekeepers/vsab'])
+
+    def test_owner_shares_then_unshares(self):
+        response = self._api('put', '/', {'put': 'sharing'}, self.owner_user,
+                             {'group_path': self.group_path, 'can_update': True},
+                             pk=self.apiary.id, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['extended_permissions'][0]['group'], self.group_path)
+        self.assertTrue(response.data['extended_permissions'][0]['can_update'])
+        self.assertEqual(self._ids(self.member_user), {self.apiary.id})
+
+        response = self._api('delete', f'/?group_path={self.group_path}', {'delete': 'sharing'},
+                             self.owner_user, pk=self.apiary.id)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['extended_permissions'], [])
+        self.assertEqual(self._ids(self.member_user), set())
+
+    def test_owner_cannot_share_with_a_foreign_group(self):
+        response = self._api('put', '/', {'put': 'sharing'}, self.owner_user,
+                             {'group_path': '/beekeepers/other'}, pk=self.apiary.id, format='json')
+        self.assertEqual(response.status_code, 403)
+
+    def test_members_cannot_change_sharing(self):
+        self._share(can_update=True)
+        response = self._api('put', '/', {'put': 'sharing'}, self.member_user,
+                             {'group_path': self.group_path, 'can_update': True},
+                             pk=self.apiary.id, format='json')
+        self.assertEqual(response.status_code, 403)
+
+    def test_only_admin_changes_owner(self):
+        data = {'owner_guid': str(self.member_guid)}
+        response = self._api('put', '/', {'put': 'owner'}, self.owner_user, data,
+                             pk=self.apiary.id, format='json')
+        self.assertEqual(response.status_code, 403)
+        response = self._api('put', '/', {'put': 'owner'}, self.admin_user, data,
+                             pk=self.apiary.id, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['owner']['guid'], str(self.member_guid))
+
+
+# ---------------------------------------------------------------------------
+# Trap manager (`GET /traps/managed/`)
+# ---------------------------------------------------------------------------
+
+from datetime import timedelta
+
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+
+
+class TrapManagerTests(TrapTestCase):
+    """Scopes, filters, sorting and pagination of the trap manager."""
+
+    def setUp(self):
+        super().setUp()
+        today = timezone.now().date()
+        # Owned by the member, delegated to the owner's group
+        self.delegated = Trap.objects.create(
+            latitude=50.6, longitude=4.6, owner=self.member, trap_type=self.trap_type,
+            installed_at=today, group=self.group, address='Rue des Abeilles 3',
+        )
+        # Owned by the member, public, not delegated: not the owner's business
+        self.foreign = Trap.objects.create(
+            latitude=50.5, longitude=4.5, owner=self.member, trap_type=self.trap_type,
+            installed_at=today,
+        )
+        # A second trap of the owner, put away, far from the first one
+        self.removed = Trap.objects.create(
+            latitude=51.2, longitude=4.4, owner=self.owner, trap_type=self.trap_type,
+            installed_at=today, active=False, address='Quai du Port',
+        )
+
+    def _managed(self, user, query=''):
+        return self._call('get', f'/traps/managed/?{query}', {'get': 'managed'}, user=user)
+
+    def _ids(self, response):
+        self.assertEqual(response.status_code, 200, response.data)
+        return [trap['id'] for trap in response.data['results']]
+
+    def test_mine_lists_only_owned_active_traps_by_default(self):
+        self.assertEqual(self._ids(self._managed(self.owner_user)), [self.trap.id])
+
+    def test_mine_with_inactive_traps(self):
+        ids = self._ids(self._managed(self.owner_user, 'active=all'))
+        self.assertEqual(set(ids), {self.trap.id, self.removed.id})
+        ids = self._ids(self._managed(self.owner_user, 'active=false'))
+        self.assertEqual(ids, [self.removed.id])
+
+    def test_delegated_lists_traps_of_my_groups_but_not_my_own(self):
+        self.trap.group = self.group
+        self.trap.save()
+        # The owner sees the member's delegated trap, not their own nor the public one
+        self.assertEqual(self._ids(self._managed(self.owner_user, 'scope=delegated')),
+                         [self.delegated.id])
+
+    def test_delegated_includes_the_parent_of_an_admin_subgroup(self):
+        ids = self._ids(self._managed(self.group_admin_user, 'scope=delegated'))
+        self.assertEqual(ids, [self.delegated.id])
+
+    def test_delegated_excludes_public_traps_of_strangers(self):
+        self.assertEqual(self._ids(self._managed(self.stranger_user, 'scope=delegated')), [])
+
+    def test_all_is_reserved_to_platform_admins(self):
+        self.assertEqual(self._managed(self.owner_user, 'scope=all').status_code, 403)
+        ids = self._ids(self._managed(self.admin_user, 'scope=all&active=all'))
+        self.assertEqual(set(ids), {self.trap.id, self.delegated.id, self.foreign.id,
+                                    self.removed.id})
+
+    def test_unknown_scope_or_ordering_is_rejected(self):
+        self.assertEqual(self._managed(self.owner_user, 'scope=everyone').status_code, 400)
+        self.assertEqual(self._managed(self.owner_user, 'ordering=owner').status_code, 400)
+
+    def test_anonymous_is_rejected(self):
+        self.assertEqual(self._managed(None).status_code, 403)
+
+    def test_search_by_address_number_and_tag(self):
+        ids = self._ids(self._managed(self.owner_user, 'active=all&q=port'))
+        self.assertEqual(ids, [self.removed.id])
+        ids = self._ids(self._managed(self.owner_user, f'active=all&q=%23{self.trap.id}'))
+        self.assertEqual(ids, [self.trap.id])
+        tag = Tag.objects.create(value='AAbcdefgh' + 'x' * 30, key_index=0, trap=self.trap)
+        ids = self._ids(self._managed(self.owner_user, f'active=all&q={tag.short}'))
+        self.assertEqual(ids, [self.trap.id])
+
+    def test_has_tag_filter(self):
+        Tag.objects.create(value='AAtagged' + 'y' * 30, key_index=0, trap=self.removed)
+        self.assertEqual(self._ids(self._managed(self.owner_user, 'active=all&has_tag=true')),
+                         [self.removed.id])
+        self.assertEqual(self._ids(self._managed(self.owner_user, 'active=all&has_tag=false')),
+                         [self.trap.id])
+
+    def test_group_filter(self):
+        ids = self._ids(self._managed(self.admin_user,
+                                      f'scope=all&group={self.group_path}'))
+        self.assertEqual(ids, [self.delegated.id])
+
+    def test_default_order_puts_the_most_overdue_first(self):
+        # Journals opened by hand: one visited long ago, one never visited
+        self.trap.events.all().delete()
+        TrapEvent.objects.create(trap=self.removed, kind=TrapEvent.KIND_INSPECTION,
+                                 performed_at=timezone.now() - timedelta(days=30))
+        never = Trap.objects.create(latitude=50.5, longitude=4.5, owner=self.owner,
+                                    trap_type=self.trap_type, installed_at=timezone.now().date())
+        TrapEvent.objects.create(trap=self.trap, kind=TrapEvent.KIND_INSPECTION,
+                                 performed_at=timezone.now())
+        response = self._managed(self.owner_user, 'active=all')
+        self.assertEqual(self._ids(response), [never.id, self.removed.id, self.trap.id])
+        self.assertIsNone(response.data['results'][0]['last_event_at'])
+        self.assertIsNotNone(response.data['results'][2]['last_event_at'])
+        response = self._managed(self.owner_user, 'active=all&ordering=-last_event_at')
+        self.assertEqual(self._ids(response), [self.trap.id, self.removed.id, never.id])
+
+    def test_distance_ordering_has_no_radius_limit(self):
+        # The removed trap is ~80 km away: far beyond the 5 km of the map listing
+        ids = self._ids(self._managed(self.owner_user,
+                                      'active=all&ordering=distance&lat=51.2&lon=4.4'))
+        self.assertEqual(ids, [self.removed.id, self.trap.id])
+        self.assertEqual(self._managed(self.owner_user, 'ordering=distance').status_code, 400)
+
+    def test_pagination(self):
+        for _ in range(3):
+            Trap.objects.create(latitude=50.5, longitude=4.5, owner=self.owner,
+                                trap_type=self.trap_type, installed_at=timezone.now().date())
+        response = self._managed(self.owner_user, 'page_size=2')
+        self.assertEqual(response.data['count'], 4)
+        self.assertEqual(len(response.data['results']), 2)
+        self.assertIsNotNone(response.data['next'])
+
+    def test_query_count_does_not_grow_with_the_page(self):
+        def count_queries():
+            with CaptureQueriesContext(connection) as context:
+                self._ids(self._managed(self.owner_user, 'active=all'))
+            return len(context.captured_queries)
+
+        few = count_queries()
+        for _ in range(10):
+            Trap.objects.create(latitude=50.5, longitude=4.5, owner=self.owner,
+                                trap_type=self.trap_type, installed_at=timezone.now().date())
+        self.assertEqual(count_queries(), few)
+
+    def test_owner_name_is_looked_up_once_per_page(self):
+        for _ in range(3):
+            Trap.objects.create(latitude=50.5, longitude=4.5, owner=self.owner,
+                                trap_type=self.trap_type, installed_at=timezone.now().date())
+        with patch('hornet.serializers.get_user_display_name', return_value='Tester') as lookup:
+            self._ids(self._managed(self.owner_user, 'active=all'))
+        self.assertEqual(lookup.call_count, 1)

@@ -2,6 +2,7 @@ import json
 from typing import Optional
 
 from rest_framework import serializers
+from . import apiary_permissions as apiary_perms
 from .models import (
     Apiary, Hornet, Nest, Species, Trap, TrapEvent, TrapPhoto, TrapType, User,
     HORNET_SPECIES_SLUG, unique_slug,
@@ -117,36 +118,49 @@ class PublicNestSerializer(GPSValidationMixin, serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'archived', 'archived_at']
 
 class ApiarySerializer(GPSValidationMixin, serializers.ModelSerializer):
-    created_by = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
+    photo_url = serializers.SerializerMethodField()
+    photo_thumbnail_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Apiary
-        fields = ['id', 'longitude', 'latitude', 'infestation_level', 'created_at', 'created_by', 'comments']
-        read_only_fields = ['id', 'created_at']
+        fields = ['id', 'longitude', 'latitude', 'infestation_level', 'afsca_number',
+                  'photo_url', 'photo_thumbnail_url', 'created_at', 'created_by', 'owner',
+                  'comments']
+        # The creator and the owner are set by the server, never by a form
+        read_only_fields = ['id', 'created_at', 'created_by', 'owner']
+
+    def get_photo_url(self, instance) -> Optional[str]:
+        return instance.photo.url if instance.photo else None
+
+    def get_photo_thumbnail_url(self, instance) -> Optional[str]:
+        return instance.photo_thumbnail.url if instance.photo_thumbnail else None
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        # Enrichir le champ created_by avec le display_name Keycloak
-        if instance.created_by:
-            display_name = get_user_display_name(str(instance.created_by.guid))
-            data['created_by'] = {
-                'guid': str(instance.created_by.guid),
-                'display_name': display_name or str(instance.created_by.guid)[:8] + '...'
-            }
-        else:
-            data['created_by'] = None
-        # Ajout du champ extended_permissions avec le nom fancy
-        perms = []
-        for agp in instance.apiarygrouppermission_set.select_related('group').all():
-            perms.append({
+        data['created_by'] = user_summary(instance.created_by)
+        data['owner'] = user_summary(instance.owner)
+        data['extended_permissions'] = [
+            {
                 'group': agp.group.path,
-                'group_name': agp.group.name,  # nom fancy
+                'group_name': agp.group.name,
                 'can_read': agp.can_read,
                 'can_update': agp.can_update,
-                'can_delete': agp.can_delete
-            })
-        data['extended_permissions'] = perms
+                'can_delete': agp.can_delete,
+            }
+            for agp in instance.apiarygrouppermission_set.all()
+        ]
+        # What the requester may do, so the UI does not have to redo the rules
+        request = self.context.get('request')
+        if request is not None:
+            data['permissions'] = {
+                'update': apiary_perms.has_apiary_permission(request, instance, apiary_perms.UPDATE),
+                'delete': apiary_perms.has_apiary_permission(request, instance, apiary_perms.DELETE),
+                'share': apiary_perms.can_share_apiary(request, instance),
+            }
         return data
+
+    def validate_afsca_number(self, value: str) -> str:
+        return value.strip()
 
     def validate_infestation_level(self, value: int) -> int:
         valid_levels = [choice[0] for choice in Apiary.INFESTATION_LEVEL_CHOICES]
@@ -356,12 +370,22 @@ class TrapSerializer(GPSValidationMixin, serializers.ModelSerializer):
         return active[0].short if active else None
 
     def get_last_event_at(self, instance) -> Optional[str]:
+        # The trap manager annotates it; query otherwise
+        if hasattr(instance, 'last_event'):
+            return instance.last_event.isoformat() if instance.last_event else None
         last = instance.events.first()  # ordered by -performed_at
         return last.performed_at.isoformat() if last else None
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        data['owner'] = user_summary(instance.owner)
+        # A listing may pass a cache so an owner's name is looked up once per page
+        summaries = self.context.get('user_summaries')
+        if summaries is not None and instance.owner_id:
+            if instance.owner_id not in summaries:
+                summaries[instance.owner_id] = user_summary(instance.owner)
+            data['owner'] = summaries[instance.owner_id]
+        else:
+            data['owner'] = user_summary(instance.owner)
         data['group'] = (
             {'path': instance.group.path, 'name': instance.group.name}
             if instance.group else None

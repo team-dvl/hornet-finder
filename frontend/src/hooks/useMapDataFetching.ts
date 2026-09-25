@@ -18,6 +18,7 @@ import {
   selectShowTraps,
   selectShowInactiveTraps,
   selectOnlyMyTraps,
+  selectOnlyMyApiaries,
   type ArchiveFilterParams
 } from '../store/store';
 import { useUserPermissions } from './useUserPermissions';
@@ -42,9 +43,11 @@ export const useMapDataFetching = () => {
   const showTraps = useAppSelector(selectShowTraps);
   const showInactiveTraps = useAppSelector(selectShowInactiveTraps);
   const onlyMyTraps = useAppSelector(selectOnlyMyTraps);
+  const onlyMyApiaries = useAppSelector(selectOnlyMyApiaries);
   // Permet de forcer un refetch immédiat quand un de ces toggles change, même si la zone carte n'a pas bougé
   const previousFilters = useRef<{
     hornets: boolean; nests: boolean; traps: boolean; inactiveTraps: boolean; myTraps: boolean;
+    myApiaries: boolean;
   } | null>(null);
 
   useEffect(() => {
@@ -53,7 +56,8 @@ export const useMapDataFetching = () => {
       previousFilters.current.nests !== showArchivedNests ||
       previousFilters.current.traps !== showTraps ||
       previousFilters.current.inactiveTraps !== showInactiveTraps ||
-      previousFilters.current.myTraps !== onlyMyTraps;
+      previousFilters.current.myTraps !== onlyMyTraps ||
+      previousFilters.current.myApiaries !== onlyMyApiaries;
 
     // Si on a déjà une zone fetchée, vérifier si la nouvelle vue est incluse
     if (lastFetchedArea && !archiveFiltersChanged) {
@@ -125,7 +129,8 @@ export const useMapDataFetching = () => {
     if (auth.isAuthenticated && auth.user?.access_token && (isAdmin || canAddApiary)) {
       dispatch(fetchApiaries({ 
         accessToken: auth.user.access_token, 
-        geolocation: geolocationParams 
+        geolocation: geolocationParams,
+        onlyMine: onlyMyApiaries,
       }));
     }
 
@@ -157,6 +162,7 @@ export const useMapDataFetching = () => {
       traps: showTraps,
       inactiveTraps: showInactiveTraps,
       myTraps: onlyMyTraps,
+      myApiaries: onlyMyApiaries,
     };
   }, [
     mapCenter,
@@ -172,6 +178,7 @@ export const useMapDataFetching = () => {
     showArchivedNests,
     showTraps,
     showInactiveTraps,
-    onlyMyTraps
+    onlyMyTraps,
+    onlyMyApiaries
   ]);
 };
