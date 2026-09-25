@@ -4,7 +4,7 @@ import { Spinner } from 'react-bootstrap';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 import L, { Map } from 'leaflet';
-import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowApiaryCircles, selectShowHornets, selectShowReturnZones, selectShowNests, initializeGeolocation, selectMapCenter, selectGeolocationError, setGeolocationError, setIsAdmin, selectTraps, selectShowTraps, selectMovingTrapId, setShowTraps, toggleNests, toggleApiaries, stopMovingTrap, updateTrap, setMapCenter } from '../../store/store';
+import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowApiaryCircles, selectShowHornets, selectShowReturnZones, selectShowNests, initializeGeolocation, selectMapCenter, selectGeolocationError, setGeolocationError, setIsAdmin, selectTraps, selectShowTraps, selectMovingTrapId, setShowTraps, toggleNests, toggleApiaries, stopMovingTrap, updateTrap, setMapCenter, fetchTrapDetail } from '../../store/store';
 import { selectFilteredHornets } from '../../store/slices/hornetsSlice';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useMapDataFetching } from '../../hooks/useMapDataFetching';
@@ -254,6 +254,22 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
   // `/scan` (shortcut of the installed app): open the scanner once signed in,
   // and go back to `/traps` so a reload does not reopen it
   const location = useLocation();
+  // `/traps?trap=<id>` (link to an object, e.g. from the QR Codes
+  // administration): centre the map on it and open its sheet, if the user
+  // may see it; the URL then goes back to `/traps`
+  const requestedTrapId = location.pathname === '/traps'
+    ? Number(new URLSearchParams(location.search).get('trap')) || null
+    : null;
+  useEffect(() => {
+    if (!requestedTrapId || auth.isLoading || !auth.isAuthenticated) return;
+    let cancelled = false;
+    dispatch(fetchTrapDetail(requestedTrapId)).unwrap()
+      .then((trap) => { if (!cancelled) focusTrap(trap); })
+      .catch(() => { if (!cancelled) setTagError("Cet objet est introuvable, ou vous n'y avez pas accès."); })
+      .finally(() => { if (!cancelled) navigate('/traps', { replace: true }); });
+    return () => { cancelled = true; };
+  }, [requestedTrapId, auth.isLoading, auth.isAuthenticated, dispatch, focusTrap, navigate]);
+
   const scanRequested = location.pathname === '/scan';
   const scanNeedsSignIn = scanRequested && !auth.isLoading && !auth.isAuthenticated;
   useEffect(() => {
@@ -832,7 +848,7 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
         >
           {tagError ? (
             <>
-              <strong>QR Code :</strong> {tagError}
+              {tagError}
               <button type="button" className="btn-close" onClick={() => setTagError(null)} aria-label="Fermer" />
             </>
           ) : tagNeedsSignIn || scanNeedsSignIn ? (

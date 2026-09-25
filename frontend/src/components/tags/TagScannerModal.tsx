@@ -79,7 +79,7 @@ export default function TagScannerModal({ onHide, onTag }: TagScannerModalProps)
               <Button variant="outline-dark" onClick={retry}>Réessayer</Button>
             </Alert>
           ) : (
-            <div className="text-muted small mt-2">Visez le QR Code collé sur le piège.</div>
+            <div className="text-muted small mt-2">Visez le QR Code.</div>
           )}
         </>
       )}

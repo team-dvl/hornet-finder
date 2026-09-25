@@ -1,6 +1,7 @@
 import api from './api';
 import type { AxiosErrorResponse } from './axiosTypes';
 import type { Trap } from '../store/slices/trapsSlice';
+import { OBJECT_ICONS } from './icons';
 
 /**
  * Signed QR tags. The backend checks every scanned value (HMAC signature, then
@@ -49,10 +50,10 @@ const MESSAGES: Record<TagErrorCode, string> = {
   invalid: "Ce QR Code n'est pas authentique. L'incident a été enregistré.",
   unknown: "Ce QR Code est inconnu. L'incident a été enregistré.",
   revoked: "Ce QR Code a été révoqué et n'est plus valable.",
-  forbidden: "Vous n'avez pas accès au piège de ce QR Code.",
+  forbidden: "Vous n'avez pas accès à l'objet de ce QR Code.",
   configuration: "Les QR Codes ne sont pas configurés sur ce serveur.",
-  already_associated: 'Ce QR Code est déjà associé à un piège.',
-  trap_has_tag: 'Ce piège a déjà un QR Code.',
+  already_associated: 'Ce QR Code est déjà associé à un objet.',
+  trap_has_tag: 'Cet objet a déjà un QR Code.',
   not_found: 'Introuvable.',
   already_revoked: 'Ce QR Code est déjà révoqué.',
   network: 'Impossible de joindre le serveur. Réessayez une fois connecté au réseau.',
@@ -232,4 +233,23 @@ export async function revokeTag(id: number): Promise<AdminTag> {
   } catch (error) {
     throw toTagError(error);
   }
+}
+
+/**
+ * Object a tag is attached to, as named and linked in the interface. Tags go
+ * on traps only today; other kinds of objects will carry them later, and this
+ * is the one place that will then know about them.
+ */
+export interface TaggedObject {
+  icon: string;
+  label: string;
+  /** Page that opens the object's sheet */
+  path: string;
+}
+
+export function taggedObject(tag: { trap: { id: number } | null }): TaggedObject | null {
+  if (tag.trap) {
+    return { icon: OBJECT_ICONS.trap, label: `Piège n° ${tag.trap.id}`, path: `/traps?trap=${tag.trap.id}` };
+  }
+  return null;
 }

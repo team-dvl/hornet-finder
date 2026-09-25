@@ -31,7 +31,7 @@ const SECTIONS: AdminSection[] = [
   },
   {
     title: 'QR Codes',
-    description: 'Imprimez des planches de QR Codes pour vos pièges.',
+    description: 'Imprimez des planches de QR Codes pour vos objets.',
     icon: 'bi-qr-code',
     to: '/admin/tags',
     roles: ['volunteer', 'beekeeper'],

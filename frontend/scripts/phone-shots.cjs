@@ -306,6 +306,15 @@ async function walk(name) {
     });
   }
 
+  await step('tag-object-link', async () => {
+    await open('/admin/tags');
+    const link = page.locator('a[href^="/traps?trap="]').filter({ visible: true });
+    if (!(await link.count())) return;
+    await tap(link);
+    await shot('tag-object-sheet', 3000);
+    await escape();
+  });
+
   await step('page-scrolled', async () => {
     await open('/admin/tags');
     await page.waitForTimeout(1000);

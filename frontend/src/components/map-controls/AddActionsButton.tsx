@@ -32,7 +32,7 @@ export default function AddActionsButton({ onQuickHornetCapture, onAddTrap, onSc
     },
     onScanTag && {
       key: 'scan', icon: <i className="bi bi-qr-code-scan" aria-hidden="true" />, label: 'Scanner un QR Code',
-      hint: "Ouvrir le piège qui le porte", onClick: onScanTag,
+      hint: "Ouvrir l'objet qui le porte", onClick: onScanTag,
     },
   ].filter(Boolean) as { key: string; icon: React.ReactNode; label: string; hint: string; onClick: () => void }[];
 

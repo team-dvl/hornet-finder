@@ -94,7 +94,7 @@ export default function TagAssociateModal({ value, short, onHide, onAssociated }
           </Alert>
         ) : (
           <>
-            <p className="text-muted small">Sur quel piège est-il posé ?</p>
+            <p className="text-muted small">Sur quel objet est-il posé ?</p>
             {isAdmin && (
               <Form.Control
                 type="search"
@@ -108,7 +108,7 @@ export default function TagAssociateModal({ value, short, onHide, onAssociated }
               <div className="text-center py-3"><Spinner animation="border" size="sm" /></div>
             ) : candidates.length === 0 ? (
               <Alert variant="info" className="mb-0">
-                {query ? 'Aucun piège ne correspond.' : "Vous n'avez aucun piège. Placez d'abord votre piège sur la carte."}
+                {query ? 'Aucun objet ne correspond.' : "Rien à quoi l'associer : placez d'abord votre piège sur la carte."}
               </Alert>
             ) : (
               <ListGroup>

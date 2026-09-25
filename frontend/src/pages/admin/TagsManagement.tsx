@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Badge, Button, Col, Form, Row, Spinner, Table } from 'react-bootstrap';
 import { AppModal, ConfirmDialog } from '../../components/ui';
-import { ClampedText, HelpTip } from '../../components/common';
+import { HelpTip } from '../../components/common';
 import { SheetPdfButton } from '../../components/tags';
+import { Link } from 'react-router-dom';
 import { ReferentialTable, type ReferentialColumn } from '../../components/admin';
 import {
   fetchAdminTagQr, fetchAdminTagSheetLink, fetchTagSheetLink, fetchAdminTags, fetchTagKeyUsage, revokeTag, TagError,
-  type AdminTag, type AdminTagUser, type PrintableTag, type TagKeyUsage, type TagStatus,
+  taggedObject, type AdminTag, type AdminTagUser, type PrintableTag, type TagKeyUsage, type TagStatus,
 } from '../../utils/tagsApi';
 
 const STATUS_LABELS: Record<TagStatus, { label: string; bg: string }> = {
@@ -168,19 +169,20 @@ export default function TagsManagement() {
       render: (tag) => <Badge bg={STATUS_LABELS[tag.status].bg}>{STATUS_LABELS[tag.status].label}</Badge>,
     },
     {
-      key: 'trap',
-      header: 'Piège',
+      key: 'object',
+      header: 'Objet',
       main: true,
-      render: (tag) => (tag.trap
-        ? (
-          <span className="small d-block" style={{ minWidth: '6rem', maxWidth: '18rem' }}>
-            <ClampedText
-              id={`tag-trap-${tag.id}`}
-              text={`n° ${tag.trap.id}${tag.trap.address ? ` · ${tag.trap.address}` : ''}`}
-            />
-          </span>
-        )
-        : <span className="text-muted">—</span>),
+      render: (tag) => {
+        const object = taggedObject(tag);
+        return object
+          ? (
+            <Link to={object.path} className="text-nowrap text-decoration-none" title="Ouvrir sa fiche">
+              <span className="me-1" aria-hidden="true">{object.icon}</span>
+              {object.label}
+            </Link>
+          )
+          : <span className="text-muted">—</span>;
+      },
     },
     { key: 'key', header: 'Clef', secondary: true, render: (tag) => tag.key_index },
     { key: 'generated', header: 'Généré', secondary: true, render: (tag) => <Who user={tag.generated_by} at={tag.generated_at} /> },
@@ -262,16 +264,16 @@ export default function TagsManagement() {
       <h3 className="h5 mt-4">
         QR Codes{rows !== null && ` (${count})`}
         <HelpTip id="help-tag-list" title="QR Codes">
-          Tous les QR Codes générés, leur piège et leur état. Un QR Code révoqué ne peut plus être
+          Tous les QR Codes générés, l'objet qui les porte et leur état. Un QR Code révoqué ne peut plus être
           scanné. Cochez des QR Codes pour les réimprimer : ceux qui sont associés portent le numéro
-          de leur piège sous le code.
+          de leur objet sous le code.
         </HelpTip>
       </h3>
       <Row className="g-2 mb-3">
         <Col xs={12} md={5}>
           <Form.Control
             type="search"
-            placeholder="Code, n° ou adresse du piège"
+            placeholder="Code ou n° de l'objet"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -360,8 +362,8 @@ export default function TagsManagement() {
         onConfirm={() => void handleRevoke()}
         title={`Révoquer le QR Code ${toRevoke?.short ?? ''} ?`}
         message={toRevoke?.trap
-          ? `Collé sur le piège n° ${toRevoke.trap.id} : le scanner n'ouvrira plus ce piège. Action définitive.`
-          : 'Il ne pourra plus être associé à un piège. Action définitive.'}
+          ? `Associé à : ${taggedObject(toRevoke)?.label} ; le scanner ne l'ouvrira plus. Action définitive.`
+          : 'Il ne pourra plus être associé. Action définitive.'}
         confirmLabel="Révoquer"
         confirmIcon="x-octagon"
         busy={revoking}

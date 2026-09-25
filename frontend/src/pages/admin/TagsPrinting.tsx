@@ -79,7 +79,7 @@ export default function TagsPrinting() {
           <h2 className="h5 mb-0">
             Mes QR Codes libres{free && ` (${reprintable.length})`}
             <HelpTip id="help-tag-free" title="QR Codes libres">
-              Les QR Codes déjà générés mais pas encore associés à un piège.
+              Les QR Codes déjà générés mais pas encore associés à un objet.
             </HelpTip>
           </h2>
           {reprintable.length > 0 && (
@@ -102,8 +102,8 @@ export default function TagsPrinting() {
           <h2 className="h5 mb-0">
             Mes QR Codes en service{inUse && ` (${inUse.length})`}
             <HelpTip id="help-tag-in-use" title="QR Codes en service">
-              Les QR Codes déjà collés sur vos pièges, pour remplacer une étiquette abîmée : le même QR
-              Code reste valable, et le numéro du piège est imprimé sous le code pour ne pas les confondre.
+              Les QR Codes déjà collés sur vos objets, pour remplacer une étiquette abîmée : le même QR
+              Code reste valable, et l'objet est imprimé sous le code pour ne pas les confondre.
             </HelpTip>
           </h2>
           {inUse && inUse.length > 0 && (
@@ -112,7 +112,7 @@ export default function TagsPrinting() {
         </div>
         {inUse === null && !error && <Spinner animation="border" size="sm" />}
         {inUse !== null && inUse.length === 0 && (
-          <p className="text-muted small">Aucun QR Code associé à vos pièges.</p>
+          <p className="text-muted small">Aucun QR Code associé à vos objets.</p>
         )}
       </div>
       {inUse && inUse.length > 0 && (
@@ -126,9 +126,9 @@ export default function TagsPrinting() {
         <h2 className="h5">
           Nouvelle planche{batch.length > 0 && ` (${batch.length})`}
           <HelpTip id="help-tag-print" title="Imprimer des QR Codes">
-            Générez des QR Codes vierges, collez-en un sur chaque piège, puis scannez-le depuis la carte
-            des pièges (bouton 📷) pour l'associer au piège. Ensuite, un scan ouvre directement la fiche
-            du piège. Le PDF A4 donne des étiquettes de 45 mm à découper : imprimez-le à 100 %, sans
+            Générez des QR Codes vierges, collez-en un sur chaque objet (un piège, par exemple), puis
+            scannez-le depuis la carte (bouton « + », « Scanner un QR Code ») pour l'associer à l'objet.
+            Ensuite, un scan ouvre directement sa fiche. Le PDF A4 donne des étiquettes de 45 mm à découper : imprimez-le à 100 %, sans
             ajustement à la page. Depuis l'application installée sur téléphone, le bouton ouvre le
             menu de partage : choisissez « Imprimer » ou « Enregistrer dans Fichiers ». Dans un
             navigateur, le PDF s'ouvre dans un nouvel onglet.
