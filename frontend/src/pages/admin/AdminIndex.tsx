@@ -38,7 +38,7 @@ const SECTIONS: AdminSection[] = [
   },
   {
     title: 'QR Codes',
-    description: 'Imprimez des QR Codes, suivez-les avec leurs clés de signature, et révoquez ceux qui sont perdus ou compromis.',
+    description: 'Imprimez des QR Codes, suivez-les avec leurs clefs de signature, et révoquez ceux qui sont perdus ou compromis.',
     icon: 'bi-qr-code',
     to: '/admin/tags',
     roles: ['admin'],

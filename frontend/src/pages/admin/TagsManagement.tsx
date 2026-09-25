@@ -182,7 +182,7 @@ export default function TagsManagement() {
         )
         : <span className="text-muted">—</span>),
     },
-    { key: 'key', header: 'Clé', secondary: true, render: (tag) => tag.key_index },
+    { key: 'key', header: 'Clef', secondary: true, render: (tag) => tag.key_index },
     { key: 'generated', header: 'Généré', secondary: true, render: (tag) => <Who user={tag.generated_by} at={tag.generated_at} /> },
     { key: 'associated', header: 'Associé', secondary: true, render: (tag) => <Who user={tag.associated_by} at={tag.associated_at} /> },
     { key: 'revoked', header: 'Révoqué', secondary: true, render: (tag) => <Who user={tag.revoked_by} at={tag.revoked_at} /> },
@@ -212,18 +212,37 @@ export default function TagsManagement() {
       {error && <Alert variant="warning" onClose={() => setError(null)} dismissible>{error}</Alert>}
 
       <h3 className="h5">
-        Clés de signature
-        <HelpTip id="help-tag-keys" title="Clés de signature">
-          Retirer une clé de la configuration (<code>TAG_HMAC_KEYS</code>) invalide d'un coup tous les QR Codes
+        Clefs de signature
+        <HelpTip id="help-tag-keys" title="Clefs de signature">
+          Retirer une clef de la configuration (<code>TAG_HMAC_KEYS</code>) invalide d'un coup tous les QR Codes
           qu'elle a signés : vérifiez ici combien sont encore en service.
         </HelpTip>
       </h3>
       {keys === null ? (
         <Spinner animation="border" size="sm" />
       ) : (
-        <Table size="sm" responsive className="align-middle" style={{ maxWidth: 560 }}>
+        <>
+          {/* Phone: one line per key, the counts under its name, no table to scroll sideways */}
+          <div className="referential-list d-sm-none mb-3">
+            {keys.map((key) => (
+              <div key={key.index} className="referential-row">
+                <div className="referential-main">
+                  <div className="d-flex align-items-center gap-2">
+                    <span className="fw-semibold">Clef {key.index}</span>
+                    <Badge bg={KEY_STATES[key.state].bg}>{KEY_STATES[key.state].label}</Badge>
+                  </div>
+                  <div className="small text-muted">
+                    {key.associated} associé{key.associated > 1 ? 's' : ''}
+                    {' · '}{key.free} libre{key.free > 1 ? 's' : ''}
+                    {' · '}{key.revoked} révoqué{key.revoked > 1 ? 's' : ''}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        <Table size="sm" responsive className="align-middle d-none d-sm-table" style={{ maxWidth: 560 }}>
           <thead>
-            <tr><th>Index</th><th>État</th><th className="text-end">Associés</th><th className="text-end">Libres</th><th className="text-end">Révoqués</th></tr>
+            <tr><th>Clef</th><th>État</th><th className="text-end">Associés</th><th className="text-end">Libres</th><th className="text-end">Révoqués</th></tr>
           </thead>
           <tbody>
             {keys.map((key) => (
@@ -237,6 +256,7 @@ export default function TagsManagement() {
             ))}
           </tbody>
         </Table>
+        </>
       )}
 
       <h3 className="h5 mt-4">
@@ -257,8 +277,8 @@ export default function TagsManagement() {
           />
         </Col>
         <Col xs={6} md={4}>
-          <Form.Select value={status} onChange={(e) => setStatus(e.target.value as TagStatus | '')}>
-            <option value="">Tous les statuts</option>
+          <Form.Select value={status} onChange={(e) => setStatus(e.target.value as TagStatus | '')} aria-label="Statut">
+            <option value="">Statuts</option>
             <option value="free">Libres</option>
             <option value="associated">Associés</option>
             <option value="revoked">Révoqués</option>
@@ -266,11 +286,12 @@ export default function TagsManagement() {
         </Col>
         <Col xs={6} md={3}>
           <Form.Select
+            aria-label="Clef de signature"
             value={keyIndex}
             onChange={(e) => setKeyIndex(e.target.value === '' ? '' : Number(e.target.value))}
           >
-            <option value="">Toutes les clés</option>
-            {(keys ?? []).map((key) => <option key={key.index} value={key.index}>Clé {key.index}</option>)}
+            <option value="">Clefs</option>
+            {(keys ?? []).map((key) => <option key={key.index} value={key.index}>Clef {key.index}</option>)}
           </Form.Select>
         </Col>
       </Row>
