@@ -168,7 +168,7 @@
 
     /* "Aller à la section": a list of the page sections above the page itself */
     .pf-v5-c-jump-links,
-    .pf-v5-c-sidebar__panel:has(.pf-v5-c-jump-links) {
+    .pf-v5-l-grid__item:has(.pf-v5-c-jump-links) {
         display: none;
     }
 }
