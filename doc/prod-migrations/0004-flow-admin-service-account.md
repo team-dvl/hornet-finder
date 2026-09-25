@@ -14,7 +14,7 @@ Pourquoi : un utilisateur peut se connecter partout (console d'administration, �
 Ce qui **change dans Keycloak** (non couvert par `./deploy.sh`), realm `hornet-finder` :
 - nouveau client `flow-admin` : confidentiel, compte de service activé, tous les autres flux désactivés ;
 - rôles `realm-management` du compte de service : `manage-realm`, `view-realm`, `manage-clients`, `view-clients`, `manage-identity-providers`, `view-identity-providers`, `view-users`. **Pas** `manage-users` : il ne s'ajoute qu'au cas par cas, avec l'accord de l'utilisateur ;
-- en dernier seulement, suppression de l'utilisateur `flow-admin@velutina.invalid`.
+- en dernier seulement, désactivation de l'utilisateur `flow-admin@velutina.invalid` (`enabled=false`), comme en dev. Il n'est pas supprimé : le réactiver suffit pour revenir en arrière.
 
 Ce qui change dans le **`.env` prod** : ajout de `FLOW_ADMIN_SECRET` (et, facultatif, `FLOW_ADMIN_CLIENT_ID=flow-admin`), puis retrait de `FLOW_ADMIN_PASSWORD`.
 
@@ -72,12 +72,14 @@ Toutes les écritures Keycloak et `.env` sont **à confirmer avec l'utilisateur*
    grep -oE '^FLOW_ADMIN_[A-Z_]*' .env
    ```
 6. **Test du compte de service**, voir *Vérification* ci-dessous. Ne pas aller plus loin si un appel échoue.
-7. **En dernier seulement** (écritures) : supprimer l'utilisateur, avec le jeton `$T` de l'étape 2, puis retirer `FLOW_ADMIN_PASSWORD` (et `FLOW_ADMIN_USERNAME` s'il existe) du `.env` prod :
-   ```sh
-   U=$(kc "$K/users?username=flow-admin@velutina.invalid&exact=true" | jq -r '.[0].id')   # e5fa24de-743a-46dc-abf7-db00ba987115
-   kc -w '%{http_code}\n' -X DELETE "$K/users/$U"   # 204
-   sed -i '/^FLOW_ADMIN_PASSWORD=/d; /^FLOW_ADMIN_USERNAME=/d' .env
-   ```
+7. **En dernier seulement** (écritures) : désactiver l'utilisateur, puis retirer `FLOW_ADMIN_PASSWORD` (et `FLOW_ADMIN_USERNAME` s'il existe) du `.env` prod.
+   - En dev, l'utilisateur l'a fait lui-même dans la console : Users → `flow-admin@velutina.invalid` → *Enabled* sur Off → Save. C'est la voie à privilégier.
+   - Équivalent Admin API, avec le jeton `$T` de l'étape 2 (l'utilisateur se désactive lui-même grâce à `manage-users`, le compte de service ne l'a pas) :
+     ```sh
+     U=$(kc "$K/users?username=flow-admin@velutina.invalid&exact=true" | jq -r '.[0].id')   # e5fa24de-743a-46dc-abf7-db00ba987115
+     kc -w '%{http_code}\n' -H 'Content-Type: application/json' -X PUT "$K/users/$U" -d '{"enabled":false}'   # 204
+     ```
+   - Puis : `sed -i '/^FLOW_ADMIN_PASSWORD=/d; /^FLOW_ADMIN_USERNAME=/d' .env`
 
 ## Vérification
 ```sh
@@ -90,11 +92,11 @@ for p in "" /identity-provider/instances /clients /users/profile '/users?max=1' 
 curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $T" https://$KC_HOSTNAME/admin/realms/master   # 403
 curl -s -d grant_type=client_credentials -d client_id=flow-admin $TOK | jq -r .error   # unauthorized_client (pas de secret)
 ```
-Après l'étape 7 : `GET $K/users?username=flow-admin@velutina.invalid&exact=true` renvoie `[]`.
+Après l'étape 7 : `GET $K/users?username=flow-admin@velutina.invalid&exact=true` (avec le jeton du compte de service, qui a `view-users`) renvoie `"enabled": false`, et le grant `password` de l'étape 2 échoue (`invalid_grant`).
 
 Résultat en dev (2026-09-25) : 200 sur tous les appels ci-dessus, 403 sur `master`, `unauthorized_client` sans secret ou avec le grant `password`.
 
 ## Retour arrière
 - Tant que l'étape 7 n'est pas faite, l'utilisateur `flow-admin@velutina.invalid` et `FLOW_ADMIN_PASSWORD` restent utilisables comme avant : il suffit de supprimer le client (`DELETE $K/clients/$CID`) et les lignes `FLOW_ADMIN_CLIENT_ID` / `FLOW_ADMIN_SECRET` du `.env`.
-- Après l'étape 7 : recréer un utilisateur n'est plus nécessaire, le compte de service suffit. Pour une opération qui demande `manage-users`, l'ajouter au compte de service avec l'accord de l'utilisateur (console : Clients → `flow-admin` → Service account roles, en compte administrateur), puis le retirer.
+- Après l'étape 7 : réactiver l'utilisateur (console, *Enabled* sur On) et remettre `FLOW_ADMIN_PASSWORD` dans le `.env` à partir de la copie de l'étape 5. En temps normal, c'est inutile : le compte de service suffit. Pour une opération qui demande `manage-users`, l'ajouter au compte de service avec l'accord de l'utilisateur (console : Clients → `flow-admin` → Service account roles, en compte administrateur), puis le retirer.
 - Secret compromis : Clients → `flow-admin` → Credentials → *Regenerate*, puis mettre à jour `FLOW_ADMIN_SECRET` dans le `.env`.
