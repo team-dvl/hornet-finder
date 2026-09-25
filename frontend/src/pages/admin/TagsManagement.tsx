@@ -170,6 +170,7 @@ export default function TagsManagement() {
     {
       key: 'trap',
       header: 'Piège',
+      main: true,
       render: (tag) => (tag.trap
         ? (
           <span className="small d-block" style={{ minWidth: '6rem', maxWidth: '18rem' }}>

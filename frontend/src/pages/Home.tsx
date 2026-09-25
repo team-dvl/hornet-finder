@@ -1,4 +1,4 @@
-import { Container, Row, Col } from 'react-bootstrap';
+import { Container } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 import { PageLayout } from '../components/layout';
@@ -18,65 +18,58 @@ export default function Home() {
 
   return (
     <PageLayout>
-      <Container className="py-4">
-        <div className="d-flex align-items-center justify-content-center gap-3 mb-3 mb-sm-4">
+      {/* Vedrin s'abeille logo, fixed behind the content */}
+      <img src="/vsab-logo-transparent.png" alt="" aria-hidden="true" className="home-backdrop" />
+
+      <Container className="pt-2 pb-4 position-relative">
+        <div className="d-flex align-items-center justify-content-center gap-3 mb-3">
           <img src={APP_ICON} alt="" width={56} height={56} className="flex-shrink-0" />
           <div>
             <h1 className="h3 mb-0">Velutina</h1>
-            <div className="text-primary small">Surveillance collaborative du frelon asiatique</div>
+            <div className="text-primary">Gestion du frelon asiatique</div>
           </div>
         </div>
 
-        <Row className="g-2 g-sm-3 mb-5 justify-content-center">
+        <div className="tile-grid">
           {modules.map((module) => (
-            <Col key={module.id} xs={6} lg={3}>
-              {module.id === 'account' ? (
-                auth.isAuthenticated ? (
-                  <ModuleCard
-                    title={module.title}
-                    description={module.description}
-                    icon={module.icon}
-                    href={accountConsoleUrl(auth.settings.authority, auth.settings.client_id)}
-                  />
-                ) : (
-                  <ModuleCard
-                    title="Se connecter"
-                    description="Connectez-vous pour signaler et gérer vos données."
-                    icon="bi-box-arrow-in-right"
-                    onClick={() => void signInFromCurrentPage(auth)}
-                  />
-                )
-              ) : (
+            module.id === 'account' ? (
+              auth.isAuthenticated ? (
                 <ModuleCard
+                  key={module.id}
                   title={module.title}
                   description={module.description}
                   icon={module.icon}
-                  to={module.path}
-                  badge={module.badge}
+                  href={accountConsoleUrl(auth.settings.authority, auth.settings.client_id)}
                 />
-              )}
-            </Col>
-          ))}
-        </Row>
-
-        <Row className="text-center">
-          <Col lg={8} className="mx-auto">
-            <div className="d-flex flex-column flex-md-row align-items-center justify-content-center gap-3 mb-3">
-              <img
-                src="/vsab-logo-transparent.png"
-                alt="Logo Vedrin s'abeille"
-                style={{ maxWidth: '160px', height: 'auto' }}
+              ) : (
+                <ModuleCard
+                  key={module.id}
+                  title="Se connecter"
+                  description="Connectez-vous pour signaler et gérer vos données."
+                  icon="bi-box-arrow-in-right"
+                  onClick={() => void signInFromCurrentPage(auth)}
+                />
+              )
+            ) : (
+              <ModuleCard
+                key={module.id}
+                title={module.title}
+                description={module.description}
+                icon={module.icon}
+                to={module.path}
+                badge={module.badge}
               />
-              <small className="text-muted">
-                Une initiative de <b>Vedrin s'abeille</b> pour la protection de la biodiversité locale
-              </small>
-            </div>
-            <small>
-              <Link to="/privacy-policy" className="text-muted me-3">Politique de confidentialité</Link>
-              <Link to="/data-deletion" className="text-muted">Suppression des données</Link>
-            </small>
-          </Col>
-        </Row>
+            )
+          ))}
+        </div>
+
+        <footer className="text-center small mt-3">
+          <div className="text-muted mb-1">
+            Une initiative de <b>Vedrin s'abeille</b> pour la protection de la biodiversité locale
+          </div>
+          <Link to="/privacy-policy" className="text-muted me-3">Politique de confidentialité</Link>
+          <Link to="/data-deletion" className="text-muted">Suppression des données</Link>
+        </footer>
       </Container>
     </PageLayout>
   );

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import NavbarComponent from './NavbarComponent';
+import { BackToTop } from '../ui';
 
 interface PageLayoutProps {
   children: ReactNode;
@@ -15,6 +16,7 @@ export default function PageLayout({ children }: PageLayoutProps) {
     <>
       <NavbarComponent />
       <main className="page-content">{children}</main>
+      <BackToTop />
     </>
   );
 }

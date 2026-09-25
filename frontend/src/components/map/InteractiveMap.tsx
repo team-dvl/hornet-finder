@@ -3,12 +3,13 @@ import { MapContainer, TileLayer, ZoomControl, useMapEvents } from "react-leafle
 import { Spinner } from 'react-bootstrap';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
-import { Map } from 'leaflet';
+import L, { Map } from 'leaflet';
 import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowApiaryCircles, selectShowHornets, selectShowReturnZones, selectShowNests, initializeGeolocation, selectMapCenter, selectGeolocationError, setGeolocationError, setIsAdmin, selectTraps, selectShowTraps, selectMovingTrapId, setShowTraps, toggleNests, toggleApiaries, stopMovingTrap, updateTrap, setMapCenter } from '../../store/store';
 import { selectFilteredHornets } from '../../store/slices/hornetsSlice';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useMapDataFetching } from '../../hooks/useMapDataFetching';
-import { MAX_ZOOM, MAX_NATIVE_ZOOM } from '../../utils/constants';
+import { MAX_ZOOM, MAX_NATIVE_ZOOM, MIN_ZOOM_TO_SEPARATE } from '../../utils/constants';
+import { apiaryToMapObject, nestToMapObject, trapToMapObject } from '../../hooks/useOverlapDetection';
 import { signInFromCurrentPage } from '../../utils/authRedirect';
 import { reverseGeocode } from '../../utils/geocoding';
 import { Hornet } from '../../store/slices/hornetsSlice';
@@ -35,7 +36,6 @@ import CompassCapture from './CompassCapture';
 import OverlapDialog from './OverlapDialog';
 import MapRefHandler from './MapRefHandler';
 import MarkerClusterGroup from './MarkerClusterGroup';
-import { OBJECT_ICONS } from '../../utils/icons';
 import { useSmartClickHandlers } from '../../hooks/useSmartClickHandlers';
 import { useMapModals, type MapPoint } from '../../hooks/useMapModals';
 import { useTagDeepLink } from '../../hooks/useTagDeepLink';
@@ -44,6 +44,9 @@ import type { TagResolution } from '../../utils/tagsApi';
 import { MapObject } from './types';
 import "leaflet/dist/leaflet.css";
 import geomagnetism from "geomagnetism";
+
+/** Clusters of up to this many markers fan out on a tap; bigger ones zoom in or list */
+const SPIDERFY_MAX = 8;
 
 // Fonction utilitaire pour calculer la déclinaison magnétique
 function calculateMagneticDeclination(hornet: Hornet): { declination: number; correctedDirection: number } | null {
@@ -292,6 +295,55 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
         break;
     }
   };
+
+  // --- Regroupement des marqueurs ------------------------------------------
+  // A fanned-out cluster already shows each object apart: a tap on one of
+  // them opens its sheet, without asking again which object is meant.
+  const spiderOpen = useRef(false);
+
+  /** Objects behind the markers of a cluster, for the overlap list */
+  const clusterObjects = useCallback((markers: L.Marker[]): MapObject[] => {
+    const seen = new Set<string>();
+    const objects: MapObject[] = [];
+    const add = (object: MapObject) => {
+      const key = `${object.type}-${object.id}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        objects.push(object);
+      }
+    };
+    const at = (item: { latitude: number; longitude: number }, position: L.LatLng) =>
+      Math.abs(item.latitude - position.lat) < 1e-9 && Math.abs(item.longitude - position.lng) < 1e-9;
+    markers.forEach((marker) => {
+      const position = marker.getLatLng();
+      const className = marker.options.icon?.options.className ?? '';
+      if (className.includes('trap-icon')) traps.filter((trap) => at(trap, position)).forEach((trap) => add(trapToMapObject(trap)));
+      if (className.includes('nest-icon')) nests.filter((nest) => at(nest, position)).forEach((nest) => add(nestToMapObject(nest)));
+      if (className.includes('apiary-icon')) apiaries.filter((apiary) => at(apiary, position)).forEach((apiary) => add(apiaryToMapObject(apiary)));
+    });
+    return objects;
+  }, [traps, nests, apiaries]);
+
+  /**
+   * Tap on a cluster: a few objects fan out in a circle around their spot;
+   * more of them zoom in when they are spread out, and open the list when
+   * zooming would not pull them apart.
+   */
+  const handleClusterClick = useCallback((cluster: L.MarkerCluster) => {
+    const markers = cluster.getAllChildMarkers();
+    if (markers.length <= SPIDERFY_MAX) {
+      cluster.spiderfy();
+      return;
+    }
+    const bounds = cluster.getBounds();
+    const spread = !bounds.getNorthEast().equals(bounds.getSouthWest(), 1e-5);
+    if (spread && leafletMap && leafletMap.getZoom() < MIN_ZOOM_TO_SEPARATE) {
+      cluster.zoomToBounds({ padding: [48, 48] });
+      return;
+    }
+    const center = bounds.getCenter();
+    openModal({ kind: 'overlap', objects: clusterObjects(markers), position: { lat: center.lat, lng: center.lng } });
+  }, [leafletMap, clusterObjects, openModal]);
 
   // Les ruchers ne sont affichés qu'aux apiculteurs et aux administrateurs
   const apiariesVisible = showApiaries && auth.isAuthenticated && (isAdmin || canAddApiary);
@@ -561,46 +613,46 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
             apiary={apiary}
           />
         ))}
-        {/* Marqueurs de ruchers - au-dessus des disques ; regroupés par couche quand ils se touchent */}
-        {apiariesVisible && (
-          <MarkerClusterGroup symbol={OBJECT_ICONS.apiary}>
-            {apiaries.map((apiary, index) => (
-              <ApiaryMarker
-                key={apiary.id || index}
-                apiary={apiary}
-                onClick={handleSmartApiaryClick}
-              />
-            ))}
-          </MarkerClusterGroup>
-        )}
-        {/* Marqueurs de nids - niveau le plus haut */}
-        {showNests && (
-          <MarkerClusterGroup symbol={OBJECT_ICONS.nest}>
-            {nests.map((nest, index) => (
-              <NestMarker
-                key={nest.id || index}
-                nest={nest}
-                onClick={handleSmartNestClick}
-              />
-            ))}
-          </MarkerClusterGroup>
-        )}
-        {/* Marqueurs de pièges */}
-        {showTraps && (
-          <MarkerClusterGroup symbol={OBJECT_ICONS.trap}>
-            {traps.map((trap) => (
-              <TrapMarker
-                key={`trap-${trap.id}`}
-                trap={trap}
-                isMine={Boolean(trap.owner && trap.owner.guid === userGuid)}
-                isMoving={movingTrapId === trap.id}
-                pendingPosition={movingTrapId === trap.id ? pendingTrapPosition : null}
-                onClick={handleSmartTrapClick}
-                onMoved={handleTrapMoved}
-              />
-            ))}
-          </MarkerClusterGroup>
-        )}
+        {/* Ruchers, nids et pièges : un seul groupe, les marqueurs qui se touchent se regroupent */}
+        <MarkerClusterGroup onClusterClick={handleClusterClick} onSpiderfyChange={(open) => { spiderOpen.current = open; }}>
+          {apiariesVisible && apiaries.map((apiary, index) => (
+            <ApiaryMarker
+              key={`apiary-${apiary.id || index}`}
+              apiary={apiary}
+              onClick={(item) => (spiderOpen.current ? handleApiaryClick(item) : handleSmartApiaryClick(item))}
+            />
+          ))}
+          {showNests && nests.map((nest, index) => (
+            <NestMarker
+              key={`nest-${nest.id || index}`}
+              nest={nest}
+              onClick={(item) => (spiderOpen.current ? handleNestClick(item) : handleSmartNestClick(item))}
+            />
+          ))}
+          {showTraps && traps.filter((trap) => trap.id !== movingTrapId).map((trap) => (
+            <TrapMarker
+              key={`trap-${trap.id}`}
+              trap={trap}
+              isMine={Boolean(trap.owner && trap.owner.guid === userGuid)}
+              isMoving={false}
+              pendingPosition={null}
+              onClick={(item) => (spiderOpen.current ? handleTrapClick(item) : handleSmartTrapClick(item))}
+              onMoved={handleTrapMoved}
+            />
+          ))}
+        </MarkerClusterGroup>
+        {/* Le piège en cours de déplacement reste hors groupe, pour pouvoir le faire glisser */}
+        {showTraps && traps.filter((trap) => trap.id === movingTrapId).map((trap) => (
+          <TrapMarker
+            key={`trap-${trap.id}-moving`}
+            trap={trap}
+            isMine={Boolean(trap.owner && trap.owner.guid === userGuid)}
+            isMoving
+            pendingPosition={pendingTrapPosition}
+            onClick={handleSmartTrapClick}
+            onMoved={handleTrapMoved}
+          />
+        ))}
       </MapContainer>
 
       {/* Barre de validation du déplacement d'un piège */}

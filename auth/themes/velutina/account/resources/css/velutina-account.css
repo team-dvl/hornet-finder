@@ -131,3 +131,44 @@
 .pf-v5-c-masthead .pf-v5-c-toolbar__item:has(> .pf-v5-c-avatar) {
     flex-shrink: 0;
 }
+
+/*
+ * Phone: PatternFly stacks the masthead on two rows (menu and logo, then the
+ * toolbar with the kebab and the avatar), a quarter of the screen. One row
+ * instead: menu, logo, toolbar.
+ */
+@media (max-width: 991.98px) {
+    .pf-v5-c-masthead {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        row-gap: 0;
+        padding-top: 4px;
+        padding-bottom: 4px;
+    }
+
+    .pf-v5-c-masthead__brand {
+        grid-column: 2;
+        grid-row: 1;
+        min-width: 0;
+    }
+
+    .pf-v5-c-masthead__content {
+        grid-column: 3;
+        grid-row: 1;
+        min-height: 0;
+    }
+
+    .pf-v5-c-masthead__content .pf-v5-c-toolbar {
+        padding-top: 0;
+        padding-bottom: 0;
+    }
+
+    .pf-v5-c-masthead__brand img {
+        height: 36px;
+    }
+
+    /* "Aller à la section": a list of the page sections above the page itself */
+    .pf-v5-c-jump-links,
+    .pf-v5-c-sidebar__panel:has(.pf-v5-c-jump-links) {
+        display: none;
+    }
+}

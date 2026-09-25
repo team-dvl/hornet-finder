@@ -72,47 +72,9 @@ export default function TagsPrinting() {
 
   return (
     <>
+      {error && <Alert variant="danger" onClose={() => setError(null)} dismissible>{error}</Alert>}
+
       <div>
-        {error && <Alert variant="danger" onClose={() => setError(null)} dismissible>{error}</Alert>}
-
-        <h2 className="h5">
-          Nouvelle planche{batch.length > 0 && ` (${batch.length})`}
-          <HelpTip id="help-tag-print" title="Imprimer des QR Codes">
-            Générez des QR Codes vierges, collez-en un sur chaque piège, puis scannez-le depuis la carte
-            des pièges (bouton 📷) pour l'associer au piège. Ensuite, un scan ouvre directement la fiche
-            du piège. Le PDF A4 donne des étiquettes de 45 mm à découper : imprimez-le à 100 %, sans
-            ajustement à la page. Depuis l'application installée sur téléphone, le bouton ouvre le
-            menu de partage : choisissez « Imprimer » ou « Enregistrer dans Fichiers ». Dans un
-            navigateur, le PDF s'ouvre dans un nouvel onglet.
-          </HelpTip>
-        </h2>
-        <InputGroup className="mb-3" style={{ maxWidth: 360 }}>
-          <InputGroup.Text>Nombre</InputGroup.Text>
-          <Form.Control
-            type="number"
-            min={1}
-            max={MAX_BATCH}
-            value={count}
-            onChange={(e) => setCount(Math.min(MAX_BATCH, Math.max(1, Number(e.target.value) || 1)))}
-          />
-          <Button onClick={() => void generate()} disabled={generating}>
-            {generating ? <Spinner animation="border" size="sm" /> : 'Générer'}
-          </Button>
-        </InputGroup>
-
-        {batch.length > 0 && (
-          <div className="mb-2">
-            <SheetActions tags={batch} label="Imprimer (PDF)" onError={setError} />
-          </div>
-        )}
-      </div>
-      {batch.length > 0 && (
-        <div>
-          <TagSheet tags={batch} />
-        </div>
-      )}
-
-      <div className="mt-4">
         <div className="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2">
           <h2 className="h5 mb-0">
             Mes QR Codes libres{free && ` (${reprintable.length})`}
@@ -156,6 +118,46 @@ export default function TagsPrinting() {
       {inUse && inUse.length > 0 && (
         <div>
           <TagSheet tags={inUse} />
+        </div>
+      )}
+
+      {/* New sheet last: reprinting existing labels is the usual task */}
+      <div className="mt-4">
+        <h2 className="h5">
+          Nouvelle planche{batch.length > 0 && ` (${batch.length})`}
+          <HelpTip id="help-tag-print" title="Imprimer des QR Codes">
+            Générez des QR Codes vierges, collez-en un sur chaque piège, puis scannez-le depuis la carte
+            des pièges (bouton 📷) pour l'associer au piège. Ensuite, un scan ouvre directement la fiche
+            du piège. Le PDF A4 donne des étiquettes de 45 mm à découper : imprimez-le à 100 %, sans
+            ajustement à la page. Depuis l'application installée sur téléphone, le bouton ouvre le
+            menu de partage : choisissez « Imprimer » ou « Enregistrer dans Fichiers ». Dans un
+            navigateur, le PDF s'ouvre dans un nouvel onglet.
+          </HelpTip>
+        </h2>
+        <InputGroup className="mb-3" style={{ maxWidth: 360 }}>
+          <InputGroup.Text>Nombre</InputGroup.Text>
+          <Form.Control
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={MAX_BATCH}
+            value={count}
+            onChange={(e) => setCount(Math.min(MAX_BATCH, Math.max(1, Number(e.target.value) || 1)))}
+          />
+          <Button onClick={() => void generate()} disabled={generating}>
+            {generating ? <Spinner animation="border" size="sm" /> : 'Générer'}
+          </Button>
+        </InputGroup>
+
+        {batch.length > 0 && (
+          <div className="mb-2">
+            <SheetActions tags={batch} label="Imprimer (PDF)" onError={setError} />
+          </div>
+        )}
+      </div>
+      {batch.length > 0 && (
+        <div>
+          <TagSheet tags={batch} />
         </div>
       )}
     </>

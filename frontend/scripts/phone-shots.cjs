@@ -41,6 +41,14 @@ async function walk(name) {
     if (document.documentElement.scrollWidth > width + 1) {
       found.push(`page scrolls sideways (${document.documentElement.scrollWidth}px)`);
     }
+    // A box scrolling sideways hides part of its content just as well
+    document.querySelectorAll('body *').forEach((el) => {
+      if (!el.clientWidth || el.closest('.leaflet-container')) return;
+      const overflowX = getComputedStyle(el).overflowX;
+      if ((overflowX === 'auto' || overflowX === 'scroll') && el.scrollWidth > el.clientWidth + 1) {
+        found.push(`${el.tagName.toLowerCase()}.${[...el.classList].slice(0, 2).join('.')} scrolls sideways (${el.scrollWidth} > ${el.clientWidth})`);
+      }
+    });
     document.querySelectorAll('.modal.show .modal-content *, .offcanvas.show *').forEach((el) => {
       const box = el.getBoundingClientRect();
       if (!box.width || !box.height || box.right <= width + 1) return;
@@ -160,10 +168,11 @@ async function walk(name) {
   });
 
   /** Tap the fixture traps: through their cluster first when they are grouped */
-  const tapFixtureTrap = async () => {
+  const tapFixtureTrap = async (label) => {
     if (await page.locator('.map-cluster').count()) {
       await tapAt(...(await markerAt('.map-cluster')));
       await page.waitForTimeout(1500);
+      if (label) await shot(label, 300);
     }
     await tapAt(...(await markerAt('.trap-icon')));
   };
@@ -173,7 +182,7 @@ async function walk(name) {
   });
 
   await step('overlap', async () => {
-    await tapFixtureTrap();
+    await tapFixtureTrap('cluster-fanned-out');
     await shot('overlap', 1500);
   });
 
@@ -296,6 +305,18 @@ async function walk(name) {
       await shot(label, 1000);
     });
   }
+
+  await step('page-scrolled', async () => {
+    await open('/admin/tags');
+    await page.waitForTimeout(1000);
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await shot('admin-tags-scrolled', 800);
+  });
+
+  await step('account-console', async () => {
+    await page.goto(`${BASE.replace('://', '://auth.')}/realms/hornet-finder-dev/account`, { waitUntil: 'networkidle' });
+    await shot('account-console', 2500);
+  });
 
   await step('admin-menu', async () => {
     await open('/admin/trap-types');

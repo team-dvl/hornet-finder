@@ -8,6 +8,8 @@ export interface ReferentialColumn<T> {
   render: (row: T) => ReactNode;
   /** Hidden below the `md` breakpoint, for the secondary columns */
   secondary?: boolean;
+  /** Column that takes the room left on a phone (default: the second one) */
+  main?: boolean;
 }
 
 interface ReferentialTableProps<T> {
@@ -30,42 +32,59 @@ export default function ReferentialTable<T>({
     return <p className="text-muted">{emptyMessage}</p>;
   }
 
+  const actions = (row: T) => (onEdit || onDelete) && (
+    <div className="d-inline-flex gap-1">
+      {onEdit && <IconButton variant="outline-secondary" icon="pencil" label="Modifier" onClick={() => onEdit(row)} />}
+      {onDelete && <IconButton variant="outline-danger" icon="trash" label="Supprimer" onClick={() => onDelete(row)} />}
+    </div>
+  );
+
+  // Phone: one line per row, the main column taking the room left, no table
+  // to scroll sideways
+  const primary = columns.filter((column) => !column.secondary);
+  const mainKey = (primary.find((column) => column.main) ?? primary[1] ?? primary[0])?.key;
+
   return (
-    <Table hover responsive className="align-middle">
-      <thead>
-        <tr>
-          {columns.map((column) => (
-            <th key={column.key} className={column.secondary ? 'd-none d-md-table-cell' : undefined}>
-              {column.header}
-            </th>
-          ))}
-          {(onEdit || onDelete) && <th className="text-end"><span className="visually-hidden">Actions</span></th>}
-        </tr>
-      </thead>
-      <tbody>
+    <>
+      <div className="referential-list d-sm-none">
         {rows.map((row) => (
-          <tr key={rowKey(row)}>
-            {columns.map((column) => (
-              <td key={column.key} className={column.secondary ? 'd-none d-md-table-cell' : undefined}>
+          <div key={rowKey(row)} className="referential-row">
+            {primary.map((column) => (
+              <div key={column.key} className={column.key === mainKey ? 'referential-main' : 'flex-shrink-0'}>
                 {column.render(row)}
-              </td>
+              </div>
             ))}
-            {(onEdit || onDelete) && (
-              <td className="text-end">
-                {/* Icons only, stacked on a phone, so the row fits without scrolling sideways */}
-                <div className="d-inline-flex flex-column flex-sm-row gap-1">
-                  {onEdit && (
-                    <IconButton variant="outline-secondary" icon="pencil" label="Modifier" onClick={() => onEdit(row)} />
-                  )}
-                  {onDelete && (
-                    <IconButton variant="outline-danger" icon="trash" label="Supprimer" onClick={() => onDelete(row)} />
-                  )}
-                </div>
-              </td>
-            )}
-          </tr>
+            {(onEdit || onDelete) && <div className="flex-shrink-0">{actions(row)}</div>}
+          </div>
         ))}
-      </tbody>
-    </Table>
+      </div>
+
+      <div className="d-none d-sm-block">
+        <Table hover responsive className="align-middle">
+          <thead>
+            <tr>
+              {columns.map((column) => (
+                <th key={column.key} className={column.secondary ? 'd-none d-md-table-cell' : undefined}>
+                  {column.header}
+                </th>
+              ))}
+              {(onEdit || onDelete) && <th className="text-end"><span className="visually-hidden">Actions</span></th>}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={rowKey(row)}>
+                {columns.map((column) => (
+                  <td key={column.key} className={column.secondary ? 'd-none d-md-table-cell' : undefined}>
+                    {column.render(row)}
+                  </td>
+                ))}
+                {(onEdit || onDelete) && <td className="text-end">{actions(row)}</td>}
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </div>
+    </>
   );
 }

@@ -1,4 +1,4 @@
-import { Container, Row, Col } from 'react-bootstrap';
+import { Container } from 'react-bootstrap';
 import { PageHeader, PageLayout } from '../../components/layout';
 import { ModuleCard } from '../../components/home';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
@@ -74,10 +74,10 @@ export default function AdminIndex() {
           help={isAdmin ? 'Référentiels et paramètres de la plateforme.' : 'Outils mis à votre disposition.'}
         />
 
-        <Row className="g-2 g-sm-3">
+        <div className="tile-grid">
           {sections.map((section) => (
-            <Col key={`${section.title}-${section.roles.join()}`} xs={6} lg={4}>
               <ModuleCard
+                key={`${section.title}-${section.roles.join()}`}
                 title={section.title}
                 description={section.description}
                 icon={section.icon}
@@ -85,9 +85,8 @@ export default function AdminIndex() {
                 href={section.href}
                 badge={section.badge}
               />
-            </Col>
           ))}
-        </Row>
+        </div>
       </Container>
     </PageLayout>
   );
