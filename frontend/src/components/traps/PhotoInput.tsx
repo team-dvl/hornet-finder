@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Button, Form } from 'react-bootstrap';
+import { Button, Form, Spinner } from 'react-bootstrap';
 import { resizeImage } from '../../utils/imageResize';
 
 interface PhotoInputProps {
@@ -11,8 +11,9 @@ interface PhotoInputProps {
 }
 
 /**
- * Photo picker for the traps module: opens the camera on a phone, downscales
- * the pictures before they reach the network and shows what will be sent.
+ * Photo picker for the traps module: a camera button (the camera opens on a
+ * phone), the pictures downscaled before they reach the network, and
+ * thumbnails of what will be sent.
  */
 export default function PhotoInput({ label = 'Photo', multiple = false, onChange, disabled }: PhotoInputProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -41,32 +42,46 @@ export default function PhotoInput({ label = 'Photo', multiple = false, onChange
 
   return (
     <Form.Group className="mb-3">
-      <Form.Label>{label}</Form.Label>
-      <Form.Control
-        ref={inputRef as React.Ref<HTMLInputElement>}
+      <div className="d-flex flex-wrap gap-2 align-items-center">
+        <Button
+          variant="outline-secondary"
+          onClick={() => inputRef.current?.click()}
+          disabled={disabled || working}
+        >
+          {working
+            ? <Spinner animation="border" size="sm" className="me-2" />
+            : <i className="bi bi-camera me-2" aria-hidden="true" />}
+          {label}
+        </Button>
+        {previews.map((preview) => (
+          <img
+            key={preview.url}
+            src={preview.url}
+            alt={preview.name}
+            style={{ height: 44, width: 44, objectFit: 'cover', borderRadius: 4 }}
+          />
+        ))}
+        {previews.length > 0 && (
+          <Button
+            variant="link"
+            className="text-danger icon-button"
+            onClick={handleClear}
+            aria-label="Retirer les photos"
+            title="Retirer les photos"
+          >
+            <i className="bi bi-x-circle" aria-hidden="true" />
+          </Button>
+        )}
+      </div>
+      <input
+        ref={inputRef}
         type="file"
         accept="image/*"
         capture="environment"
         multiple={multiple}
+        className="d-none"
         onChange={handleFiles}
-        disabled={disabled || working}
       />
-      {working && <Form.Text muted>Préparation de l'image…</Form.Text>}
-      {previews.length > 0 && (
-        <div className="d-flex flex-wrap gap-2 mt-2 align-items-center">
-          {previews.map((preview) => (
-            <img
-              key={preview.url}
-              src={preview.url}
-              alt={preview.name}
-              style={{ height: 64, width: 64, objectFit: 'cover', borderRadius: 4 }}
-            />
-          ))}
-          <Button variant="link" size="sm" className="text-danger" onClick={handleClear}>
-            Retirer
-          </Button>
-        </div>
-      )}
     </Form.Group>
   );
 }

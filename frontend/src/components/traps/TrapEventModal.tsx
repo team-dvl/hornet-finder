@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, Form, Modal, Spinner } from 'react-bootstrap';
+import { Alert, Button, Form, Spinner, ToggleButton } from 'react-bootstrap';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   addTrapCatch, addTrapEvent, fetchSpecies, selectSpecies, type Trap, type TrapEventKind,
 } from '../../store/store';
+import { HelpTip } from '../common';
+import { AppModal } from '../ui';
 import PhotoInput from './PhotoInput';
 import SpeciesCard from './SpeciesCard';
 import { SPECIES_GRID_STYLE } from './speciesGrid';
@@ -20,6 +22,9 @@ function nowLocal(): string {
 /** Species the catch starts with: the one the traps are there for */
 const DEFAULT_SPECIES = 'vespa-velutina';
 
+/** Maintenance actions, offered as chips when the dialog opens for an action */
+const ACTION_KINDS = EVENT_KINDS.filter((entry) => entry.value !== 'catch');
+
 /** One card of the catch being recorded */
 interface CatchLine {
   slug: string;
@@ -31,7 +36,7 @@ interface TrapEventModalProps {
   /** Mounted only while open, so every opening starts from a blank form */
   onHide: () => void;
   trap: Trap | null;
-  /** Kind preselected when opening, e.g. `catch` from the "record a catch" button */
+  /** `catch` records a catch; any other kind opens the maintenance actions, preselected */
   initialKind?: TrapEventKind;
 }
 
@@ -48,6 +53,8 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
   const [photos, setPhotos] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isCatch = initialKind === 'catch';
 
   useEffect(() => {
     if (species.length === 0) {
@@ -97,119 +104,121 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
   };
 
   return (
-    <Modal show onHide={onHide} centered scrollable>
-      <Modal.Header closeButton>
-        <Modal.Title>
-          <span className="me-2">{eventKindInfo(kind).icon}</span>
-          {kind === 'catch' ? 'Enregistrer une capture' : 'Ajouter une action'}
-        </Modal.Title>
-      </Modal.Header>
+    <AppModal
+      show
+      onHide={onHide}
+      locked
+      icon={eventKindInfo(kind).icon}
+      title={isCatch ? 'Capture' : eventKindInfo(kind).label}
+      onSubmit={handleSubmit}
+      footer={(
+        <Button type="submit" variant="primary" disabled={saving || picking}>
+          {saving ? <Spinner animation="border" size="sm" className="me-2" /> : <i className="bi bi-check-lg me-2" aria-hidden="true" />}
+          Enregistrer
+        </Button>
+      )}
+    >
+      {error && <Alert variant="danger">{error}</Alert>}
 
-      <Form onSubmit={handleSubmit}>
-        <Modal.Body>
-          {error && <Alert variant="danger">{error}</Alert>}
+      {!isCatch && (
+        <Form.Group className="mb-3">
+          <div className="d-flex flex-wrap gap-2" role="radiogroup" aria-label="Type d'intervention">
+            {ACTION_KINDS.map((entry) => (
+              <ToggleButton
+                key={entry.value}
+                id={`event-kind-${entry.value}`}
+                type="radio"
+                name="event-kind"
+                variant="outline-primary"
+                value={entry.value}
+                checked={kind === entry.value}
+                onChange={() => setKind(entry.value)}
+                className="rounded-pill"
+              >
+                <span className="me-1" aria-hidden="true">{entry.icon}</span>
+                {entry.label}
+              </ToggleButton>
+            ))}
+          </div>
+          {(kind === 'installation' || kind === 'removal') && (
+            <Form.Text muted>
+              {kind === 'installation'
+                ? 'Le piège sera marqué en service, à cette date.'
+                : 'Le piège sera marqué comme remisé.'}
+            </Form.Text>
+          )}
+        </Form.Group>
+      )}
 
-          <Form.Group className="mb-3">
-            <Form.Label>Type d'intervention</Form.Label>
-            <Form.Select value={kind} onChange={(event) => setKind(event.target.value as TrapEventKind)}>
-              {EVENT_KINDS.map((entry) => (
-                <option key={entry.value} value={entry.value}>
-                  {entry.icon} {entry.label}
-                </option>
-              ))}
-            </Form.Select>
-            {(kind === 'installation' || kind === 'removal') && (
-              <Form.Text muted>
-                {kind === 'installation'
-                  ? 'Le piège sera marqué en service, à cette date.'
-                  : 'Le piège sera marqué comme remisé.'}
-              </Form.Text>
-            )}
-          </Form.Group>
+      <Form.Group className="mb-3" controlId="event-performed-at">
+        <Form.Label>Date et heure</Form.Label>
+        <Form.Control
+          type="datetime-local"
+          value={performedAt}
+          max={nowLocal()}
+          onChange={(event) => setPerformedAt(event.target.value)}
+          required
+        />
+      </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Label>Date et heure</Form.Label>
-            <Form.Control
-              type="datetime-local"
-              value={performedAt}
-              max={nowLocal()}
-              onChange={(event) => setPerformedAt(event.target.value)}
-              required
+      {kind === 'catch' && (
+        <Form.Group className="mb-3">
+          <Form.Label className="d-flex align-items-center">
+            Captures
+            <HelpTip id="catch-help" title="Compter les captures">
+              Touchez l'image d'une espèce pour ajouter un individu, le nombre rouge pour saisir un total.
+            </HelpTip>
+          </Form.Label>
+          {picking ? (
+            <SpeciesPicker
+              species={species}
+              excluded={lines.map((line) => line.slug)}
+              onPick={addLine}
+              onCancel={() => setPicking(false)}
             />
-          </Form.Group>
-
-          {kind === 'catch' && (
-            <Form.Group className="mb-3">
-              <Form.Label className="d-flex justify-content-between align-items-baseline">
-                <span>Captures constatées</span>
-                {!picking && (
-                  <Form.Text muted className="m-0">
-                    Touchez une image pour compter
-                  </Form.Text>
-                )}
-              </Form.Label>
-              {picking ? (
-                <SpeciesPicker
-                  species={species}
-                  excluded={lines.map((line) => line.slug)}
-                  onPick={addLine}
-                  onCancel={() => setPicking(false)}
+          ) : (
+            <div style={SPECIES_GRID_STYLE}>
+              {lines.map((line) => (
+                <SpeciesCard
+                  key={line.slug}
+                  species={species.find((item) => item.slug === line.slug)}
+                  fallbackName={line.slug}
+                  quantity={line.quantity}
+                  photo={line.photo}
+                  onQuantityChange={(quantity) => updateLine(line.slug, { quantity })}
+                  onPhotoChange={(photo) => updateLine(line.slug, { photo })}
+                  onRemove={() => setLines((current) => current.filter((l) => l.slug !== line.slug))}
+                  disabled={saving}
                 />
-              ) : (
-                <div style={SPECIES_GRID_STYLE}>
-                  {lines.map((line) => (
-                    <SpeciesCard
-                      key={line.slug}
-                      species={species.find((item) => item.slug === line.slug)}
-                      fallbackName={line.slug}
-                      quantity={line.quantity}
-                      photo={line.photo}
-                      onQuantityChange={(quantity) => updateLine(line.slug, { quantity })}
-                      onPhotoChange={(photo) => updateLine(line.slug, { photo })}
-                      onRemove={() => setLines((current) => current.filter((l) => l.slug !== line.slug))}
-                      disabled={saving}
-                    />
-                  ))}
-                  <button
-                    type="button"
-                    className="card d-flex flex-column align-items-center justify-content-center text-muted p-2"
-                    style={{ borderStyle: 'dashed', minHeight: 120 }}
-                    onClick={() => setPicking(true)}
-                    disabled={saving}
-                  >
-                    <i className="bi bi-plus-circle fs-3" aria-hidden="true" />
-                    <span className="small">Ajouter une espèce</span>
-                  </button>
-                </div>
-              )}
-            </Form.Group>
+              ))}
+              <button
+                type="button"
+                className="card d-flex flex-column align-items-center justify-content-center text-muted p-2"
+                style={{ borderStyle: 'dashed', minHeight: 120 }}
+                onClick={() => setPicking(true)}
+                disabled={saving}
+              >
+                <i className="bi bi-plus-circle fs-3" aria-hidden="true" />
+                <span className="small">Ajouter une espèce</span>
+              </button>
+            </div>
           )}
+        </Form.Group>
+      )}
 
-          {kind !== 'catch' && (
-            <PhotoInput label="Photos (facultatif)" multiple onChange={setPhotos} />
-          )}
+      {kind !== 'catch' && (
+        <PhotoInput label="Photos" multiple onChange={setPhotos} />
+      )}
 
-          <Form.Group className="mb-0">
-            <Form.Label>Commentaire</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={2}
-              value={comments}
-              onChange={(event) => setComments(event.target.value)}
-            />
-          </Form.Group>
-        </Modal.Body>
-
-        <Modal.Footer>
-          <Button variant="secondary" onClick={onHide} disabled={saving}>
-            Annuler
-          </Button>
-          <Button type="submit" variant="primary" disabled={saving || picking}>
-            {saving && <Spinner animation="border" size="sm" className="me-2" />}
-            Enregistrer
-          </Button>
-        </Modal.Footer>
-      </Form>
-    </Modal>
+      <Form.Group className="mb-0" controlId="event-comments">
+        <Form.Label>Commentaire</Form.Label>
+        <Form.Control
+          as="textarea"
+          rows={2}
+          value={comments}
+          onChange={(event) => setComments(event.target.value)}
+        />
+      </Form.Group>
+    </AppModal>
   );
 }

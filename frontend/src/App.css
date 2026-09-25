@@ -394,23 +394,22 @@ button.module-card {
 }
 
 /*
- * The journal of a trap grows with every intervention. Left to the modal body,
- * it would push the delegation panel and the footer far below the fold; it
- * scrolls in its own box instead, capped to part of the visible height (`dvh`
- * follows the mobile browser bars, `vh` is the fallback).
+ * The journal of a trap scrolls with the dialog body (no box scrolling inside
+ * a scrolling dialog, a trap for the finger); long journals are paginated.
  */
 .trap-journal {
-  max-height: 45vh;
-  max-height: 45dvh;
-  overflow-y: auto;
-  overscroll-behavior: contain;
   border-top: 1px solid var(--bs-border-color);
-  border-bottom: 1px solid var(--bs-border-color);
 }
 
-/* The box already draws the bottom line */
-.trap-journal > :last-child {
-  border-bottom: 0 !important;
+/* Details of an entry, aligned with its label rather than its icon */
+.journal-detail {
+  padding-left: 2rem;
+}
+
+.journal-delete {
+  width: 2.5rem;
+  height: 2rem;
+  margin-right: -0.5rem;
 }
 
 /* Text cut after a few lines (the count comes from -webkit-line-clamp inline) */
@@ -548,4 +547,15 @@ button.module-card {
   align-items: baseline;
   gap: 1rem;
   padding: 0.2rem 0;
+}
+
+/* Action bar of an object sheet: the main action with its label, the others as icons */
+.sheet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.sheet-actions .icon-button {
+  min-width: 2.5rem;
 }

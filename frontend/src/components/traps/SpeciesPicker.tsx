@@ -37,7 +37,6 @@ export default function SpeciesPicker({ species, excluded, onPick, onCancel }: S
           type="search"
           placeholder="Rechercher une espèce…"
           value={search}
-          autoFocus
           onChange={(event) => setSearch(event.target.value)}
           onKeyDown={(event) => {
             // Enter picks the only match rather than submitting the form
@@ -47,13 +46,15 @@ export default function SpeciesPicker({ species, excluded, onPick, onCancel }: S
             }
           }}
         />
-        <Button variant="outline-secondary" onClick={onCancel}>Retour</Button>
+        <Button variant="outline-secondary" className="icon-button" onClick={onCancel} aria-label="Retour" title="Retour">
+          <i className="bi bi-arrow-left" aria-hidden="true" />
+        </Button>
       </div>
 
       {choices.length === 0 ? (
         <p className="text-muted small mb-0">Aucune espèce ne correspond.</p>
       ) : (
-        <div style={{ ...SPECIES_GRID_STYLE, maxHeight: '50vh', overflowY: 'auto' }}>
+        <div style={SPECIES_GRID_STYLE}>
           {choices.map((item) => (
             <button
               key={item.slug}

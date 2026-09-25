@@ -1,4 +1,6 @@
-import { Button, Modal } from 'react-bootstrap';
+import { Button } from 'react-bootstrap';
+import { HelpTip } from '../common';
+import { AppModal } from '../ui';
 
 interface TrapAddressChangeModalProps {
   /** Address currently stored on the trap */
@@ -23,32 +25,29 @@ export default function TrapAddressChangeModal({
   currentAddress, foundAddress, saving = false, onReplace, onKeep, onHide,
 }: TrapAddressChangeModalProps) {
   return (
-    <Modal show onHide={onHide} centered>
-      <Modal.Header closeButton>
-        <Modal.Title className="h5">Adresse du piège</Modal.Title>
-      </Modal.Header>
-
-      <Modal.Body>
-        <p>La nouvelle position correspond à une autre adresse que celle enregistrée.</p>
-        <dl className="mb-3">
-          <dt className="small text-muted">Adresse enregistrée</dt>
-          <dd>{currentAddress}</dd>
-          <dt className="small text-muted">Adresse de la nouvelle position</dt>
-          <dd className="mb-0">{foundAddress}</dd>
-        </dl>
-        <p className="small text-muted mb-0">
-          La position GPS est enregistrée dans les deux cas : elle seule situe le piège.
-        </p>
-      </Modal.Body>
-
-      <Modal.Footer>
-        <Button variant="outline-secondary" onClick={onKeep} disabled={saving}>
-          Conserver l'adresse
-        </Button>
-        <Button variant="primary" onClick={onReplace} disabled={saving}>
-          Mettre à jour l'adresse
-        </Button>
-      </Modal.Footer>
-    </Modal>
+    <AppModal
+      show
+      onHide={onHide}
+      compact
+      title="Changer l'adresse ?"
+      footer={(
+        <>
+          <Button variant="outline-secondary" onClick={onKeep} disabled={saving}>Conserver</Button>
+          <Button variant="primary" onClick={onReplace} disabled={saving}>Mettre à jour</Button>
+        </>
+      )}
+    >
+      <dl className="mb-0">
+        <dt className="small text-muted fw-normal">Adresse enregistrée</dt>
+        <dd>{currentAddress}</dd>
+        <dt className="small text-muted fw-normal d-flex align-items-center">
+          Adresse de la nouvelle position
+          <HelpTip id="trap-address-help" title="Position et adresse">
+            La position GPS est enregistrée dans les deux cas : elle seule situe le piège.
+          </HelpTip>
+        </dt>
+        <dd className="mb-0">{foundAddress}</dd>
+      </dl>
+    </AppModal>
   );
 }

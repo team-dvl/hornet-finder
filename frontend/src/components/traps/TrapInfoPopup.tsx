@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Badge, Button, Modal, Spinner } from 'react-bootstrap';
+import { Alert, Badge, Button, Spinner } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
@@ -7,8 +7,11 @@ import {
   type Trap, type TrapEvent, type TrapEventKind,
 } from '../../store/store';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
-import { AddAtLocationButton } from '../common';
+import { ClampedText } from '../common';
 import { ConfirmationModal } from '../modals';
+import { AppModal, FieldRow, IconButton } from '../ui';
+import { ACTION_ICONS, OBJECT_ICONS } from '../../utils/icons';
+import { formatDate, formatShortDateTime } from '../../utils/format';
 import TrapDelegationPanel from './TrapDelegationPanel';
 import TrapEventModal from './TrapEventModal';
 import { eventKindInfo } from './eventKinds';
@@ -21,11 +24,44 @@ interface TrapInfoPopupProps {
   onAddAtLocation?: (lat: number, lng: number) => void;
 }
 
-const formatDateTime = (value: string) =>
-  new Date(value).toLocaleString('fr-BE', { dateStyle: 'medium', timeStyle: 'short' });
+/** Journal entries shown before "Voir plus" */
+const JOURNAL_PAGE = 10;
 
-const formatDate = (value: string) =>
-  new Date(value).toLocaleDateString('fr-BE', { dateStyle: 'medium' });
+const THUMBNAIL: React.CSSProperties = { height: 56, width: 56, objectFit: 'cover', borderRadius: 4 };
+
+/** Head of a journal entry: icon, label, date, author and the delete button. */
+function EntryHead({ icon, label, date, author, deleteLabel, onDelete }: {
+  icon: string;
+  label: string;
+  date: string;
+  author?: string;
+  deleteLabel: string;
+  onDelete?: () => void;
+}) {
+  return (
+    <div className="d-flex align-items-start gap-2">
+      <span className="flex-shrink-0" style={{ fontSize: '1.3rem', lineHeight: 1.2 }} aria-hidden="true">{icon}</span>
+      <div className="flex-grow-1 min-w-0">
+        <div className="d-flex justify-content-between align-items-baseline gap-2">
+          <strong className="small text-truncate">{label}</strong>
+          <span className="text-muted flex-shrink-0" style={{ fontSize: '0.75rem' }}>{formatShortDateTime(date)}</span>
+        </div>
+        {author && <div className="text-muted text-truncate" style={{ fontSize: '0.75rem' }}>{author}</div>}
+      </div>
+      {onDelete && (
+        <Button
+          variant="link"
+          className="text-danger p-0 flex-shrink-0 journal-delete"
+          aria-label={deleteLabel}
+          title={deleteLabel}
+          onClick={onDelete}
+        >
+          <i className={`bi bi-${ACTION_ICONS.delete}`} aria-hidden="true" />
+        </Button>
+      )}
+    </div>
+  );
+}
 
 /** One entry of the trap journal. */
 function EventRow({ event, canDelete, onDelete, onPreview }: {
@@ -36,22 +72,16 @@ function EventRow({ event, canDelete, onDelete, onPreview }: {
 }) {
   const info = eventKindInfo(event.kind as TrapEventKind);
   return (
-    <div className="d-flex gap-2 py-2 border-bottom">
-      <div style={{ fontSize: '1.4rem', lineHeight: 1 }}>{info.icon}</div>
-      <div className="flex-grow-1">
-        <div className="d-flex justify-content-between align-items-start">
-          <strong className="small">
-            {info.label}
-          </strong>
-          <span className="text-muted" style={{ fontSize: '0.75rem' }}>
-            {formatDateTime(event.performed_at)}
-          </span>
-        </div>
-        {event.performed_by && (
-          <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-            par {event.performed_by.display_name}
-          </div>
-        )}
+    <div className="py-2 border-bottom">
+      <EntryHead
+        icon={info.icon}
+        label={info.label}
+        date={event.performed_at}
+        author={event.performed_by?.display_name}
+        deleteLabel="Supprimer cette intervention"
+        onDelete={canDelete ? () => onDelete(event) : undefined}
+      />
+      <div className="journal-detail">
         {event.comments && <div className="small mt-1">{event.comments}</div>}
         {event.photos.length > 0 && (
           <div className="d-flex flex-wrap gap-1 mt-1">
@@ -62,23 +92,12 @@ function EventRow({ event, canDelete, onDelete, onPreview }: {
                 alt="Photo de l'intervention"
                 role="button"
                 onClick={() => photo.url && onPreview(photo.url)}
-                style={{ height: 56, width: 56, objectFit: 'cover', borderRadius: 4 }}
+                style={THUMBNAIL}
               />
             ))}
           </div>
         )}
       </div>
-      {canDelete && (
-        <Button
-          variant="link"
-          size="sm"
-          className="text-danger p-0 align-self-start"
-          title="Supprimer cette intervention"
-          onClick={() => onDelete(event)}
-        >
-          <i className="bi bi-trash" aria-hidden="true" />
-        </Button>
-      )}
     </div>
   );
 }
@@ -119,82 +138,70 @@ function CatchRow({ events, canDelete, onDelete, onPreview }: {
   const total = events.reduce((sum, event) => sum + (event.quantity ?? 0), 0);
   const comments = events.map((event) => event.comments).filter(Boolean);
   return (
-    <div className="d-flex gap-2 py-2 border-bottom">
-      <div style={{ fontSize: '1.4rem', lineHeight: 1 }}>{info.icon}</div>
-      <div className="flex-grow-1">
-        <div className="d-flex justify-content-between align-items-start">
-          <strong className="small">
-            {info.label}
-            {events.length > 1 ? ` — ${total} insectes` : ''}
-          </strong>
-          <span className="text-muted" style={{ fontSize: '0.75rem' }}>
-            {formatDateTime(first.performed_at)}
-          </span>
-        </div>
-        {first.performed_by && (
-          <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-            par {first.performed_by.display_name}
-          </div>
-        )}
-        <div className="d-flex flex-wrap gap-2 mt-1">
-          {events.map((event) => {
-            const photo = event.photos[0];
-            const thumbnail = photo?.thumbnail_url ?? event.species?.photo_thumbnail_url ?? null;
-            const name = event.species?.name ?? '';
-            return (
-              <div key={event.id} className="text-center" style={{ width: 64 }}>
-                <div
-                  className="position-relative"
-                  role={photo?.url ? 'button' : undefined}
-                  onClick={() => photo?.url && onPreview(photo.url)}
-                  title={photo ? `Photo de la capture : ${name}` : name}
-                >
-                  {thumbnail ? (
-                    <img
-                      src={thumbnail}
-                      alt={name}
-                      style={{ height: 56, width: 56, objectFit: 'cover', borderRadius: 4 }}
-                      className={photo ? 'border border-2 border-success' : ''}
-                    />
-                  ) : (
-                    <span
-                      className="d-inline-flex align-items-center justify-content-center bg-body-secondary"
-                      style={{ height: 56, width: 56, borderRadius: 4, fontSize: '1.5rem' }}
-                      aria-hidden="true"
-                    >
-                      🪲
-                    </span>
-                  )}
-                  <Badge
-                    pill
-                    bg="danger"
-                    className="position-absolute top-0 end-0"
-                    style={{ transform: 'translate(25%, -25%)' }}
+    <div className="py-2 border-bottom">
+      <EntryHead
+        icon={info.icon}
+        label={`${info.label} — ${total} insecte${total > 1 ? 's' : ''}`}
+        date={first.performed_at}
+        author={first.performed_by?.display_name}
+        deleteLabel="Supprimer cette capture"
+        onDelete={canDelete ? () => onDelete(events) : undefined}
+      />
+      <div className="journal-detail d-flex flex-wrap gap-2 mt-1">
+        {events.map((event) => {
+          const photo = event.photos[0];
+          const thumbnail = photo?.thumbnail_url ?? event.species?.photo_thumbnail_url ?? null;
+          const name = event.species?.name ?? '';
+          return (
+            <div key={event.id} className="text-center" style={{ width: 64 }}>
+              <div
+                className="position-relative"
+                role={photo?.url ? 'button' : undefined}
+                onClick={() => photo?.url && onPreview(photo.url)}
+                title={photo ? `Photo de la capture : ${name}` : name}
+              >
+                {thumbnail ? (
+                  <img
+                    src={thumbnail}
+                    alt={name}
+                    style={THUMBNAIL}
+                    className={photo ? 'border border-2 border-success' : ''}
+                  />
+                ) : (
+                  <span
+                    className="d-inline-flex align-items-center justify-content-center bg-body-secondary"
+                    style={{ ...THUMBNAIL, fontSize: '1.5rem' }}
+                    aria-hidden="true"
                   >
-                    {event.quantity}
-                  </Badge>
-                </div>
-                <div className="text-truncate" style={{ fontSize: '0.7rem' }}>{name}</div>
+                    🪲
+                  </span>
+                )}
+                <Badge
+                  pill
+                  bg="danger"
+                  className="position-absolute top-0 end-0"
+                  style={{ transform: 'translate(25%, -25%)' }}
+                >
+                  {event.quantity}
+                </Badge>
               </div>
-            );
-          })}
-        </div>
-        {comments.map((text) => <div key={text} className="small mt-1">{text}</div>)}
+              <div className="text-truncate" style={{ fontSize: '0.7rem' }} title={name}>{name}</div>
+            </div>
+          );
+        })}
       </div>
-      {canDelete && (
-        <Button
-          variant="link"
-          size="sm"
-          className="text-danger p-0 align-self-start"
-          title="Supprimer cette capture"
-          onClick={() => onDelete(events)}
-        >
-          <i className="bi bi-trash" aria-hidden="true" />
-        </Button>
-      )}
+      {comments.map((text) => <div key={text} className="journal-detail small mt-1">{text}</div>)}
     </div>
   );
 }
+
+/** Dialog shown in place of the sheet (one dialog at a time) */
+type SubDialog =
+  | { kind: 'event'; eventKind: TrapEventKind }
+  | { kind: 'edit' }
+  | { kind: 'delete' }
+  | { kind: 'delete-entry'; entry: TrapEvent[] }
+  | { kind: 'photo'; url: string };
 
 /** Detail of a trap: identity, journal and the actions the user is allowed to take. */
 export default function TrapInfoPopup({ show, onHide, trap, onAddAtLocation }: TrapInfoPopupProps) {
@@ -203,13 +210,10 @@ export default function TrapInfoPopup({ show, onHide, trap, onAddAtLocation }: T
   const detailed = useAppSelector(selectSelectedTrap);
   const { canEditTrap, canActOnTrap, isAdmin, userGuid } = useUserPermissions();
 
-  const [eventKind, setEventKind] = useState<TrapEventKind | null>(null);
-  const [showEdit, setShowEdit] = useState(false);
-  const [showDelete, setShowDelete] = useState(false);
+  const [sub, setSub] = useState<SubDialog | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [entryToDelete, setEntryToDelete] = useState<TrapEvent[] | null>(null);
+  const [journalLength, setJournalLength] = useState(JOURNAL_PAGE);
 
   // The list only carries a summary; the journal comes with the detail
   useEffect(() => {
@@ -226,13 +230,14 @@ export default function TrapInfoPopup({ show, onHide, trap, onAddAtLocation }: T
   const entries = journalEntries(events);
   const mayEdit = canEditTrap(current);
   const mayAct = canActOnTrap(current);
+  const closeSub = () => setSub(null);
 
   const handleDelete = async () => {
     setDeleting(true);
     setError(null);
     try {
       await dispatch(deleteTrap(current.id)).unwrap();
-      setShowDelete(false);
+      setSub(null);
       onHide();
     } catch (deleteError) {
       setError(deleteError as string);
@@ -253,7 +258,7 @@ export default function TrapInfoPopup({ show, onHide, trap, onAddAtLocation }: T
     } catch (deleteError) {
       setError(deleteError as string);
     } finally {
-      setEntryToDelete(null);
+      setSub(null);
     }
   };
 
@@ -267,160 +272,157 @@ export default function TrapInfoPopup({ show, onHide, trap, onAddAtLocation }: T
     onHide();
   };
 
+  const preview = (url: string) => setSub({ kind: 'photo', url });
+  const canAddHere = auth.isAuthenticated && onAddAtLocation;
+
   return (
     <>
-      <Modal show={show} onHide={onHide} centered scrollable>
-        <Modal.Header closeButton>
-          <Modal.Title className="h5">
-            <span className="me-2">🪤</span>
-            {current.trap_type.name}
-            <Badge bg={current.active ? 'success' : 'secondary'} className="ms-2">
-              {current.active ? 'En service' : 'Remisé'}
-            </Badge>
-          </Modal.Title>
-        </Modal.Header>
+      <AppModal
+        show={show && sub === null}
+        onHide={onHide}
+        icon={OBJECT_ICONS.trap}
+        title={current.trap_type.name}
+        badges={(
+          <Badge bg={current.active ? 'success' : 'secondary'} className="fs-6 fw-normal">
+            {current.active ? 'En service' : 'Remisé'}
+          </Badge>
+        )}
+      >
+        {error && <Alert variant="danger">{error}</Alert>}
 
-        <Modal.Body>
-          {error && <Alert variant="danger">{error}</Alert>}
+        {current.photo_url && (
+          <img
+            src={current.photo_url}
+            alt="Photo du piège"
+            role="button"
+            onClick={() => preview(current.photo_url!)}
+            className="w-100 mb-2 rounded"
+            style={{ maxHeight: 160, objectFit: 'cover' }}
+          />
+        )}
 
-          {current.photo_url && (
-            <img
-              src={current.photo_url}
-              alt="Photo du piège"
-              role="button"
-              onClick={() => setPreview(current.photo_url!)}
-              className="w-100 mb-3 rounded"
-              style={{ maxHeight: 200, objectFit: 'cover' }}
-            />
-          )}
-
-          <div className="mb-3">
-            <div className="d-flex justify-content-between">
-              <span className="text-muted small">Frelons asiatiques capturés</span>
-              <strong>{current.hornet_catch_count}</strong>
+        <div className="mb-2">
+          <FieldRow label="Frelons asiatiques capturés"><strong>{current.hornet_catch_count}</strong></FieldRow>
+          <FieldRow label="Installé le">{formatDate(current.installed_at)}</FieldRow>
+          {current.owner && <FieldRow label="Propriétaire">{current.owner.display_name}</FieldRow>}
+          {current.tag_short && <FieldRow label="QR Code"><code>{current.tag_short}</code></FieldRow>}
+          {current.address && (
+            <div className="text-muted small mt-1 d-flex gap-1">
+              <i className="bi bi-geo-alt flex-shrink-0" aria-hidden="true" />
+              <ClampedText id={`trap-${current.id}-address`} text={current.address} lines={2} />
             </div>
-            <div className="d-flex justify-content-between">
-              <span className="text-muted small">Installé le</span>
-              <span className="small">{formatDate(current.installed_at)}</span>
-            </div>
-            {current.owner && (
-              <div className="d-flex justify-content-between">
-                <span className="text-muted small">Propriétaire</span>
-                <span className="small">{current.owner.display_name}</span>
-              </div>
-            )}
-            {current.tag_short && (
-              <div className="d-flex justify-content-between">
-                <span className="text-muted small">QR Code</span>
-                <code className="small">{current.tag_short}</code>
-              </div>
-            )}
-            {current.address && (
-              <div className="text-muted small mt-2">
-                <i className="bi bi-geo-alt me-1" aria-hidden="true" />
-                {current.address}
-              </div>
-            )}
-            {current.comments && <p className="small mt-2 mb-0">{current.comments}</p>}
-          </div>
-
-          {!auth.isAuthenticated && (
-            <Alert variant="light" className="small">
-              Connectez-vous pour consulter le journal de ce piège.
-            </Alert>
           )}
+          {current.comments && <p className="small mt-1 mb-0">{current.comments}</p>}
+        </div>
 
-          {auth.isAuthenticated && (
-            <>
-              <div className="d-flex gap-2 mb-3 flex-wrap">
+        {!auth.isAuthenticated && (
+          <Alert variant="light" className="small mb-0">
+            Connectez-vous pour consulter le journal de ce piège.
+          </Alert>
+        )}
+
+        {auth.isAuthenticated && (
+          <>
+            {(mayAct || mayEdit || canAddHere) && (
+              <div className="sheet-actions mb-3">
                 {mayAct && (
                   <>
-                    <Button size="sm" variant="primary" onClick={() => setEventKind('catch')}>
-                      🐝 Enregistrer une capture
+                    <Button
+                      variant="primary"
+                      onClick={() => setSub({ kind: 'event', eventKind: 'catch' })}
+                      aria-label="Enregistrer une capture"
+                    >
+                      <span className="me-2" aria-hidden="true">🐝</span>
+                      Capture
                     </Button>
-                    <Button size="sm" variant="outline-primary" onClick={() => setEventKind('inspection')}>
-                      📋 Ajouter une action
-                    </Button>
+                    <IconButton
+                      variant="outline-primary"
+                      icon={ACTION_ICONS.action}
+                      label="Ajouter une action"
+                      onClick={() => setSub({ kind: 'event', eventKind: 'inspection' })}
+                    />
                   </>
                 )}
                 {mayEdit && (
                   <>
-                    <Button size="sm" variant="outline-secondary" onClick={handleMove}>
-                      ✋ Déplacer
-                    </Button>
-                    <Button size="sm" variant="outline-secondary" onClick={() => setShowEdit(true)}>
-                      ✏️ Modifier
-                    </Button>
-                    <Button size="sm" variant="outline-danger" onClick={() => setShowDelete(true)}>
-                      🗑️ Supprimer
-                    </Button>
+                    <IconButton variant="outline-secondary" icon={ACTION_ICONS.move} label="Déplacer" onClick={handleMove} />
+                    <IconButton
+                      variant="outline-secondary"
+                      icon={ACTION_ICONS.edit}
+                      label="Modifier"
+                      onClick={() => setSub({ kind: 'edit' })}
+                    />
                   </>
                 )}
+                {canAddHere && (
+                  <IconButton
+                    variant="outline-secondary"
+                    icon={ACTION_ICONS.addHere}
+                    label="Ajouter à cette position"
+                    onClick={() => onAddAtLocation(current.latitude, current.longitude)}
+                  />
+                )}
+                {mayEdit && (
+                  <IconButton
+                    variant="outline-danger"
+                    icon={ACTION_ICONS.delete}
+                    label="Supprimer"
+                    className="ms-auto"
+                    onClick={() => setSub({ kind: 'delete' })}
+                  />
+                )}
               </div>
+            )}
 
-              <h6>
-                Journal
-                {entries.length > 0 && <Badge bg="light" text="dark" className="ms-2">{entries.length}</Badge>}
-              </h6>
-              {events.length === 0 ? (
-                <p className="text-muted small">
-                  {current.events ? 'Aucune intervention enregistrée.' : <Spinner animation="border" size="sm" />}
-                </p>
-              ) : (
-                <div className="trap-journal mb-3">
-                  {entries.map((entry) => (entry[0].kind === 'catch' ? (
-                    <CatchRow
-                      key={entry[0].id}
-                      events={entry}
-                      canDelete={entry.every(canDeleteEvent)}
-                      onDelete={setEntryToDelete}
-                      onPreview={setPreview}
-                    />
-                  ) : (
-                    <EventRow
-                      key={entry[0].id}
-                      event={entry[0]}
-                      canDelete={canDeleteEvent(entry[0])}
-                      onDelete={(event) => setEntryToDelete([event])}
-                      onPreview={setPreview}
-                    />
-                  )))}
-                </div>
-              )}
+            <h6 className="mb-1">
+              Journal
+              {entries.length > 0 && <Badge bg="light" text="dark" className="ms-2">{entries.length}</Badge>}
+            </h6>
+            {events.length === 0 ? (
+              <p className="text-muted small">
+                {current.events ? 'Aucune intervention enregistrée.' : <Spinner animation="border" size="sm" />}
+              </p>
+            ) : (
+              <div className="trap-journal mb-2">
+                {entries.slice(0, journalLength).map((entry) => (entry[0].kind === 'catch' ? (
+                  <CatchRow
+                    key={entry[0].id}
+                    events={entry}
+                    canDelete={entry.every(canDeleteEvent)}
+                    onDelete={(items) => setSub({ kind: 'delete-entry', entry: items })}
+                    onPreview={preview}
+                  />
+                ) : (
+                  <EventRow
+                    key={entry[0].id}
+                    event={entry[0]}
+                    canDelete={canDeleteEvent(entry[0])}
+                    onDelete={(event) => setSub({ kind: 'delete-entry', entry: [event] })}
+                    onPreview={preview}
+                  />
+                )))}
+                {entries.length > journalLength && (
+                  <Button variant="link" className="w-100" onClick={() => setJournalLength((length) => length + JOURNAL_PAGE)}>
+                    Voir plus ({entries.length - journalLength})
+                  </Button>
+                )}
+              </div>
+            )}
 
-              <TrapDelegationPanel trap={current} />
-            </>
-          )}
-        </Modal.Body>
+            <TrapDelegationPanel trap={current} />
+          </>
+        )}
+      </AppModal>
 
-        <Modal.Footer>
-          <AddAtLocationButton
-            latitude={current.latitude}
-            longitude={current.longitude}
-            onAddAtLocation={onAddAtLocation}
-          />
-          <Button variant="secondary" onClick={onHide}>Fermer</Button>
-        </Modal.Footer>
-      </Modal>
-
-      {eventKind !== null && (
-        <TrapEventModal
-          onHide={() => setEventKind(null)}
-          trap={current}
-          initialKind={eventKind}
-        />
+      {sub?.kind === 'event' && (
+        <TrapEventModal onHide={closeSub} trap={current} initialKind={sub.eventKind} />
       )}
 
-      {showEdit && (
-        <TrapFormModal
-          onHide={() => setShowEdit(false)}
-          trap={current}
-        />
-      )}
+      {sub?.kind === 'edit' && <TrapFormModal onHide={closeSub} trap={current} />}
 
       <ConfirmationModal
-        show={showDelete}
-        onHide={() => setShowDelete(false)}
+        show={sub?.kind === 'delete'}
+        onHide={closeSub}
         onConfirm={handleDelete}
         itemName={`le piège #${current.id}`}
         isDeleting={deleting}
@@ -428,18 +430,22 @@ export default function TrapInfoPopup({ show, onHide, trap, onAddAtLocation }: T
       />
 
       <ConfirmationModal
-        show={entryToDelete !== null}
-        onHide={() => setEntryToDelete(null)}
-        onConfirm={() => entryToDelete && handleDeleteEntry(entryToDelete)}
-        itemName={entryToDelete?.[0].kind === 'catch' ? 'cette capture' : 'cette intervention'}
+        show={sub?.kind === 'delete-entry'}
+        onHide={closeSub}
+        onConfirm={() => sub?.kind === 'delete-entry' && handleDeleteEntry(sub.entry)}
+        itemName={sub?.kind === 'delete-entry' && sub.entry[0].kind === 'catch' ? 'cette capture' : 'cette intervention'}
       />
 
       {/* Agrandissement d'une photo */}
-      <Modal show={preview !== null} onHide={() => setPreview(null)} centered size="lg">
-        <Modal.Body className="p-0">
-          {preview && <img src={preview} alt="Photo" className="w-100" />}
-        </Modal.Body>
-      </Modal>
+      <AppModal
+        show={sub?.kind === 'photo'}
+        onHide={closeSub}
+        title="Photo"
+        size="lg"
+        bodyClassName="p-0 d-flex align-items-center bg-dark"
+      >
+        {sub?.kind === 'photo' && <img src={sub.url} alt="Photo" className="w-100" />}
+      </AppModal>
     </>
   );
 }

@@ -109,14 +109,12 @@ export default function TrapDelegationPanel({ trap }: TrapDelegationPanelProps) 
                   // Platform admin: any group path is accepted
                   <Form.Control
                     type="text"
-                    size="sm"
                     value={groupPath}
                     placeholder="/beekeepers/mon-association"
                     onChange={(event) => setGroupPath(event.target.value)}
                   />
                 ) : (
                   <Form.Select
-                    size="sm"
                     value={groupPath}
                     onChange={(event) => setGroupPath(event.target.value)}
                     disabled={info.allowed_groups.length === 0}

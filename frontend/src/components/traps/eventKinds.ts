@@ -5,7 +5,7 @@ export const EVENT_KINDS: { value: TrapEventKind; label: string; icon: string }[
   { value: 'catch', label: 'Capture', icon: '🐝' },
   { value: 'inspection', label: 'Inspection', icon: '🔍' },
   { value: 'cleaning', label: 'Nettoyage', icon: '🧽' },
-  { value: 'refill', label: 'Recharge de consommable', icon: '🧪' },
+  { value: 'refill', label: 'Recharge', icon: '🧪' },
   { value: 'repair', label: 'Réparation', icon: '🔧' },
   { value: 'installation', label: 'Installation', icon: '📌' },
   { value: 'removal', label: 'Retrait', icon: '📦' },

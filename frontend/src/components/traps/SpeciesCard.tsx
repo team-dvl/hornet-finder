@@ -90,7 +90,7 @@ export default function SpeciesCard({
         {editing ? (
           <Form.Control
             type="number"
-            size="sm"
+            inputMode="numeric"
             min={0}
             autoFocus
             value={quantity}
@@ -104,7 +104,7 @@ export default function SpeciesCard({
               }
             }}
             className="position-absolute top-0 end-0 m-1 text-end"
-            style={{ width: 72 }}
+            style={{ width: 80 }}
           />
         ) : (
           <button
@@ -120,10 +120,11 @@ export default function SpeciesCard({
 
         <button
           type="button"
-          className="btn btn-sm btn-light position-absolute top-0 start-0 m-1 py-0 px-1 lh-1"
+          className="btn btn-sm btn-light position-absolute top-0 start-0 m-1 py-1 px-2 lh-1"
           onClick={onRemove}
           disabled={disabled}
           title="Retirer cette espèce"
+          aria-label="Retirer cette espèce"
         >
           <i className="bi bi-x-lg" aria-hidden="true" />
         </button>
@@ -137,7 +138,7 @@ export default function SpeciesCard({
         <Button
           variant="link"
           size="sm"
-          className="flex-fill text-decoration-none"
+          className="flex-fill text-decoration-none py-2"
           onClick={() => onQuantityChange(Math.max(0, quantity - 1))}
           disabled={disabled || quantity === 0}
           aria-label="Retirer un"
@@ -147,7 +148,7 @@ export default function SpeciesCard({
         <Button
           variant="link"
           size="sm"
-          className={`flex-fill text-decoration-none ${photo ? 'text-success' : 'text-secondary'}`}
+          className={`flex-fill text-decoration-none py-2 ${photo ? 'text-success' : 'text-secondary'}`}
           onClick={() => (photo ? clearPhoto() : inputRef.current?.click())}
           disabled={disabled || preparing}
           title={photo ? 'Retirer la photo' : 'Photographier cette capture'}
@@ -157,7 +158,7 @@ export default function SpeciesCard({
         <Button
           variant="link"
           size="sm"
-          className="flex-fill text-decoration-none"
+          className="flex-fill text-decoration-none py-2"
           onClick={() => onQuantityChange(quantity + 1)}
           disabled={disabled}
           aria-label="Ajouter un"
