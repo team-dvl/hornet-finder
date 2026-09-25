@@ -22,6 +22,12 @@ const DEVICES = {
 
 let warnings = 0;
 
+/** A 64x64 orange PNG, the photo given to the file inputs */
+const SAMPLE_PHOTO = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAeklEQVR4nO3PUQkAIBTAwBfC2IY1giH8OITBAtzm7PV1wwUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY0oAUNaEEDWtCAFjSgBQ1oQQNa0IAWNKAFDWhBA1rQgBY0oAUNaEEDWtCAFjSgBQ1oQQNa0IAWPHYBSf8BeLDobygAAAAASUVORK5CYII=',
+  'base64',
+);
+
 async function walk(name) {
   const { engine, profile } = DEVICES[name];
   const browser = await engine.launch();
@@ -215,6 +221,13 @@ async function walk(name) {
     await shot('catch-form', 1500);
     await scrollDown();
     await shot('catch-form-bottom', 400);
+    // A photo taken for a species must show at once in its card (blob: preview)
+    await page.locator('.modal.show input[type=file]').first().setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: SAMPLE_PHOTO });
+    await page.waitForTimeout(1500);
+    const previewShown = await page.evaluate(() => [...document.querySelectorAll('.modal.show img')]
+      .some((img) => img.src.startsWith('blob:') && img.complete && img.naturalWidth > 0));
+    if (!previewShown) { warnings += 1; console.log(`WARN ${name}: the photo preview does not show`); }
+    await shot('catch-photo', 300);
     await tap(page.getByText('Ajouter une espèce'));
     await shot('species-picker', 1500);
     await tap(page.locator('.modal.show button:has-text("Retour"), .modal.show [aria-label="Retour"]'));
