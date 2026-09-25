@@ -10,6 +10,8 @@ export interface ReferentialColumn<T> {
   secondary?: boolean;
   /** Column that takes the room left on a phone (default: the second one) */
   main?: boolean;
+  /** Left out of the phone list, when another column already shows it there */
+  phoneHidden?: boolean;
 }
 
 interface ReferentialTableProps<T> {
@@ -41,7 +43,7 @@ export default function ReferentialTable<T>({
 
   // Phone: one line per row, the main column taking the room left, no table
   // to scroll sideways
-  const primary = columns.filter((column) => !column.secondary);
+  const primary = columns.filter((column) => !column.secondary && !column.phoneHidden);
   const mainKey = (primary.find((column) => column.main) ?? primary[1] ?? primary[0])?.key;
 
   return (

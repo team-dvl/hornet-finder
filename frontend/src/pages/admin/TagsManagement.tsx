@@ -154,7 +154,8 @@ export default function TagsManagement() {
           onChange={toggleAll}
         />
       ),
-      render: (tag) => (tag.status === 'revoked' ? null : (
+      // A revoked tag keeps an invisible box, so every code lines up
+      render: (tag) => (tag.status === 'revoked' ? <Form.Check className="invisible" aria-hidden="true" tabIndex={-1} disabled /> : (
         <Form.Check
           aria-label={`Sélectionner ${tag.short}`}
           checked={selected.has(tag.id)}
@@ -162,10 +163,21 @@ export default function TagsManagement() {
         />
       )),
     },
-    { key: 'code', header: 'Code', render: (tag) => <code>{tag.short}</code> },
+    {
+      key: 'code',
+      header: 'Code',
+      // On a phone the status goes under the code, to leave room for the object
+      render: (tag) => (
+        <div className="d-flex flex-column align-items-start gap-1">
+          <code>{tag.short}</code>
+          <Badge bg={STATUS_LABELS[tag.status].bg} className="d-sm-none">{STATUS_LABELS[tag.status].label}</Badge>
+        </div>
+      ),
+    },
     {
       key: 'status',
       header: 'Statut',
+      phoneHidden: true,
       render: (tag) => <Badge bg={STATUS_LABELS[tag.status].bg}>{STATUS_LABELS[tag.status].label}</Badge>,
     },
     {
@@ -176,12 +188,12 @@ export default function TagsManagement() {
         const object = taggedObject(tag);
         return object
           ? (
-            <Link to={object.path} className="text-nowrap text-decoration-none" title="Ouvrir sa fiche">
-              <span className="me-1" aria-hidden="true">{object.icon}</span>
-              {object.label}
+            <Link to={object.path} className="d-inline-flex align-items-start gap-1 text-decoration-none" title="Ouvrir sa fiche">
+              <span className="flex-shrink-0" aria-hidden="true">{object.icon}</span>
+              <span>{object.label}</span>
             </Link>
           )
-          : <span className="text-muted">—</span>;
+          : <span className="text-muted d-none d-sm-inline">—</span>;
       },
     },
     { key: 'key', header: 'Clef', secondary: true, render: (tag) => tag.key_index },
