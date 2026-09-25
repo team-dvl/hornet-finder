@@ -101,6 +101,20 @@ if [ "$ANON" = "0" ]; then PASS=$((PASS+1)); echo "  ok   invisible pour un visi
 SEEN=$(curl -sk "$BASE/traps/?lat=50.47&lon=4.87&radius=1" "${H_MEMBER[@]}" | python3 -c "import sys,json;print(len(json.load(sys.stdin)))")
 if [ "$SEEN" = "1" ]; then PASS=$((PASS+1)); echo "  ok   visible pour un membre du groupe"; else FAIL=$((FAIL+1)); echo "  FAIL membre voit $SEEN piège(s)"; fi
 
+echo "== Gestionnaire de pièges"
+# in_managed <token-header-var> <query>: 1 when the test trap is in that page of the manager
+in_managed() {
+  local -n headers="$1"
+  curl -sk "$BASE/traps/managed/?$2&page_size=200" "${headers[@]}" \
+    | python3 -c "import sys,json;print(int(any(t['id']==$TRAP for t in json.load(sys.stdin)['results'])))"
+}
+if [ "$(in_managed H_OWNER 'scope=mine')" = "1" ]; then PASS=$((PASS+1)); echo "  ok   t-owner le voit dans « Mes pièges »"; else FAIL=$((FAIL+1)); echo "  FAIL absent de « Mes pièges » de t-owner"; fi
+if [ "$(in_managed H_MEMBER 'scope=delegated')" = "1" ]; then PASS=$((PASS+1)); echo "  ok   t-member le voit dans « Délégués »"; else FAIL=$((FAIL+1)); echo "  FAIL absent de « Délégués » de t-member"; fi
+if [ "$(in_managed H_MEMBER 'scope=mine')" = "0" ]; then PASS=$((PASS+1)); echo "  ok   t-member ne le voit pas dans « Mes pièges »"; else FAIL=$((FAIL+1)); echo "  FAIL présent dans « Mes pièges » de t-member"; fi
+call 403 "t-member n'a pas la portée « Tous »"         GET "/traps/managed/?scope=all" "${H_MEMBER[@]}"
+call 200 "t-admin a la portée « Tous »"                GET "/traps/managed/?scope=all" "${H_ADMIN[@]}"
+call 200 "tri par distance sans limite de rayon"       GET "/traps/managed/?ordering=distance&lat=51.0&lon=3.7" "${H_OWNER[@]}"
+
 echo "== Statut et propriétaire"
 call 201 "événement de retrait"                         POST "/traps/$TRAP/events/" "${H_OWNER[@]}" -F "kind=removal" -F "performed_at=$(date -Is)"
 ACTIVE=$(curl -sk "$BASE/traps/$TRAP/" "${H_OWNER[@]}" | python3 -c "import sys,json;print(json.load(sys.stdin)['active'])")

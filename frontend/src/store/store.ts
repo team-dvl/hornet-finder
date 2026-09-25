@@ -26,15 +26,17 @@ export {
   deleteTrapType, addTrapCatch, deleteTrapCatch, createSpecies, updateSpecies, deleteSpecies,
   clearTrapsError, clearTraps, toggleTraps, toggleInactiveTraps,
   toggleOnlyMyTraps, setShowTraps, setSelectedTrap, startMovingTrap, stopMovingTrap,
+  fetchManagedTraps, MANAGED_PAGE_SIZE,
 } from './slices/trapsSlice';
 export {
   selectTraps, selectSelectedTrap, selectTrapTypes, selectSpecies, selectShowTraps,
   selectShowInactiveTraps, selectOnlyMyTraps, selectMovingTrapId, selectTrapsLoading,
-  selectTrapsError,
+  selectTrapsError, selectManagedTraps,
 } from './slices/trapsSlice';
 export type {
   Trap, TrapEvent, TrapEventKind, TrapPhoto, TrapType, Species, DelegationInfo,
   TrapFormValues, TrapTypeFormValues, SpeciesFormValues, CatchItem, UserSummary, GroupSummary,
+  TrapScope, TrapOrdering, ManagedTrapsQuery,
 } from './slices/trapsSlice';
 
 // Export des actions et selectors du slice map

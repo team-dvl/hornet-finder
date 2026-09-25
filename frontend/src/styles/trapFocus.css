@@ -1,0 +1,17 @@
+/* Trap reached from "Locate" in the trap manager: a pulsing halo */
+
+@keyframes trapFocusPulse {
+  0% {
+    filter: drop-shadow(0 0 2px #0d6efd);
+  }
+  50% {
+    filter: drop-shadow(0 0 10px #0d6efd) drop-shadow(0 0 16px #0d6efd);
+  }
+  100% {
+    filter: drop-shadow(0 0 2px #0d6efd);
+  }
+}
+
+.trap-marker-focus {
+  animation: trapFocusPulse 1.6s ease-in-out infinite;
+}

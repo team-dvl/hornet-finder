@@ -1496,3 +1496,152 @@ class ApiarySharingTests(ApiaryTestCase):
                              pk=self.apiary.id, format='json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['owner']['guid'], str(self.member_guid))
+
+
+# ---------------------------------------------------------------------------
+# Trap manager (`GET /traps/managed/`)
+# ---------------------------------------------------------------------------
+
+from datetime import timedelta
+
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+
+
+class TrapManagerTests(TrapTestCase):
+    """Scopes, filters, sorting and pagination of the trap manager."""
+
+    def setUp(self):
+        super().setUp()
+        today = timezone.now().date()
+        # Owned by the member, delegated to the owner's group
+        self.delegated = Trap.objects.create(
+            latitude=50.6, longitude=4.6, owner=self.member, trap_type=self.trap_type,
+            installed_at=today, group=self.group, address='Rue des Abeilles 3',
+        )
+        # Owned by the member, public, not delegated: not the owner's business
+        self.foreign = Trap.objects.create(
+            latitude=50.5, longitude=4.5, owner=self.member, trap_type=self.trap_type,
+            installed_at=today,
+        )
+        # A second trap of the owner, put away, far from the first one
+        self.removed = Trap.objects.create(
+            latitude=51.2, longitude=4.4, owner=self.owner, trap_type=self.trap_type,
+            installed_at=today, active=False, address='Quai du Port',
+        )
+
+    def _managed(self, user, query=''):
+        return self._call('get', f'/traps/managed/?{query}', {'get': 'managed'}, user=user)
+
+    def _ids(self, response):
+        self.assertEqual(response.status_code, 200, response.data)
+        return [trap['id'] for trap in response.data['results']]
+
+    def test_mine_lists_only_owned_active_traps_by_default(self):
+        self.assertEqual(self._ids(self._managed(self.owner_user)), [self.trap.id])
+
+    def test_mine_with_inactive_traps(self):
+        ids = self._ids(self._managed(self.owner_user, 'active=all'))
+        self.assertEqual(set(ids), {self.trap.id, self.removed.id})
+        ids = self._ids(self._managed(self.owner_user, 'active=false'))
+        self.assertEqual(ids, [self.removed.id])
+
+    def test_delegated_lists_traps_of_my_groups_but_not_my_own(self):
+        self.trap.group = self.group
+        self.trap.save()
+        # The owner sees the member's delegated trap, not their own nor the public one
+        self.assertEqual(self._ids(self._managed(self.owner_user, 'scope=delegated')),
+                         [self.delegated.id])
+
+    def test_delegated_includes_the_parent_of_an_admin_subgroup(self):
+        ids = self._ids(self._managed(self.group_admin_user, 'scope=delegated'))
+        self.assertEqual(ids, [self.delegated.id])
+
+    def test_delegated_excludes_public_traps_of_strangers(self):
+        self.assertEqual(self._ids(self._managed(self.stranger_user, 'scope=delegated')), [])
+
+    def test_all_is_reserved_to_platform_admins(self):
+        self.assertEqual(self._managed(self.owner_user, 'scope=all').status_code, 403)
+        ids = self._ids(self._managed(self.admin_user, 'scope=all&active=all'))
+        self.assertEqual(set(ids), {self.trap.id, self.delegated.id, self.foreign.id,
+                                    self.removed.id})
+
+    def test_unknown_scope_or_ordering_is_rejected(self):
+        self.assertEqual(self._managed(self.owner_user, 'scope=everyone').status_code, 400)
+        self.assertEqual(self._managed(self.owner_user, 'ordering=owner').status_code, 400)
+
+    def test_anonymous_is_rejected(self):
+        self.assertEqual(self._managed(None).status_code, 403)
+
+    def test_search_by_address_number_and_tag(self):
+        ids = self._ids(self._managed(self.owner_user, 'active=all&q=port'))
+        self.assertEqual(ids, [self.removed.id])
+        ids = self._ids(self._managed(self.owner_user, f'active=all&q=%23{self.trap.id}'))
+        self.assertEqual(ids, [self.trap.id])
+        tag = Tag.objects.create(value='AAbcdefgh' + 'x' * 30, key_index=0, trap=self.trap)
+        ids = self._ids(self._managed(self.owner_user, f'active=all&q={tag.short}'))
+        self.assertEqual(ids, [self.trap.id])
+
+    def test_has_tag_filter(self):
+        Tag.objects.create(value='AAtagged' + 'y' * 30, key_index=0, trap=self.removed)
+        self.assertEqual(self._ids(self._managed(self.owner_user, 'active=all&has_tag=true')),
+                         [self.removed.id])
+        self.assertEqual(self._ids(self._managed(self.owner_user, 'active=all&has_tag=false')),
+                         [self.trap.id])
+
+    def test_group_filter(self):
+        ids = self._ids(self._managed(self.admin_user,
+                                      f'scope=all&group={self.group_path}'))
+        self.assertEqual(ids, [self.delegated.id])
+
+    def test_default_order_puts_the_most_overdue_first(self):
+        # Journals opened by hand: one visited long ago, one never visited
+        self.trap.events.all().delete()
+        TrapEvent.objects.create(trap=self.removed, kind=TrapEvent.KIND_INSPECTION,
+                                 performed_at=timezone.now() - timedelta(days=30))
+        never = Trap.objects.create(latitude=50.5, longitude=4.5, owner=self.owner,
+                                    trap_type=self.trap_type, installed_at=timezone.now().date())
+        TrapEvent.objects.create(trap=self.trap, kind=TrapEvent.KIND_INSPECTION,
+                                 performed_at=timezone.now())
+        response = self._managed(self.owner_user, 'active=all')
+        self.assertEqual(self._ids(response), [never.id, self.removed.id, self.trap.id])
+        self.assertIsNone(response.data['results'][0]['last_event_at'])
+        self.assertIsNotNone(response.data['results'][2]['last_event_at'])
+        response = self._managed(self.owner_user, 'active=all&ordering=-last_event_at')
+        self.assertEqual(self._ids(response), [self.trap.id, self.removed.id, never.id])
+
+    def test_distance_ordering_has_no_radius_limit(self):
+        # The removed trap is ~80 km away: far beyond the 5 km of the map listing
+        ids = self._ids(self._managed(self.owner_user,
+                                      'active=all&ordering=distance&lat=51.2&lon=4.4'))
+        self.assertEqual(ids, [self.removed.id, self.trap.id])
+        self.assertEqual(self._managed(self.owner_user, 'ordering=distance').status_code, 400)
+
+    def test_pagination(self):
+        for _ in range(3):
+            Trap.objects.create(latitude=50.5, longitude=4.5, owner=self.owner,
+                                trap_type=self.trap_type, installed_at=timezone.now().date())
+        response = self._managed(self.owner_user, 'page_size=2')
+        self.assertEqual(response.data['count'], 4)
+        self.assertEqual(len(response.data['results']), 2)
+        self.assertIsNotNone(response.data['next'])
+
+    def test_query_count_does_not_grow_with_the_page(self):
+        def count_queries():
+            with CaptureQueriesContext(connection) as context:
+                self._ids(self._managed(self.owner_user, 'active=all'))
+            return len(context.captured_queries)
+
+        few = count_queries()
+        for _ in range(10):
+            Trap.objects.create(latitude=50.5, longitude=4.5, owner=self.owner,
+                                trap_type=self.trap_type, installed_at=timezone.now().date())
+        self.assertEqual(count_queries(), few)
+
+    def test_owner_name_is_looked_up_once_per_page(self):
+        for _ in range(3):
+            Trap.objects.create(latitude=50.5, longitude=4.5, owner=self.owner,
+                                trap_type=self.trap_type, installed_at=timezone.now().date())
+        with patch('hornet.serializers.get_user_display_name', return_value='Tester') as lookup:
+            self._ids(self._managed(self.owner_user, 'active=all'))
+        self.assertEqual(lookup.call_count, 1)

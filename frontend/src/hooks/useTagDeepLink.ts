@@ -8,17 +8,19 @@ const TAG_PATH = /^\/tag\/([^/]+)\/?$/;
 interface TagDeepLinkHandlers {
   onResolved: (value: string, resolution: TagResolution) => void;
   onError: (message: string) => void;
+  /** Where to go once the tag is resolved; the trap manager by default */
+  returnTo?: string;
 }
 
 /**
  * Handles `/tag/<value>`, reached either from a QR code scanned outside the
  * app (captured by the installed PWA on Android) or from the in-app scanner.
  * Once signed in, the tag is resolved by the server and the URL goes back to
- * `/traps`, so a reload does not replay the scan.
+ * `returnTo` (the trap manager), so a reload does not replay the scan.
  *
  * Returns whether a sign-in is needed first, and whether a lookup is running.
  */
-export function useTagDeepLink({ onResolved, onError }: TagDeepLinkHandlers) {
+export function useTagDeepLink({ onResolved, onError, returnTo = '/traps' }: TagDeepLinkHandlers) {
   const location = useLocation();
   const navigate = useNavigate();
   const auth = useAuth();
@@ -28,10 +30,10 @@ export function useTagDeepLink({ onResolved, onError }: TagDeepLinkHandlers) {
   const [settledKey, setSettledKey] = useState<string | null>(null);
   const locationKey = location.key;
 
-  const handlers = useRef({ onResolved, onError });
+  const handlers = useRef({ onResolved, onError, returnTo });
   useEffect(() => {
-    handlers.current = { onResolved, onError };
-  }, [onResolved, onError]);
+    handlers.current = { onResolved, onError, returnTo };
+  }, [onResolved, onError, returnTo]);
 
   useEffect(() => {
     if (!value || auth.isLoading || !auth.isAuthenticated) return;
@@ -44,7 +46,7 @@ export function useTagDeepLink({ onResolved, onError }: TagDeepLinkHandlers) {
       .finally(() => {
         if (cancelled) return;
         setSettledKey(locationKey);
-        navigate('/traps', { replace: true });
+        navigate(handlers.current.returnTo, { replace: true });
       });
     return () => { cancelled = true; };
   }, [value, locationKey, auth.isLoading, auth.isAuthenticated, navigate]);

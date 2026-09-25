@@ -112,7 +112,7 @@ function App() {
         path="/apiaries"
         element={<RequireRole roles={['beekeeper', 'admin']}><Apiaries /></RequireRole>}
       />
-      {/* One map for both paths, so resolving a tag and returning to /traps keeps it mounted */}
+      {/* One trap manager for these paths, so resolving a tag or scanning returns to /traps without remounting it */}
       <Route element={<Traps />}>
         <Route path="/traps" element={null} />
         <Route path="/tag/:tagValue" element={null} />
