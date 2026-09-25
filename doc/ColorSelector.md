@@ -27,7 +27,9 @@ import { ColorSelector } from '../components/forms';
 <ColorSelector value="" readOnly /> // Ne rend rien
 ```
 
-### Mode read-write (Dropdown)
+### Mode read-write (grille de pastilles)
+
+Un bouton montre la couleur choisie ; il déplie en dessous une grille de pastilles rondes (cibles de 44 px), sans menu flottant qui déborderait de l'écran d'un téléphone.
 
 ```tsx
 import { ColorSelector } from '../components/forms';

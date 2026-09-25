@@ -24,11 +24,13 @@ src/
 │   │   ├── InteractiveMap.tsx
 │   │   └── index.ts
 │   ├── map-controls/    # Contrôles de la carte
+│   │   ├── AddActionsButton.tsx
+│   │   ├── BulkArchivePanel.tsx
+│   │   ├── HornetColorFilterPanel.tsx
 │   │   ├── LayerControlsButton.tsx
 │   │   ├── LocateButton.tsx
 │   │   ├── MapControlsContainer.tsx
 │   │   ├── MapFeedback.tsx
-│   │   ├── QuickCaptureButton.tsx
 │   │   └── index.ts
 │   ├── markers/         # Marqueurs de carte
 │   │   ├── ApiaryMarker.tsx
@@ -45,6 +47,13 @@ src/
 │   │   ├── HornetInfoPopup.tsx
 │   │   ├── HornetReturnZoneInfoPopup.tsx
 │   │   ├── NestInfoPopup.tsx
+│   │   └── index.ts
+│   ├── ui/              # Briques d'interface partagées (voir « Mobile UX Guidelines » dans CLAUDE.md)
+│   │   ├── AppModal.tsx
+│   │   ├── BottomSheet.tsx
+│   │   ├── ConfirmDialog.tsx
+│   │   ├── FieldRow.tsx
+│   │   ├── IconButton.tsx
 │   │   └── index.ts
 │   └── index.ts         # Exports centralisés
 ├── hooks/               # Hooks personnalisés
@@ -70,6 +79,7 @@ Les pages de documentation vivent dans `pages/docs/` : une page par module, enre
 Composants de mise en page de l'application :
 - `NavbarComponent.tsx` : Barre de navigation principale (partagée par toutes les pages), avec fil d'Ariane dérivé de la route (`utils/breadcrumbs.ts`)
 - `PageLayout.tsx` : Navbar + zone de contenu pour les pages qui défilent (accueil, pièges)
+- `PageHeader.tsx` : Ligne de titre d'une page (titre masqué sur téléphone, aide en `HelpTip`, actions à droite)
 
 ### `/components/map/`
 Composants liés aux fonctionnalités de cartographie :
@@ -77,6 +87,8 @@ Composants liés aux fonctionnalités de cartographie :
 - `CompassMap.tsx` : Carte avec fonctionnalités de boussole
 - `CompassCapture.tsx` : Capture de direction à la boussole
 - `HornetReturnZone.tsx` : Zone de retour des frelons
+- `MarkerClusterGroup.tsx` : Regroupement des marqueurs d'une couche (`leaflet.markercluster`)
+- `OverlapDialog.tsx` : Choix parmi les objets superposés (feuille du bas)
 
 ### `/components/markers/`
 Marqueurs affichés sur la carte :
@@ -98,12 +110,20 @@ Popups d'informations et formulaires de création/édition :
 - `HornetReturnZoneInfoPopup.tsx` : Informations sur la zone de retour
 
 ### `/components/map-controls/`
-Contrôles et boutons de la carte :
-- `LayerControlsButton.tsx` : Contrôle des couches
-- `LocateButton.tsx` : Bouton de géolocalisation
+Contrôles de la carte, trois boutons ronds au plus :
+- `LocateButton.tsx` : Centrer la carte sur ma position
+- `LayerControlsButton.tsx` : Feuille des couches, avec le filtre de couleur (`HornetColorFilterPanel.tsx`) et l'archivage d'une année pour les administrateurs (`BulkArchivePanel.tsx`)
+- `AddActionsButton.tsx` : Bouton « + » : frelon vu d'ici (boussole), piège par adresse, scanner un QR Code
 - `MapControlsContainer.tsx` : Conteneur des contrôles
-- `MapFeedback.tsx` : Retours de la carte
-- `QuickCaptureButton.tsx` : Bouton de capture rapide
+- `MapFeedback.tsx` : Bandeaux de la carte
+
+### `/components/ui/`
+Briques partagées, à utiliser plutôt que les composants Bootstrap bruts :
+- `AppModal.tsx` : Dialogue plein écran sur téléphone, corps défilant, pied réservé aux actions, bouton « revenir en haut », fermeture par le bouton retour
+- `BottomSheet.tsx` : Feuille qui monte du bas (couches, actions, choix courts)
+- `ConfirmDialog.tsx` : Confirmation courte, qui remplace le dialogue d'origine au lieu de s'y empiler
+- `FieldRow.tsx` : Ligne « libellé — valeur » d'une fiche
+- `IconButton.tsx` : Bouton réduit à son icône sur téléphone, libellé en `aria-label` et infobulle
 
 ## Imports
 
