@@ -1,4 +1,4 @@
-status: pending
+status: applied (2026-09-25)
 
 # Compte de service `flow-admin` à la place de l'utilisateur (`main` 4624b62 → `devel`)
 
