@@ -1,4 +1,4 @@
-status: pending
+status: applied (2026-09-25)
 
 # Photo de profil (`main` 9cfe9f6 → `devel`)
 

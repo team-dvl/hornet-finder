@@ -1,4 +1,4 @@
-status: pending
+status: applied (2026-09-25)
 
 # Lien « mot de passe oublié », thèmes e-mail et compte Velutina (`main` 9cfe9f6 → `devel`)
 
