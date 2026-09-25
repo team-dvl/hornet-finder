@@ -220,8 +220,7 @@ export default function NestInfoPopup({ show, onHide, nest, onAddAtLocation }: N
         show={showDeleteModal}
         onHide={() => setShowDeleteModal(false)}
         onConfirm={handleDelete}
-        itemName={`nid #${nest.id}`}
-        itemType="nid"
+        itemName={`le nid #${nest.id}`}
         action="delete"
         isDeleting={isDeleting}
         deleteError={deleteError}
@@ -232,8 +231,7 @@ export default function NestInfoPopup({ show, onHide, nest, onAddAtLocation }: N
         show={showArchiveModal}
         onHide={() => setShowArchiveModal(false)}
         onConfirm={handleArchive}
-        itemName={`nid #${nest.id}`}
-        itemType="nid"
+        itemName={`le nid #${nest.id}`}
         action="archive"
         isDeleting={isArchiving}
         deleteError={archiveError}

@@ -458,8 +458,7 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation,
         show={showDeleteModal}
         onHide={() => setShowDeleteModal(false)}
         onConfirm={handleDelete}
-        itemName={`frelon #${currentHornet.id}`}
-        itemType="frelon"
+        itemName={`le frelon #${currentHornet.id}`}
         action="delete"
         isDeleting={isDeleting}
         deleteError={deleteError}
@@ -470,8 +469,7 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation,
         show={showArchiveModal}
         onHide={() => setShowArchiveModal(false)}
         onConfirm={handleArchive}
-        itemName={`frelon #${currentHornet.id}`}
-        itemType="frelon"
+        itemName={`le frelon #${currentHornet.id}`}
         action="archive"
         isDeleting={isArchiving}
         deleteError={archiveError}

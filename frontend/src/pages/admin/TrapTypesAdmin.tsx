@@ -116,8 +116,7 @@ export default function TrapTypesAdmin() {
         show={toDelete !== null}
         onHide={() => { setToDelete(null); setError(null); }}
         onConfirm={handleDelete}
-        itemName={toDelete?.name ?? ''}
-        itemType="piège"
+        itemName={`le type « ${toDelete?.name ?? ''} »`}
         isDeleting={deleting}
         deleteError={error}
       />

@@ -226,8 +226,7 @@ export default function ApiaryInfoPopup({ show, onHide, apiary, onAddAtLocation 
         show={showDeleteModal}
         onHide={() => setShowDeleteModal(false)}
         onConfirm={handleDelete}
-        itemName={`rucher #${currentApiary.id}`}
-        itemType="rucher"
+        itemName={`le rucher #${currentApiary.id}`}
         action="delete"
         isDeleting={isDeleting}
         deleteError={deleteError}

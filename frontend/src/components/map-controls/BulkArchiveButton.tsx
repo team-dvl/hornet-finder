@@ -106,7 +106,6 @@ export default function BulkArchiveButton() {
         onHide={() => setShowConfirm(false)}
         onConfirm={handleConfirm}
         itemName={`toutes les données de l'année ${year}`}
-        itemType="nid"
         action="archive"
         isDeleting={isArchiving}
         deleteError={error}

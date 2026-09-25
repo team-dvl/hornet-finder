@@ -389,3 +389,91 @@ button.module-card {
     padding-top: 0 !important;
   }
 }
+
+/* --- Shared UI components (components/ui), see "Mobile UX Guidelines" --- */
+
+/* Dialog title: one line, icon and badges kept whole, the text truncated */
+.app-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.app-modal-header {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+/* Full screen on a phone: clear the notch and the home indicator */
+@media (max-width: 575.98px) {
+  .modal-fullscreen-sm-down .app-modal-header {
+    padding-top: calc(0.75rem + env(safe-area-inset-top));
+  }
+
+  .modal-fullscreen-sm-down .app-modal-footer {
+    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+  }
+}
+
+/* Actions of a dialog: stay on one line when possible, wrap otherwise */
+.app-modal-footer {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.app-modal-footer > * {
+  margin: 0;
+}
+
+/* Back-to-top button, stuck to the bottom of the scrolling dialog body */
+.back-to-top {
+  position: sticky;
+  bottom: 0.75rem;
+  height: 0;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.back-to-top .btn {
+  width: 2.75rem;
+  height: 2.75rem;
+  transform: translateY(-100%);
+  pointer-events: auto;
+  opacity: 0.9;
+}
+
+/* Touch target of icon-only buttons */
+.icon-button {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Bottom sheet: content height, centred and of limited width on large screens */
+.offcanvas.bottom-sheet {
+  height: auto;
+  max-height: 85vh;
+  max-height: 85dvh;
+  width: 100%;
+  max-width: 540px;
+  margin-inline: auto;
+  border-top-left-radius: 1rem;
+  border-top-right-radius: 1rem;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* One "label — value" line of an object sheet */
+.field-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.2rem 0;
+}

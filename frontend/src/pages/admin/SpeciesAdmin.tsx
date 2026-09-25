@@ -134,8 +134,7 @@ export default function SpeciesAdmin() {
         show={toDelete !== null}
         onHide={() => { setToDelete(null); setError(null); }}
         onConfirm={handleDelete}
-        itemName={toDelete?.name ?? ''}
-        itemType="espèce"
+        itemName={`l'espèce « ${toDelete?.name ?? ''} »`}
         isDeleting={deleting}
         deleteError={error}
       />

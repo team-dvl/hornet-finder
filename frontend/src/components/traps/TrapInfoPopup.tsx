@@ -422,8 +422,7 @@ export default function TrapInfoPopup({ show, onHide, trap, onAddAtLocation }: T
         show={showDelete}
         onHide={() => setShowDelete(false)}
         onConfirm={handleDelete}
-        itemName={`Piège #${current.id}`}
-        itemType="piège"
+        itemName={`le piège #${current.id}`}
         isDeleting={deleting}
         deleteError={error}
       />
@@ -432,8 +431,7 @@ export default function TrapInfoPopup({ show, onHide, trap, onAddAtLocation }: T
         show={entryToDelete !== null}
         onHide={() => setEntryToDelete(null)}
         onConfirm={() => entryToDelete && handleDeleteEntry(entryToDelete)}
-        itemName={entryToDelete ? eventKindInfo(entryToDelete[0].kind).label : ''}
-        itemType="intervention"
+        itemName={entryToDelete?.[0].kind === 'catch' ? 'cette capture' : 'cette intervention'}
       />
 
       {/* Agrandissement d'une photo */}
