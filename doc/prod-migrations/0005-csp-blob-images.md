@@ -1,4 +1,4 @@
-status: pending
+status: applied (2026-09-25)
 
 # Aperçu des photos avant envoi, refonte mobile (`main` 4630f30 → `devel`)
 
