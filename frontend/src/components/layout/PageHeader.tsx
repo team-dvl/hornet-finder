@@ -16,7 +16,8 @@ interface PageHeaderProps {
  */
 export default function PageHeader({ title, help, actions, className = '' }: PageHeaderProps) {
   return (
-    <div className={`d-flex align-items-center gap-2 mb-3 ${className}`}>
+    // Title only: nothing left to show on a phone, not even an empty line
+    <div className={`${help || actions ? 'd-flex' : 'd-none d-sm-flex'} align-items-center gap-2 mb-3 ${className}`}>
       <h2 className="h3 mb-0 d-none d-sm-flex align-items-center">
         {title}
         {help && <HelpTip id="page-help" title={typeof title === 'string' ? title : undefined}>{help}</HelpTip>}

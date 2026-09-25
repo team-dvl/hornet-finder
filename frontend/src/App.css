@@ -459,6 +459,24 @@ button.module-card {
   line-height: 1.1;
 }
 
+/* Phone: the sheet is only a preview (the PDF is what gets printed), two
+   fluid columns instead of labels at their printed size */
+@media screen and (max-width: 575.98px) {
+  .tag-sheet {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .tag-label {
+    width: auto;
+    padding: 0.35rem;
+  }
+
+  .tag-label-code {
+    font-size: 0.8rem;
+  }
+}
+
 @media print {
   .navbar {
     display: none !important;
