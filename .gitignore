@@ -194,3 +194,6 @@ certbot-dev/
 # Claude Code personal/local settings
 .claude/settings.local.json
 
+
+# Phone screenshots (ui-shots.sh)
+ui-shots/
