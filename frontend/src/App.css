@@ -14,7 +14,7 @@ body {
 
 /* Scrolling pages (landing, placeholders) rendered under the fixed-top navbar */
 .page-content {
-  padding-top: 4.5rem;
+  padding-top: calc(4.5rem + env(safe-area-inset-top));
   min-height: 100vh;
   min-height: 100dvh;
   background-color: var(--bs-light);
@@ -74,35 +74,107 @@ button.module-card {
   height: 100% !important;
 }
 
-/* Navbar semi-transparente */
+/* Navbar semi-transparente, opaque when its menu is open or it has focus */
 .navbar.navbar-transparent {
-  background-color: rgba(248, 249, 250, 0.65) !important;
+  background-color: rgba(248, 249, 250, 0.75) !important;
   background-image: none !important;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px); /* Support Safari */
-  transition: background-color 0.3s ease, opacity 0.3s ease;
+  transition: background-color 0.3s ease;
   z-index: 1030;
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  padding-top: calc(0.5rem + env(safe-area-inset-top));
 }
 
-.navbar.navbar-transparent.navbar-opaque,
 .navbar.navbar-transparent:hover,
 .navbar.navbar-transparent:focus-within {
-  background-color: rgba(248, 249, 250, 0.95) !important;
-  background-image: none !important;
+  background-color: rgba(248, 249, 250, 0.98) !important;
 }
 
-/* Override Bootstrap navbar-light background */
-.navbar-light.navbar-transparent,
-.navbar.navbar-light.navbar-transparent {
-  background-color: rgba(248, 249, 250, 0.65) !important;
-  background-image: none !important;
+.navbar.navbar-transparent.navbar-opaque {
+  background-color: var(--bs-light) !important;
 }
 
-/* Force transparent navbar even with Bootstrap overrides */
-.fixed-top.navbar-transparent {
-  background-color: rgba(248, 249, 250, 0.65) !important;
-  background-image: none !important;
+/* Title of the bar: takes the room left by the menu button, never pushes it to a new line */
+.navbar-title {
+  display: flex;
+  align-items: center;
+  flex: 1 1 0;
+  min-width: 0;
+  margin-right: 0.5rem;
+  font-size: 1.1rem;
+}
+
+@media (min-width: 992px) {
+  .navbar-title {
+    flex: 0 1 auto;
+    margin-right: 1.5rem;
+  }
+}
+
+.min-w-0 {
+  min-width: 0;
+}
+
+.navbar-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-left: -0.5rem;
+  flex-shrink: 0;
+  color: inherit;
+  font-size: 1.25rem;
+}
+
+.navbar-breadcrumb .breadcrumb {
+  flex-wrap: nowrap;
+}
+
+.navbar-breadcrumb .breadcrumb-item {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.navbar-breadcrumb .breadcrumb-item:first-child {
+  flex-shrink: 0;
+}
+
+.navbar-profile {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding-left: 0;
+}
+
+/* Menu opened on a phone: list rows large enough for a finger */
+@media (max-width: 991.98px) {
+  .navbar-collapse {
+    border-top: 1px solid var(--bs-border-color);
+    margin-top: 0.5rem;
+    padding-top: 0.25rem;
+  }
+
+  .navbar-module-link {
+    display: flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  .navbar-account {
+    border-top: 1px solid var(--bs-border-color);
+    margin-top: 0.25rem;
+    padding: 0.5rem 0;
+  }
+
+  .navbar-account > div {
+    width: 100%;
+  }
 }
 
 /* Styles pour la carte Leaflet */

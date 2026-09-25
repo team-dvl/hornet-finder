@@ -16,3 +16,9 @@ export function currentPageRedirectUri(): string {
 export function signInFromCurrentPage(auth: AuthContextProps): Promise<void> {
   return auth.signinRedirect({ redirect_uri: currentPageRedirectUri() });
 }
+
+/** Keycloak account console URL, with a "back to application" link pointing at the landing page. */
+export function accountConsoleUrl(authority: string, clientId: string): string {
+  const referrerUri = encodeURIComponent(`${window.location.origin}/`);
+  return `${authority}/account?referrer=${clientId}&referrer_uri=${referrerUri}`;
+}

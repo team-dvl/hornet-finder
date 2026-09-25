@@ -4,14 +4,8 @@ import { useAuth } from 'react-oidc-context';
 import { PageLayout } from '../components/layout';
 import { ModuleCard } from '../components/home';
 import { visibleModules } from '../config/modules';
-import { signInFromCurrentPage } from '../utils/authRedirect';
+import { accountConsoleUrl, signInFromCurrentPage } from '../utils/authRedirect';
 import { useUserPermissions } from '../hooks/useUserPermissions';
-
-/** Keycloak account console URL, with a "back to application" link pointing at the landing page. */
-function accountConsoleUrl(authority: string, clientId: string): string {
-  const referrerUri = encodeURIComponent(`${window.location.origin}/`);
-  return `${authority}/account?referrer=${clientId}&referrer_uri=${referrerUri}`;
-}
 
 /** App icon, the dev one (purple outline) on the dev server, as for the installed PWA. */
 const APP_ICON = import.meta.env.DEV ? '/icons/pwa-dev-192x192.png' : '/icons/pwa-192x192.png';

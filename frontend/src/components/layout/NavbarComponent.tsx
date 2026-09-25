@@ -1,26 +1,36 @@
 import { Navbar, Nav, Button, Container, Spinner, Breadcrumb } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { 
+import {
   selectGeolocationLoading,
-  selectApiariesLoading, 
+  selectApiariesLoading,
   selectNestsLoading,
   selectHornetsLoading,
   fetchAvatar,
 } from '../../store/store';
 import UserInfoModal from '../modals/UserInfoModal';
-import TokenStatusBadge from '../debug/TokenStatusBadge';
 import { signInFromCurrentPage } from '../../utils/authRedirect';
 import { getBreadcrumbs } from '../../utils/breadcrumbs';
+import { visibleModules } from '../../config/modules';
+import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { UserAvatar } from '../common';
 import { useAvatarUrl } from '../../hooks/useAvatarUrl';
 
+const SITE_NAME = `Velutina${import.meta.env.DEV ? ' DEV' : ''}`;
+
+/**
+ * Top bar, always on one line so that the menu button never moves: on a phone
+ * the breadcrumb shrinks to a back link and the current level; the menu lists
+ * the modules, the profile and the sign-out.
+ */
 export default function NavbarComponent() {
   const auth = useAuth();
   const location = useLocation();
   const crumbs = getBreadcrumbs(location.pathname);
+  const { roles } = useUserPermissions();
+  const modules = visibleModules(roles).filter((module) => module.path);
   const [showUserModal, setShowUserModal] = useState(false);
   const avatarUrl = useAvatarUrl();
   const dispatch = useAppDispatch();
@@ -54,9 +64,13 @@ export default function NavbarComponent() {
   const isApiariesLoading = useAppSelector(selectApiariesLoading);
   const isNestsLoading = useAppSelector(selectNestsLoading);
   const isHornetsLoading = useAppSelector(selectHornetsLoading);
-  
+
   // Afficher le spinner si au moins une des données est en cours de chargement
   const isDataLoading = isGeolocationLoading || isApiariesLoading || isNestsLoading || isHornetsLoading;
+
+  const current = crumbs[crumbs.length - 1];
+  const parentPath = crumbs.length > 1 ? crumbs[crumbs.length - 2].path : '/';
+  const close = () => setExpanded(false);
 
   return (
     <Navbar
@@ -64,25 +78,35 @@ export default function NavbarComponent() {
       variant="light"
       expand="lg"
       fixed="top"
-      className="shadow-sm navbar-transparent"
+      className={`shadow-sm navbar-transparent ${expanded ? 'navbar-opaque' : ''}`}
       expanded={expanded}
       onToggle={setExpanded}
-      onBlur={() => (document.activeElement && !document.activeElement.closest('.navbar')) && document.querySelector('.navbar')?.classList.remove('show')}
-      onMouseEnter={(e) => e.currentTarget.classList.add('navbar-opaque')}
-      onMouseLeave={(e) => e.currentTarget.classList.remove('navbar-opaque')}
-      onFocus={(e) => e.currentTarget.classList.add('navbar-opaque')}
     >
       <Container>
-        <Navbar.Brand as="div" className="d-flex align-items-center">
-          {/* Breadcrumb trail: site name (home) followed by the current module path */}
-          <Breadcrumb className="navbar-breadcrumb" listProps={{ className: 'mb-0' }}>
+        <div className="navbar-title">
+          {/* Phone: back to the parent level, and the current level only */}
+          <div className="d-flex d-sm-none align-items-center min-w-0">
+            {current ? (
+              <>
+                <Link to={parentPath} className="navbar-back" aria-label="Retour" title="Retour">
+                  <i className="bi bi-chevron-left" aria-hidden="true" />
+                </Link>
+                <span className="fw-semibold text-truncate">{current.label}</span>
+              </>
+            ) : (
+              <span className="fw-bold text-truncate">{SITE_NAME}</span>
+            )}
+          </div>
+
+          {/* Wider screens: the whole trail, from the site name */}
+          <Breadcrumb className="navbar-breadcrumb d-none d-sm-block min-w-0" listProps={{ className: 'mb-0' }}>
             <Breadcrumb.Item
               linkAs={Link}
               linkProps={{ to: '/' }}
               active={crumbs.length === 0}
               className="fw-bold"
             >
-              Velutina{import.meta.env.DEV && ' DEV'}
+              {SITE_NAME}
             </Breadcrumb.Item>
             {crumbs.map((crumb, index) => (
               <Breadcrumb.Item
@@ -95,69 +119,80 @@ export default function NavbarComponent() {
               </Breadcrumb.Item>
             ))}
           </Breadcrumb>
+
           {isDataLoading && (
-            <Spinner 
-              animation="border" 
-              size="sm" 
-              className="ms-2" 
+            <Spinner
+              animation="border"
+              size="sm"
+              className="ms-2 flex-shrink-0"
               role="status"
               aria-label="Chargement des données..."
             />
           )}
-        </Navbar.Brand>
-        
-        <Navbar.Toggle aria-controls="basic-navbar-nav" />
+        </div>
+
+        <Navbar.Toggle aria-controls="basic-navbar-nav" aria-label="Menu" className="flex-shrink-0" />
         <Navbar.Collapse id="basic-navbar-nav">
           <Nav className="me-auto">
-            <span className="navbar-text text-muted fst-italic">
-              Luttons ensemble contre le frelon asiatique !
-            </span>
+            {modules.map((module) => (
+              <Nav.Link key={module.id} as={NavLink} to={module.path!} onClick={close} className="navbar-module-link">
+                <i className={`bi ${module.icon} me-2 d-lg-none`} aria-hidden="true" />
+                {module.shortTitle}
+              </Nav.Link>
+            ))}
           </Nav>
-          
-          <Nav className="align-items-lg-center">
+
+          <Nav className="align-items-lg-center navbar-account">
             {!auth.isAuthenticated && (
-              <Button 
-                variant="primary" 
-                size="sm"
-                onClick={() => void signInFromCurrentPage(auth)}
+              <Button
+                variant="primary"
+                onClick={() => {
+                  close();
+                  void signInFromCurrentPage(auth);
+                }}
               >
+                <i className="bi bi-box-arrow-in-right me-2" aria-hidden="true" />
                 Connexion
               </Button>
             )}
             {auth.isAuthenticated && (
-              <div className="d-flex align-items-center">
+              <div className="d-flex align-items-center gap-2">
                 <Button
-                  variant="outline-primary"
-                  size="sm"
-                  onClick={() => setShowUserModal(true)}
-                  className="me-3 d-inline-flex align-items-center gap-2"
+                  variant="link"
+                  onClick={() => {
+                    close();
+                    setShowUserModal(true);
+                  }}
+                  className="navbar-profile text-body text-decoration-none"
+                  aria-label="Mon profil"
+                  title="Mon profil"
                 >
-                  <UserAvatar url={avatarUrl} size={22} />
-                  Bienvenue, {auth.user?.profile.name}
+                  <UserAvatar url={avatarUrl} size={28} />
+                  <span className="text-truncate d-lg-none d-xl-inline">{auth.user?.profile.name}</span>
                 </Button>
-                {/* Badge de diagnostic des tokens - uniquement en développement */}
-                {import.meta.env.DEV && <TokenStatusBadge />}
-                <Button 
-                  variant="outline-secondary" 
-                  size="sm"
+                <Button
+                  variant="outline-secondary"
                   onClick={() => void auth.signoutRedirect(
                     { post_logout_redirect_uri: window.location.origin }
                   )}
-                  className="ms-2"
+                  className="icon-button ms-auto"
+                  aria-label="Déconnexion"
+                  title="Déconnexion"
                 >
-                  Déconnexion
+                  <i className="bi bi-box-arrow-right" aria-hidden="true" />
+                  <span className="ms-2 d-lg-none">Déconnexion</span>
                 </Button>
               </div>
             )}
           </Nav>
         </Navbar.Collapse>
       </Container>
-      
-      <UserInfoModal 
-        show={showUserModal} 
-        onHide={() => setShowUserModal(false)} 
+
+      <UserInfoModal
+        show={showUserModal}
+        onHide={() => setShowUserModal(false)}
       />
-      
+
     </Navbar>
   );
 }
