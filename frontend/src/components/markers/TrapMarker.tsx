@@ -3,13 +3,14 @@ import { DivIcon } from 'leaflet';
 import * as L from 'leaflet';
 import { useMemo, useRef } from 'react';
 import { Trap } from '../../store/slices/trapsSlice';
+import '../../styles/trapFocus.css';
 
 /**
  * Marker of a trap. The colour carries the status (green in service, grey
  * stored), a thicker ring marks the traps of the current user, and the badge
  * shows the number of Asian hornets caught when there is at least one.
  */
-const createTrapIcon = (trap: Trap, isMine: boolean, isMoving: boolean) => {
+const createTrapIcon = (trap: Trap, isMine: boolean, isMoving: boolean, highlighted: boolean) => {
   const color = trap.active ? '#198754' : '#6c757d';
   const ring = isMine ? '#ffc107' : 'white';
   const ringWidth = isMine ? 3 : 2;
@@ -33,7 +34,7 @@ const createTrapIcon = (trap: Trap, isMine: boolean, isMoving: boolean) => {
     iconSize: [34, 34],
     iconAnchor: [16, 16],
     popupAnchor: [0, -16],
-    className: 'trap-icon'
+    className: highlighted ? 'trap-icon trap-marker-focus' : 'trap-icon'
   });
 };
 
@@ -46,10 +47,13 @@ interface TrapMarkerProps {
   pendingPosition?: { lat: number; lng: number } | null;
   onClick?: (trap: Trap) => void;
   onMoved?: (trap: Trap, latitude: number, longitude: number) => void;
+  /** Trap reached from "Locate" in the trap manager: pulses to be spotted */
+  highlighted?: boolean;
 }
 
 export default function TrapMarker({
   trap, isMine = false, isMoving = false, pendingPosition = null, onClick, onMoved,
+  highlighted = false,
 }: TrapMarkerProps) {
   const markerRef = useRef<L.Marker | null>(null);
 
@@ -63,8 +67,8 @@ export default function TrapMarker({
   // Same reason: a new icon object on every render means a new DOM element,
   // which would interrupt a drag in progress.
   const icon = useMemo(
-    () => createTrapIcon(trap, isMine, isMoving),
-    [trap, isMine, isMoving],
+    () => createTrapIcon(trap, isMine, isMoving, highlighted),
+    [trap, isMine, isMoving, highlighted],
   );
 
   return (
@@ -73,7 +77,8 @@ export default function TrapMarker({
       position={position}
       icon={icon}
       draggable={isMoving}
-      zIndexOffset={150} // Sous les nids, au-dessus des ruchers
+      // Under the nests, above the apiaries; a highlighted trap above everything
+      zIndexOffset={highlighted ? 1000 : 150}
       eventHandlers={{
         click: () => {
           // Pendant un déplacement, le clic ne doit pas rouvrir la fiche

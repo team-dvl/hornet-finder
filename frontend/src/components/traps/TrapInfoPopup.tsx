@@ -22,6 +22,10 @@ interface TrapInfoPopupProps {
   onHide: () => void;
   trap: Trap | null;
   onAddAtLocation?: (lat: number, lng: number) => void;
+  /** Shows the trap on the map; offered when the sheet is opened from the trap list */
+  onLocate?: (trap: Trap) => void;
+  /** Moves the trap elsewhere than on this screen (the map module, from the trap list) */
+  onMove?: (trap: Trap) => void;
 }
 
 /** Journal entries shown before "Voir plus" */
@@ -204,7 +208,9 @@ type SubDialog =
   | { kind: 'photo'; url: string };
 
 /** Detail of a trap: identity, journal and the actions the user is allowed to take. */
-export default function TrapInfoPopup({ show, onHide, trap, onAddAtLocation }: TrapInfoPopupProps) {
+export default function TrapInfoPopup({
+  show, onHide, trap, onAddAtLocation, onLocate, onMove,
+}: TrapInfoPopupProps) {
   const dispatch = useAppDispatch();
   const auth = useAuth();
   const detailed = useAppSelector(selectSelectedTrap);
@@ -268,8 +274,10 @@ export default function TrapInfoPopup({ show, onHide, trap, onAddAtLocation }: T
     || (Boolean(event.performed_by) && event.performed_by?.guid === userGuid);
 
   const handleMove = () => {
-    dispatch(startMovingTrap(current.id));
     onHide();
+    // Dragging the marker needs the map: on it, or in the map module
+    if (onMove) onMove(current);
+    else dispatch(startMovingTrap(current.id));
   };
 
   const preview = (url: string) => setSub({ kind: 'photo', url });
@@ -323,7 +331,7 @@ export default function TrapInfoPopup({ show, onHide, trap, onAddAtLocation }: T
 
         {auth.isAuthenticated && (
           <>
-            {(mayAct || mayEdit || canAddHere) && (
+            {(mayAct || mayEdit || canAddHere || onLocate) && (
               <div className="sheet-actions mb-3">
                 {mayAct && (
                   <>
@@ -342,6 +350,14 @@ export default function TrapInfoPopup({ show, onHide, trap, onAddAtLocation }: T
                       onClick={() => setSub({ kind: 'event', eventKind: 'inspection' })}
                     />
                   </>
+                )}
+                {onLocate && (
+                  <IconButton
+                    variant="outline-secondary"
+                    icon="geo-alt"
+                    label="Voir sur la carte"
+                    onClick={() => onLocate(current)}
+                  />
                 )}
                 {mayEdit && (
                   <>

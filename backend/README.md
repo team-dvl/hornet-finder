@@ -37,6 +37,7 @@ A RESTful API built with Django and Django REST Framework for managing hornet de
 - `GET|POST /api/traps/` - Traps around a position (`lat`, `lon`, `radius`, `active`, `mine`), or create one. The listing is open to anonymous visitors, who get the public shape (no owner, no group, no journal) and only public traps
 - `GET|PATCH|DELETE /api/traps/{id}/` - Detail with its journal, update (owner or platform admin), delete
 - `GET /api/traps/my/` - Traps of the caller
+- `GET /api/traps/managed/` - Trap manager, paginated (`page`, `page_size` up to 200, default 50). `scope`: `mine` (default), `delegated` (traps delegated to one of the caller's groups, parents of their subgroups included, their own excluded) or `all` (platform admins only). Filters: `active` (`true` by default, `false`, `all`), `group` (path), `trap_type` (slug), `has_tag`, `q` (number, address, comments, QR code). `ordering`: `last_event_at` (default, never visited traps first), `hornet_catch_count`, `installed_at`, `address`, `id`, `distance` (needs `lat`/`lon`, no radius limit since the scope already bounds the result), `-` prefix for descending order
 - `POST|DELETE /api/traps/{id}/photo/` - Replace or remove the trap photo (multipart)
 - `GET|POST /api/traps/{id}/events/` - Journal of the trap, or record an intervention (multipart, `photos` repeated). Reserved to the owner and the delegated group: platform admins do not record field work
 - `GET|PUT|DELETE /api/traps/{id}/delegation/` - Current delegation and the groups the caller may pick, set a group, or withdraw the delegation
