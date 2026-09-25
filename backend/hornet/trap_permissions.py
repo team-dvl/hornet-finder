@@ -61,6 +61,27 @@ def administered_groups(paths) -> set:
     return groups
 
 
+def ancestor_paths(path: str):
+    """All parent group paths of `path`, e.g. `/a/b/c` -> `/a/b`, `/a`."""
+    segments = path.strip('/').split('/')
+    for i in range(len(segments) - 1, 0, -1):
+        yield '/' + '/'.join(segments[:i])
+
+
+def member_group_paths(request) -> set:
+    """
+    Every group path the requester counts as a member of: the groups of their
+    token plus all their ancestors, since a member of `/a/b` (or of its `admin`
+    subgroup) is a member of `/a` as well. A trap delegated to one of these is
+    one the requester may act on (see `can_act_on_trap`).
+    """
+    paths = set()
+    for path in membership_paths(request):
+        paths.add(path)
+        paths.update(ancestor_paths(path))
+    return paths
+
+
 def owner_group_paths(owner) -> list:
     """Group paths of a trap owner, from the local mirror of the Keycloak groups."""
     if owner is None:

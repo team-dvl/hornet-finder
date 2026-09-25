@@ -3,14 +3,17 @@
 import logging
 import uuid
 
+from django.contrib.gis.db.models.functions import Distance
+from django.contrib.gis.geos import Point
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import models as db_models, transaction
-from django.db.models import Prefetch, ProtectedError
+from django.db.models import Exists, F, Max, OuterRef, Prefetch, ProtectedError
 from django.utils import timezone
 
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError as DRFValidationError
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
@@ -28,6 +31,22 @@ from .serializers import (
 from .views import GeographicFilterMixin, geographic_list_schema
 
 logger = logging.getLogger(__name__)
+
+# Sort keys of the trap manager, mapped to the queryset field they order by
+MANAGED_ORDERINGS = {
+    'last_event_at': 'last_event',
+    'hornet_catch_count': 'hornet_catch_count',
+    'installed_at': 'installed_at',
+    'address': 'address',
+    'id': 'id',
+    'distance': 'distance',
+}
+
+
+class ManagedTrapPagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = 'page_size'
+    max_page_size = 200
 
 
 def _group_label(path: str) -> str:
@@ -189,14 +208,10 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
             return self.queryset.filter(visibility=Trap.VISIBILITY_PUBLIC)
         if perms.is_platform_admin(user):
             return self.queryset
-        membership = perms.membership_paths(request)
         readable = db_models.Q(visibility=Trap.VISIBILITY_PUBLIC)
         readable |= db_models.Q(owner__guid=getattr(user, 'guid', None))
-        for path in membership:
-            # A membership of `/beekeepers/ena/admin` also grants the parent
-            readable |= db_models.Q(group__path=path)
-            for parent in _ancestors(path):
-                readable |= db_models.Q(group__path=parent)
+        # A membership of `/beekeepers/ena/admin` also grants the parent
+        readable |= db_models.Q(group__path__in=perms.member_group_paths(request))
         return self.queryset.filter(readable).distinct()
 
     @geographic_list_schema()
@@ -236,6 +251,112 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
     def my(self, request):
         queryset = self.queryset.filter(owner__guid=getattr(request.user, 'guid', None))
         return Response(TrapSerializer(queryset, many=True).data)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(name='scope', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY,
+                             required=False,
+                             description="'mine' (default), 'delegated' or 'all' (platform admins)"),
+            OpenApiParameter(name='active', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY,
+                             required=False, description="'true' (default), 'false' or 'all'"),
+            OpenApiParameter(name='group', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY,
+                             required=False, description="Path of the delegated group"),
+            OpenApiParameter(name='trap_type', type=OpenApiTypes.STR,
+                             location=OpenApiParameter.QUERY, required=False,
+                             description="Slug of the trap type"),
+            OpenApiParameter(name='has_tag', type=OpenApiTypes.STR,
+                             location=OpenApiParameter.QUERY, required=False,
+                             description="'true' or 'false'"),
+            OpenApiParameter(name='q', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY,
+                             required=False,
+                             description="Number, address, comments or tag code"),
+            OpenApiParameter(name='ordering', type=OpenApiTypes.STR,
+                             location=OpenApiParameter.QUERY, required=False,
+                             description=("One of " + ', '.join(sorted(MANAGED_ORDERINGS))
+                                          + ", prefixed with '-' for descending order. "
+                                          "'distance' needs lat and lon")),
+            OpenApiParameter(name='lat', type=OpenApiTypes.FLOAT, location=OpenApiParameter.QUERY,
+                             required=False),
+            OpenApiParameter(name='lon', type=OpenApiTypes.FLOAT, location=OpenApiParameter.QUERY,
+                             required=False),
+            OpenApiParameter(name='page', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY,
+                             required=False),
+            OpenApiParameter(name='page_size', type=OpenApiTypes.INT,
+                             location=OpenApiParameter.QUERY, required=False),
+        ],
+        responses={200: TrapSerializer(many=True)},
+    )
+    @action(detail=False, methods=['get'])
+    def managed(self, request):
+        """
+        The trap manager: traps the caller owns (`mine`), traps delegated to one
+        of their groups (`delegated`), or every trap (`all`, platform admins).
+
+        Unlike the map listing there is no radius: the scope already limits the
+        result to traps the caller manages. Filtered, sorted and paginated here,
+        since a group or the whole platform can hold thousands of traps.
+        """
+        params = request.query_params
+        guid = getattr(request.user, 'guid', None)
+        scope = params.get('scope', 'mine')
+        queryset = self.queryset
+        if scope == 'mine':
+            queryset = queryset.filter(owner__guid=guid)
+        elif scope == 'delegated':
+            queryset = queryset.filter(
+                group__path__in=perms.member_group_paths(request),
+            ).exclude(owner__guid=guid)
+        elif scope == 'all':
+            if not perms.is_platform_admin(request.user):
+                raise PermissionDenied("Only a platform administrator can list every trap.")
+        else:
+            raise DRFValidationError({'scope': "Expected 'mine', 'delegated' or 'all'."})
+
+        active = params.get('active', 'true')
+        if active in ('true', 'false'):
+            queryset = queryset.filter(active=(active == 'true'))
+        if params.get('group'):
+            queryset = queryset.filter(group__path=params['group'])
+        if params.get('trap_type'):
+            queryset = queryset.filter(trap_type__slug=params['trap_type'])
+        if params.get('has_tag') in ('true', 'false'):
+            live_tag = Exists(Tag.objects.filter(trap=OuterRef('pk'), revoked_at__isnull=True))
+            queryset = queryset.filter(live_tag if params['has_tag'] == 'true' else ~live_tag)
+        search = params.get('q', '').strip().lstrip('#')
+        if search:
+            match = (db_models.Q(address__icontains=search)
+                     | db_models.Q(comments__icontains=search)
+                     | Exists(Tag.objects.filter(trap=OuterRef('pk'), revoked_at__isnull=True,
+                                                 value__icontains=search)))
+            if search.isdigit():
+                match |= db_models.Q(pk=int(search))
+            queryset = queryset.filter(match)
+
+        # One aggregate instead of a query per trap in the serializer
+        queryset = queryset.annotate(last_event=Max('events__performed_at'))
+
+        ordering = params.get('ordering', 'last_event_at')
+        field = ordering.lstrip('-')
+        descending = ordering.startswith('-')
+        if field not in MANAGED_ORDERINGS:
+            raise DRFValidationError({'ordering': f"Unknown ordering '{ordering}'."})
+        if field == 'distance':
+            try:
+                center = Point(float(params['lon']), float(params['lat']), srid=4326)
+            except (KeyError, ValueError):
+                raise DRFValidationError({'ordering': "Sorting by distance needs lat and lon."})
+            queryset = queryset.annotate(distance=Distance('point', center))
+        expression = F(MANAGED_ORDERINGS[field])
+        # Never visited traps are the most overdue: first in ascending order
+        expression = (expression.desc(nulls_last=True) if descending
+                      else expression.asc(nulls_first=True))
+        queryset = queryset.order_by(expression, '-id')
+
+        paginator = ManagedTrapPagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        # Owners repeat across a page: resolve each display name once
+        serializer = TrapSerializer(page, many=True, context={'user_summaries': {}})
+        return paginator.get_paginated_response(serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
         trap = self.get_object()
@@ -500,13 +621,6 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         trap.save(update_fields=['owner', 'updated_at'])
         logger.info("Trap %s reassigned from %s to %s", trap.id, previous, new_owner.guid)
         return Response(TrapSerializer(trap).data)
-
-
-def _ancestors(path: str):
-    """All parent group paths of `path`, e.g. `/a/b/c` -> `/a/b`, `/a`."""
-    segments = path.strip('/').split('/')
-    for i in range(len(segments) - 1, 0, -1):
-        yield '/' + '/'.join(segments[:i])
 
 
 class TrapEventViewSet(viewsets.GenericViewSet):

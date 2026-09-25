@@ -370,12 +370,22 @@ class TrapSerializer(GPSValidationMixin, serializers.ModelSerializer):
         return active[0].short if active else None
 
     def get_last_event_at(self, instance) -> Optional[str]:
+        # The trap manager annotates it; query otherwise
+        if hasattr(instance, 'last_event'):
+            return instance.last_event.isoformat() if instance.last_event else None
         last = instance.events.first()  # ordered by -performed_at
         return last.performed_at.isoformat() if last else None
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        data['owner'] = user_summary(instance.owner)
+        # A listing may pass a cache so an owner's name is looked up once per page
+        summaries = self.context.get('user_summaries')
+        if summaries is not None and instance.owner_id:
+            if instance.owner_id not in summaries:
+                summaries[instance.owner_id] = user_summary(instance.owner)
+            data['owner'] = summaries[instance.owner_id]
+        else:
+            data['owner'] = user_summary(instance.owner)
         data['group'] = (
             {'path': instance.group.path, 'name': instance.group.name}
             if instance.group else None
