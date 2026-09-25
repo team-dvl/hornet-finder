@@ -34,7 +34,7 @@ export default function TrapListItem({
   const thumbnail = trap.photo_thumbnail_url ?? trap.trap_type.photo_thumbnail_url ?? null;
 
   return (
-    <div className="list-group-item trap-list-item d-flex gap-2 align-items-start py-2 px-2">
+    <div className="list-group-item trap-list-item d-flex flex-wrap flex-sm-nowrap column-gap-2 align-items-start py-2 px-2">
       <button
         type="button"
         className="trap-list-open btn p-0 border-0 text-start d-flex gap-2 flex-grow-1 min-w-0"
@@ -79,10 +79,10 @@ export default function TrapListItem({
         </span>
       </button>
 
-      <div className="trap-list-actions d-flex flex-column flex-sm-row flex-shrink-0">
+      <div className="trap-list-actions d-flex flex-shrink-0">
         <IconButton
           variant="link"
-          icon="geo-alt-fill"
+          icon={ACTION_ICONS.showOnMap}
           label="Voir sur la carte"
           showLabel="never"
           onClick={() => onLocate(trap)}
@@ -99,7 +99,7 @@ export default function TrapListItem({
         <IconButton
           variant="link"
           className="text-body"
-          icon="three-dots-vertical"
+          icon={ACTION_ICONS.more}
           label="Plus d'actions"
           showLabel="never"
           onClick={() => onMore(trap)}

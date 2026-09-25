@@ -21,8 +21,8 @@ export default function TrapActionsSheet({
   trap, onHide, canEdit, onOpen, onLocate, onMove, onEdit, onDelete,
 }: TrapActionsSheetProps) {
   const actions = trap ? [
-    { key: 'open', icon: 'card-text', label: 'Fiche et journal', onClick: () => onOpen(trap) },
-    { key: 'locate', icon: 'geo-alt-fill', label: 'Voir sur la carte', onClick: () => onLocate(trap) },
+    { key: 'open', icon: ACTION_ICONS.sheet, label: 'Fiche et journal', onClick: () => onOpen(trap) },
+    { key: 'locate', icon: ACTION_ICONS.showOnMap, label: 'Voir sur la carte', onClick: () => onLocate(trap) },
     ...(canEdit ? [
       { key: 'move', icon: ACTION_ICONS.move, label: 'Déplacer', onClick: () => onMove(trap) },
       { key: 'edit', icon: ACTION_ICONS.edit, label: 'Modifier', onClick: () => onEdit(trap) },

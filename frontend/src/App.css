@@ -809,6 +809,19 @@ button.module-card {
   font-size: 1.15rem;
 }
 
+/* On a phone the actions sit in a row under the text, on the right: a trap
+   then costs its text plus one button height, not three buttons stacked */
+@media (max-width: 575.98px) {
+  .trap-list-open {
+    flex-basis: 100%;
+  }
+
+  .trap-list-actions {
+    margin-left: auto;
+    margin-top: -0.25rem;
+  }
+}
+
 .trap-scope .btn {
   min-width: 0;
   white-space: nowrap;

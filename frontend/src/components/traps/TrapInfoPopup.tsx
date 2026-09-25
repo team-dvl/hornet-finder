@@ -354,7 +354,7 @@ export default function TrapInfoPopup({
                 {onLocate && (
                   <IconButton
                     variant="outline-secondary"
-                    icon="geo-alt"
+                    icon={ACTION_ICONS.showOnMap}
                     label="Voir sur la carte"
                     onClick={() => onLocate(current)}
                   />
