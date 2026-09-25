@@ -1,5 +1,5 @@
 import { Container, Row, Col } from 'react-bootstrap';
-import { PageLayout } from '../../components/layout';
+import { PageHeader, PageLayout } from '../../components/layout';
 import { ModuleCard } from '../../components/home';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 
@@ -69,14 +69,14 @@ export default function AdminIndex() {
   return (
     <PageLayout>
       <Container className="py-4">
-        <h2 className="mb-1">Administration</h2>
-        <p className="text-muted">
-          {isAdmin ? 'Référentiels et paramètres de la plateforme.' : 'Outils mis à votre disposition.'}
-        </p>
+        <PageHeader
+          title="Administration"
+          help={isAdmin ? 'Référentiels et paramètres de la plateforme.' : 'Outils mis à votre disposition.'}
+        />
 
-        <Row className="g-3 mt-2">
+        <Row className="g-2 g-sm-3">
           {sections.map((section) => (
-            <Col key={`${section.title}-${section.roles.join()}`} sm={6} lg={4}>
+            <Col key={`${section.title}-${section.roles.join()}`} xs={6} lg={4}>
               <ModuleCard
                 title={section.title}
                 description={section.description}

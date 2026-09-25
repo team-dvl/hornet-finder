@@ -1,6 +1,6 @@
 import { Container, Tab, Tabs } from 'react-bootstrap';
 import { useSearchParams } from 'react-router-dom';
-import { PageLayout } from '../../components/layout';
+import { PageHeader, PageLayout } from '../../components/layout';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import TagsManagement from './TagsManagement';
 import TagsPrinting from './TagsPrinting';
@@ -19,7 +19,7 @@ export default function TagsAdmin() {
   return (
     <PageLayout>
       <Container className="py-4">
-        <h2 className="mb-3 d-print-none">QR Codes</h2>
+        <PageHeader title="QR Codes" className="d-print-none" />
         {isAdmin ? (
           <Tabs
             activeKey={tab}

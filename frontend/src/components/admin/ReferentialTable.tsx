@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { Button, Table } from 'react-bootstrap';
+import { Table } from 'react-bootstrap';
+import { IconButton } from '../ui';
 
 export interface ReferentialColumn<T> {
   key: string;
@@ -38,7 +39,7 @@ export default function ReferentialTable<T>({
               {column.header}
             </th>
           ))}
-          {(onEdit || onDelete) && <th className="text-end">Actions</th>}
+          {(onEdit || onDelete) && <th className="text-end"><span className="visually-hidden">Actions</span></th>}
         </tr>
       </thead>
       <tbody>
@@ -50,17 +51,16 @@ export default function ReferentialTable<T>({
               </td>
             ))}
             {(onEdit || onDelete) && (
-              <td className="text-end text-nowrap">
-                {onEdit && (
-                  <Button variant="outline-secondary" size="sm" className="me-2" onClick={() => onEdit(row)}>
-                    <i className="bi bi-pencil" aria-hidden="true" /> Modifier
-                  </Button>
-                )}
-                {onDelete && (
-                  <Button variant="outline-danger" size="sm" onClick={() => onDelete(row)}>
-                    <i className="bi bi-trash" aria-hidden="true" /> Supprimer
-                  </Button>
-                )}
+              <td className="text-end">
+                {/* Icons only, stacked on a phone, so the row fits without scrolling sideways */}
+                <div className="d-inline-flex flex-column flex-sm-row gap-1">
+                  {onEdit && (
+                    <IconButton variant="outline-secondary" icon="pencil" label="Modifier" onClick={() => onEdit(row)} />
+                  )}
+                  {onDelete && (
+                    <IconButton variant="outline-danger" icon="trash" label="Supprimer" onClick={() => onDelete(row)} />
+                  )}
+                </div>
               </td>
             )}
           </tr>

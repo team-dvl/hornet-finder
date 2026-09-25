@@ -19,19 +19,17 @@ export default function Home() {
   return (
     <PageLayout>
       <Container className="py-4">
-        <Row className="text-center mb-4">
-          <Col>
-            <img src={APP_ICON} alt="" width={96} height={96} className="mb-3" />
-            <h1 className="mb-2">Bienvenue sur Velutina</h1>
-            <h5 className="text-primary fw-normal">
-              Plateforme collaborative de surveillance du frelon asiatique
-            </h5>
-          </Col>
-        </Row>
+        <div className="d-flex align-items-center justify-content-center gap-3 mb-3 mb-sm-4">
+          <img src={APP_ICON} alt="" width={56} height={56} className="flex-shrink-0" />
+          <div>
+            <h1 className="h3 mb-0">Velutina</h1>
+            <div className="text-primary small">Surveillance collaborative du frelon asiatique</div>
+          </div>
+        </div>
 
-        <Row className="g-3 mb-5 justify-content-center">
+        <Row className="g-2 g-sm-3 mb-5 justify-content-center">
           {modules.map((module) => (
-            <Col key={module.id} sm={6} lg={3}>
+            <Col key={module.id} xs={6} lg={3}>
               {module.id === 'account' ? (
                 auth.isAuthenticated ? (
                   <ModuleCard

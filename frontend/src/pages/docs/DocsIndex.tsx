@@ -1,5 +1,5 @@
 import { Container, Row, Col } from 'react-bootstrap';
-import { PageLayout } from '../../components/layout';
+import { PageHeader, PageLayout } from '../../components/layout';
 import { ModuleCard } from '../../components/home';
 import { documentedModules } from '../../config/modules';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
@@ -12,10 +12,10 @@ export default function DocsIndex() {
   return (
     <PageLayout>
       <Container className="py-4">
-        <h2 className="mb-4 text-center">Documentation</h2>
-        <Row className="g-3 justify-content-center">
+        <PageHeader title="Documentation" />
+        <Row className="g-2 g-sm-3">
           {documentedModules(roles).map((module) => (
-            <Col key={module.id} md={4}>
+            <Col key={module.id} xs={6} md={4}>
               <ModuleCard
                 title={module.title}
                 description={module.description}

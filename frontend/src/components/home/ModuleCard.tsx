@@ -20,38 +20,39 @@ interface ModuleCardProps {
  */
 export default function ModuleCard({ title, description, icon, to, href, onClick, badge }: ModuleCardProps) {
   const className = 'h-100 shadow-sm text-decoration-none text-body module-card';
+  // The description is hidden on a phone; it stays as a tooltip
 
   const body = (
-    <Card.Body className="text-center d-flex flex-column">
+    <Card.Body className="text-center d-flex flex-column p-2 p-sm-3">
       <i className={`bi ${icon} fs-1 text-primary`} aria-hidden="true" />
-      <Card.Title as="h5" className="mt-2">
+      <Card.Title as="h5" className="mt-1 mt-sm-2 mb-0 mb-sm-2 module-card-title">
         {title}
         {badge && (
-          <Badge bg="secondary" className="ms-2 align-middle fw-normal">
+          <Badge bg="secondary" className="ms-1 align-middle fw-normal">
             {badge}
           </Badge>
         )}
       </Card.Title>
-      <Card.Text className="small text-muted mb-0">{description}</Card.Text>
+      <Card.Text className="small text-muted mb-0 d-none d-sm-block">{description}</Card.Text>
     </Card.Body>
   );
 
   if (to) {
     return (
-      <Card as={Link} to={to} className={className}>
+      <Card as={Link} to={to} className={className} title={description}>
         {body}
       </Card>
     );
   }
   if (href) {
     return (
-      <Card as="a" href={href} className={className}>
+      <Card as="a" href={href} className={className} title={description}>
         {body}
       </Card>
     );
   }
   return (
-    <Card as="button" type="button" onClick={onClick} className={className}>
+    <Card as="button" type="button" onClick={onClick} className={className} title={description}>
       {body}
     </Card>
   );

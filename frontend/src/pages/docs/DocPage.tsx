@@ -23,7 +23,7 @@ export default function DocPage() {
     <PageLayout>
       <Container className="py-4">
         <div className="col-lg-8 mx-auto">
-          <h2 className="mb-4">
+          <h2 className="h3 mb-4 d-none d-sm-block">
             <i className={`bi ${module.icon} text-primary me-2`} aria-hidden="true" />
             {module.title}
           </h2>

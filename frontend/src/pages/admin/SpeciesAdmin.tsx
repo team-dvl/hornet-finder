@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, Container } from 'react-bootstrap';
-import { PageLayout } from '../../components/layout';
+import { Alert, Container } from 'react-bootstrap';
+import { PageHeader, PageLayout } from '../../components/layout';
+import { IconButton } from '../../components/ui';
 import { ReferentialTable, SpeciesFormModal, type ReferentialColumn } from '../../components/admin';
 import { ConfirmationModal } from '../../components/modals';
 import { ThumbnailPreview } from '../../components/common';
@@ -95,21 +96,18 @@ export default function SpeciesAdmin() {
   return (
     <PageLayout>
       <Container className="py-4">
-        <div className="d-flex justify-content-between align-items-start mb-3">
-          <div>
-            <h2 className="mb-1">Espèces</h2>
-            <p className="text-muted mb-0">
-              Ces espèces sont proposées lors de l'enregistrement d'une capture.
-            </p>
-          </div>
-          <Button
-            variant="primary"
-            onClick={() => { setEditing(null); setShowForm(true); }}
-          >
-            <i className="bi bi-plus-lg me-1" aria-hidden="true" />
-            Ajouter une espèce
-          </Button>
-        </div>
+        <PageHeader
+          title="Espèces"
+          help="Ces espèces sont proposées lors de l'enregistrement d'une capture."
+          actions={(
+            <IconButton
+              variant="primary"
+              icon="plus-lg"
+              label="Ajouter"
+              onClick={() => { setEditing(null); setShowForm(true); }}
+            />
+          )}
+        />
 
         {error && <Alert variant="warning" onClose={() => setError(null)} dismissible>{error}</Alert>}
 
