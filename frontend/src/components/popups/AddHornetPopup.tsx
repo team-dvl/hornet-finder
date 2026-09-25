@@ -1,12 +1,17 @@
-import { Modal, Button, Form, Alert, Row, Col } from 'react-bootstrap';
-import { useState, useEffect } from 'react';
+import { Button, Form, Alert, InputGroup, Spinner } from 'react-bootstrap';
+import { useState } from 'react';
 import { createHornet } from '../../store/store';
 import { useAppDispatch } from '../../store/hooks';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { ColorSelector } from '../../components/forms';
 import CompassCapture from '../map/CompassCapture';
-import CoordinateInput from '../common/CoordinateInput';
+import { HelpTip } from '../common';
+import { AppModal } from '../ui';
+import { OBJECT_ICONS } from '../../utils/icons';
 import { useAuth } from 'react-oidc-context';
+
+/** Usual absence durations, in minutes */
+const DURATION_PRESETS = [1, 2, 5, 10, 15, 30];
 
 interface AddHornetPopupProps {
   show: boolean;
@@ -50,12 +55,6 @@ export default function AddHornetPopup({
     setValidated(false);
   };
 
-  // Mettre à jour la direction quand initialDirection change
-  useEffect(() => {
-    if (initialDirection !== null && initialDirection !== undefined) {
-      setDirection(initialDirection.toString());
-    }
-  }, [initialDirection]);
 
   const handleClose = () => {
     resetForm();
@@ -143,188 +142,118 @@ export default function AddHornetPopup({
     }
   };
 
-  const formatDurationInput = (minutes: number) => {
-    return (minutes * 60).toString();
-  };
-
   // Convertir la direction en point cardinal
   const getDirectionLabel = (degrees: number) => {
     if (isNaN(degrees)) return '';
-    const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-    const index = Math.round(degrees / 45) % 8;
-    return ` (${directions[index]})`;
+    const directions = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
+    return directions[Math.round(degrees / 45) % 8];
   };
 
   return (
     <>
-      <Modal show={show} onHide={handleClose} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>
-            <span className="me-2">🐝</span>
-            Ajouter un nouveau frelon
-          </Modal.Title>
-        </Modal.Header>
-      
-      <Form noValidate validated={validated} onSubmit={handleSubmit}>
-        <Modal.Body>
-          {error && (
-            <Alert variant="danger" className="mb-3">
-              {error}
-            </Alert>
-          )}
-
-          <Row className="mb-3">
-            <Col>
-              <div className="d-flex flex-column gap-3">
-                <CoordinateInput
-                  label="Latitude"
-                  value={latitude}
-                  onChange={() => {}} // Ne sera pas appelé en mode lecture seule
-                  readOnly={true}
-                  precision={6}
-                />
-                <CoordinateInput
-                  label="Longitude"
-                  value={longitude}
-                  onChange={() => {}} // Ne sera pas appelé en mode lecture seule
-                  readOnly={true}
-                  precision={6}
-                />
-              </div>
-            </Col>
-          </Row>
-
-          <Row className="mb-3">
-            <Col>
-              <Form.Group>
-                <Form.Label>
-                  <strong>Direction de vol *</strong>
-                  {direction && getDirectionLabel(parseInt(direction))}
-                </Form.Label>
-                <div className="d-flex gap-2">
-                  <Form.Control
-                    type="number"
-                    value={direction}
-                    onChange={(e) => setDirection(e.target.value)}
-                    placeholder="Direction en degrés (0-359)"
-                    min="0"
-                    max="359"
-                    required
-                    disabled={isSubmitting}
-                    style={{ flex: 1 }}
-                  />
-                  {isCompassSupported() && (
-                    <Button
-                      variant="outline-primary"
-                      onClick={handleOpenCompass}
-                      disabled={isSubmitting}
-                      title="Capturer la direction avec la boussole"
-                    >
-                      🎯
-                    </Button>
-                  )}
-                </div>
-                <Form.Control.Feedback type="invalid">
-                  Veuillez entrer une direction valide entre 0 et 359 degrés.
-                </Form.Control.Feedback>
-                <Form.Text className="text-muted">
-                  0° = Nord, 90° = Est, 180° = Sud, 270° = Ouest
-                  {isCompassSupported() && (
-                    <><br/>💡 Utilisez le bouton cible pour une capture automatique</>
-                  )}
-                </Form.Text>
-              </Form.Group>
-            </Col>
-          </Row>
-
-          <Row className="mb-3">
-            <Col>
-              <Form.Group>
-                <Form.Label><strong>Durée d'absence (facultatif)</strong></Form.Label>
-                <Form.Control
-                  type="number"
-                  value={duration}
-                  onChange={(e) => setDuration(e.target.value)}
-                  placeholder="Durée en secondes"
-                  min="1"
-                  disabled={isSubmitting}
-                />
-                <Form.Text className="text-muted">
-                  Temps écoulé entre le départ et le retour du frelon (en secondes)
-                </Form.Text>
-                <div className="d-flex flex-wrap align-items-center gap-1 mt-2">
-                  <small className="text-muted me-2">Durées courantes:</small>
-                  {[1, 2, 5, 10, 15, 30].map(minutes => (
-                    <Button
-                      key={minutes}
-                      variant="outline-info"
-                      size="sm"
-                      type="button"
-                      onClick={() => setDuration(formatDurationInput(minutes))}
-                      disabled={isSubmitting}
-                    >
-                      {minutes}min
-                    </Button>
-                  ))}
-                </div>
-              </Form.Group>
-            </Col>
-          </Row>
-
-          <Row className="mb-3">
-            <Col md={6}>
-              <ColorSelector
-                value={markColor1}
-                onChange={setMarkColor1}
-                disabled={isSubmitting}
-                label="Couleur de marquage 1 (facultatif)"
-                size="sm"
-              />
-            </Col>
-            <Col md={6}>
-              <ColorSelector
-                value={markColor2}
-                onChange={setMarkColor2}
-                disabled={isSubmitting}
-                label="Couleur de marquage 2 (facultatif)"
-                size="sm"
-              />
-            </Col>
-          </Row>
-
-          <Alert variant="info" className="small">
-            <strong>Information :</strong> Cette observation sera enregistrée à votre nom. 
-            Les champs marqués d'un astérisque (*) sont obligatoires.
-          </Alert>
-        </Modal.Body>
-        
-        <Modal.Footer>
-          <Button 
-            variant="secondary" 
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
-            Annuler
+      <AppModal
+        show={show && !showCompass}
+        onHide={handleClose}
+        locked
+        icon={OBJECT_ICONS.hornet}
+        title="Nouveau frelon"
+        onSubmit={handleSubmit}
+        validated={validated}
+        footer={(
+          <Button type="submit" variant="primary" disabled={isSubmitting}>
+            {isSubmitting ? <Spinner animation="border" size="sm" className="me-2" /> : <i className="bi bi-check-lg me-2" aria-hidden="true" />}
+            Enregistrer
           </Button>
-          <Button 
-            type="submit" 
-            variant="primary"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Enregistrement...' : 'Enregistrer le frelon'}
-          </Button>
-        </Modal.Footer>
-      </Form>
-    </Modal>
-    
-    {/* Dialogue de capture de direction par la boussole */}
-    <CompassCapture 
-      show={showCompass} 
-      onHide={handleCompassClose} 
-      onCapture={handleCompassCapture}
-      initialLatitude={latitude}
-      initialLongitude={longitude}
-    />
+        )}
+      >
+        {error && <Alert variant="danger">{error}</Alert>}
+
+        <Form.Group className="mb-3" controlId="hornet-direction">
+          <Form.Label className="d-flex align-items-center">
+            Direction de vol
+            <HelpTip id="hornet-direction-help" title="Direction de vol">
+              Direction dans laquelle le frelon repart, en degrés : 0° = Nord, 90° = Est, 180° = Sud, 270° = Ouest.
+              La boussole la mesure en pointant le téléphone dans cette direction.
+            </HelpTip>
+          </Form.Label>
+          <div className="d-flex gap-2">
+            {isCompassSupported() && (
+              <Button variant="primary" onClick={handleOpenCompass} disabled={isSubmitting} className="flex-shrink-0">
+                <i className="bi bi-compass me-2" aria-hidden="true" />
+                Boussole
+              </Button>
+            )}
+            <InputGroup>
+              <Form.Control
+                type="number"
+                inputMode="numeric"
+                value={direction}
+                onChange={(e) => setDirection(e.target.value)}
+                placeholder="0 à 359"
+                min="0"
+                max="359"
+                required
+                disabled={isSubmitting}
+              />
+              <InputGroup.Text style={{ minWidth: '3.5rem' }} className="justify-content-center">
+                {direction ? `° ${getDirectionLabel(parseInt(direction))}` : '°'}
+              </InputGroup.Text>
+            </InputGroup>
+          </div>
+          <Form.Control.Feedback type="invalid" className={validated && !direction ? 'd-block' : ''}>
+            Indiquez une direction entre 0 et 359°.
+          </Form.Control.Feedback>
+        </Form.Group>
+
+        <Form.Group className="mb-3" controlId="hornet-duration">
+          <Form.Label className="d-flex align-items-center">
+            Durée d'absence
+            <HelpTip id="hornet-duration-help" title="Durée d'absence">
+              Temps écoulé entre le départ et le retour du frelon au même endroit. Il sert à estimer la distance du nid.
+            </HelpTip>
+          </Form.Label>
+          <div className="d-flex flex-wrap gap-2 mb-2">
+            {DURATION_PRESETS.map((minutes) => (
+              <Button
+                key={minutes}
+                variant={duration === String(minutes * 60) ? 'info' : 'outline-info'}
+                className="rounded-pill"
+                onClick={() => setDuration(String(minutes * 60))}
+                disabled={isSubmitting}
+              >
+                {minutes} min
+              </Button>
+            ))}
+          </div>
+          <InputGroup>
+            <Form.Control
+              type="number"
+              inputMode="numeric"
+              value={duration}
+              onChange={(e) => setDuration(e.target.value)}
+              placeholder="Autre durée"
+              min="1"
+              disabled={isSubmitting}
+            />
+            <InputGroup.Text>secondes</InputGroup.Text>
+          </InputGroup>
+        </Form.Group>
+
+        <Form.Label>Marquage</Form.Label>
+        <div className="d-flex flex-column gap-2">
+          <ColorSelector value={markColor1} onChange={setMarkColor1} disabled={isSubmitting} />
+          <ColorSelector value={markColor2} onChange={setMarkColor2} disabled={isSubmitting} />
+        </div>
+      </AppModal>
+
+      {/* Dialogue de capture de direction par la boussole, à la place du formulaire */}
+      <CompassCapture
+        show={showCompass}
+        onHide={handleCompassClose}
+        onCapture={handleCompassCapture}
+        initialLatitude={latitude}
+        initialLongitude={longitude}
+      />
     </>
   );
 }

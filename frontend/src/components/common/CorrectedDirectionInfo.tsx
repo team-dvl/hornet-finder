@@ -1,4 +1,5 @@
 import { OverlayTrigger, Popover } from 'react-bootstrap';
+import { helpOverlayTrigger } from '../../utils/overlayTrigger';
 
 interface CorrectedDirectionInfoProps {
   correctedDirection: number;
@@ -35,8 +36,9 @@ export default function CorrectedDirectionInfo({ correctedDirection, declination
       </span>
       &nbsp;
       <OverlayTrigger
-        trigger={["hover", "focus"]}
-        placement="top"
+        trigger={helpOverlayTrigger()}
+        rootClose
+        placement="auto"
         overlay={
           <Popover id={popoverId || 'popover-corrected-direction'}>
             <Popover.Header as="h3">Détails direction</Popover.Header>
@@ -53,11 +55,9 @@ export default function CorrectedDirectionInfo({ correctedDirection, declination
           </Popover>
         }
       >
-        <i
-          className="bi bi-info-circle"
-          style={{ textDecoration: 'underline dotted', cursor: 'pointer' }}
-          tabIndex={0}
-        />
+        <button type="button" className="btn btn-link p-0 align-baseline text-secondary lh-1" aria-label="Détails de la direction">
+          <i className="bi bi-info-circle" aria-hidden="true" />
+        </button>
       </OverlayTrigger>
     </span>
   );

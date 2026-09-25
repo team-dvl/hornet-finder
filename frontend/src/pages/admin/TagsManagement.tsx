@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Badge, Button, Col, Form, Modal, Row, Spinner, Table } from 'react-bootstrap';
+import { Alert, Badge, Button, Col, Form, Row, Spinner, Table } from 'react-bootstrap';
+import { AppModal, ConfirmDialog } from '../../components/ui';
 import { ClampedText, HelpTip } from '../../components/common';
 import { SheetPdfButton } from '../../components/tags';
 import { ReferentialTable, type ReferentialColumn } from '../../components/admin';
@@ -311,43 +312,38 @@ export default function TagsManagement() {
         </>
       )}
 
-      {qr && (
-        <Modal show onHide={() => setQr(null)} centered size="sm">
-          <Modal.Header closeButton>
-            <Modal.Title className="h6">QR Code <code>{qr.short}</code></Modal.Title>
-          </Modal.Header>
-          <Modal.Body className="text-center">
-            <img src={qr.qr_svg} alt={`QR Code ${qr.short}`} className="w-100" />
+      <AppModal
+        show={qr !== null}
+        onHide={() => setQr(null)}
+        size="sm"
+        title={<>QR Code <code>{qr?.short}</code></>}
+        footer={qr && (
+          <SheetPdfButton request={() => fetchTagSheetLink([qr.value])} requestKey={qr.value} onError={setError}>
+            Imprimer (PDF)
+          </SheetPdfButton>
+        )}
+      >
+        {qr && (
+          <div className="text-center">
+            <img src={qr.qr_svg} alt={`QR Code ${qr.short}`} className="w-100" style={{ maxWidth: 320 }} />
             {qr.caption && <div className="small mt-1">{qr.caption}</div>}
             <div className="small text-muted text-break mt-2">{qr.url}</div>
-          </Modal.Body>
-          <Modal.Footer>
-            <SheetPdfButton request={() => fetchTagSheetLink([qr.value])} requestKey={qr.value} onError={setError}>
-              Imprimer (PDF)
-            </SheetPdfButton>
-          </Modal.Footer>
-        </Modal>
-      )}
+          </div>
+        )}
+      </AppModal>
 
-      {toRevoke && (
-        <Modal show onHide={() => setToRevoke(null)} centered>
-          <Modal.Header closeButton>
-            <Modal.Title className="h5">Révoquer le QR Code <code>{toRevoke.short}</code> ?</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            {toRevoke.trap
-              ? <>Il est collé sur le piège n° {toRevoke.trap.id}. Une fois révoqué, le scanner n'ouvrira plus ce piège : il faudra en coller un nouveau.</>
-              : <>Ce QR Code libre ne pourra plus être associé à un piège.</>}
-            {' '}Cette action est définitive.
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="outline-secondary" onClick={() => setToRevoke(null)} disabled={revoking}>Annuler</Button>
-            <Button variant="danger" onClick={() => void handleRevoke()} disabled={revoking}>
-              {revoking ? 'Révocation…' : 'Révoquer'}
-            </Button>
-          </Modal.Footer>
-        </Modal>
-      )}
+      <ConfirmDialog
+        show={toRevoke !== null}
+        onHide={() => setToRevoke(null)}
+        onConfirm={() => void handleRevoke()}
+        title={`Révoquer le QR Code ${toRevoke?.short ?? ''} ?`}
+        message={toRevoke?.trap
+          ? `Collé sur le piège n° ${toRevoke.trap.id} : le scanner n'ouvrira plus ce piège. Action définitive.`
+          : 'Il ne pourra plus être associé à un piège. Action définitive.'}
+        confirmLabel="Révoquer"
+        confirmIcon="x-octagon"
+        busy={revoking}
+      />
     </>
   );
 }

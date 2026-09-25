@@ -193,6 +193,18 @@ button.module-card {
 
 /* On a touch screen, iOS zooms into any field under 16px when it gets focus */
 @media (pointer: coarse) {
+  /* Tiny spin arrows are useless to a finger: the numeric keypad does the job */
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
   .form-control,
   .form-select,
   .form-control-sm,
@@ -558,4 +570,67 @@ button.module-card {
 
 .sheet-actions .icon-button {
   min-width: 2.5rem;
+}
+
+/* Choice among a few object types: large tiles, two per row */
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.choice-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  min-height: 5.5rem;
+  padding: 0.5rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.75rem;
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  font-weight: 500;
+}
+
+.choice-tile:active,
+.choice-tile:hover {
+  background: var(--bs-tertiary-bg);
+}
+
+.choice-tile-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+/* Colour picker: round swatches in a grid, large enough for a finger */
+.color-swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  color: var(--bs-secondary);
+}
+
+.color-swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(2.75rem, 1fr));
+  gap: 0.25rem;
+}
+
+.color-swatch-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.75rem;
+  border: 2px solid transparent;
+  border-radius: 0.5rem;
+  background: none;
+}
+
+.color-swatch-button.selected {
+  border-color: var(--bs-primary);
 }

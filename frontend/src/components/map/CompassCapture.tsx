@@ -1,4 +1,6 @@
-import { Modal, Button, Alert, Tabs, Tab } from 'react-bootstrap';
+import { Button, Alert, Tabs, Tab } from 'react-bootstrap';
+import { HelpTip } from '../common';
+import { AppModal } from '../ui';
 import { useState, useEffect, useRef } from 'react';
 import CompassPermissionModal from './CompassPermissionModal';
 
@@ -298,47 +300,45 @@ export default function CompassCapture({
 
   if (showPermissionModal && needsOrientationPermission && !orientationPermissionGrantedLocal) {
     return (
-      <>
-        <CompassPermissionModal
-          show={true}
-          onRequestPermission={onRequestOrientationPermission || (() => {})}
-          onCancel={onCancelPermissionModal || (() => {})}
-        />
-        <Modal show={show} onHide={handleClose} centered size="lg" backdrop="static" keyboard={false} style={{ opacity: 0.5, pointerEvents: 'none' }}>
-          {/* Modal CompassCapture rendu mais désactivé visuellement */}
-        </Modal>
-      </>
+      <CompassPermissionModal
+        show={show}
+        onRequestPermission={onRequestOrientationPermission || (() => {})}
+        onCancel={onCancelPermissionModal || (() => {})}
+      />
     );
   }
 
   if (!isSupported) {
     return (
-      <Modal show={show} onHide={handleClose} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>🎯 Capture de direction</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Alert variant="warning">
-            Votre appareil ne supporte pas la capture automatique de direction. 
-            Veuillez saisir la direction manuellement.
-          </Alert>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleClose}>
-            Fermer
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      <AppModal show={show} onHide={handleClose} compact title="Direction de vol">
+        <Alert variant="warning" className="mb-0">
+          Cet appareil n'a pas de boussole utilisable : saisissez la direction à la main.
+        </Alert>
+      </AppModal>
     );
   }
 
+  const shownHeading = tabKey === 'manual' ? manualHeading : heading;
+  const positionReady = latitude !== null && longitude !== null;
+
   return (
-    <Modal show={show} onHide={handleClose} centered size="lg">
-      <Modal.Header closeButton>
-        <Modal.Title>🎯 Capture de direction</Modal.Title>
-      </Modal.Header>
-      
-      <Modal.Body>
+    <AppModal
+      show={show}
+      onHide={handleClose}
+      icon="🎯"
+      title="Direction de vol"
+      footer={(
+        <Button
+          variant="primary"
+          className="w-100"
+          onClick={handleCapture}
+          disabled={shownHeading === null || !positionReady}
+        >
+          <i className="bi bi-check-lg me-2" aria-hidden="true" />
+          {shownHeading !== null ? `Valider ${shownHeading}° ${getDirectionLabel(shownHeading)}` : 'Valider'}
+        </Button>
+      )}
+    >
         <Tabs
           id="direction-capture-tabs"
           activeKey={tabKey}
@@ -346,8 +346,8 @@ export default function CompassCapture({
           className="mb-3 justify-content-center"
         >
           <Tab eventKey="compass" title="Boussole">
-            <div style={{ minHeight: 340, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-              <div className="d-flex justify-content-center align-items-center" style={{ height: '240px', margin: '0', position: 'relative' }}>
+            <div className="d-flex flex-column align-items-center">
+              <div className="d-flex justify-content-center align-items-center" style={{ height: '220px', margin: '0', position: 'relative' }}>
                 <div className="bg-primary rounded-circle d-flex justify-content-center align-items-center"
                   style={{ width: '200px', height: '200px', position: 'relative' }}>
                   
@@ -440,20 +440,18 @@ export default function CompassCapture({
                   </div>
                 </div>
               </div>
-              <div className="text-center mt-2">
-                <p className="text-muted small mb-1">
-                  <strong>Flèche blanche :</strong> Direction de votre appareil<br/>
-                  <strong>Flèche jaune :</strong> Nord géographique
-                </p>
-                <p className="text-muted small mb-0">
-                  Orientez votre appareil dans la direction du vol du frelon, puis capturez.
-                </p>
+              <div className="text-center small text-muted d-flex align-items-center">
+                Pointez le téléphone vers où part le frelon
+                <HelpTip id="compass-help" title="Boussole">
+                  La flèche blanche montre la direction du téléphone, la jaune le nord géographique.
+                  Orientez le téléphone dans la direction du vol, puis validez.
+                </HelpTip>
               </div>
             </div>
           </Tab>
           <Tab eventKey="manual" title="Saisie manuelle">
-            <div style={{ minHeight: 340, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-              <div className="text-center" style={{ marginTop: 40 }}>
+            <div className="d-flex flex-column align-items-center">
+              <div className="text-center py-4">
                 <div className="mb-3">
                   <label htmlFor="manualHeadingInput" className="form-label">
                     Direction (en degrés)
@@ -483,57 +481,21 @@ export default function CompassCapture({
                     placeholder="0-359"
                   />
                 </div>
-                <div className="text-center mt-2">
-                  <p className="text-muted small mb-0">
-                    Saisissez manuellement la direction du vol du frelon.
-                  </p>
-                </div>
               </div>
             </div>
           </Tab>
         </Tabs>
-        {/* Informations de position et direction */}
-        <div className="bg-light p-3 rounded mb-3">
-          <div className="row text-center">
-            <div className="col-4">
-              <strong>Latitude</strong>
-              <div className="small">
-                {latitude !== null ? latitude.toFixed(6) : '...'}
-              </div>
-            </div>
-            <div className="col-4">
-              <strong>Longitude</strong>
-              <div className="small">
-                {longitude !== null ? longitude.toFixed(6) : '...'}
-              </div>
-            </div>
-            <div className="col-4">
-              <strong>Direction</strong>
-              <div className="small">
-                {tabKey === 'manual'
-                  ? manualHeading !== null
-                    ? `${manualHeading}° (${getDirectionLabel(manualHeading)})`
-                    : '...'
-                  : heading !== null
-                    ? `${heading}° (${getDirectionLabel(heading)})`
-                    : '...'}
-              </div>
-            </div>
+        {/* Direction read, and the position it will be recorded at */}
+        <div className="text-center">
+          <div className="fs-3 fw-semibold">
+            {shownHeading !== null ? `${shownHeading}° ${getDirectionLabel(shownHeading)}` : '…'}
+          </div>
+          <div className="small text-muted">
+            {positionReady
+              ? <><i className="bi bi-geo-alt me-1" aria-hidden="true" />{latitude!.toFixed(5)}, {longitude!.toFixed(5)}</>
+              : 'Recherche de la position…'}
           </div>
         </div>
-
-        <div className="text-center mt-3">
-          <Button 
-            variant="primary" 
-            onClick={handleCapture}
-            disabled={tabKey === 'manual'
-              ? manualHeading === null || latitude === null || longitude === null
-              : heading === null || latitude === null || longitude === null}
-          >
-            📍 Capturer la direction
-          </Button>
-        </div>
-      </Modal.Body>
-    </Modal>
+    </AppModal>
   );
 }

@@ -1,13 +1,15 @@
-import { Modal, Button, ListGroup, Badge, Form, InputGroup, Alert } from 'react-bootstrap';
+import { Button, Form, InputGroup, Alert } from 'react-bootstrap';
 import { useState, useMemo } from 'react';
 import { Hornet, updateHornetDuration, updateHornetColors, deleteHornet, archiveHornet } from '../../store/store';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useAuth } from 'react-oidc-context';
-import { AddAtLocationButton, ColorSelector } from '../common';
+import { ColorSelector, HelpTip } from '../common';
+import { AppModal, FieldRow, IconButton } from '../ui';
+import { ACTION_ICONS, OBJECT_ICONS } from '../../utils/icons';
+import { formatDateTime, formatDistance, formatDuration } from '../../utils/format';
 import { ConfirmationModal } from '../modals';
 import { HORNET_RETURN_ZONE_ANGLE_DEG, HORNET_FLIGHT_SPEED_M_PER_MIN, HORNET_RETURN_ZONE_ABSOLUTE_MAX_DISTANCE_M } from '../../utils/constants';
-import CoordinateInput from '../common/CoordinateInput';
 import CorrectedDirectionInfo from '../common/CorrectedDirectionInfo';
 
 interface HornetInfoPopupProps {
@@ -136,324 +138,159 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation,
     }
   };
 
-  const formatDurationInput = (minutes: number) => {
-    return (minutes * 60).toString();
-  };
+  // Distance estimée du nid, d'après la durée d'absence (2 km par défaut)
+  const nestDistance = currentHornet.duration && currentHornet.duration > 0
+    ? Math.min(Math.round((currentHornet.duration / 60) * HORNET_FLIGHT_SPEED_M_PER_MIN), HORNET_RETURN_ZONE_ABSOLUTE_MAX_DISTANCE_M)
+    : null;
 
-  // Formatter la date si disponible
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return 'Non disponible';
-    return new Date(dateString).toLocaleString('fr-FR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  // Calculer la distance estimée du nid basée sur la durée
-  const calculateNestDistance = (duration?: number) => {
-    if (!duration || duration <= 0) {
-      return {
-        distance: 2000, // Distance max par défaut: 2km
-        isEstimated: false,
-        displayText: "2 km (distance maximale par défaut)"
-      };
-    }
-    
-    // Calcul basé sur la vitesse du frelon
-    const distanceInMeters = Math.round((duration / 60) * HORNET_FLIGHT_SPEED_M_PER_MIN);
-    const finalDistance = Math.min(distanceInMeters, HORNET_RETURN_ZONE_ABSOLUTE_MAX_DISTANCE_M);
-    
-    if (finalDistance < 1000) {
-      return {
-        distance: finalDistance,
-        isEstimated: true,
-        displayText: `${finalDistance} m (estimé d'après la durée d'absence)`
-      };
-    } else {
-      return {
-        distance: finalDistance,
-        isEstimated: true,
-        displayText: `${(finalDistance / 1000).toFixed(1)} km (estimé d'après la durée d'absence)`
-      };
+  const updateColors = async (markColor1: string, markColor2: string) => {
+    if (!accessToken || !currentHornet.id) return;
+    try {
+      await dispatch(updateHornetColors({ hornetId: currentHornet.id, markColor1, markColor2, accessToken })).unwrap();
+    } catch {
+      // The sheet keeps showing the stored colours
     }
   };
 
-  const nestInfo = calculateNestDistance(currentHornet.duration);
-
-  // Formater la durée en minutes et secondes
-  const formatDuration = (seconds?: number) => {
-    if (!seconds) return 'Non renseignée';
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    if (minutes === 0) {
-      return `${remainingSeconds}s`;
-    }
-    return remainingSeconds === 0 ? `${minutes}min` : `${minutes}min ${remainingSeconds}s`;
-  };
+  const confirming = showDeleteModal || showArchiveModal;
+  const canDelete = auth.isAuthenticated && canDeleteHornet(currentHornet);
+  const canArchive = auth.isAuthenticated && canArchiveHornet() && !currentHornet.archived;
 
   return (
-    <Modal show={show} onHide={onHide} centered>
-      <Modal.Header closeButton>
-        <Modal.Title>
-          <span className="me-2">🐝</span>
-          Frelon #{currentHornet.id || '(Nouveau)'}
-        </Modal.Title>
-      </Modal.Header>
-      
-      <Modal.Body>
-        <ListGroup variant="flush">
-          
-          <ListGroup.Item>
-            <div className="d-flex flex-column gap-3">
-              <CoordinateInput
-                label="Latitude"
-                value={currentHornet.latitude}
-                onChange={() => {}} // Ne sera pas appelé en mode lecture seule
-                readOnly={true}
-                precision={6}
-                labelPosition="horizontal"
-              />
-              <CoordinateInput
-                label="Longitude"
-                value={currentHornet.longitude}
-                onChange={() => {}} // Ne sera pas appelé en mode lecture seule
-                readOnly={true}
-                precision={6}
-                labelPosition="horizontal"
-              />
-            </div>
-          </ListGroup.Item>
-          
-          <ListGroup.Item className="d-flex justify-content-between align-items-center">
-            <strong>Direction de vol:</strong>
-            <span>
-              {typeof currentHornet.direction === 'number' ? (() => {
-                // Utiliser la prop correctedDirection si dispo, sinon fallback à direction
-                let usedDeclination = declination ?? 0;
-                let usedCorrectedDirection = correctedDirection ?? currentHornet.direction;
-                return (
-                  <CorrectedDirectionInfo
-                    correctedDirection={usedCorrectedDirection}
-                    declination={usedDeclination}
-                    popoverId={`popover-hornetinfo-${currentHornet.id}`}
-                  />
-                );
-              })() : (
-                <span className="text-muted">Non renseignée</span>
+    <>
+      <AppModal
+        show={show && !confirming}
+        onHide={onHide}
+        icon={OBJECT_ICONS.hornet}
+        title={`Frelon #${currentHornet.id}`}
+      >
+        <FieldRow label="Direction de vol">
+          {typeof currentHornet.direction === 'number' ? (
+            <CorrectedDirectionInfo
+              correctedDirection={correctedDirection ?? currentHornet.direction}
+              declination={declination ?? 0}
+              popoverId={`popover-hornetinfo-${currentHornet.id}`}
+            />
+          ) : '—'}
+        </FieldRow>
+
+        <FieldRow label="Durée d'absence">
+          {!isEditing ? (
+            <span className="d-inline-flex align-items-center gap-1">
+              {formatDuration(currentHornet.duration) || '—'}
+              {canEdit && (
+                <Button
+                  variant="link"
+                  className="p-0 ms-1"
+                  onClick={handleEditStart}
+                  disabled={isUpdating}
+                  aria-label="Modifier la durée"
+                  title="Modifier la durée"
+                >
+                  <i className={`bi bi-${ACTION_ICONS.edit}`} aria-hidden="true" />
+                </Button>
               )}
             </span>
-          </ListGroup.Item>
-          
-          <ListGroup.Item className="d-flex justify-content-between align-items-center">
-            <strong>Durée d'absence:</strong>
-            <div className="d-flex align-items-center gap-2">
-              {!isEditing ? (
-                <>
-                  <span className={currentHornet.duration ? "text-info" : "text-muted"}>
-                    {formatDuration(currentHornet.duration)}
-                  </span>
-                  {canEdit && (
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      onClick={handleEditStart}
-                      disabled={isUpdating}
-                    >
-                      {currentHornet.duration ? 'Modifier' : 'Ajouter'}
-                    </Button>
-                  )}
-                </>
-              ) : (
-                <div className="d-flex flex-column gap-2">
-                  <div className="d-flex align-items-center gap-2">
-                    <InputGroup size="sm" style={{ width: '120px' }}>
-                      <Form.Control
-                        type="number"
-                        value={editDuration}
-                        onChange={(e) => setEditDuration(e.target.value)}
-                        placeholder="Secondes"
-                        min="1"
-                      />
-                      <InputGroup.Text>s</InputGroup.Text>
-                    </InputGroup>
-                    <Button
-                      variant="success"
-                      size="sm"
-                      onClick={handleEditSave}
-                      disabled={isUpdating}
-                    >
-                      {isUpdating ? 'Sauvegarde...' : 'Sauver'}
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={handleEditCancel}
-                      disabled={isUpdating}
-                    >
-                      Annuler
-                    </Button>
-                  </div>
-                  <div className="d-flex flex-wrap align-items-center gap-1">
-                    <small className="text-muted me-2">Durées courantes:</small>
-                    {[1, 2, 5, 10, 15, 30].map(minutes => (
-                      <Button
-                        key={minutes}
-                        variant="outline-info"
-                        size="sm"
-                        onClick={() => setEditDuration(formatDurationInput(minutes))}
-                        disabled={isUpdating}
-                      >
-                        {minutes}min
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
+          ) : null}
+        </FieldRow>
+        {isEditing && (
+          <div className="mb-2">
+            <div className="d-flex flex-wrap gap-2 mb-2">
+              {[1, 2, 5, 10, 15, 30].map((minutes) => (
+                <Button
+                  key={minutes}
+                  variant={editDuration === String(minutes * 60) ? 'info' : 'outline-info'}
+                  className="rounded-pill"
+                  onClick={() => setEditDuration(String(minutes * 60))}
+                  disabled={isUpdating}
+                >
+                  {minutes} min
+                </Button>
+              ))}
             </div>
-          </ListGroup.Item>
-          
-          {updateError && (
-            <ListGroup.Item>
-              <Alert variant="danger" className="mb-0 py-2">
-                {updateError}
-              </Alert>
-            </ListGroup.Item>
-          )}
-          
-          <ListGroup.Item className="d-flex justify-content-between align-items-center">
-            <strong>Distance estimée du nid:</strong>
-            <span className={nestInfo.isEstimated ? "text-success" : "text-muted"}>
-              {nestInfo.displayText}
-            </span>
-          </ListGroup.Item>
-          
-          <ListGroup.Item>
-            <div className="d-flex justify-content-between align-items-center mb-2">
-              <strong>Marquage couleur:</strong>
+            <div className="d-flex gap-2">
+              <InputGroup>
+                <Form.Control
+                  type="number"
+                  inputMode="numeric"
+                  value={editDuration}
+                  onChange={(e) => setEditDuration(e.target.value)}
+                  placeholder="Durée"
+                  min="1"
+                />
+                <InputGroup.Text>s</InputGroup.Text>
+              </InputGroup>
+              <IconButton variant="outline-secondary" icon="x-lg" label="Annuler" showLabel="never" onClick={handleEditCancel} disabled={isUpdating} />
+              <IconButton variant="success" icon={ACTION_ICONS.save} label="Enregistrer" showLabel="never" onClick={handleEditSave} disabled={isUpdating} />
             </div>
-            <div className="d-flex gap-2 align-items-center">
+          </div>
+        )}
+        {updateError && <Alert variant="danger" className="py-2">{updateError}</Alert>}
+
+        <FieldRow label={(
+          <span className="d-inline-flex align-items-center">
+            Distance estimée du nid
+            <HelpTip id={`hornet-${currentHornet.id}-zone-help`} title="Zone de retour probable">
+              Le triangle sur la carte montre où chercher le nid, dans la direction de vol, avec un angle de
+              {' '}{HORNET_RETURN_ZONE_ANGLE_DEG}°. Sa longueur vient de la durée d'absence
+              ({HORNET_FLIGHT_SPEED_M_PER_MIN} m par minute), 2 km au plus quand elle est inconnue.
+            </HelpTip>
+          </span>
+        )}>
+          {nestDistance !== null ? formatDistance(nestDistance) : <span className="text-muted">2 km au plus</span>}
+        </FieldRow>
+
+        {currentHornet.created_at && <FieldRow label="Observé le">{formatDateTime(currentHornet.created_at)}</FieldRow>}
+        {currentHornet.created_by?.display_name && <FieldRow label="Signalé par">{currentHornet.created_by.display_name}</FieldRow>}
+
+        <div className="mt-2">
+          <div className="text-muted small mb-1">Marquage</div>
+          {canEdit ? (
+            <div className="d-flex flex-column gap-2">
               <ColorSelector
                 value={currentHornet.mark_color_1 || ''}
-                readOnly={!canEdit}
-                size="sm"
-                onChange={canEdit ? async (color1) => {
-                  if (color1 !== currentHornet.mark_color_1 && accessToken && currentHornet.id) {
-                    try {
-                      await dispatch(updateHornetColors({
-                        hornetId: currentHornet.id,
-                        markColor1: color1,
-                        markColor2: currentHornet.mark_color_2 || '',
-                        accessToken
-                      })).unwrap();
-                    } catch (error) {}
-                  }
-                } : undefined}
+                onChange={(color) => color !== currentHornet.mark_color_1 && updateColors(color, currentHornet.mark_color_2 || '')}
               />
               <ColorSelector
                 value={currentHornet.mark_color_2 || ''}
-                readOnly={!canEdit}
-                size="sm"
-                onChange={canEdit ? async (color2) => {
-                  if (color2 !== currentHornet.mark_color_2 && accessToken && currentHornet.id) {
-                    try {
-                      await dispatch(updateHornetColors({
-                        hornetId: currentHornet.id,
-                        markColor1: currentHornet.mark_color_1 || '',
-                        markColor2: color2,
-                        accessToken
-                      })).unwrap();
-                    } catch (error) {}
-                  }
-                } : undefined}
+                onChange={(color) => color !== currentHornet.mark_color_2 && updateColors(currentHornet.mark_color_1 || '', color)}
               />
-              {!currentHornet.mark_color_1 && !currentHornet.mark_color_2 && (
-                <span className="text-muted">Aucun marquage</span>
-              )}
             </div>
-          </ListGroup.Item>
-          
-          {currentHornet.created_at && (
-            <ListGroup.Item className="d-flex justify-content-between align-items-center">
-              <strong>Observé le:</strong>
-              <span className="text-muted small">
-                {formatDate(currentHornet.created_at)}
-              </span>
-            </ListGroup.Item>
-          )}
-          
-          {currentHornet.updated_at && currentHornet.updated_at !== currentHornet.created_at && (
-            <ListGroup.Item className="d-flex justify-content-between align-items-center">
-              <strong>Mis à jour le:</strong>
-              <span className="text-muted small">
-                {formatDate(currentHornet.updated_at)}
-              </span>
-            </ListGroup.Item>
-          )}
-          
-          {currentHornet.user_id && (
-            <ListGroup.Item className="d-flex justify-content-between align-items-center">
-              <strong>Rapporté par:</strong>
-              <Badge bg="info">Utilisateur #{currentHornet.user_id}</Badge>
-            </ListGroup.Item>
-          )}
-          
-          <ListGroup.Item>
-            <div className="text-muted small">
-              <strong>Zone de retour probable:</strong><br/>
-              Cette zone triangulaire représente la direction probable du nid du frelon basée sur sa direction de vol observée.
-              {nestInfo.isEstimated ? (
-                <>
-                  {' '}La zone s&apos;étend sur {nestInfo.distance < 1000 ? `${nestInfo.distance} m` : `${(nestInfo.distance / 1000).toFixed(1)} km`} avec un angle de dispersion de {HORNET_RETURN_ZONE_ANGLE_DEG}°, 
-                  calculée d&apos;après la durée d&apos;absence observée ({HORNET_FLIGHT_SPEED_M_PER_MIN}m par minute d&apos;absence).
-                </>
-              ) : (
-                <> La zone s&apos;étend sur la distance maximale de 2 km avec un angle de dispersion de {HORNET_RETURN_ZONE_ANGLE_DEG}°.</>
-              )}
+          ) : (
+            <div className="d-flex gap-2">
+              <ColorSelector value={currentHornet.mark_color_1 || ''} readOnly />
+              <ColorSelector value={currentHornet.mark_color_2 || ''} readOnly />
+              {!currentHornet.mark_color_1 && !currentHornet.mark_color_2 && <span>—</span>}
             </div>
-          </ListGroup.Item>
-        </ListGroup>
-      </Modal.Body>
-      
-      <Modal.Footer>
-        <AddAtLocationButton
-          latitude={currentHornet.latitude}
-          longitude={currentHornet.longitude}
-          onAddAtLocation={onAddAtLocation}
-        />
-        
-        {/* Bouton de suppression pour les administrateurs et propriétaires */}
-        {auth.isAuthenticated && canDeleteHornet(currentHornet) && (
-          <Button 
-            variant="outline-danger" 
-            onClick={() => setShowDeleteModal(true)}
-            className="me-2"
-          >
-            <i className="bi bi-trash me-1"></i>
-            Supprimer
-          </Button>
+          )}
+        </div>
+
+        {(canDelete || canArchive || (auth.isAuthenticated && onAddAtLocation)) && (
+          <div className="sheet-actions mt-3">
+            {auth.isAuthenticated && onAddAtLocation && (
+              <IconButton
+                variant="outline-secondary"
+                icon={ACTION_ICONS.addHere}
+                label="Ajouter à cette position"
+                onClick={() => onAddAtLocation(currentHornet.latitude, currentHornet.longitude)}
+              />
+            )}
+            {canArchive && (
+              <IconButton variant="outline-warning" icon={ACTION_ICONS.archive} label="Archiver" className="ms-auto" onClick={() => setShowArchiveModal(true)} />
+            )}
+            {canDelete && (
+              <IconButton
+                variant="outline-danger"
+                icon={ACTION_ICONS.delete}
+                label="Supprimer"
+                className={canArchive ? '' : 'ms-auto'}
+                onClick={() => setShowDeleteModal(true)}
+              />
+            )}
+          </div>
         )}
-        
-        {/* Bouton d'archivage réservé aux administrateurs */}
-        {auth.isAuthenticated && canArchiveHornet() && !currentHornet.archived && (
-          <Button
-            variant="outline-warning"
-            onClick={() => setShowArchiveModal(true)}
-            className="me-2"
-          >
-            <i className="bi bi-archive me-1"></i>
-            Archiver
-          </Button>
-        )}
-        
-        <Button variant="secondary" onClick={onHide}>
-          Fermer
-        </Button>
-      </Modal.Footer>
-      
-      {/* Modal de confirmation de suppression */}
+      </AppModal>
+
       <ConfirmationModal
         show={showDeleteModal}
         onHide={() => setShowDeleteModal(false)}
@@ -464,7 +301,6 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation,
         deleteError={deleteError}
       />
 
-      {/* Modal de confirmation d'archivage */}
       <ConfirmationModal
         show={showArchiveModal}
         onHide={() => setShowArchiveModal(false)}
@@ -474,6 +310,6 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation,
         isDeleting={isArchiving}
         deleteError={archiveError}
       />
-    </Modal>
+    </>
   );
 }

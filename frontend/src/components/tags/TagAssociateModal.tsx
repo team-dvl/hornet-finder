@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Alert, Badge, Button, Form, ListGroup, Modal, Spinner } from 'react-bootstrap';
+import { Alert, Badge, Button, Form, ListGroup, Spinner } from 'react-bootstrap';
+import { AppModal } from '../ui';
 import type { Trap } from '../../store/slices/trapsSlice';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import {
@@ -72,11 +73,7 @@ export default function TagAssociateModal({ value, short, onHide, onAssociated }
   const trapLabel = (trap: TagCandidate) => trap.address || `Piège n° ${trap.id}`;
 
   return (
-    <Modal show onHide={onHide} centered scrollable>
-      <Modal.Header closeButton>
-        <Modal.Title>🏷️ Nouveau QR Code <code className="fs-6">{short}</code></Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
+    <AppModal show onHide={onHide} icon="🏷️" title={<>Nouveau QR Code <code className="fs-6">{short}</code></>}>
         {error && <Alert variant="danger">{error}</Alert>}
 
         {toReplace ? (
@@ -87,19 +84,17 @@ export default function TagAssociateModal({ value, short, onHide, onAssociated }
               L'ancien QR Code sera <strong>détruit</strong> et ne pourra plus être scanné.
             </p>
             <div className="d-flex gap-2 justify-content-end">
-              <Button variant="outline-secondary" size="sm" onClick={() => setToReplace(null)} disabled={saving}>
+              <Button variant="outline-secondary" onClick={() => setToReplace(null)} disabled={saving}>
                 Annuler
               </Button>
-              <Button variant="danger" size="sm" onClick={() => void associate(toReplace.trap, true)} disabled={saving}>
-                {saving ? 'Remplacement…' : 'Remplacer le QR Code'}
+              <Button variant="danger" onClick={() => void associate(toReplace.trap, true)} disabled={saving}>
+                {saving ? 'Remplacement…' : 'Remplacer'}
               </Button>
             </div>
           </Alert>
         ) : (
           <>
-            <p className="text-muted small">
-              Ce QR Code n'est encore associé à aucun piège. Choisissez le piège sur lequel il est posé.
-            </p>
+            <p className="text-muted small">Sur quel piège est-il posé ?</p>
             {isAdmin && (
               <Form.Control
                 type="search"
@@ -138,7 +133,6 @@ export default function TagAssociateModal({ value, short, onHide, onAssociated }
             )}
           </>
         )}
-      </Modal.Body>
-    </Modal>
+    </AppModal>
   );
 }

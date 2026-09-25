@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Alert, Button, Form, Modal, Spinner } from 'react-bootstrap';
+import { Alert, Button, Form, Spinner } from 'react-bootstrap';
+import { HelpTip } from '../common';
+import { AppModal } from '../ui';
 import { useAppDispatch } from '../../store/hooks';
 import { createSpecies, updateSpecies, type Species } from '../../store/store';
 import { PhotoInput } from '../traps';
@@ -50,75 +52,73 @@ export default function SpeciesFormModal({ onHide, species = null }: SpeciesForm
   };
 
   return (
-    <Modal show onHide={onHide} centered>
-      <Modal.Header closeButton>
-        <Modal.Title>{isEdit ? "Modifier l'espèce" : 'Ajouter une espèce'}</Modal.Title>
-      </Modal.Header>
+    <AppModal
+      show
+      onHide={onHide}
+      locked
+      icon="🪲"
+      title={isEdit ? "Modifier l'espèce" : 'Ajouter une espèce'}
+      onSubmit={handleSubmit}
+      footer={(
+        <Button type="submit" variant="primary" disabled={saving || !name}>
+          {saving ? <Spinner animation="border" size="sm" className="me-2" /> : <i className="bi bi-check-lg me-2" aria-hidden="true" />}
+          Enregistrer
+        </Button>
+      )}
+    >
+      {error && <Alert variant="danger">{error}</Alert>}
 
-      <Form onSubmit={handleSubmit}>
-        <Modal.Body>
-          {error && <Alert variant="danger">{error}</Alert>}
+      <Form.Group className="mb-3">
+        <Form.Label>Nom commun</Form.Label>
+        <Form.Control
+          type="text"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          required
+        />
+      </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Label>Nom commun</Form.Label>
-            <Form.Control
-              type="text"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              required
-              autoFocus
-            />
-          </Form.Group>
+      <Form.Group className="mb-3">
+        <Form.Label>Nom scientifique</Form.Label>
+        <Form.Control
+          type="text"
+          className="fst-italic"
+          value={scientificName}
+          onChange={(event) => setScientificName(event.target.value)}
+        />
+      </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Label>Nom scientifique</Form.Label>
-            <Form.Control
-              type="text"
-              className="fst-italic"
-              value={scientificName}
-              onChange={(event) => setScientificName(event.target.value)}
-            />
-          </Form.Group>
+      <Form.Group className="mb-3">
+        <Form.Label>Article Wikipédia</Form.Label>
+        <Form.Control
+          type="url"
+          placeholder="https://fr.wikipedia.org/wiki/…"
+          value={wikipediaUrl}
+          onChange={(event) => setWikipediaUrl(event.target.value)}
+        />
+      </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Label>Article Wikipédia</Form.Label>
-            <Form.Control
-              type="url"
-              placeholder="https://fr.wikipedia.org/wiki/…"
-              value={wikipediaUrl}
-              onChange={(event) => setWikipediaUrl(event.target.value)}
-            />
-          </Form.Group>
+      <Form.Group className="mb-3">
+        <Form.Label className="d-flex align-items-center">
+          Ordre d'affichage
+          <HelpTip id="sort-order-help" title="Ordre d'affichage">Les valeurs les plus basses apparaissent en premier.</HelpTip>
+        </Form.Label>
+        <Form.Control
+          type="number"
+          value={sortOrder}
+          onChange={(event) => setSortOrder(Number(event.target.value))}
+        />
+      </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Label>Ordre d'affichage</Form.Label>
-            <Form.Control
-              type="number"
-              value={sortOrder}
-              onChange={(event) => setSortOrder(Number(event.target.value))}
-            />
-            <Form.Text muted>Les valeurs les plus basses apparaissent en premier.</Form.Text>
-          </Form.Group>
-
-          <PhotoInput
-            label={species?.photo_url ? 'Remplacer la photo' : 'Photo (facultatif)'}
-            onChange={(files) => setPhoto(files[0] ?? null)}
-          />
-          {species?.photo_credit && (
-            <Form.Text muted className="d-block">
-              Photo actuelle : {species.photo_credit}
-            </Form.Text>
-          )}
-        </Modal.Body>
-
-        <Modal.Footer>
-          <Button variant="secondary" onClick={onHide} disabled={saving}>Annuler</Button>
-          <Button type="submit" variant="primary" disabled={saving || !name}>
-            {saving && <Spinner animation="border" size="sm" className="me-2" />}
-            Enregistrer
-          </Button>
-        </Modal.Footer>
-      </Form>
-    </Modal>
+      <PhotoInput
+        label={species?.photo_url ? 'Remplacer la photo' : 'Photo'}
+        onChange={(files) => setPhoto(files[0] ?? null)}
+      />
+      {species?.photo_credit && (
+        <Form.Text muted className="d-block">
+          Photo actuelle : {species.photo_credit}
+        </Form.Text>
+      )}
+    </AppModal>
   );
 }

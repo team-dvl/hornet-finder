@@ -1,7 +1,8 @@
-import { Modal, Button, Card, Row, Col } from 'react-bootstrap';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import CoordinateInput from '../common/CoordinateInput';
+import { BottomSheet } from '../ui';
+import { OBJECT_ICONS } from '../../utils/icons';
 
 interface AddItemSelectorProps {
   show: boolean;
@@ -26,18 +27,14 @@ export default function AddItemSelector({
 }: AddItemSelectorProps) {
   const { canAddHornet, canAddApiary, canAddTrap, roles, isAdmin } = useUserPermissions();
   
-  // État local pour les coordonnées éditables (pour les admins)
+  // État local pour les coordonnées éditables (pour les admins). Mounted
+  // anew for each position (keyed by it on the map), so no resync is needed.
   const [editableLat, setEditableLat] = useState(latitude);
   const [editableLng, setEditableLng] = useState(longitude);
   
   // Vérifier si l'utilisateur peut ajouter des nids (pour l'instant, tous les utilisateurs authentifiés)
   const canAddNest = roles.length > 0;
 
-  // Réinitialiser les coordonnées éditables quand les props changent
-  useEffect(() => {
-    setEditableLat(latitude);
-    setEditableLng(longitude);
-  }, [latitude, longitude]);
 
   // Fonctions pour gérer les sélections avec les coordonnées modifiées
   const handleSelectHornet = () => {
@@ -72,167 +69,43 @@ export default function AddItemSelector({
     }
   };
 
+  const choices = [
+    { allowed: canAddHornet, icon: OBJECT_ICONS.hornet, label: 'Frelon', hint: "Signaler l'observation d'un frelon et sa direction de vol", onClick: handleSelectHornet },
+    { allowed: canAddNest, icon: OBJECT_ICONS.nest, label: 'Nid', hint: 'Signaler un nid de frelons asiatiques', onClick: handleSelectNest },
+    { allowed: canAddApiary, icon: OBJECT_ICONS.apiary, label: 'Rucher', hint: "Enregistrer un rucher et son niveau d'infestation", onClick: handleSelectApiary },
+    { allowed: canAddTrap, icon: OBJECT_ICONS.trap, label: 'Piège', hint: 'Installer un piège et suivre ses captures', onClick: handleSelectTrap },
+  ].filter((choice) => choice.allowed);
+
   return (
-    <Modal show={show} onHide={onHide} centered>
-      <Modal.Header closeButton>
-        <Modal.Title>
-          <span className="me-2">📍</span>
-          Que souhaitez-vous ajouter ici?
-        </Modal.Title>
-      </Modal.Header>
-      
-      <Modal.Body>
-        <div className="mb-3">
-          <strong>Position sélectionnée :</strong>
-          {isAdmin ? (
-            <div className="mt-2">
-              <div className="d-flex flex-column gap-3">
-                <CoordinateInput
-                  label="Latitude"
-                  value={editableLat}
-                  onChange={setEditableLat}
-                  placeholder="Latitude"
-                  precision={6}
-                  labelPosition="horizontal"
-                />
-                <CoordinateInput
-                  label="Longitude"
-                  value={editableLng}
-                  onChange={setEditableLng}
-                  placeholder="Longitude"
-                  precision={6}
-                  labelPosition="horizontal"
-                />
-              </div>
-              <small className="text-muted mt-2 d-block">
-                En tant qu'administrateur, vous pouvez modifier ces coordonnées
-              </small>
-            </div>
-          ) : (
-            <div className="mt-2">
-              <div className="d-flex flex-column gap-3">
-                <CoordinateInput
-                  label="Latitude"
-                  value={latitude}
-                  onChange={() => {}} // Ne sera pas appelé en mode lecture seule
-                  readOnly={true}
-                  precision={6}
-                  labelPosition="horizontal"
-                />
-                <CoordinateInput
-                  label="Longitude"
-                  value={longitude}
-                  onChange={() => {}} // Ne sera pas appelé en mode lecture seule
-                  readOnly={true}
-                  precision={6}
-                  labelPosition="horizontal"
-                />
-              </div>
-            </div>
-          )}
+    <BottomSheet show={show} onHide={onHide} title="Ajouter ici">
+      {choices.length > 0 ? (
+        <div className="choice-grid">
+          {choices.map((choice) => (
+            <button key={choice.label} type="button" className="choice-tile" onClick={choice.onClick} title={choice.hint}>
+              <span className="choice-tile-icon" aria-hidden="true">{choice.icon}</span>
+              <span>{choice.label}</span>
+            </button>
+          ))}
         </div>
+      ) : (
+        <p className="text-muted mb-0">
+          <i className="bi bi-lock me-2" aria-hidden="true" />
+          Votre compte ne permet pas d'ajouter des éléments sur la carte.
+        </p>
+      )}
 
-        <Row className="g-3">
-          {canAddHornet && (
-            <Col md={12}>
-              <Card className="h-100 border-2 border-warning">
-                <Card.Body className="text-center">
-                  <div className="mb-3" style={{ fontSize: '3rem' }}>🐝</div>
-                  <Card.Title>Frelon asiatique</Card.Title>
-                  <Card.Text className="text-muted">
-                    Signaler l'observation d'un frelon asiatique avec sa direction de vol
-                  </Card.Text>
-                  <Button 
-                    variant="warning" 
-                    onClick={handleSelectHornet}
-                    className="w-100"
-                  >
-                    Ajouter un frelon
-                  </Button>
-                </Card.Body>
-              </Card>
-            </Col>
-          )}
-
-          {canAddApiary && (
-            <Col md={12}>
-              <Card className="h-100 border-2 border-success">
-                <Card.Body className="text-center">
-                  <div className="mb-3" style={{ fontSize: '3rem' }}>🍯</div>
-                  <Card.Title>Rucher</Card.Title>
-                  <Card.Text className="text-muted">
-                    Enregistrer l'emplacement d'un rucher et son niveau d'infestation
-                  </Card.Text>
-                  <Button 
-                    variant="success" 
-                    onClick={handleSelectApiary}
-                    className="w-100"
-                  >
-                    Ajouter un rucher
-                  </Button>
-                </Card.Body>
-              </Card>
-            </Col>
-          )}
-
-          {canAddNest && (
-            <Col md={12}>
-              <Card className="h-100 border-2 border-danger">
-                <Card.Body className="text-center">
-                  <div className="mb-3" style={{ fontSize: '3rem' }}>🏴</div>
-                  <Card.Title>Nid de frelons</Card.Title>
-                  <Card.Text className="text-muted">
-                    Signaler un nid de frelons asiatiques découvert
-                  </Card.Text>
-                  <Button 
-                    variant="danger" 
-                    onClick={handleSelectNest}
-                    className="w-100"
-                  >
-                    Signaler un nid
-                  </Button>
-                </Card.Body>
-              </Card>
-            </Col>
-          )}
-          {canAddTrap && (
-            <Col md={12}>
-              <Card className="h-100 border-2 border-primary">
-                <Card.Body className="text-center">
-                  <div className="mb-3" style={{ fontSize: '3rem' }}>🪤</div>
-                  <Card.Title>Piège</Card.Title>
-                  <Card.Text className="text-muted">
-                    Installer un piège et suivre ses captures au fil de la saison
-                  </Card.Text>
-                  <Button
-                    variant="primary"
-                    onClick={handleSelectTrap}
-                    className="w-100"
-                  >
-                    Ajouter un piège
-                  </Button>
-                </Card.Body>
-              </Card>
-            </Col>
-          )}
-        </Row>
-
-        {!canAddHornet && !canAddApiary && !canAddNest && !canAddTrap && (
-          <div className="text-center p-4">
-            <div className="text-muted">
-              <span style={{ fontSize: '3rem' }}>🔒</span>
-              <h5 className="mt-3">Accès restreint</h5>
-              <p>Vous devez avoir les permissions appropriées pour ajouter des éléments sur la carte.</p>
-            </div>
+      {/* Administrators may correct the position before choosing */}
+      {isAdmin && choices.length > 0 && (
+        <details className="mt-3 small">
+          <summary className="text-muted py-1">
+            Ajuster la position : {editableLat.toFixed(5)}, {editableLng.toFixed(5)}
+          </summary>
+          <div className="d-flex flex-column gap-2 mt-2">
+            <CoordinateInput label="Latitude" value={editableLat} onChange={setEditableLat} precision={6} labelPosition="horizontal" />
+            <CoordinateInput label="Longitude" value={editableLng} onChange={setEditableLng} precision={6} labelPosition="horizontal" />
           </div>
-        )}
-      </Modal.Body>
-      
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide}>
-          Annuler
-        </Button>
-      </Modal.Footer>
-    </Modal>
+        </details>
+      )}
+    </BottomSheet>
   );
 }

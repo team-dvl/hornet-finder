@@ -1,4 +1,5 @@
-import { Modal, Button } from 'react-bootstrap';
+import { Button } from 'react-bootstrap';
+import { AppModal } from '../ui';
 
 interface CompassPermissionModalProps {
   show: boolean;
@@ -6,26 +7,22 @@ interface CompassPermissionModalProps {
   onCancel: () => void;
 }
 
+/** iOS asks for an explicit permission, from a user gesture, before giving the compass. */
 export default function CompassPermissionModal({ show, onRequestPermission, onCancel }: CompassPermissionModalProps) {
   return (
-    <Modal show={show} onHide={onCancel} centered>
-      <Modal.Header closeButton>
-        <Modal.Title>Activer la boussole</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <p>
-          Pour activer la capture de direction, veuillez autoriser l'accès à la boussole.<br/>
-          Cette étape est requise par Safari/iOS pour des raisons de sécurité.
-        </p>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onCancel}>
-          Annuler
-        </Button>
+    <AppModal
+      show={show}
+      onHide={onCancel}
+      compact
+      title="Activer la boussole ?"
+      footer={(
         <Button variant="primary" onClick={onRequestPermission}>
-          Autoriser la boussole
+          <i className="bi bi-compass me-2" aria-hidden="true" />
+          Autoriser
         </Button>
-      </Modal.Footer>
-    </Modal>
+      )}
+    >
+      <p className="mb-0">Safari demande votre accord avant de donner accès à la boussole.</p>
+    </AppModal>
   );
 }

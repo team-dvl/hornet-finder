@@ -1,4 +1,4 @@
-import { Modal, Button, Alert } from 'react-bootstrap';
+import { Alert } from 'react-bootstrap';
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from 'react-oidc-context';
@@ -6,10 +6,11 @@ import { Apiary, updateApiary, selectApiaryById, deleteApiary } from '../../stor
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { AppDispatch, RootState } from '../../store/store';
 import { ConfirmationModal } from '../modals';
-import CoordinateInput from '../common/CoordinateInput';
 import InfestationLevelInput, { InfestationLevel } from '../common/InfestationLevelInput';
 import ApiaryGroupPermissions from '../common/ApiaryGroupPermissions';
-import AddAtLocationButton from '../common/AddAtLocationButton';
+import { AppModal, FieldRow, IconButton } from '../ui';
+import { ACTION_ICONS, OBJECT_ICONS } from '../../utils/icons';
+import { formatDate } from '../../utils/format';
 
 const infestationLevelMap = {
   1: 'low',
@@ -76,152 +77,71 @@ export default function ApiaryInfoPopup({ show, onHide, apiary, onAddAtLocation 
   const isAdmin = auth.user?.profile?.role === 'admin' || auth.user?.profile?.is_admin;
   const canEdit = canAddApiary && (isAdmin || auth.user?.profile?.sub === currentApiary.created_by?.guid);
 
+  const canDelete = auth.isAuthenticated && canDeleteApiary(currentApiary);
+  const canAddHere = auth.isAuthenticated && onAddAtLocation;
+
   return (
-    <Modal show={show} onHide={onHide} size="lg" centered>
-      <Modal.Header closeButton>
-        <Modal.Title>
-          🍯 Rucher #{currentApiary.id}
-        </Modal.Title>
-      </Modal.Header>
-      
-      <Modal.Body>
-        <div className="container-fluid">
-          <div className="row mb-3">
-            <div className="col-md-6">
-              <h6 className="fw-bold">Localisation</h6>
-              <div className="mb-2">
-                <CoordinateInput
-                  label="Latitude"
-                  value={currentApiary.latitude}
-                  onChange={() => {}} // Read-only
-                  labelPosition="horizontal"
-                  readOnly
-                />
-              </div>
-              <div className="mb-2">
-                <CoordinateInput
-                  label="Longitude"
-                  value={currentApiary.longitude}
-                  onChange={() => {}} // Read-only
-                  labelPosition="horizontal"
-                  readOnly
-                />
-              </div>
-            </div>
-            
-            <div className="col-md-6">
-              <h6 className="fw-bold">État sanitaire</h6>
-              <div className="mb-2">
-                <div className="d-flex justify-content-between align-items-center">
-                  <strong>Niveau d'infestation :</strong>
-                </div>
-                <div className="mt-1">
-                  <InfestationLevelInput
-                    value={infestationLevelMap[currentApiary.infestation_level] as InfestationLevel}
-                    readOnly={!canEdit}
-                    onChange={async (level) => {
-                      const newLevel = infestationLevelReverseMap[level];
-                      if (newLevel !== currentApiary.infestation_level && auth.user?.access_token && currentApiary.id) {
-                        try {
-                          await dispatch(updateApiary({
-                            id: currentApiary.id,
-                            infestation_level: newLevel,
-                            accessToken: auth.user.access_token
-                          })).unwrap();
-                        } catch (error) {
-                          setUpdateError(error instanceof Error ? error.message : 'Erreur lors de la mise à jour');
-                        }
-                      }
-                    }}
-                  />
-                  {updateError && (
-                    <Alert variant="danger" className="mt-2 mb-0 py-2">
-                      {updateError}
-                    </Alert>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {currentApiary.comments && (
-            <div className="row mb-3">
-              <div className="col-12">
-                <h6 className="fw-bold">Commentaires</h6>
-                <div className="border rounded p-3 bg-light">
-                  {currentApiary.comments}
-                </div>
-              </div>
-            </div>
-          )}
-          
-          <div className="row">
-            <div className="col-md-6">
-              {currentApiary.created_at && (
-                <div className="mb-2">
-                  <strong>Date de création :</strong>
-                  <div className="text-muted">
-                    {new Date(currentApiary.created_at).toLocaleDateString('fr-FR', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            <div className="col-md-6">
-              {currentApiary.created_by && (
-                <div className="mb-2">
-                  <strong>Créé par :</strong>
-                  <div className="text-muted">
-                    {currentApiary.created_by.display_name || currentApiary.created_by.guid}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          {/* Permissions étendues par groupe sous forme de Cards */}
-          {Array.isArray(currentApiary.extended_permissions) && currentApiary.extended_permissions.length > 0 && (
-            <div className="row mb-3">
-              <div className="col-12">
-                <h6 className="fw-bold">Permissions supplémentaires</h6>
-                <ApiaryGroupPermissions permissions={currentApiary.extended_permissions} readOnly />
-              </div>
-            </div>
+    <>
+      <AppModal
+        show={show && !showDeleteModal}
+        onHide={onHide}
+        icon={OBJECT_ICONS.apiary}
+        title={`Rucher #${currentApiary.id}`}
+      >
+        <div className="text-muted small mb-1">Infestation</div>
+        <InfestationLevelInput
+          value={infestationLevelMap[currentApiary.infestation_level] as InfestationLevel}
+          readOnly={!canEdit}
+          onChange={async (level) => {
+            const newLevel = infestationLevelReverseMap[level];
+            if (newLevel !== currentApiary.infestation_level && auth.user?.access_token && currentApiary.id) {
+              try {
+                await dispatch(updateApiary({
+                  id: currentApiary.id,
+                  infestation_level: newLevel,
+                  accessToken: auth.user.access_token
+                })).unwrap();
+              } catch (error) {
+                setUpdateError(error instanceof Error ? error.message : 'Erreur lors de la mise à jour');
+              }
+            }
+          }}
+        />
+        {updateError && <Alert variant="danger" className="mt-2 mb-0 py-2">{updateError}</Alert>}
+
+        <div className="mt-3">
+          {currentApiary.created_at && <FieldRow label="Créé le">{formatDate(currentApiary.created_at)}</FieldRow>}
+          {currentApiary.created_by && (
+            <FieldRow label="Créé par">{currentApiary.created_by.display_name || currentApiary.created_by.guid}</FieldRow>
           )}
         </div>
-      </Modal.Body>
-      
-      <Modal.Footer>
-        <AddAtLocationButton
-          latitude={currentApiary.latitude}
-          longitude={currentApiary.longitude}
-          onAddAtLocation={onAddAtLocation}
-        />
+        {currentApiary.comments && <p className="small mt-2 mb-0">{currentApiary.comments}</p>}
 
-        {/* Bouton de suppression pour les administrateurs et propriétaires */}
-        {auth.isAuthenticated && canDeleteApiary(currentApiary) && (
-          <Button 
-            variant="outline-danger" 
-            onClick={() => setShowDeleteModal(true)}
-            className="me-2"
-          >
-            <i className="bi bi-trash me-1"></i>
-            Supprimer
-          </Button>
+        {/* Permissions étendues par groupe */}
+        {Array.isArray(currentApiary.extended_permissions) && currentApiary.extended_permissions.length > 0 && (
+          <div className="mt-3">
+            <div className="text-muted small mb-1">Permissions supplémentaires</div>
+            <ApiaryGroupPermissions permissions={currentApiary.extended_permissions} readOnly />
+          </div>
         )}
-        
-        <Button variant="secondary" onClick={onHide}>
-          Fermer
-        </Button>
-      </Modal.Footer>
-      
-      {/* Modal de confirmation de suppression */}
+
+        {(canAddHere || canDelete) && (
+          <div className="sheet-actions mt-3">
+            {canAddHere && (
+              <IconButton
+                variant="outline-secondary"
+                icon={ACTION_ICONS.addHere}
+                label="Ajouter à cette position"
+                onClick={() => onAddAtLocation(currentApiary.latitude, currentApiary.longitude)}
+              />
+            )}
+            {canDelete && (
+              <IconButton variant="outline-danger" icon={ACTION_ICONS.delete} label="Supprimer" className="ms-auto" onClick={() => setShowDeleteModal(true)} />
+            )}
+          </div>
+        )}
+      </AppModal>
+
       <ConfirmationModal
         show={showDeleteModal}
         onHide={() => setShowDeleteModal(false)}
@@ -231,6 +151,6 @@ export default function ApiaryInfoPopup({ show, onHide, apiary, onAddAtLocation 
         isDeleting={isDeleting}
         deleteError={deleteError}
       />
-    </Modal>
+    </>
   );
 }

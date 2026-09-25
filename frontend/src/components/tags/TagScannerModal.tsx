@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Button, Modal } from 'react-bootstrap';
+import { Alert, Button } from 'react-bootstrap';
+import { AppModal } from '../ui';
 import QrScanner from 'qr-scanner';
 import { extractTagValue } from '../../utils/tagsApi';
 
@@ -63,35 +64,25 @@ export default function TagScannerModal({ onHide, onTag }: TagScannerModalProps)
   };
 
   return (
-    <Modal show onHide={onHide} centered>
-      <Modal.Header closeButton>
-        <Modal.Title>📷 Scanner un QR Code</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        {error ? (
-          <Alert variant="danger" className="mb-0">{error}</Alert>
-        ) : (
-          <>
-            {/* qr-scanner draws its scan region overlay in the video's parent */}
-            <div className="position-relative bg-dark rounded overflow-hidden">
-              <video ref={setVideo} className="w-100 d-block" playsInline muted />
-            </div>
-            {notATag ? (
-              <Alert variant="warning" className="mt-3 mb-0 d-flex justify-content-between align-items-center">
-                <span>Ce QR Code n'appartient pas à Velutina.</span>
-                <Button size="sm" variant="outline-dark" onClick={retry}>Réessayer</Button>
-              </Alert>
-            ) : (
-              <div className="text-muted small mt-2">
-                Visez le QR Code collé sur le piège.
-              </div>
-            )}
-          </>
-        )}
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide}>Fermer</Button>
-      </Modal.Footer>
-    </Modal>
+    <AppModal show onHide={onHide} icon={<i className="bi bi-qr-code-scan" />} title="Scanner un QR Code">
+      {error ? (
+        <Alert variant="danger" className="mb-0">{error}</Alert>
+      ) : (
+        <>
+          {/* qr-scanner draws its scan region overlay in the video's parent */}
+          <div className="position-relative bg-dark rounded overflow-hidden">
+            <video ref={setVideo} className="w-100 d-block" playsInline muted />
+          </div>
+          {notATag ? (
+            <Alert variant="warning" className="mt-3 mb-0 d-flex justify-content-between align-items-center gap-2">
+              <span>Ce QR Code n'appartient pas à Velutina.</span>
+              <Button variant="outline-dark" onClick={retry}>Réessayer</Button>
+            </Alert>
+          ) : (
+            <div className="text-muted small mt-2">Visez le QR Code collé sur le piège.</div>
+          )}
+        </>
+      )}
+    </AppModal>
   );
 }

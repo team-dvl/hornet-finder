@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Modal, Button, Form, Alert, Spinner } from 'react-bootstrap';
+import { Button, Form, Alert, Spinner } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
 import { useAppDispatch } from '../../store/hooks';
 import { createNest } from '../../store/store';
-import CoordinateInput from '../common/CoordinateInput';
+import { AppModal } from '../ui';
+import { OBJECT_ICONS } from '../../utils/icons';
 import { reverseGeocode } from '../../utils/geocoding';
 
 interface AddNestPopupProps {
@@ -89,97 +90,52 @@ export default function AddNestPopup({ show, onHide, latitude, longitude, onSucc
   };
 
   return (
-    <Modal show={show} onHide={handleClose} centered>
-      <Modal.Header closeButton>
-        <Modal.Title>
-          <span className="me-2">🏴</span>
-          Ajouter un nid de frelon
-        </Modal.Title>
-      </Modal.Header>
-      <Form onSubmit={handleSubmit}>
-        <Modal.Body>
-          {error && (
-            <Alert variant="danger" className="mb-3">
-              {error}
-            </Alert>
-          )}
+    <AppModal
+      show={show}
+      onHide={handleClose}
+      locked
+      icon={OBJECT_ICONS.nest}
+      title="Nouveau nid"
+      onSubmit={handleSubmit}
+      footer={(
+        <Button variant="danger" type="submit" disabled={loading}>
+          {loading ? <Spinner animation="border" size="sm" className="me-2" /> : <i className="bi bi-check-lg me-2" aria-hidden="true" />}
+          Signaler
+        </Button>
+      )}
+    >
+      {error && <Alert variant="danger">{error}</Alert>}
 
-          <div className="mb-3">
-            <div className="d-flex flex-column gap-3">
-              <CoordinateInput
-                label="Latitude"
-                value={latitude}
-                onChange={() => {}} // Ne sera pas appelé en mode lecture seule
-                readOnly={true}
-                precision={6}
-              />
-              <CoordinateInput
-                label="Longitude"
-                value={longitude}
-                onChange={() => {}} // Ne sera pas appelé en mode lecture seule
-                readOnly={true}
-                precision={6}
-              />
-            </div>
-          </div>
+      <Form.Group className="mb-3">
+        <Form.Check
+          type="switch"
+          id="publicPlace"
+          label="Lieu public (parc, rue…)"
+          checked={publicPlace}
+          onChange={(e) => setPublicPlace(e.target.checked)}
+        />
+      </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Check
-              type="checkbox"
-              id="publicPlace"
-              label="🏛️ Lieu public"
-              checked={publicPlace}
-              onChange={(e) => setPublicPlace(e.target.checked)}
-            />
-            <Form.Text className="text-muted">
-              Cochez si le nid se trouve dans un lieu public (parc, rue, etc.)
-            </Form.Text>
-          </Form.Group>
+      <Form.Group className="mb-3" controlId="nest-address">
+        <Form.Label>Adresse</Form.Label>
+        <Form.Control
+          type="text"
+          placeholder="Déduite de la position si vide"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+        />
+      </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Label>Adresse (optionnel)</Form.Label>
-            <Form.Control
-              type="text"
-              placeholder="L'adresse sera récupérée automatiquement si possible"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-            />
-            <Form.Text className="text-muted">
-              Précisez l'adresse ou laissez vide pour la déduction automatique
-            </Form.Text>
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label>Commentaires (optionnel)</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={3}
-              placeholder="Ajoutez des détails sur le nid : taille, accessibilité, danger, etc."
-              value={comments}
-              onChange={(e) => setComments(e.target.value)}
-            />
-          </Form.Group>
-
-          <div className="border-top pt-3">
-            <div className="text-muted small">
-              <strong>ℹ️ Informations par défaut :</strong>
-              <ul className="mb-0 mt-2">
-                <li>Statut : Non détruit (actif)</li>
-                <li>Signalé par : {auth.user?.profile?.preferred_username || 'Utilisateur actuel'}</li>
-              </ul>
-            </div>
-          </div>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleClose} disabled={loading}>
-            Annuler
-          </Button>
-          <Button variant="danger" type="submit" disabled={loading}>
-            {loading && <Spinner animation="border" size="sm" className="me-2" />}
-            🏴 Signaler le nid
-          </Button>
-        </Modal.Footer>
-      </Form>
-    </Modal>
+      <Form.Group className="mb-0" controlId="nest-comments">
+        <Form.Label>Commentaire</Form.Label>
+        <Form.Control
+          as="textarea"
+          rows={3}
+          placeholder="Taille, accessibilité, danger…"
+          value={comments}
+          onChange={(e) => setComments(e.target.value)}
+        />
+      </Form.Group>
+    </AppModal>
   );
 }

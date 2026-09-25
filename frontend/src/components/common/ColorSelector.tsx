@@ -1,5 +1,5 @@
-import React from 'react';
-import { Badge, Dropdown, Form } from 'react-bootstrap';
+import React, { useState } from 'react';
+import { Badge, Form } from 'react-bootstrap';
 import { COLOR_OPTIONS, getColorHex } from '../../utils/colors';
 import { getTextColorCSS } from '../../utils/textReadability';
 
@@ -25,7 +25,8 @@ export interface ColorSelectorProps {
 /**
  * Composant unifié pour afficher et sélectionner des couleurs.
  * - En mode read-only : affiche un Badge coloré avec le texte de la couleur
- * - En mode read-write : affiche un Dropdown pour sélectionner une couleur
+ * - En mode read-write : un bouton montrant la couleur choisie, qui déplie une
+ *   grille de pastilles (tactile, sans menu flottant qui déborde sur un téléphone)
  */
 export default function ColorSelector({
   value = '',
@@ -66,77 +67,85 @@ export default function ColorSelector({
     );
   }
 
-  // Mode read-write : Dropdown
-  const sizeClasses = {
-    sm: 'btn-sm',
-    md: '',
-    lg: 'btn-lg'
-  };
+  // Mode read-write : bouton + grille de pastilles
+  return (
+    <ColorSwatchPicker
+      value={selectedOption.value}
+      onChange={onChange}
+      disabled={disabled}
+      label={label}
+      size={size}
+      className={className}
+      style={style}
+    />
+  );
+}
 
-  const minWidths = {
-    sm: '120px',
-    md: '140px',
-    lg: '160px'
-  };
+/** Round swatch of a colour; "no colour" is drawn as a crossed circle. */
+function Swatch({ value, small = false }: { value: string; small?: boolean }) {
+  const dimension = small ? '1.1rem' : '1.75rem';
+  return (
+    <span
+      className="color-swatch"
+      style={{
+        width: dimension,
+        height: dimension,
+        backgroundColor: value ? getColorHex(value) : 'transparent',
+      }}
+      aria-hidden="true"
+    >
+      {!value && <i className="bi bi-slash-lg" />}
+    </span>
+  );
+}
+
+function ColorSwatchPicker({ value, onChange, disabled, label, size, className, style }: {
+  value: string;
+  onChange?: (value: string) => void;
+  disabled: boolean;
+  label?: string;
+  size: 'sm' | 'md' | 'lg';
+  className: string;
+  style: React.CSSProperties;
+}) {
+  const [open, setOpen] = useState(false);
+  const current = COLOR_OPTIONS.find((option) => option.value === value) ?? COLOR_OPTIONS[0];
 
   return (
     <div className={className} style={style}>
-      {label && (
-        <Form.Label className={`small mb-1 ${size === 'sm' ? 'mb-1' : 'mb-2'}`}>
-          {label}:
-        </Form.Label>
+      {label && <Form.Label className="small mb-1">{label}</Form.Label>}
+      <button
+        type="button"
+        className={`form-control d-flex align-items-center gap-2 text-start ${size === 'sm' ? 'py-1' : ''}`}
+        onClick={() => setOpen(!open)}
+        disabled={disabled}
+        aria-expanded={open}
+      >
+        <Swatch value={current.value} small />
+        <span className="text-truncate flex-grow-1">{current.label}</span>
+        <i className={`bi bi-chevron-${open ? 'up' : 'down'} small`} aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="color-swatch-grid mt-2" role="radiogroup" aria-label={label ?? 'Couleur'}>
+          {COLOR_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={option.value === current.value}
+              aria-label={option.label}
+              title={option.label}
+              className={`color-swatch-button ${option.value === current.value ? 'selected' : ''}`}
+              onClick={() => {
+                onChange?.(option.value);
+                setOpen(false);
+              }}
+            >
+              <Swatch value={option.value} />
+            </button>
+          ))}
+        </div>
       )}
-      <Dropdown>
-        <Dropdown.Toggle
-          variant="outline-secondary"
-          className={`d-flex align-items-center gap-2 w-100 ${sizeClasses[size]}`}
-          disabled={disabled}
-          style={{ 
-            minWidth: minWidths[size],
-            backgroundColor: colorHex,
-            color: textColor,
-            border: selectedOption.value === 'white' || selectedOption.value === '' ? '1px solid #ccc' : undefined,
-          }}
-        >
-          <div 
-            style={{
-              width: size === 'sm' ? '14px' : size === 'lg' ? '20px' : '16px',
-              height: size === 'sm' ? '14px' : size === 'lg' ? '20px' : '16px',
-              backgroundColor: colorHex,
-              border: selectedOption.value === 'white' || selectedOption.value === '' ? '1px solid #ccc' : 'none',
-              borderRadius: '3px',
-              flexShrink: 0,
-            }}
-          />
-          <span className="text-truncate">{selectedOption.label}</span>
-        </Dropdown.Toggle>
-
-        <Dropdown.Menu style={{ maxHeight: '200px', overflowY: 'auto', minWidth: minWidths[size] }}>
-          {COLOR_OPTIONS.map(color => {
-            const bg = getColorHex(color.value);
-            return (
-              <Dropdown.Item
-                key={color.value}
-                onClick={() => onChange?.(color.value)}
-                className="d-flex align-items-center gap-2"
-                active={color.value === selectedOption.value}
-              >
-                <div 
-                  style={{
-                    width: '16px',
-                    height: '16px',
-                    backgroundColor: bg,
-                    border: color.value === 'white' || color.value === '' ? '1px solid #ccc' : 'none',
-                    borderRadius: '3px',
-                    flexShrink: 0,
-                  }}
-                />
-                <span>{color.label}</span>
-              </Dropdown.Item>
-            );
-          })}
-        </Dropdown.Menu>
-      </Dropdown>
     </div>
   );
 }

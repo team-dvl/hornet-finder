@@ -1,4 +1,4 @@
-import { Badge, Dropdown } from 'react-bootstrap';
+import { Badge } from 'react-bootstrap';
 
 export type InfestationLevel = 'low' | 'moderate' | 'high';
 
@@ -56,54 +56,28 @@ export default function InfestationLevelInput({ value, onChange, readOnly = fals
     );
   }
 
+  // Three levels: a segmented control, every choice visible and one tap away
   return (
-    <Dropdown onSelect={key => onChange && onChange(key as InfestationLevel)}>
-      <Dropdown.Toggle
-        variant="outline-secondary"
-        style={{
-          backgroundColor: style.backgroundColor,
-          color: style.textColor,
-          border: style.border,
-        }}
-        className="d-flex align-items-center gap-2"
-      >
-        <div
-          style={{
-            width: '16px',
-            height: '16px',
-            backgroundColor: style.backgroundColor,
-            border: style.border || 'none',
-            borderRadius: '3px',
-            flexShrink: 0,
-          }}
-        />
-        <span>{current.label}</span>
-      </Dropdown.Toggle>
-      <Dropdown.Menu>
-        {LEVELS.map(l => {
-          const lStyle = getInfestationStyle(l.color);
-          return (
-            <Dropdown.Item
-              eventKey={l.value}
-              key={l.value}
-              active={l.value === value}
-              className="d-flex align-items-center gap-2"
-            >
-              <div
-                style={{
-                  width: '16px',
-                  height: '16px',
-                  backgroundColor: lStyle.backgroundColor,
-                  border: lStyle.border || 'none',
-                  borderRadius: '3px',
-                  flexShrink: 0,
-                }}
-              />
-              <span>{l.label}</span>
-            </Dropdown.Item>
-          );
-        })}
-      </Dropdown.Menu>
-    </Dropdown>
+    <div className="d-flex gap-1" role="radiogroup" aria-label="Niveau d'infestation">
+      {LEVELS.map((level) => {
+        const levelStyle = getInfestationStyle(level.color);
+        const selected = level.value === value;
+        return (
+          <button
+            key={level.value}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            className="btn flex-fill"
+            style={selected
+              ? { backgroundColor: levelStyle.backgroundColor, color: levelStyle.textColor, borderColor: levelStyle.backgroundColor }
+              : { borderColor: levelStyle.backgroundColor, color: 'var(--bs-body-color)' }}
+            onClick={() => onChange?.(level.value)}
+          >
+            {level.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }

@@ -1,10 +1,9 @@
-import { Modal, ListGroup, Badge, Button } from 'react-bootstrap';
-import { Hornet } from '../../store/slices/hornetsSlice';
+import { ListGroup, Badge, Button } from 'react-bootstrap';
 import { Apiary } from '../../store/slices/apiariesSlice';
 import { Nest } from '../../store/slices/nestsSlice';
 import { MapObject, MapObjectType } from './types';
 import { ColorSelector } from '../../components/forms';
-import CoordinateInput from '../common/CoordinateInput';
+import { BottomSheet } from '../ui';
 
 interface OverlapDialogProps {
   show: boolean;
@@ -16,167 +15,70 @@ interface OverlapDialogProps {
   onZoomToSeparate?: () => void;
 }
 
-// Fonction pour obtenir le badge du niveau d'infestation
-const getInfestationBadge = (level: 1 | 2 | 3) => {
-  const badges = {
-    1: { bg: 'warning', text: 'Faible' },
-    2: { bg: 'warning', text: 'Modérée' },
-    3: { bg: 'danger', text: 'Élevée' }
-  };
-  const badge = badges[level];
-  return <Badge bg={badge.bg}>{badge.text}</Badge>;
+const INFESTATION: Record<1 | 2 | 3, { bg: string; text: string }> = {
+  1: { bg: 'warning', text: 'Faible' },
+  2: { bg: 'warning', text: 'Modérée' },
+  3: { bg: 'danger', text: 'Élevée' },
 };
 
-export default function OverlapDialog({ 
-  show, 
-  onHide, 
-  objects, 
-  onSelectObject, 
-  position,
-  onZoomToSeparate
-}: OverlapDialogProps) {
-  
-  // The map shows a single modal: opening the selected sheet replaces this
-  // dialog, so closing it here as well would close the sheet just opened.
-  const handleObjectClick = (object: MapObject) => {
-    onSelectObject(object);
-  };
+/** One status badge per object, when its type has one */
+function StatusBadge({ object }: { object: MapObject }) {
+  if (object.type === MapObjectType.APIARY && object.data) {
+    const level = INFESTATION[(object.data as Apiary).infestation_level];
+    return <Badge bg={level.bg}>{level.text}</Badge>;
+  }
+  if (object.type === MapObjectType.NEST && object.data) {
+    const destroyed = (object.data as Nest).destroyed;
+    return <Badge bg={destroyed ? 'secondary' : 'danger'}>{destroyed ? 'Détruit' : 'Actif'}</Badge>;
+  }
+  return null;
+}
 
+/** Choice among the objects under one tap of the map. */
+export default function OverlapDialog({ show, onHide, objects, onSelectObject, onZoomToSeparate }: OverlapDialogProps) {
+  // The map shows a single modal: opening the selected sheet replaces this
+  // one, so closing it here as well would close the sheet just opened.
   return (
-    <Modal show={show} onHide={onHide} centered>
-      <Modal.Header closeButton>
-        <Modal.Title>
-          📍 Objets superposés
-        </Modal.Title>
-      </Modal.Header>
-      
-      <Modal.Body>
-        <div className="mb-3">
-          <div className="d-flex align-items-center gap-3">
-            <small className="text-muted">Plusieurs objets se trouvent à cette position :</small>
-            <div className="d-flex gap-2">
-              <CoordinateInput
-                label=""
-                value={position.lat}
-                onChange={() => {}} // Fonction vide car en mode lecture seule
-                readOnly={true}
-                precision={6}
-              />
-              <CoordinateInput
-                label=""
-                value={position.lng}
-                onChange={() => {}} // Fonction vide car en mode lecture seule
-                readOnly={true}
-                precision={6}
-              />
-            </div>
-          </div>
-        </div>
-        
-        <ListGroup>
-          {objects.map((object, index) => (
-            <ListGroup.Item
-              key={`${object.type}-${object.id}-${index}`}
-              action
-              onClick={() => handleObjectClick(object)}
-              className="d-flex align-items-center justify-content-between p-3"
-              style={{ cursor: 'pointer' }}
-            >
-              <div className="d-flex align-items-center">
-                {/* Symbole de l'objet */}
-                <div 
-                  className="me-3"
-                  style={{ 
-                    fontSize: '24px',
-                    minWidth: '32px',
-                    textAlign: 'center'
-                  }}
-                >
-                  {object.symbol}
-                </div>
-                
-                {/* Informations de l'objet */}
-                <div>
-                  <div className="fw-bold">
-                    {object.title}
-                  </div>
-                  {object.subtitle && (
-                    <div className="text-muted small">
-                      {object.subtitle}
-                    </div>
-                  )}
-                  
-                  {/* Informations spécifiques selon le type */}
-                  {object.type === MapObjectType.HORNET && object.data && (
-                    <div className="mt-1">
-                      <small className="text-muted">
-                        {(object.data as Hornet).duration && (
-                          <span>Durée: {(object.data as Hornet).duration}s</span>
-                        )}
-                      </small>
-                    </div>
-                  )}
-                  
-                  {object.type === MapObjectType.APIARY && object.data && (
-                    <div className="mt-1">
-                      {getInfestationBadge((object.data as Apiary).infestation_level)}
-                    </div>
-                  )}
-                  
-                  {object.type === MapObjectType.NEST && object.data && (
-                    <div className="mt-1">
-                      {(object.data as Nest).destroyed ? (
-                        <Badge bg="secondary">Détruit</Badge>
-                      ) : (
-                        <Badge bg="danger">Actif</Badge>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              {/* Couleurs pour les frelons */}
-              {object.colors && object.colors.length > 0 && (
-                <div className="d-flex gap-1">
-                  {object.colors.map((color, colorIndex) => (
-                    <ColorSelector 
-                      key={colorIndex} 
-                      value={color} 
-                      readOnly 
-                      size="sm" 
-                    />
-                  ))}
-                </div>
+    <BottomSheet show={show} onHide={onHide} title={`${objects.length} objets à cet endroit`}>
+      <ListGroup variant="flush">
+        {objects.map((object, index) => (
+          <ListGroup.Item
+            key={`${object.type}-${object.id}-${index}`}
+            action
+            onClick={() => onSelectObject(object)}
+            className="d-flex align-items-center gap-3 px-1 py-2"
+          >
+            <span className="flex-shrink-0 text-center" style={{ fontSize: '1.5rem', width: '2rem' }} aria-hidden="true">
+              {object.symbol}
+            </span>
+            <span className="flex-grow-1 min-w-0">
+              <span className="d-block fw-semibold text-truncate">{object.title}</span>
+              {object.subtitle && object.type !== MapObjectType.APIARY && object.type !== MapObjectType.NEST && (
+                <span className="d-block small text-muted text-truncate">{object.subtitle}</span>
               )}
-              
-              {/* ID de l'objet */}
-              <div className="text-muted small">
-                #{object.id}
-              </div>
-            </ListGroup.Item>
-          ))}
-        </ListGroup>
-        
-        <div className="mt-3">
-          <small className="text-muted">
-            💡 Cliquez sur un objet pour afficher sa fiche.
-          </small>
-        </div>
-      </Modal.Body>
+            </span>
+            <StatusBadge object={object} />
+            {object.colors?.map((color, colorIndex) => (
+              <ColorSelector key={colorIndex} value={color} readOnly size="sm" />
+            ))}
+            <i className="bi bi-chevron-right text-muted flex-shrink-0" aria-hidden="true" />
+          </ListGroup.Item>
+        ))}
+      </ListGroup>
 
       {onZoomToSeparate && (
-        <Modal.Footer>
-          <Button
-            variant="outline-secondary"
-            onClick={() => {
-              onZoomToSeparate();
-              onHide();
-            }}
-          >
-            🔍 Zoomer pour les distinguer
-          </Button>
-        </Modal.Footer>
+        <Button
+          variant="outline-secondary"
+          className="w-100 mt-2"
+          onClick={() => {
+            onZoomToSeparate();
+            onHide();
+          }}
+        >
+          <i className="bi bi-zoom-in me-2" aria-hidden="true" />
+          Zoomer pour les distinguer
+        </Button>
       )}
-    </Modal>
+    </BottomSheet>
   );
 }

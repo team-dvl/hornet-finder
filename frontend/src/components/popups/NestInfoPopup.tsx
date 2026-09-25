@@ -1,4 +1,4 @@
-import { Modal, Badge, Button } from 'react-bootstrap';
+import { Badge } from 'react-bootstrap';
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useAuth } from 'react-oidc-context';
@@ -6,8 +6,9 @@ import { Nest, deleteNest, archiveNest } from '../../store/slices/nestsSlice';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { ConfirmationModal } from '../modals';
 import { AppDispatch } from '../../store/store';
-import CoordinateInput from '../common/CoordinateInput';
-import AddAtLocationButton from '../common/AddAtLocationButton';
+import { AppModal, FieldRow, IconButton } from '../ui';
+import { ACTION_ICONS, OBJECT_ICONS } from '../../utils/icons';
+import { formatDate } from '../../utils/format';
 
 interface NestInfoPopupProps {
   show: boolean;
@@ -77,145 +78,62 @@ export default function NestInfoPopup({ show, onHide, nest, onAddAtLocation }: N
     }
   };
 
-  const getStatusBadge = () => {
-    if (nest.destroyed) {
-      return (
-        <Badge bg="secondary" className="ms-2">
-          💀 Détruit
-        </Badge>
-      );
-    }
-    return (
-      <Badge bg="danger" className="ms-2">
-        🏴 Actif
-      </Badge>
-    );
-  };
-
-  const getLocationBadge = () => {
-    if (nest.public_place) {
-      return (
-        <Badge bg="warning" className="ms-2">
-          🏛️ Lieu public
-        </Badge>
-      );
-    }
-    return (
-      <Badge bg="info" className="ms-2">
-        🏠 Lieu privé
-      </Badge>
-    );
-  };
+  const confirming = showDeleteModal || showArchiveModal;
+  const canDelete = auth.isAuthenticated && canDeleteNest(nest);
+  const canArchive = auth.isAuthenticated && canArchiveNest() && !nest.archived;
+  const canAddHere = auth.isAuthenticated && onAddAtLocation;
 
   return (
-    <Modal show={show} onHide={onHide} centered>
-      <Modal.Header closeButton>
-        <Modal.Title>
-          🏴 Nid de frelon #{nest.id}
-          {getStatusBadge()}
-          {getLocationBadge()}
-        </Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <div className="mb-3">
-          <strong>Coordonnées :</strong>
-          <div className="mt-2">
-            <CoordinateInput
-              label="Latitude"
-              value={nest.latitude}
-              onChange={() => {}} // Read-only
-              labelPosition="horizontal"
-              readOnly
-            />
-            <CoordinateInput
-              label="Longitude"
-              value={nest.longitude}
-              onChange={() => {}} // Read-only
-              labelPosition="horizontal"
-              readOnly
-            />
-          </div>
-        </div>
-
+    <>
+      <AppModal
+        show={show && !confirming}
+        onHide={onHide}
+        icon={OBJECT_ICONS.nest}
+        title={`Nid #${nest.id}`}
+        badges={(
+          <Badge bg={nest.destroyed ? 'secondary' : 'danger'} className="fw-normal">
+            {nest.destroyed ? 'Détruit' : 'Actif'}
+          </Badge>
+        )}
+      >
+        <FieldRow label="Lieu">{nest.public_place ? 'Public' : 'Privé'}</FieldRow>
+        {nest.destroyed && nest.destroyed_at && <FieldRow label="Détruit le">{formatDate(nest.destroyed_at)}</FieldRow>}
+        {nest.created_at && <FieldRow label="Signalé le">{formatDate(nest.created_at)}</FieldRow>}
+        {nest.created_by && <FieldRow label="Signalé par">{nest.created_by.display_name || nest.created_by.guid}</FieldRow>}
         {nest.address && (
-          <div className="mb-3">
-            <strong>Adresse :</strong>
-            <div>{nest.address}</div>
+          <div className="text-muted small mt-1 d-flex gap-1">
+            <i className="bi bi-geo-alt flex-shrink-0" aria-hidden="true" />
+            <span>{nest.address}</span>
           </div>
         )}
+        {nest.comments && <p className="small mt-2 mb-0">{nest.comments}</p>}
 
-        {nest.comments && (
-          <div className="mb-3">
-            <strong>Commentaires :</strong>
-            <div>{nest.comments}</div>
+        {(canAddHere || canArchive || canDelete) && (
+          <div className="sheet-actions mt-3">
+            {canAddHere && (
+              <IconButton
+                variant="outline-secondary"
+                icon={ACTION_ICONS.addHere}
+                label="Ajouter à cette position"
+                onClick={() => onAddAtLocation(nest.latitude, nest.longitude)}
+              />
+            )}
+            {canArchive && (
+              <IconButton variant="outline-warning" icon={ACTION_ICONS.archive} label="Archiver" className="ms-auto" onClick={() => setShowArchiveModal(true)} />
+            )}
+            {canDelete && (
+              <IconButton
+                variant="outline-danger"
+                icon={ACTION_ICONS.delete}
+                label="Supprimer"
+                className={canArchive ? '' : 'ms-auto'}
+                onClick={() => setShowDeleteModal(true)}
+              />
+            )}
           </div>
         )}
+      </AppModal>
 
-        {nest.destroyed && nest.destroyed_at && (
-          <div className="mb-3">
-            <strong>Détruit le :</strong>
-            <div className="text-muted">
-              {new Date(nest.destroyed_at).toLocaleDateString('fr-FR')}
-            </div>
-          </div>
-        )}
-
-        {nest.created_at && (
-          <div className="mb-3">
-            <strong>Signalé le :</strong>
-            <div className="text-muted">
-              {new Date(nest.created_at).toLocaleDateString('fr-FR')}
-            </div>
-          </div>
-        )}
-
-        {nest.created_by && (
-          <div>
-            <strong>Signalé par :</strong>
-            <div className="text-muted">
-              {nest.created_by.display_name || nest.created_by.guid}
-            </div>
-          </div>
-        )}
-      </Modal.Body>
-      
-      <Modal.Footer>
-        <AddAtLocationButton
-          latitude={nest.latitude}
-          longitude={nest.longitude}
-          onAddAtLocation={onAddAtLocation}
-        />
-
-        {/* Bouton de suppression pour les administrateurs et propriétaires */}
-        {auth.isAuthenticated && canDeleteNest(nest) && (
-          <Button 
-            variant="outline-danger" 
-            onClick={() => setShowDeleteModal(true)}
-            className="me-2"
-          >
-            <i className="bi bi-trash me-1"></i>
-            Supprimer
-          </Button>
-        )}
-
-        {/* Bouton d'archivage réservé aux administrateurs */}
-        {auth.isAuthenticated && canArchiveNest() && !nest.archived && (
-          <Button
-            variant="outline-warning"
-            onClick={() => setShowArchiveModal(true)}
-            className="me-2"
-          >
-            <i className="bi bi-archive me-1"></i>
-            Archiver
-          </Button>
-        )}
-        
-        <Button variant="secondary" onClick={onHide}>
-          Fermer
-        </Button>
-      </Modal.Footer>
-      
-      {/* Modal de confirmation de suppression */}
       <ConfirmationModal
         show={showDeleteModal}
         onHide={() => setShowDeleteModal(false)}
@@ -226,7 +144,6 @@ export default function NestInfoPopup({ show, onHide, nest, onAddAtLocation }: N
         deleteError={deleteError}
       />
 
-      {/* Modal de confirmation d'archivage */}
       <ConfirmationModal
         show={showArchiveModal}
         onHide={() => setShowArchiveModal(false)}
@@ -236,6 +153,6 @@ export default function NestInfoPopup({ show, onHide, nest, onAddAtLocation }: N
         isDeleting={isArchiving}
         deleteError={archiveError}
       />
-    </Modal>
+    </>
   );
 }

@@ -1,9 +1,10 @@
-import { Modal, Button, Form, Alert, Row, Col } from 'react-bootstrap';
+import { Button, Form, Alert, Spinner } from 'react-bootstrap';
 import { useState } from 'react';
 import { createApiary } from '../../store/store';
 import { useAppDispatch } from '../../store/hooks';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
-import CoordinateInput from '../common/CoordinateInput';
+import { AppModal } from '../ui';
+import { OBJECT_ICONS } from '../../utils/icons';
 import { useAuth } from 'react-oidc-context';
 import InfestationLevelInput, { InfestationLevel } from '../common/InfestationLevelInput';
 
@@ -88,102 +89,42 @@ export default function AddApiaryPopup({ show, onHide, latitude, longitude, onSu
   };
 
   return (
-    <Modal show={show} onHide={handleClose} centered>
-      <Modal.Header closeButton>
-        <Modal.Title>
-          <span className="me-2">🏠</span>
-          Ajouter un nouveau rucher
-        </Modal.Title>
-      </Modal.Header>
-      
-      <Form noValidate validated={validated} onSubmit={handleSubmit}>
-        <Modal.Body>
-          {error && (
-            <Alert variant="danger" className="mb-3">
-              {error}
-            </Alert>
-          )}
+    <AppModal
+      show={show}
+      onHide={handleClose}
+      locked
+      icon={OBJECT_ICONS.apiary}
+      title="Nouveau rucher"
+      onSubmit={handleSubmit}
+      validated={validated}
+      footer={(
+        <Button type="submit" variant="success" disabled={isSubmitting}>
+          {isSubmitting ? <Spinner animation="border" size="sm" className="me-2" /> : <i className="bi bi-check-lg me-2" aria-hidden="true" />}
+          Enregistrer
+        </Button>
+      )}
+    >
+      {error && <Alert variant="danger">{error}</Alert>}
 
-          <Row className="mb-3">
-            <Col>
-              <div className="d-flex flex-column gap-3">
-                <CoordinateInput
-                  label="Latitude"
-                  value={latitude}
-                  onChange={() => {}} // Ne sera pas appelé en mode lecture seule
-                  readOnly={true}
-                  precision={6}
-                />
-                <CoordinateInput
-                  label="Longitude"
-                  value={longitude}
-                  onChange={() => {}} // Ne sera pas appelé en mode lecture seule
-                  readOnly={true}
-                  precision={6}
-                />
-              </div>
-            </Col>
-          </Row>
+      <Form.Group className="mb-3">
+        <Form.Label>Infestation</Form.Label>
+        <InfestationLevelInput
+          value={infestationLevelMap[infestationLevel] as InfestationLevel}
+          onChange={level => setInfestationLevel(infestationLevelReverseMap[level])}
+        />
+      </Form.Group>
 
-          <Row className="mb-3">
-            <Col>
-              <Form.Group>
-                <Form.Label><strong>Niveau d'infestation *</strong></Form.Label>
-                <div className="mt-2">
-                  <InfestationLevelInput
-                    value={infestationLevelMap[infestationLevel] as InfestationLevel}
-                    onChange={level => setInfestationLevel(infestationLevelReverseMap[level])}
-                  />
-                </div>
-                <Form.Text className="text-muted">
-                  Sélectionnez le niveau d'infestation de frelons asiatiques observé dans ce rucher
-                </Form.Text>
-              </Form.Group>
-            </Col>
-          </Row>
-
-          <Row className="mb-3">
-            <Col>
-              <Form.Group>
-                <Form.Label><strong>Commentaires (facultatif)</strong></Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={3}
-                  value={comments}
-                  onChange={(e) => setComments(e.target.value)}
-                  placeholder="Observations supplémentaires, mesures prises, etc."
-                  disabled={isSubmitting}
-                />
-                <Form.Text className="text-muted">
-                  Ajoutez des informations complémentaires si nécessaire
-                </Form.Text>
-              </Form.Group>
-            </Col>
-          </Row>
-
-          <Alert variant="info" className="small">
-            <strong>Information :</strong> Ce rucher sera enregistré à votre nom. 
-            Le niveau d'infestation sélectionné est <strong>{infestationLevelMap[infestationLevel]}</strong>.
-          </Alert>
-        </Modal.Body>
-        
-        <Modal.Footer>
-          <Button 
-            variant="secondary" 
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
-            Annuler
-          </Button>
-          <Button 
-            type="submit" 
-            variant="success"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Enregistrement...' : 'Enregistrer le rucher'}
-          </Button>
-        </Modal.Footer>
-      </Form>
-    </Modal>
+      <Form.Group className="mb-0" controlId="apiary-comments">
+        <Form.Label>Commentaire</Form.Label>
+        <Form.Control
+          as="textarea"
+          rows={3}
+          value={comments}
+          onChange={(e) => setComments(e.target.value)}
+          placeholder="Observations, mesures prises…"
+          disabled={isSubmitting}
+        />
+      </Form.Group>
+    </AppModal>
   );
 }

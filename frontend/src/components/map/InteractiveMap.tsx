@@ -670,6 +670,7 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
 
       {modalOfKind('item-selector') && (
         <AddItemSelector
+          key={`${modalOfKind('item-selector')!.position.lat},${modalOfKind('item-selector')!.position.lng}`}
           show
           onHide={closeModal}
           latitude={modalOfKind('item-selector')!.position.lat}
