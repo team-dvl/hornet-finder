@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { MapContainer, TileLayer, ZoomControl, useMapEvents } from "react-leaflet";
-import { Modal, Spinner } from 'react-bootstrap';
+import { Spinner } from 'react-bootstrap';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 import { Map } from 'leaflet';
@@ -34,6 +34,8 @@ import { TrapAddressChangeModal, TrapFormModal, TrapInfoPopup } from '../traps';
 import CompassCapture from './CompassCapture';
 import OverlapDialog from './OverlapDialog';
 import MapRefHandler from './MapRefHandler';
+import MarkerClusterGroup from './MarkerClusterGroup';
+import { OBJECT_ICONS } from '../../utils/icons';
 import { useSmartClickHandlers } from '../../hooks/useSmartClickHandlers';
 import { useMapModals, type MapPoint } from '../../hooks/useMapModals';
 import { useTagDeepLink } from '../../hooks/useTagDeepLink';
@@ -41,7 +43,6 @@ import { TagAssociateModal, TagScannerModal } from '../tags';
 import type { TagResolution } from '../../utils/tagsApi';
 import { MapObject } from './types';
 import "leaflet/dist/leaflet.css";
-import "leaflet/dist/leaflet.js";
 import geomagnetism from "geomagnetism";
 
 // Fonction utilitaire pour calculer la déclinaison magnétique
@@ -74,8 +75,7 @@ function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number
         target.closest('.leaflet-interactive') ||
         target.classList.contains('leaflet-marker-icon') ||
         target.closest('.leaflet-marker-icon') ||
-        target.classList.contains('map-control-button') ||
-        target.closest('.map-control-button')
+        target.closest('.map-controls-container')
       )) {
         // Le clic provient d'un élément interactif, ne pas déclencher notre logique
         return;
@@ -522,7 +522,6 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
           showApiariesButton={auth.isAuthenticated && (isAdmin || canAddApiary)}
           showNestsButton={true} // Tous les utilisateurs peuvent voir les nids (détruits pour non-authentifiés, tous pour authentifiés)
           onQuickHornetCapture={handleQuickHornetCapture}
-          canAddHornet={canAddHornet}
           onAddTrap={canAddTrap && showTraps
             ? () => openModal({ kind: 'add-trap', position: null })
             : undefined}
@@ -562,58 +561,66 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
             apiary={apiary}
           />
         ))}
-        {/* Marqueurs de ruchers - au-dessus des disques */}
-        {apiariesVisible && apiaries.map((apiary, index) => (
-          <ApiaryMarker
-            key={apiary.id || index}
-            apiary={apiary}
-            onClick={handleSmartApiaryClick}
-          />
-        ))}
+        {/* Marqueurs de ruchers - au-dessus des disques ; regroupés par couche quand ils se touchent */}
+        {apiariesVisible && (
+          <MarkerClusterGroup symbol={OBJECT_ICONS.apiary}>
+            {apiaries.map((apiary, index) => (
+              <ApiaryMarker
+                key={apiary.id || index}
+                apiary={apiary}
+                onClick={handleSmartApiaryClick}
+              />
+            ))}
+          </MarkerClusterGroup>
+        )}
         {/* Marqueurs de nids - niveau le plus haut */}
-        {showNests && nests.map((nest, index) => (
-          <NestMarker
-            key={nest.id || index}
-            nest={nest}
-            onClick={handleSmartNestClick}
-          />
-        ))}
+        {showNests && (
+          <MarkerClusterGroup symbol={OBJECT_ICONS.nest}>
+            {nests.map((nest, index) => (
+              <NestMarker
+                key={nest.id || index}
+                nest={nest}
+                onClick={handleSmartNestClick}
+              />
+            ))}
+          </MarkerClusterGroup>
+        )}
         {/* Marqueurs de pièges */}
-        {showTraps && traps.map((trap) => (
-          <TrapMarker
-            key={`trap-${trap.id}`}
-            trap={trap}
-            isMine={Boolean(trap.owner && trap.owner.guid === userGuid)}
-            isMoving={movingTrapId === trap.id}
-            pendingPosition={movingTrapId === trap.id ? pendingTrapPosition : null}
-            onClick={handleSmartTrapClick}
-            onMoved={handleTrapMoved}
-          />
-        ))}
+        {showTraps && (
+          <MarkerClusterGroup symbol={OBJECT_ICONS.trap}>
+            {traps.map((trap) => (
+              <TrapMarker
+                key={`trap-${trap.id}`}
+                trap={trap}
+                isMine={Boolean(trap.owner && trap.owner.guid === userGuid)}
+                isMoving={movingTrapId === trap.id}
+                pendingPosition={movingTrapId === trap.id ? pendingTrapPosition : null}
+                onClick={handleSmartTrapClick}
+                onMoved={handleTrapMoved}
+              />
+            ))}
+          </MarkerClusterGroup>
+        )}
       </MapContainer>
 
       {/* Barre de validation du déplacement d'un piège */}
       {movingTrapId !== null && (
-        <div
-          className="position-absolute bottom-0 start-50 translate-middle-x mb-4 p-3 bg-white rounded shadow text-center"
-          style={{ zIndex: 1002, maxWidth: '90%' }}
-        >
-          <div className="mb-2 small">
-            Faites glisser le marqueur du piège vers sa nouvelle position.
-          </div>
-          <div className="d-flex gap-2 justify-content-center">
-            <button
-              type="button"
-              className="btn btn-sm btn-primary"
-              onClick={handleConfirmTrapMove}
-              disabled={!pendingTrapPosition || savingTrapMove}
-            >
-              Valider
-            </button>
-            <button type="button" className="btn btn-sm btn-outline-secondary" onClick={handleCancelTrapMove}>
-              Annuler
-            </button>
-          </div>
+        <div className="map-bottom-bar p-2 bg-white rounded shadow d-flex align-items-center gap-2">
+          <span className="small px-1">
+            <i className="bi bi-arrows-move me-1" aria-hidden="true" />
+            Glissez le piège
+          </span>
+          <button type="button" className="btn btn-outline-secondary" onClick={handleCancelTrapMove}>
+            Annuler
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={handleConfirmTrapMove}
+            disabled={!pendingTrapPosition || savingTrapMove}
+          >
+            Valider
+          </button>
         </div>
       )}
       
@@ -734,43 +741,21 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
         orientationPermissionGranted={orientationPermissionGranted}
       />
 
-      {/* Modal de géolocalisation en cours */}
-      <Modal 
-        show={showGeolocationSpinner} 
-        onHide={handleCloseGeolocationSpinner}
-        centered
-        backdrop="static"
-        keyboard={false}
-      >
-        <Modal.Body className="text-center p-4">
-          <Spinner animation="border" role="status" className="me-3">
-            <span className="visually-hidden">Chargement...</span>
-          </Spinner>
-          <div className="mt-3">
-            <strong>Géolocalisation en cours...</strong>
-            <div className="text-muted mt-1">
-              Veuillez patienter, ça peut parfois prendre 30 secondes ! 😅
-            </div>
-          </div>
-        </Modal.Body>
-      </Modal>
+      {/* Recherche de la position (capture rapide), sans bloquer la carte */}
+      {showGeolocationSpinner && (
+        <div className="map-banner alert alert-light shadow-sm py-2 d-flex align-items-center gap-2" role="status">
+          <Spinner animation="border" size="sm" />
+          <span className="flex-grow-1">Recherche de votre position…</span>
+          <button type="button" className="btn-close" onClick={handleCloseGeolocationSpinner} aria-label="Fermer" />
+        </div>
+      )}
 
       {/* Notification d'erreur de géolocalisation */}
-      {geolocationError && (
-        <div 
-          className="position-absolute top-0 start-50 translate-middle-x mt-3 alert alert-warning alert-dismissible fade show"
-          style={{ zIndex: 1001, maxWidth: '90%' }}
-          role="alert"
-        >
-          <strong>Géolocalisation :</strong> {geolocationError}
-          <br />
-          <small>Utilisation d'une position par défaut. Les données affichées couvrent un rayon de 5km.</small>
-          <button 
-            type="button" 
-            className="btn-close" 
-            onClick={() => dispatch(setGeolocationError(null))}
-            aria-label="Fermer"
-          ></button>
+      {geolocationError && !showGeolocationSpinner && (
+        <div className="map-banner alert alert-warning py-2 d-flex align-items-center gap-2" role="alert" title={geolocationError}>
+          <i className="bi bi-geo-alt flex-shrink-0" aria-hidden="true" />
+          <span className="flex-grow-1 small">Position inconnue : carte centrée par défaut.</span>
+          <button type="button" className="btn-close" onClick={() => dispatch(setGeolocationError(null))} aria-label="Fermer" />
         </div>
       )}
 
@@ -790,8 +775,7 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
 
       {(tagError || tagNeedsSignIn || scanNeedsSignIn || resolvingTag) && (
         <div
-          className={`position-absolute top-0 start-50 translate-middle-x mt-5 alert ${tagError ? 'alert-danger alert-dismissible' : 'alert-info'}`}
-          style={{ zIndex: 1001, maxWidth: '90%' }}
+          className={`map-banner alert py-2 ${tagError ? 'alert-danger alert-dismissible' : 'alert-info'}`}
           role="alert"
         >
           {tagError ? (

@@ -159,9 +159,21 @@ async function walk(name) {
     await escape();
   });
 
+  /** Tap the fixture traps: through their cluster first when they are grouped */
+  const tapFixtureTrap = async () => {
+    if (await page.locator('.map-cluster').count()) {
+      await tapAt(...(await markerAt('.map-cluster')));
+      await page.waitForTimeout(1500);
+    }
+    await tapAt(...(await markerAt('.trap-icon')));
+  };
+
+  await step('clusters', async () => {
+    if (await page.locator('.map-cluster').count()) await shot('traps-clusters');
+  });
+
   await step('overlap', async () => {
-    const at = await markerAt('.trap-icon');
-    await tapAt(...at);
+    await tapFixtureTrap();
     await shot('overlap', 1500);
   });
 
@@ -184,8 +196,7 @@ async function walk(name) {
         await open('/traps');
         await page.waitForTimeout(2500);
       }
-      const at = await markerAt('.trap-icon');
-      await tapAt(...at);
+      await tapFixtureTrap();
       await page.waitForTimeout(1200);
       const choice = page.locator('.offcanvas.show .list-group-item, .modal.show .list-group-item').filter({ hasText: 'Piège' });
       if (await choice.count()) await tap(choice);

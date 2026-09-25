@@ -4,10 +4,8 @@ export { default } from './MapControlsContainer';
 // Exports individuels pour utilisation externe si nécessaire
 export { default as LayerControlsButton } from './LayerControlsButton';
 export { default as LocateButton } from './LocateButton';
-export { default as QuickCaptureButton } from './QuickCaptureButton';
+export { default as AddActionsButton } from './AddActionsButton';
 export { default as MapControlsContainer } from './MapControlsContainer';
-export { default as HornetColorFilterButton } from './HornetColorFilterButton';
-export { default as BulkArchiveButton } from './BulkArchiveButton';
+export { default as HornetColorFilterPanel } from './HornetColorFilterPanel';
+export { default as BulkArchivePanel } from './BulkArchivePanel';
 export { LoadingIndicator, ErrorAlert } from './MapFeedback';
-export { default as AddTrapButton } from './AddTrapButton';
-export { default as ScanTagButton } from './ScanTagButton';

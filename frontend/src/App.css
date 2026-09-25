@@ -215,115 +215,111 @@ button.module-card {
   }
 }
 
-/* Repositionner les contrôles de zoom Leaflet en bas à gauche */
+/* Leaflet zoom buttons, bottom left, above the browser bars and the home indicator */
 .leaflet-bottom.leaflet-left {
-  bottom: 20px !important;
-  left: 20px !important;
+  bottom: calc(20px + env(safe-area-inset-bottom)) !important;
+  left: 12px !important;
 }
 
-/* Masquer les contrôles de zoom en haut à gauche */
-.leaflet-top.leaflet-left .leaflet-control-zoom {
-  display: none !important;
+/* A touch screen pinches to zoom: the +/- buttons would only take room */
+@media (pointer: coarse) {
+  .leaflet-control-zoom {
+    display: none !important;
+  }
 }
 
-/* S'assurer que seuls les contrôles en bas à gauche sont visibles */
-.leaflet-bottom.leaflet-left .leaflet-control-zoom {
-  display: block !important;
-}
-
-/* Styles responsive pour les contrôles de la carte */
+/* Map controls: a column of round buttons, top right, under the navbar */
 .map-controls-container {
   position: absolute;
-  top: 70px; /* Ajustement pour la navbar transparente */
-  right: 10px;
+  top: calc(4.5rem + env(safe-area-inset-top));
+  right: calc(0.75rem + env(safe-area-inset-right));
   z-index: 1000;
   display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  justify-content: flex-end;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 0.75rem;
   pointer-events: none; /* Permettre aux clics de passer à travers le conteneur */
 }
 
-/* Affichage en pile verticale quand le texte est visible (écrans moyens/grands) */
-@media (min-width: 577px) {
-  .map-controls-container {
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 8px;
-  }
-  
-  .map-control-button {
-    min-width: 140px;
-    width: 140px;
-  }
+.map-fab {
+  pointer-events: auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border: 0;
+  border-radius: 50%;
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  font-size: 1.35rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
-.map-control-button {
-  white-space: nowrap;
-  font-size: 0.875rem;
-  flex-shrink: 0;
-  pointer-events: auto; /* Réactiver les événements de pointeur pour les boutons */
+.map-fab:active {
+  background: var(--bs-tertiary-bg);
 }
 
-.map-control-button-icon {
-  font-size: 1.2em;
-  margin-right: 0.3rem;
+.map-fab-primary {
+  background: var(--bs-primary);
+  color: #fff;
 }
 
-/* Adaptation pour les petits écrans */
-@media (max-width: 576px) {
-  .map-controls-container {
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 15px; /* Augmenté significativement pour éviter les chevauchements */
-  }
-  
-  .map-control-button {
-    font-size: 0.75rem;
-    padding: 0.52rem; /* Légèrement augmenté (0.4 * 1.3) */
-    min-width: 3.25rem; /* Augmenté (2.5 * 1.3) */
-    width: 3.25rem;
-    height: 3.25rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    /* Suppression du transform scale pour éviter les chevauchements */
-  }
-  
-  .map-control-button-text {
-    display: none;
-  }
-  
-  .map-control-button-icon {
-    margin-right: 0 !important;
-    font-size: 1.43em; /* Augmenté (1.1 * 1.3) pour compenser */
-  }
-  
-  /* Taille spécifique pour l'image layers en mode petit écran */
-  .map-control-button img {
-    width: 2.34em !important; /* Augmenté (1.8 * 1.3) */
-    height: 2.34em !important;
-  }
+.map-fab-primary:active {
+  background: var(--bs-primary-text-emphasis);
 }
 
-/* Adaptation pour les écrans moyens en mode portrait */
-@media (max-width: 768px) and (orientation: portrait) {
-  .map-controls-container {
-    flex-wrap: wrap;
-    max-width: calc(100vw - 20px);
-    gap: 10px; /* Augmenté pour éviter les chevauchements */
-  }
-  
-  .map-control-button {
-    font-size: 1.04rem; /* Augmenté (0.8 * 1.3) */
-    padding: 0.39rem 0.78rem; /* Augmenté (0.3 * 1.3 et 0.6 * 1.3) */
-    /* Suppression du transform scale */
-  }
-  
-  .map-control-button-icon {
-    font-size: 1.495em; /* Augmenté (1.15 * 1.3) */
-  }
+/* Something filters the map: a dot on the layers button */
+.map-fab-dot {
+  position: absolute;
+  top: 0.2rem;
+  right: 0.2rem;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: var(--bs-warning);
+  border: 2px solid var(--bs-body-bg);
+}
+
+/* Floating banners of the map (errors, status), under the navbar, clear of the buttons */
+.map-banner {
+  position: absolute;
+  top: calc(4.5rem + env(safe-area-inset-top));
+  left: 0.75rem;
+  right: 4.75rem;
+  z-index: 1001;
+  margin: 0;
+}
+
+/* Bar at the bottom of the map while moving a trap */
+.map-bottom-bar {
+  position: absolute;
+  left: 50%;
+  bottom: calc(1rem + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 1002;
+  width: max-content;
+  max-width: calc(100% - 1.5rem);
+}
+
+/* Rows of the layers sheet: the whole row toggles, a finger's height */
+.layer-switch {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  margin: 0;
+  cursor: pointer;
+}
+
+.layer-switch-sub {
+  padding-left: 1.5rem;
+  font-size: 0.925rem;
+  color: var(--bs-secondary-color);
+}
+
+.layer-switch .form-check-input {
+  width: 2.5em;
+  height: 1.35em;
 }
 
 /* Style pour l'icône de position utilisateur */
@@ -633,4 +629,23 @@ button.module-card {
 
 .color-swatch-button.selected {
   border-color: var(--bs-primary);
+}
+
+/* Cluster of markers: the layer's symbol and how many markers it holds */
+.map-cluster {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border-radius: 50%;
+  background: var(--bs-body-bg);
+  border: 2px solid var(--bs-primary);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.map-cluster-symbol {
+  font-size: 1rem;
+  line-height: 1;
 }

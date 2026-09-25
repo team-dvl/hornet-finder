@@ -26,14 +26,9 @@ export function ErrorAlert({ error, onClose }: ErrorAlertProps) {
   if (!error) return null;
   
   return (
-    <Alert 
-      variant="danger" 
-      className="position-absolute start-0 m-3"
-      style={{ 
-        zIndex: 1001, 
-        maxWidth: "300px",
-        top: "60px" // Positionné sous les contrôles
-      }}
+    <Alert
+      variant="danger"
+      className="map-banner py-2"
       dismissible
       onClose={onClose}
     >

@@ -3,7 +3,6 @@ import { Button } from "react-bootstrap";
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polygon, useMapEvents } from "react-leaflet";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import "leaflet/dist/leaflet.css";
-import "leaflet/dist/leaflet.js";
 
 const range = 3000; // Distance in meters
 

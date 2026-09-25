@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { Button, Overlay, ListGroup, Popover } from 'react-bootstrap';
+import { useState } from 'react';
+import { Form } from 'react-bootstrap';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { useAuth } from 'react-oidc-context';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
@@ -25,24 +25,45 @@ import {
   toggleOnlyMyTraps,
   selectOnlyMyTraps
 } from '../../store/store';
+import { selectColorFilters } from '../../store/slices/hornetsSlice';
+import { BottomSheet } from '../ui';
+import { OBJECT_ICONS } from '../../utils/icons';
+import HornetColorFilterPanel from './HornetColorFilterPanel';
+import BulkArchivePanel from './BulkArchivePanel';
 
 interface LayerControlsButtonProps {
   showApiariesButton?: boolean;
   showNestsButton?: boolean;
 }
 
+/** One layer switch; `sub` indents an option of the layer above. */
+function LayerSwitch({ id, icon, label, checked, onChange, sub = false }: {
+  id: string;
+  icon: string;
+  label: string;
+  checked: boolean;
+  onChange: () => void;
+  sub?: boolean;
+}) {
+  return (
+    <label htmlFor={id} className={`layer-switch ${sub ? 'layer-switch-sub' : ''}`}>
+      <span className="me-2" aria-hidden="true">{icon}</span>
+      <span className="flex-grow-1">{label}</span>
+      <Form.Check type="switch" id={id} checked={checked} onChange={onChange} className="mb-0" />
+    </label>
+  );
+}
+
+/** Map button opening the layers sheet: layers, hornet colour filter, archives. */
 export default function LayerControlsButton({ 
   showApiariesButton = false, 
   showNestsButton = false 
 }: LayerControlsButtonProps) {
-  const [showPopover, setShowPopover] = useState(false);
-  const target = useRef(null);
-  
+  const [open, setOpen] = useState(false);
   const dispatch = useAppDispatch();
   const auth = useAuth();
   const { isAdmin } = useUserPermissions();
   
-  // États des couches depuis Redux
   const showHornets = useAppSelector(selectShowHornets);
   const showReturnZones = useAppSelector(selectShowReturnZones);
   const showApiaries = useAppSelector(selectShowApiaries);
@@ -53,278 +74,72 @@ export default function LayerControlsButton({
   const showTraps = useAppSelector(selectShowTraps);
   const showInactiveTraps = useAppSelector(selectShowInactiveTraps);
   const onlyMyTraps = useAppSelector(selectOnlyMyTraps);
-
-  const handleTogglePopover = () => {
-    setShowPopover(!showPopover);
-  };
-
-  const handleHornetsToggle = () => {
-    // Comportement identique à handleApiariesToggle
-    dispatch(toggleHornets());
-  };
-
-  const handleReturnZonesToggle = () => {
-    // Comportement identique à handleApiaryCirclesToggle
-    dispatch(toggleReturnZones());
-  };
-
-  const handleApiariesToggle = () => {
-    dispatch(toggleApiaries());
-  };
-
-  const handleApiaryCirclesToggle = () => {
-    dispatch(toggleApiaryCircles());
-  };
-
-  const handleNestsToggle = () => {
-    dispatch(toggleNests());
-  };
-
-  const handleArchivedToggle = () => {
-    dispatch(toggleShowArchivedHornets());
-    dispatch(toggleShowArchivedNests());
-  };
-
-  const handleClose = () => {
-    setShowPopover(false);
-  };
-
-  // Déterminer l'état du bouton principal (actif si au moins une couche est visible)
-  const hasActiveLayers = showHornets || showApiaries || showApiaryCircles || showNests;
+  const colorFilters = useAppSelector(selectColorFilters);
+  const filtered = showHornets && Boolean(colorFilters.color1 || colorFilters.color2);
 
   return (
     <>
-      <Button
-        ref={target}
-        onClick={handleTogglePopover}
-        variant={hasActiveLayers ? "primary" : "outline-secondary"}
-        size="sm"
-        className="map-control-button"
-        title="Gérer les couches affichées"
-        style={{ opacity: 0.7, borderRadius: '12px', backgroundColor: '#287745' }}
+      <button
+        type="button"
+        className="map-fab"
+        onClick={() => setOpen(true)}
+        aria-label="Couches"
+        title="Couches affichées"
       >
-        <img 
-          src="/layers-200px.png" 
-          alt="layers" 
-          style={{ 
-            width: '1.8em', 
-            height: '1.8em',
-            filter: hasActiveLayers ? 'brightness(1.2) contrast(1.1)' : 'none'
-          }} 
-        />
-        <span className="map-control-button-text ms-1">Couches</span>
-      </Button>
+        <i className="bi bi-layers" aria-hidden="true" />
+        {filtered && <span className="map-fab-dot" title="Filtre de couleur actif" />}
+      </button>
 
-      <Overlay 
-        target={target.current} 
-        show={showPopover} 
-        placement="bottom"
-        rootClose
-        onHide={handleClose}
-      >
-        {(props) => (
-          <Popover {...props} id="layer-controls-popover">
-            <Popover.Header>
-              <strong>Affichage des couches</strong>
-            </Popover.Header>
-            <Popover.Body className="p-2">
-          
-          <ListGroup variant="flush">
-            {/* Couche Frelons */}
-            <ListGroup.Item 
-              className="d-flex justify-content-between align-items-center px-0 py-2"
-              style={{ border: 'none' }}
-            >
-              <div className="d-flex align-items-center">
-                <span className="me-2">🐝</span>
-                <span>Frelons</span>
-              </div>
-              <div className="form-check form-switch mb-0">
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  checked={showHornets}
-                  onChange={handleHornetsToggle}
-                />
-              </div>
-            </ListGroup.Item>
-
-            {/* Zones de retour - visible uniquement si les frelons sont activés */}
-            {showHornets && (
-              <ListGroup.Item 
-                className="d-flex justify-content-between align-items-center px-0 py-2 ps-3"
-                style={{ border: 'none', backgroundColor: '#f8f9fa' }}
-              >
-                <div className="d-flex align-items-center">
-                  <span className="me-2">🔴</span>
-                  <span className="text-muted small">Zones de retour</span>
-                </div>
-                <div className="form-check form-switch mb-0">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    checked={showReturnZones}
-                    onChange={handleReturnZonesToggle}
-                  />
-                </div>
-              </ListGroup.Item>
-            )}
-
-            {/* Couche Nids - visible pour tous les utilisateurs authentifiés */}
-            {showNestsButton && (
-              <ListGroup.Item 
-                className="d-flex justify-content-between align-items-center px-0 py-2"
-                style={{ border: 'none' }}
-              >
-                <div className="d-flex align-items-center">
-                  <span className="me-2">🏴</span>
-                  <span>Nids</span>
-                </div>
-                <div className="form-check form-switch mb-0">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    checked={showNests}
-                    onChange={handleNestsToggle}
-                  />
-                </div>
-              </ListGroup.Item>
-            )}
-
-            {/* Couche Ruchers - visible selon permissions */}
-            {showApiariesButton && (
-              <ListGroup.Item 
-                className="d-flex justify-content-between align-items-center px-0 py-2"
-                style={{ border: 'none' }}
-              >
-                <div className="d-flex align-items-center">
-                  <span className="me-2">🍯</span>
-                  <span>Ruchers</span>
-                </div>
-                <div className="form-check form-switch mb-0">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    checked={showApiaries}
-                    onChange={handleApiariesToggle}
-                  />
-                </div>
-              </ListGroup.Item>
-            )}
-
-            {/* Cercles autour des ruchers - visible uniquement si les ruchers sont activés */}
-            {showApiariesButton && showApiaries && (
-              <ListGroup.Item 
-                className="d-flex justify-content-between align-items-center px-0 py-2 ps-3"
-                style={{ border: 'none', backgroundColor: '#f8f9fa' }}
-              >
-                <div className="d-flex align-items-center">
-                  <span className="me-2">⭕</span>
-                  <span className="text-muted small">Rayon 1km</span>
-                </div>
-                <div className="form-check form-switch mb-0">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    checked={showApiaryCircles}
-                    onChange={handleApiaryCirclesToggle}
-                  />
-                </div>
-              </ListGroup.Item>
-            )}
-
-            {/* Couche Pièges - les pièges publics sont visibles par tous */}
-            <ListGroup.Item
-              className="d-flex justify-content-between align-items-center px-0 py-2"
-              style={{ border: 'none' }}
-            >
-              <div className="d-flex align-items-center">
-                <span className="me-2">🪤</span>
-                <span>Pièges</span>
-              </div>
-              <div className="form-check form-switch mb-0">
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  checked={showTraps}
-                  onChange={() => dispatch(toggleTraps())}
-                />
-              </div>
-            </ListGroup.Item>
-
-            {/* Sous-options des pièges */}
-            {showTraps && (
-              <ListGroup.Item
-                className="d-flex justify-content-between align-items-center px-0 py-2 ps-3"
-                style={{ border: 'none', backgroundColor: '#f8f9fa' }}
-              >
-                <div className="d-flex align-items-center">
-                  <span className="me-2">📦</span>
-                  <span className="text-muted small">Pièges remisés</span>
-                </div>
-                <div className="form-check form-switch mb-0">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    checked={showInactiveTraps}
-                    onChange={() => dispatch(toggleInactiveTraps())}
-                  />
-                </div>
-              </ListGroup.Item>
-            )}
-
-            {showTraps && auth.isAuthenticated && (
-              <ListGroup.Item
-                className="d-flex justify-content-between align-items-center px-0 py-2 ps-3"
-                style={{ border: 'none', backgroundColor: '#f8f9fa' }}
-              >
-                <div className="d-flex align-items-center">
-                  <span className="me-2">👤</span>
-                  <span className="text-muted small">Mes pièges seulement</span>
-                </div>
-                <div className="form-check form-switch mb-0">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    checked={onlyMyTraps}
-                    onChange={() => dispatch(toggleOnlyMyTraps())}
-                  />
-                </div>
-              </ListGroup.Item>
-            )}
-
-            {/* Données archivées (années passées) - réservé aux administrateurs */}
-            {isAdmin && (
-              <ListGroup.Item
-                className="d-flex justify-content-between align-items-center px-0 py-2"
-                style={{ border: 'none' }}
-              >
-                <div className="d-flex align-items-center">
-                  <span className="me-2">🗄️</span>
-                  <span>Afficher les archives</span>
-                </div>
-                <div className="form-check form-switch mb-0">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    checked={showArchivedHornets || showArchivedNests}
-                    onChange={handleArchivedToggle}
-                  />
-                </div>
-              </ListGroup.Item>
-            )}
-          </ListGroup>
-
-          {/* Information sur les permissions */}
-          {!auth.isAuthenticated && (
-            <div className="text-muted small mt-2">
-              <em>Connectez-vous pour accéder à plus d'options</em>
-            </div>
-          )}
-            </Popover.Body>
-          </Popover>
+      <BottomSheet show={open} onHide={() => setOpen(false)} title="Couches">
+        <LayerSwitch id="layer-hornets" icon={OBJECT_ICONS.hornet} label="Frelons" checked={showHornets} onChange={() => dispatch(toggleHornets())} />
+        {showHornets && (
+          <LayerSwitch id="layer-zones" icon="🔺" label="Zones de retour" checked={showReturnZones} onChange={() => dispatch(toggleReturnZones())} sub />
         )}
-      </Overlay>
+        {showNestsButton && (
+          <LayerSwitch id="layer-nests" icon={OBJECT_ICONS.nest} label="Nids" checked={showNests} onChange={() => dispatch(toggleNests())} />
+        )}
+        {showApiariesButton && (
+          <LayerSwitch id="layer-apiaries" icon={OBJECT_ICONS.apiary} label="Ruchers" checked={showApiaries} onChange={() => dispatch(toggleApiaries())} />
+        )}
+        {showApiariesButton && showApiaries && (
+          <LayerSwitch id="layer-apiary-circles" icon="⭕" label="Rayon de 1 km" checked={showApiaryCircles} onChange={() => dispatch(toggleApiaryCircles())} sub />
+        )}
+        <LayerSwitch id="layer-traps" icon={OBJECT_ICONS.trap} label="Pièges" checked={showTraps} onChange={() => dispatch(toggleTraps())} />
+        {showTraps && (
+          <LayerSwitch id="layer-inactive-traps" icon="📦" label="Pièges remisés" checked={showInactiveTraps} onChange={() => dispatch(toggleInactiveTraps())} sub />
+        )}
+        {showTraps && auth.isAuthenticated && (
+          <LayerSwitch id="layer-my-traps" icon="👤" label="Mes pièges seulement" checked={onlyMyTraps} onChange={() => dispatch(toggleOnlyMyTraps())} sub />
+        )}
+        {isAdmin && (
+          <LayerSwitch
+            id="layer-archives"
+            icon="🗄️"
+            label="Afficher les archives"
+            checked={showArchivedHornets || showArchivedNests}
+            onChange={() => {
+              dispatch(toggleShowArchivedHornets());
+              dispatch(toggleShowArchivedNests());
+            }}
+          />
+        )}
+
+        {!auth.isAuthenticated && (
+          <p className="text-muted small mt-2 mb-0">Connectez-vous pour voir plus de couches.</p>
+        )}
+
+        {showHornets && (
+          <div className="border-top mt-3 pt-3">
+            <HornetColorFilterPanel />
+          </div>
+        )}
+
+        {isAdmin && (
+          <div className="border-top mt-3 pt-3">
+            <BulkArchivePanel />
+          </div>
+        )}
+      </BottomSheet>
     </>
   );
 }

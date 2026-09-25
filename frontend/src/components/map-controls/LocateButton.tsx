@@ -1,4 +1,3 @@
-import { Button } from "react-bootstrap";
 import { useMap } from "react-leaflet";
 import * as L from "leaflet";
 
@@ -139,16 +138,14 @@ export default function LocateButton({ onLocationUpdate, onErrorUpdate, onLocati
   };
 
   return (
-    <Button
+    <button
+      type="button"
       onClick={handleLocate}
-      variant="primary"
-      size="sm"
-      className="map-control-button"
+      className="map-fab"
+      aria-label="Ma position"
       title="Centrer la carte sur ma position"
-      style={{ opacity: 0.7, borderRadius: '12px' }}
     >
-      <span className="map-control-button-icon">📍</span>
-      <span className="map-control-button-text">Ma position</span>
-    </Button>
+      <i className="bi bi-crosshair" aria-hidden="true" />
+    </button>
   );
 }
