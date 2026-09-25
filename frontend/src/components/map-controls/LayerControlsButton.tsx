@@ -23,7 +23,9 @@ import {
   toggleInactiveTraps,
   selectShowInactiveTraps,
   toggleOnlyMyTraps,
-  selectOnlyMyTraps
+  selectOnlyMyTraps,
+  toggleOnlyMyApiaries,
+  selectOnlyMyApiaries
 } from '../../store/store';
 import { selectColorFilters } from '../../store/slices/hornetsSlice';
 import { BottomSheet } from '../ui';
@@ -62,7 +64,7 @@ export default function LayerControlsButton({
   const [open, setOpen] = useState(false);
   const dispatch = useAppDispatch();
   const auth = useAuth();
-  const { isAdmin } = useUserPermissions();
+  const { isAdmin, canAddApiary } = useUserPermissions();
   
   const showHornets = useAppSelector(selectShowHornets);
   const showReturnZones = useAppSelector(selectShowReturnZones);
@@ -74,6 +76,7 @@ export default function LayerControlsButton({
   const showTraps = useAppSelector(selectShowTraps);
   const showInactiveTraps = useAppSelector(selectShowInactiveTraps);
   const onlyMyTraps = useAppSelector(selectOnlyMyTraps);
+  const onlyMyApiaries = useAppSelector(selectOnlyMyApiaries);
   const colorFilters = useAppSelector(selectColorFilters);
   const filtered = showHornets && Boolean(colorFilters.color1 || colorFilters.color2);
 
@@ -103,6 +106,9 @@ export default function LayerControlsButton({
         )}
         {showApiariesButton && showApiaries && (
           <LayerSwitch id="layer-apiary-circles" icon="⭕" label="Rayon de 1 km" checked={showApiaryCircles} onChange={() => dispatch(toggleApiaryCircles())} sub />
+        )}
+        {showApiariesButton && showApiaries && canAddApiary && (
+          <LayerSwitch id="layer-my-apiaries" icon="👤" label="Mes ruchers seulement" checked={onlyMyApiaries} onChange={() => dispatch(toggleOnlyMyApiaries())} sub />
         )}
         <LayerSwitch id="layer-traps" icon={OBJECT_ICONS.trap} label="Pièges" checked={showTraps} onChange={() => dispatch(toggleTraps())} />
         {showTraps && (

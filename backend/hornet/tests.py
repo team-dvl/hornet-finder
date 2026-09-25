@@ -1309,3 +1309,190 @@ class KeycloakPictureTests(TestCase):
             set_user_picture('g', None)
         self.assertEqual(admin.update_user.call_args.args[1]['attributes'],
                          {'facebook_id': ['42']})
+
+
+# ---------------------------------------------------------------------------
+# Apiaries
+# ---------------------------------------------------------------------------
+
+from .apiary_permissions import association_path
+from .apiary_views import ApiaryViewSet
+from .models import Apiary, ApiaryGroupPermission
+
+
+class ApiaryTestCase(TrapTestCase):
+    """The trap fixtures (owner, group member, group admin, stranger, admin) as beekeepers."""
+
+    def setUp(self):
+        super().setUp()
+        self.owner_user.roles = ['beekeeper']
+        self.stranger_user.roles = ['beekeeper']
+        self.apiary = Apiary.objects.create(
+            latitude=50.5, longitude=4.5, infestation_level=1,
+            created_by=self.owner, owner=self.owner,
+        )
+
+    def _api(self, method, url, actions, user, data=None, pk=None, **kwargs):
+        request = getattr(self.factory, method)(url, data, **kwargs)
+        force_authenticate(request, user=user)
+        view_kwargs = {'pk': pk} if pk is not None else {}
+        return ApiaryViewSet.as_view(actions)(request, **view_kwargs)
+
+    def _ids(self, user, query=''):
+        response = self._api('get', f'/apiaries/?lat=50.5&lon=4.5&radius=5{query}',
+                             {'get': 'list'}, user)
+        self.assertEqual(response.status_code, 200)
+        return {a['id'] for a in response.data}
+
+    def _share(self, can_update=False, can_read=True):
+        return ApiaryGroupPermission.objects.create(
+            apiary=self.apiary, group=self.group, can_read=can_read, can_update=can_update,
+        )
+
+
+class ApiaryVisibilityTests(ApiaryTestCase):
+    def test_private_apiary_seen_by_owner_and_admin_only(self):
+        self.assertEqual(self._ids(self.owner_user), {self.apiary.id})
+        self.assertEqual(self._ids(self.admin_user), {self.apiary.id})
+        self.assertEqual(self._ids(self.member_user), set())
+        self.assertEqual(self._ids(self.stranger_user), set())
+
+    def test_shared_apiary_seen_by_members_including_admin_subgroup(self):
+        self._share()
+        for user in (self.member_user, self.group_admin_user):
+            with self.subTest(user=user.guid):
+                self.assertEqual(self._ids(user), {self.apiary.id})
+        self.assertEqual(self._ids(self.stranger_user), set())
+
+    def test_mine_keeps_own_apiaries_only(self):
+        self._share()
+        own = Apiary.objects.create(latitude=50.5, longitude=4.5, infestation_level=2,
+                                    created_by=self.member, owner=self.member)
+        self.assertEqual(self._ids(self.member_user), {self.apiary.id, own.id})
+        self.assertEqual(self._ids(self.member_user, '&mine=true'), {own.id})
+
+    def test_volunteers_have_no_access(self):
+        self.member_user.roles = ['volunteer']
+        response = self._api('get', '/apiaries/?lat=50.5&lon=4.5', {'get': 'list'},
+                             self.member_user)
+        self.assertEqual(response.status_code, 403)
+
+    def test_representation_carries_owner_and_permissions(self):
+        self._share(can_update=True)
+        response = self._api('get', f'/apiaries/{self.apiary.id}/', {'get': 'retrieve'},
+                             self.member_user, pk=self.apiary.id)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['owner']['guid'], str(self.owner_guid))
+        self.assertEqual(response.data['permissions'],
+                         {'update': True, 'delete': False, 'share': False})
+
+
+class ApiaryWriteTests(ApiaryTestCase):
+    def test_creation_sets_creator_and_owner_and_ignores_sent_owner(self):
+        response = self._api('post', '/apiaries/', {'post': 'create'}, self.member_user, {
+            'latitude': 50.4, 'longitude': 4.4, 'infestation_level': 2,
+            'afsca_number': ' 2.123.456.789 ', 'owner': str(self.stranger_guid),
+        }, format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+        apiary = Apiary.objects.get(pk=response.data['id'])
+        self.assertEqual(apiary.owner_id, self.member_guid)
+        self.assertEqual(apiary.created_by_id, self.member_guid)
+        self.assertEqual(apiary.afsca_number, '2.123.456.789')
+
+    def test_update_needs_owner_or_update_grant(self):
+        patch_data = {'afsca_number': 'X1'}
+        response = self._api('patch', '/', {'patch': 'partial_update'}, self.member_user,
+                             patch_data, pk=self.apiary.id, format='json')
+        self.assertEqual(response.status_code, 403)
+
+        self._share(can_update=False)
+        response = self._api('patch', '/', {'patch': 'partial_update'}, self.member_user,
+                             patch_data, pk=self.apiary.id, format='json')
+        self.assertEqual(response.status_code, 403)
+
+        ApiaryGroupPermission.objects.filter(apiary=self.apiary).update(can_update=True)
+        response = self._api('patch', '/', {'patch': 'partial_update'}, self.member_user,
+                             patch_data, pk=self.apiary.id, format='json')
+        self.assertEqual(response.status_code, 200)
+
+    def test_delete_stays_with_owner(self):
+        self._share(can_update=True)
+        response = self._api('delete', '/', {'delete': 'destroy'}, self.member_user,
+                             pk=self.apiary.id)
+        self.assertEqual(response.status_code, 403)
+        response = self._api('delete', '/', {'delete': 'destroy'}, self.owner_user,
+                             pk=self.apiary.id)
+        self.assertEqual(response.status_code, 204)
+
+    def test_photo_is_stored_and_served_to_readers_only(self):
+        response = self._api('post', '/', {'post': 'photo'}, self.owner_user,
+                             {'photo': _image_file()}, pk=self.apiary.id, format='multipart')
+        self.assertEqual(response.status_code, 200)
+        self.apiary.refresh_from_db()
+        self.addCleanup(self.apiary.photo.delete, save=False)
+        self.addCleanup(self.apiary.photo_thumbnail.delete, save=False)
+        path = self.apiary.photo.name
+        self.assertTrue(path.startswith(f'apiaries/{self.apiary.id}/'))
+
+        def fetch(user):
+            request = self.factory.get(f'/api/media/{path}')
+            force_authenticate(request, user=user)
+            return media_view(request, path=path).status_code
+
+        self.assertEqual(fetch(self.owner_user), 200)
+        self.assertEqual(fetch(self.member_user), 404)
+        self._share()
+        self.assertEqual(fetch(self.member_user), 200)
+        self.assertEqual(fetch(self.stranger_user), 404)
+
+
+class ApiarySharingTests(ApiaryTestCase):
+    def test_association_path(self):
+        self.assertEqual(association_path('/beekeepers/ena'), '/beekeepers/ena')
+        self.assertEqual(association_path('/beekeepers/ena/admin'), '/beekeepers/ena')
+        self.assertIsNone(association_path('/beekeepers'))
+
+    def test_owner_is_offered_their_associations(self):
+        self.owner.group_paths = ['/beekeepers', '/beekeepers/vsab/admin', self.group_path]
+        self.owner.save()
+        response = self._api('get', '/', {'get': 'sharing'}, self.owner_user, pk=self.apiary.id)
+        self.assertTrue(response.data['can_share'])
+        self.assertEqual([g['path'] for g in response.data['allowed_groups']],
+                         ['/beekeepers/ena', '/beekeepers/vsab'])
+
+    def test_owner_shares_then_unshares(self):
+        response = self._api('put', '/', {'put': 'sharing'}, self.owner_user,
+                             {'group_path': self.group_path, 'can_update': True},
+                             pk=self.apiary.id, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['extended_permissions'][0]['group'], self.group_path)
+        self.assertTrue(response.data['extended_permissions'][0]['can_update'])
+        self.assertEqual(self._ids(self.member_user), {self.apiary.id})
+
+        response = self._api('delete', f'/?group_path={self.group_path}', {'delete': 'sharing'},
+                             self.owner_user, pk=self.apiary.id)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['extended_permissions'], [])
+        self.assertEqual(self._ids(self.member_user), set())
+
+    def test_owner_cannot_share_with_a_foreign_group(self):
+        response = self._api('put', '/', {'put': 'sharing'}, self.owner_user,
+                             {'group_path': '/beekeepers/other'}, pk=self.apiary.id, format='json')
+        self.assertEqual(response.status_code, 403)
+
+    def test_members_cannot_change_sharing(self):
+        self._share(can_update=True)
+        response = self._api('put', '/', {'put': 'sharing'}, self.member_user,
+                             {'group_path': self.group_path, 'can_update': True},
+                             pk=self.apiary.id, format='json')
+        self.assertEqual(response.status_code, 403)
+
+    def test_only_admin_changes_owner(self):
+        data = {'owner_guid': str(self.member_guid)}
+        response = self._api('put', '/', {'put': 'owner'}, self.owner_user, data,
+                             pk=self.apiary.id, format='json')
+        self.assertEqual(response.status_code, 403)
+        response = self._api('put', '/', {'put': 'owner'}, self.admin_user, data,
+                             pk=self.apiary.id, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['owner']['guid'], str(self.member_guid))

@@ -4,8 +4,9 @@ Permission-checked delivery of the uploaded media.
 Nothing under MEDIA_ROOT is exposed by nginx directly: the files of a trap
 restricted to a group must stay invisible to everyone else, and a URL is not a
 secret. Every file therefore goes through this view, which resolves the trap
-from the path, applies the same rules as the API, and then hands the transfer
-back to nginx through X-Accel-Redirect (the `/_media/` location is `internal`).
+or the apiary from the path, applies the same rules as the API, and then hands
+the transfer back to nginx through X-Accel-Redirect (the `/_media/` location
+is `internal`).
 """
 
 import posixpath
@@ -19,12 +20,15 @@ from drf_spectacular.utils import OpenApiResponse, extend_schema
 
 from hornet_finder_api.authentication import JWTBearerAuthentication
 
+from . import apiary_permissions
 from . import trap_permissions as perms
-from .models import Trap
+from .models import Apiary, Trap
 
 # Files of a trap live under `traps/<trap id>/`, which is what makes the
 # permission check possible from the path alone.
 TRAP_FILE_RE = re.compile(r'^traps/(?P<trap_id>\d+)/[^/]+$')
+# Same for an apiary, under `apiaries/<apiary id>/`; apiaries are never public
+APIARY_FILE_RE = re.compile(r'^apiaries/(?P<apiary_id>\d+)/[^/]+$')
 # Profile photos are public too: the Keycloak account console loads them
 # without any token, and their file names are random.
 PUBLIC_PREFIXES = ('trap-types/', 'species/', 'avatars/')
@@ -50,16 +54,22 @@ def media_view(request, path):
         raise Http404
 
     if not path.startswith(PUBLIC_PREFIXES):
-        match = TRAP_FILE_RE.match(path)
-        if not match:
-            raise Http404
-        trap = Trap.objects.select_related('group', 'owner').filter(
-            pk=match.group('trap_id')
-        ).first()
-        if trap is None:
-            raise Http404
-        if not perms.can_read_trap(request, trap):
-            # 404 rather than 403: the existence of the file is itself private
+        # 404 rather than 403 when refused: the existence of the file is itself private
+        trap_match = TRAP_FILE_RE.match(path)
+        apiary_match = APIARY_FILE_RE.match(path)
+        if trap_match:
+            trap = Trap.objects.select_related('group', 'owner').filter(
+                pk=trap_match.group('trap_id')
+            ).first()
+            if trap is None or not perms.can_read_trap(request, trap):
+                raise Http404
+        elif apiary_match:
+            apiary = Apiary.objects.filter(pk=apiary_match.group('apiary_id')).first()
+            if apiary is None or not apiary_permissions.has_apiary_permission(
+                request, apiary, apiary_permissions.READ
+            ):
+                raise Http404
+        else:
             raise Http404
 
     full_path = settings.MEDIA_ROOT / path

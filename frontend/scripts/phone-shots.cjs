@@ -151,6 +151,15 @@ async function walk(name) {
     await escape();
   });
 
+  await step('map', async () => {
+    await open('/map');
+    await shot('map', 2500);
+    await tap(page.locator('[aria-label="Couches"]'));
+    await shot('map-layers');
+    await escape();
+    await tapAt(viewport.width / 2, 10);
+  });
+
   await step('traps-map', async () => {
     await open('/traps');
     await shot('traps-map', 2500);
@@ -304,6 +313,39 @@ async function walk(name) {
     await escape();
   });
 
+  await step('apiaries-map', async () => {
+    await open('/apiaries');
+    await shot('apiaries-map', 2500);
+    await tap(page.locator('[aria-label="Couches"]'));
+    await shot('apiaries-layers');
+    await escape();
+    await tapAt(viewport.width / 2, 10);
+  });
+
+  await step('apiary-sheet', async () => {
+    await tapAt(...(await markerAt('.apiary-icon')));
+    await shot('apiary-sheet', 2000);
+    await tap(page.locator('.modal.show .accordion-button').filter({ hasText: 'Partage' }));
+    await scrollDown();
+    await shot('apiary-sharing', 800);
+  });
+
+  await step('apiary-edit', async () => {
+    await tap(page.locator('.modal.show [aria-label="Modifier"]'));
+    await shot('apiary-edit', 1200);
+    await escape();
+  });
+
+  await step('add-apiary', async () => {
+    await open('/apiaries');
+    await page.waitForTimeout(2000);
+    await tapAt(viewport.width * 0.2, viewport.height * 0.8);
+    await page.waitForTimeout(1000);
+    await tap(page.locator('.show button:has-text("Rucher")'));
+    await shot('add-apiary', 1200);
+    await escape();
+  });
+
   for (const [path, label] of [
     ['/admin', 'admin'],
     ['/admin/species', 'admin-species'],
@@ -312,6 +354,7 @@ async function walk(name) {
     ['/admin/tags?tab=print', 'admin-tags-print'],
     ['/docs', 'docs'],
     ['/docs/traps', 'docs-traps'],
+    ['/docs/apiaries', 'docs-apiaries'],
   ]) {
     await step(label, async () => {
       await open(path);

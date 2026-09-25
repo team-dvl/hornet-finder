@@ -321,6 +321,12 @@ const hornetsSlice = createSlice({
         state.showReturnZones = false;
       }
     },
+    setShowHornets: (state, action) => {
+      state.showHornets = action.payload as boolean;
+      if (!state.showHornets) {
+        state.showReturnZones = false;
+      }
+    },
     toggleReturnZones: (state) => {
       state.showReturnZones = !state.showReturnZones;
     },
@@ -482,5 +488,5 @@ export const selectFilteredHornets = (state: { hornets: HornetsState }) => {
   });
 };
 
-export const { clearError, clearHornets, addHornet, toggleHornets, toggleReturnZones, toggleShowArchived, setColorFilters, clearColorFilters } = hornetsSlice.actions;
+export const { clearError, clearHornets, addHornet, toggleHornets, setShowHornets, toggleReturnZones, toggleShowArchived, setColorFilters, clearColorFilters } = hornetsSlice.actions;
 export default hornetsSlice.reducer;

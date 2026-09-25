@@ -1,4 +1,3 @@
-export { default as AddApiaryPopup } from './AddApiaryPopup';
 export { default as AddHornetPopup } from './AddHornetPopup';
 export { default as AddNestPopup } from './AddNestPopup';
 export { default as ApiaryInfoPopup } from './ApiaryInfoPopup';

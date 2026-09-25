@@ -2,7 +2,8 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .media_views import media_view
 from .profile_views import my_avatar
-from .views import HornetViewSet, NestViewSet, ApiaryViewSet
+from .apiary_views import ApiaryViewSet
+from .views import HornetViewSet, NestViewSet
 from .tag_views import TagAdminViewSet, TagViewSet, sheet_pdf
 from .trap_views import (
     SpeciesViewSet, TrapEventViewSet, TrapPhotoViewSet, TrapTypeViewSet, TrapViewSet,

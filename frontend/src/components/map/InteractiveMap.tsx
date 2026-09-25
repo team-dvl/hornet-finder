@@ -4,7 +4,7 @@ import { Spinner } from 'react-bootstrap';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 import L, { Map } from 'leaflet';
-import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowApiaryCircles, selectShowHornets, selectShowReturnZones, selectShowNests, initializeGeolocation, selectMapCenter, selectGeolocationError, setGeolocationError, setIsAdmin, selectTraps, selectShowTraps, selectMovingTrapId, setShowTraps, toggleNests, toggleApiaries, stopMovingTrap, updateTrap, setMapCenter, fetchTrapDetail } from '../../store/store';
+import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowApiaryCircles, selectShowHornets, selectShowReturnZones, selectShowNests, initializeGeolocation, selectMapCenter, selectGeolocationError, setGeolocationError, setIsAdmin, selectTraps, selectShowTraps, selectMovingTrapId, setShowTraps, setShowNests, setShowApiaries, setShowHornets, stopMovingTrap, updateTrap, setMapCenter, fetchTrapDetail } from '../../store/store';
 import { selectFilteredHornets } from '../../store/slices/hornetsSlice';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useMapDataFetching } from '../../hooks/useMapDataFetching';
@@ -29,7 +29,7 @@ import ApiaryInfoPopup from '../popups/ApiaryInfoPopup';
 import NestInfoPopup from '../popups/NestInfoPopup';
 import AddItemSelector from '../forms/AddItemSelector';
 import AddHornetPopup from '../popups/AddHornetPopup';
-import AddApiaryPopup from '../popups/AddApiaryPopup';
+import { ApiaryFormModal } from '../apiaries';
 import AddNestPopup from '../popups/AddNestPopup';
 import { TrapAddressChangeModal, TrapFormModal, TrapInfoPopup } from '../traps';
 import CompassCapture from './CompassCapture';
@@ -97,13 +97,13 @@ interface InteractiveMapProps {
    * view over all the data, filtered by type, so the user can then overlay
    * whatever they need from the layer controls.
    */
-  preset?: 'nests' | 'traps';
+  preset?: 'nests' | 'traps' | 'apiaries' | 'map';
 }
 
 export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps) {
   const dispatch = useAppDispatch();
   const auth = useAuth();
-  const { isAdmin, canAddApiary, canAddHornet, canAddTrap, userGuid } = useUserPermissions();
+  const { isAdmin, canAddApiary, canAddHornet, canAddTrap, userGuid, roles } = useUserPermissions();
   
   // Redux state
   const mapCenter = useAppSelector(selectMapCenter);
@@ -157,18 +157,30 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
 
   // Couches ouvertes par défaut selon la route d'entrée. L'utilisateur reste
   // libre de tout superposer ensuite depuis le contrôle des couches.
+  // Applied once the session is known, since the 'map' preset depends on the roles.
   const presetApplied = useRef(false);
   useEffect(() => {
-    if (presetApplied.current) return;
+    if (presetApplied.current || auth.isLoading) return;
     presetApplied.current = true;
     if (preset === 'traps') {
       dispatch(setShowTraps(true));
       // Les nids et les ruchers restent disponibles, mais masqués au départ
-      if (showNests) dispatch(toggleNests());
-      if (showApiaries) dispatch(toggleApiaries());
+      dispatch(setShowNests(false));
+      dispatch(setShowApiaries(false));
+    } else if (preset === 'apiaries') {
+      // The apiaries alone, the other layers one switch away
+      dispatch(setShowApiaries(true));
+      dispatch(setShowTraps(false));
+      dispatch(setShowNests(false));
+      dispatch(setShowHornets(false));
+    } else if (preset === 'map') {
+      // Overview: traps and nests, hornets hidden, apiaries for beekeepers
+      dispatch(setShowTraps(true));
+      dispatch(setShowNests(true));
+      dispatch(setShowHornets(false));
+      dispatch(setShowApiaries(roles.includes('beekeeper')));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preset, dispatch]);
+  }, [preset, dispatch, auth.isLoading, roles]);
 
   // Carte Leaflet, gardée en état pour que la détection des chevauchements
   // la reçoive dès qu'elle est prête (une ref ne déclencherait pas de rendu)
@@ -769,12 +781,10 @@ export default function InteractiveMap({ preset = 'nests' }: InteractiveMapProps
       )}
 
       {modalOfKind('add-apiary') && (
-        <AddApiaryPopup
-          show
+        <ApiaryFormModal
           onHide={closeModal}
           latitude={modalOfKind('add-apiary')!.position.lat}
           longitude={modalOfKind('add-apiary')!.position.lng}
-          onSuccess={handleAddSuccess}
         />
       )}
 

@@ -4,7 +4,7 @@ import { Container, Alert } from 'react-bootstrap'
 import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from 'react-oidc-context';
-import { Home, Nests, Traps, DocsIndex, DocPage, AdminIndex, TrapTypesAdmin, SpeciesAdmin, TagsAdmin, PrivacyPolicy, DataDeletion } from './pages';
+import { Home, MapPage, Nests, Traps, Apiaries, DocsIndex, DocPage, AdminIndex, TrapTypesAdmin, SpeciesAdmin, TagsAdmin, PrivacyPolicy, DataDeletion } from './pages';
 import { RequireRole } from './components/common';
 import { initIOSViewportFix } from './utils/iosViewportFix';
 import { useUrlCleaner } from './utils/urlCleaner';
@@ -106,7 +106,12 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
+      <Route path="/map" element={<MapPage />} />
       <Route path="/nests" element={<Nests />} />
+      <Route
+        path="/apiaries"
+        element={<RequireRole roles={['beekeeper', 'admin']}><Apiaries /></RequireRole>}
+      />
       {/* One map for both paths, so resolving a tag and returning to /traps keeps it mounted */}
       <Route element={<Traps />}>
         <Route path="/traps" element={null} />

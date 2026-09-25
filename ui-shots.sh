@@ -71,15 +71,21 @@ NEST=$(create /nests/ -H "Content-Type: application/json" \
     -d "{\"latitude\": 50.4890, \"longitude\": 4.8795, \"comments\": \"ui-shots\"}")
 HORNET=$(create /hornets/ -H "Content-Type: application/json" \
     -d "{\"latitude\": 50.4870, \"longitude\": 4.8805, \"direction\": 300, \"duration\": 300}")
+# An apiary with every optional field, shared so its sheet shows a sharing row
+APIARY=$(create /apiaries/ -F "latitude=50.4910" -F "longitude=4.8790" -F "infestation_level=2" \
+    -F "afsca_number=2.000.000.001" -F "comments=ui-shots" -F "photo=@frontend/public/vsab-logo-transparent.png")
+[[ -n "$APIARY" ]] && curl -sk -o /dev/null -X PUT "$BASE/apiaries/$APIARY/sharing/" "${H[@]}" \
+    -H "Content-Type: application/json" -d '{"group_path": "/beekeepers/vsab", "can_update": true}'
 
 cleanup() {
     [[ -n "$TRAP1" ]] && curl -sk -o /dev/null -X DELETE "$BASE/traps/$TRAP1/" "${H[@]}"
     [[ -n "$TRAP2" ]] && curl -sk -o /dev/null -X DELETE "$BASE/traps/$TRAP2/" "${H[@]}"
     [[ -n "$NEST" ]] && curl -sk -o /dev/null -X DELETE "$BASE/nests/$NEST/" "${H[@]}"
     [[ -n "$HORNET" ]] && curl -sk -o /dev/null -X DELETE "$BASE/hornets/$HORNET/" "${H[@]}"
+    [[ -n "$APIARY" ]] && curl -sk -o /dev/null -X DELETE "$BASE/apiaries/$APIARY/" "${H[@]}"
 }
 trap cleanup EXIT
-echo "Fixtures: traps $TRAP1 $TRAP2, nest $NEST, hornet $HORNET"
+echo "Fixtures: traps $TRAP1 $TRAP2, nest $NEST, hornet $HORNET, apiary $APIARY"
 
 mkdir -p "$OUT" .cache/ui-shots
 docker run --rm --ipc=host --user "$(id -u):$(id -g)" -e HOME=/tmp \
