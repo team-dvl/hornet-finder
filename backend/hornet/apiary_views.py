@@ -2,11 +2,14 @@
 
 import logging
 
-from django.db.models import Prefetch
+from django.contrib.gis.db.models.functions import Distance
+from django.contrib.gis.geos import Point
+from django.db.models import F, Prefetch, Q
 
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError as DRFValidationError
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from drf_spectacular.types import OpenApiTypes
@@ -22,6 +25,21 @@ from .trap_views import _delete_files, _group_for_path, _group_label, _store_pho
 from .views import GeographicFilterMixin, geographic_list_schema
 
 logger = logging.getLogger(__name__)
+
+# Sort keys of the apiary manager, mapped to the queryset field they order by
+MANAGED_ORDERINGS = {
+    'infestation_level': 'infestation_level',
+    'created_at': 'created_at',
+    'address': 'address',
+    'id': 'id',
+    'distance': 'distance',
+}
+
+
+class ManagedApiaryPagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = 'page_size'
+    max_page_size = 200
 
 
 class ApiaryViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
@@ -66,6 +84,94 @@ class ApiaryViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         if request.query_params.get('mine') in ('true', '1'):
             queryset = queryset.filter(owner__guid=getattr(request.user, 'guid', None))
         return Response(self.get_serializer(queryset, many=True).data)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(name='scope', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY,
+                             required=False,
+                             description="'mine' (default), 'shared' or 'all' (platform admins)"),
+            OpenApiParameter(name='group', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY,
+                             required=False, description='Path of a group the apiary is shared with'),
+            OpenApiParameter(name='infestation_level', type=OpenApiTypes.INT,
+                             location=OpenApiParameter.QUERY, required=False),
+            OpenApiParameter(name='q', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY,
+                             required=False,
+                             description='Number, address, AFSCA number or comments'),
+            OpenApiParameter(name='ordering', type=OpenApiTypes.STR,
+                             location=OpenApiParameter.QUERY, required=False,
+                             description=("One of " + ', '.join(sorted(MANAGED_ORDERINGS))
+                                          + ", prefixed with '-' for descending order "
+                                          "(default '-infestation_level'). "
+                                          "'distance' needs lat and lon")),
+            OpenApiParameter(name='lat', type=OpenApiTypes.FLOAT, location=OpenApiParameter.QUERY,
+                             required=False),
+            OpenApiParameter(name='lon', type=OpenApiTypes.FLOAT, location=OpenApiParameter.QUERY,
+                             required=False),
+            OpenApiParameter(name='page', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY,
+                             required=False),
+            OpenApiParameter(name='page_size', type=OpenApiTypes.INT,
+                             location=OpenApiParameter.QUERY, required=False),
+        ],
+        responses={200: ApiarySerializer(many=True)},
+    )
+    @action(detail=False, methods=['get'])
+    def managed(self, request):
+        """
+        The apiary manager: apiaries the caller owns (`mine`), apiaries shared
+        with one of their groups (`shared`), or every apiary (`all`, platform
+        admins). No radius, unlike the map listing; filtered, sorted and
+        paginated here.
+        """
+        params = request.query_params
+        guid = getattr(request.user, 'guid', None)
+        scope = params.get('scope', 'mine')
+        queryset = self.get_queryset()
+        if scope == 'mine':
+            queryset = queryset.filter(owner__guid=guid)
+        elif scope == 'shared':
+            queryset = queryset.filter(perms.shared_with_requester_q(request)).exclude(owner__guid=guid)
+        elif scope == 'all':
+            if not perms.is_platform_admin(request.user):
+                raise PermissionDenied("Only a platform administrator can list every apiary.")
+        else:
+            raise DRFValidationError({'scope': "Expected 'mine', 'shared' or 'all'."})
+
+        if params.get('group'):
+            queryset = queryset.filter(apiarygrouppermission__group__path=params['group'])
+        if params.get('infestation_level'):
+            try:
+                queryset = queryset.filter(infestation_level=int(params['infestation_level']))
+            except ValueError:
+                raise DRFValidationError({'infestation_level': "Expected 1, 2 or 3."})
+        search = params.get('q', '').strip().lstrip('#')
+        if search:
+            match = (Q(address__icontains=search) | Q(afsca_number__icontains=search)
+                     | Q(comments__icontains=search))
+            if search.isdigit():
+                match |= Q(pk=int(search))
+            queryset = queryset.filter(match)
+
+        ordering = params.get('ordering', '-infestation_level')
+        field = ordering.lstrip('-')
+        if field not in MANAGED_ORDERINGS:
+            raise DRFValidationError({'ordering': f"Unknown ordering '{ordering}'."})
+        if field == 'distance':
+            try:
+                center = Point(float(params['lon']), float(params['lat']), srid=4326)
+            except (KeyError, ValueError):
+                raise DRFValidationError({'ordering': "Sorting by distance needs lat and lon."})
+            queryset = queryset.annotate(distance=Distance('point', center))
+        expression = F(MANAGED_ORDERINGS[field])
+        expression = expression.desc() if ordering.startswith('-') else expression.asc()
+        queryset = queryset.order_by(expression, '-id')
+
+        paginator = ManagedApiaryPagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        # Owners repeat across a page: resolve each display name once
+        serializer = self.get_serializer(page, many=True, context={
+            **self.get_serializer_context(), 'user_summaries': {},
+        })
+        return paginator.get_paginated_response(serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
         self._require(self.get_object(), perms.READ, "You do not have permission to view this apiary.")

@@ -29,8 +29,9 @@ A RESTful API built with Django and Django REST Framework for managing hornet de
 - `GET|PUT|PATCH|DELETE /api/hornets/{id}/` - Retrieve, update, or delete a specific hornet
 - `GET|POST /api/nests/` - List all nests or create a new nest record
 - `GET|PUT|PATCH|DELETE /api/nests/{id}/` - Retrieve, update, or delete a specific nest
-- `GET|POST /api/apiaries/` - List all apiaries or create a new apiary record
+- `GET|POST /api/apiaries/` - Apiaries around a position (`lat`, `lon`, `radius`, `mine`) the caller may see, or create one (the caller becomes its owner)
 - `GET|PUT|PATCH|DELETE /api/apiaries/{id}/` - Retrieve, update, or delete a specific apiary
+- `GET /api/apiaries/managed/` - Apiary manager, paginated (`page`, `page_size` up to 200, default 50). `scope`: `mine` (default), `shared` (apiaries shared with one of the caller's groups, parents of their subgroups included, their own excluded) or `all` (platform admins only). Filters: `group` (path of a group the apiary is shared with), `infestation_level`, `q` (number, address, AFSCA number, comments). `ordering`: `infestation_level`, `created_at`, `address`, `id`, `distance` (needs `lat`/`lon`, no radius limit), `-` prefix for descending order; default `-infestation_level`
 
 ### Traps
 

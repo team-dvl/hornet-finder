@@ -1,41 +1,39 @@
 import { useEffect, useState } from 'react';
 import { Button, ButtonGroup, Form, InputGroup, Spinner } from 'react-bootstrap';
-import type { ManagedTrapsQuery, TrapOrdering, TrapScope, TrapType } from '../../store/store';
+import type { ApiaryOrdering, ApiaryScope, ManagedApiariesQuery } from '../../store/store';
+import { INFESTATION_LABELS } from './apiaryLevels';
 
-const ORDERINGS: { value: TrapOrdering; label: string }[] = [
-  { value: 'last_event_at', label: 'Relevé le plus ancien' },
-  { value: '-last_event_at', label: 'Relevé le plus récent' },
+const ORDERINGS: { value: ApiaryOrdering; label: string }[] = [
+  { value: '-infestation_level', label: 'Le plus infesté' },
   { value: 'distance', label: 'Le plus proche' },
-  { value: '-hornet_catch_count', label: 'Le plus de captures' },
-  { value: '-installed_at', label: 'Installé récemment' },
-  { value: 'installed_at', label: 'Installé il y a longtemps' },
+  { value: '-created_at', label: 'Créé récemment' },
+  { value: 'created_at', label: 'Créé il y a longtemps' },
   { value: 'address', label: 'Adresse (A → Z)' },
   { value: '-id', label: 'Numéro décroissant' },
 ];
 
-const SCOPES: { value: TrapScope; label: string; icon: string }[] = [
-  { value: 'mine', label: 'Mes pièges', icon: 'bi-person-fill' },
-  { value: 'delegated', label: 'Délégués', icon: 'bi-people-fill' },
+const SCOPES: { value: ApiaryScope; label: string; icon: string }[] = [
+  { value: 'mine', label: 'Mes ruchers', icon: 'bi-person-fill' },
+  { value: 'shared', label: 'Partagés', icon: 'bi-people-fill' },
   { value: 'all', label: 'Tous', icon: 'bi-globe' },
 ];
 
-interface TrapListToolbarProps {
-  query: ManagedTrapsQuery;
-  onChange: (changes: Partial<ManagedTrapsQuery>) => void;
+interface ApiaryListToolbarProps {
+  query: ManagedApiariesQuery;
+  onChange: (changes: Partial<ManagedApiariesQuery>) => void;
   /** Scopes offered to this user ('all' is for platform admins) */
-  scopes: TrapScope[];
+  scopes: ApiaryScope[];
   /** Groups the user belongs to, for the group filter */
   groups: string[];
-  trapTypes: TrapType[];
   count: number;
   loading: boolean;
   locating: boolean;
 }
 
-/** Scope, search, filters and sorting of the trap manager. */
-export default function TrapListToolbar({
-  query, onChange, scopes, groups, trapTypes, count, loading, locating,
-}: TrapListToolbarProps) {
+/** Scope, search, filters and sorting of the apiary manager. */
+export default function ApiaryListToolbar({
+  query, onChange, scopes, groups, count, loading, locating,
+}: ApiaryListToolbarProps) {
   // Typed text is sent once the user pauses, not on every key
   const [search, setSearch] = useState(query.q ?? '');
   useEffect(() => {
@@ -44,16 +42,14 @@ export default function TrapListToolbar({
     return () => window.clearTimeout(timer);
   }, [search, query.q, onChange]);
 
-  const [showFilters, setShowFilters] = useState(
-    Boolean(query.group || query.trap_type || query.has_tag || query.active !== 'true'),
-  );
-  const activeFilters = [query.group, query.trap_type, query.has_tag].filter(Boolean).length
-    + (query.active !== 'true' ? 1 : 0);
+  const [showFilters, setShowFilters] = useState(Boolean(query.group || query.infestation_level));
+  const activeFilters = [query.group, query.infestation_level].filter(Boolean).length;
+  const groupFilter = query.scope !== 'mine' && groups.length > 0;
 
   return (
     <div className="manager-list-toolbar mb-3">
       {scopes.length > 1 && (
-        <ButtonGroup className="w-100 mb-2 manager-scope" aria-label="Pièges affichés">
+        <ButtonGroup className="w-100 mb-2 manager-scope" aria-label="Ruchers affichés">
           {scopes.map((scope) => {
             const info = SCOPES.find((s) => s.value === scope)!;
             return (
@@ -75,10 +71,10 @@ export default function TrapListToolbar({
         <InputGroup.Text><i className="bi bi-search" aria-hidden="true" /></InputGroup.Text>
         <Form.Control
           type="search"
-          placeholder="N°, adresse, QR Code, commentaire…"
+          placeholder="N°, adresse, n° AFSCA, commentaire…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          aria-label="Rechercher un piège"
+          aria-label="Rechercher un rucher"
         />
         <Button
           variant={showFilters ? 'secondary' : 'outline-secondary'}
@@ -95,44 +91,24 @@ export default function TrapListToolbar({
         <div className="row g-2 mb-2">
           <div className="col-12 col-sm-6 col-md-3">
             <Form.Select
-                            value={query.active}
-              onChange={(e) => onChange({ active: e.target.value as ManagedTrapsQuery['active'] })}
-              aria-label="État"
+              value={query.infestation_level ?? ''}
+              onChange={(e) => onChange({
+                infestation_level: (e.target.value || undefined) as ManagedApiariesQuery['infestation_level'],
+              })}
+              aria-label="Infestation"
             >
-              <option value="true">En service</option>
-              <option value="false">Remisés</option>
-              <option value="all">Tous les états</option>
-            </Form.Select>
-          </div>
-          <div className="col-12 col-sm-6 col-md-3">
-            <Form.Select
-                            value={query.trap_type ?? ''}
-              onChange={(e) => onChange({ trap_type: e.target.value || undefined })}
-              aria-label="Type de piège"
-            >
-              <option value="">Tous les types</option>
-              {trapTypes.map((type) => (
-                <option key={type.slug} value={type.slug}>{type.name}</option>
+              <option value="">Toutes les infestations</option>
+              {([1, 2, 3] as const).map((level) => (
+                <option key={level} value={String(level)}>{INFESTATION_LABELS[level]}</option>
               ))}
             </Form.Select>
           </div>
-          <div className="col-12 col-sm-6 col-md-3">
-            <Form.Select
-                            value={query.has_tag ?? ''}
-              onChange={(e) => onChange({ has_tag: (e.target.value || undefined) as ManagedTrapsQuery['has_tag'] })}
-              aria-label="QR Code"
-            >
-              <option value="">Avec ou sans QR Code</option>
-              <option value="true">Avec QR Code</option>
-              <option value="false">Sans QR Code</option>
-            </Form.Select>
-          </div>
-          {query.scope !== 'mine' && groups.length > 0 && (
+          {groupFilter && (
             <div className="col-12 col-sm-6 col-md-3">
               <Form.Select
-                                value={query.group ?? ''}
+                value={query.group ?? ''}
                 onChange={(e) => onChange({ group: e.target.value || undefined })}
-                aria-label="Groupe"
+                aria-label="Partagé avec"
               >
                 <option value="">Tous les groupes</option>
                 {groups.map((path) => (
@@ -146,13 +122,13 @@ export default function TrapListToolbar({
 
       <div className="d-flex align-items-center justify-content-between gap-2">
         <span className="small text-muted">
-          {loading ? <Spinner animation="border" size="sm" /> : `${count} piège${count > 1 ? 's' : ''}`}
+          {loading ? <Spinner animation="border" size="sm" /> : `${count} rucher${count > 1 ? 's' : ''}`}
         </span>
         <div className="d-flex align-items-center gap-2">
           {locating && <Spinner animation="border" size="sm" aria-label="Localisation…" />}
           <Form.Select
-                        value={query.ordering}
-            onChange={(e) => onChange({ ordering: e.target.value as TrapOrdering })}
+            value={query.ordering}
+            onChange={(e) => onChange({ ordering: e.target.value as ApiaryOrdering })}
             aria-label="Trier par"
             className="manager-sort"
           >

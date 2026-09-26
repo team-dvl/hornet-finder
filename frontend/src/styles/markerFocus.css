@@ -1,6 +1,6 @@
-/* Trap reached from "Locate" in the trap manager: a pulsing halo */
+/* Object reached from "Voir sur la carte" in a manager list: a pulsing halo */
 
-@keyframes trapFocusPulse {
+@keyframes markerFocusPulse {
   0% {
     filter: drop-shadow(0 0 2px #0d6efd);
   }
@@ -12,6 +12,6 @@
   }
 }
 
-.trap-marker-focus {
-  animation: trapFocusPulse 1.6s ease-in-out infinite;
+.map-marker-focus {
+  animation: markerFocusPulse 1.6s ease-in-out infinite;
 }

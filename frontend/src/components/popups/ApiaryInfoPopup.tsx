@@ -5,7 +5,7 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { Apiary, updateApiary, selectApiaryById, deleteApiary } from '../../store/slices/apiariesSlice';
 import { ConfirmationModal } from '../modals';
 import InfestationLevelInput, { InfestationLevel } from '../common/InfestationLevelInput';
-import { AuthImage } from '../common';
+import { AuthImage, ClampedText } from '../common';
 import { ApiaryFormModal, ApiarySharingPanel } from '../apiaries';
 import { AppModal, FieldRow, IconButton } from '../ui';
 import { ACTION_ICONS, OBJECT_ICONS } from '../../utils/icons';
@@ -19,13 +19,15 @@ interface ApiaryInfoPopupProps {
   onHide: () => void;
   apiary: Apiary | null;
   onAddAtLocation?: (lat: number, lng: number) => void;
+  /** Opens the map on this apiary (from the apiary manager) */
+  onLocate?: (apiary: Apiary) => void;
 }
 
 /** Dialog shown in place of the sheet (one dialog at a time) */
 type SubDialog = 'edit' | 'delete' | 'photo';
 
 /** Detail of an apiary; what the user may do comes from the backend (`permissions`). */
-export default function ApiaryInfoPopup({ show, onHide, apiary, onAddAtLocation }: ApiaryInfoPopupProps) {
+export default function ApiaryInfoPopup({ show, onHide, apiary, onAddAtLocation, onLocate }: ApiaryInfoPopupProps) {
   const dispatch = useAppDispatch();
   const auth = useAuth();
   const [sub, setSub] = useState<SubDialog | null>(null);
@@ -105,11 +107,25 @@ export default function ApiaryInfoPopup({ show, onHide, apiary, onAddAtLocation 
             <FieldRow label="Créé par">{current.created_by.display_name}</FieldRow>
           )}
           {current.created_at && <FieldRow label="Créé le">{formatDate(current.created_at)}</FieldRow>}
+          {current.address && (
+            <div className="text-muted small mt-1 d-flex gap-1">
+              <i className="bi bi-geo-alt flex-shrink-0" aria-hidden="true" />
+              <ClampedText id={`apiary-${apiaryId}-address`} text={current.address} lines={2} />
+            </div>
+          )}
         </div>
         {current.comments && <p className="small mt-2 mb-0">{current.comments}</p>}
 
-        {(mayEdit || canAddHere || mayDelete) && (
+        {(mayEdit || canAddHere || mayDelete || onLocate) && (
           <div className="sheet-actions mt-3">
+            {onLocate && (
+              <IconButton
+                variant="outline-secondary"
+                icon={ACTION_ICONS.showOnMap}
+                label="Voir sur la carte"
+                onClick={() => onLocate(current)}
+              />
+            )}
             {mayEdit && (
               <IconButton variant="outline-secondary" icon={ACTION_ICONS.edit} label="Modifier" onClick={() => setSub('edit')} />
             )}

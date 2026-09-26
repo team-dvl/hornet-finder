@@ -9,9 +9,9 @@ export { selectShowReturnZones, selectShowHornets, selectHornetsLoading, selectS
 export type { Hornet, GeolocationParams, ArchiveFilterParams } from './slices/hornetsSlice';
 
 // Export des actions et thunks du slice apiaries
-export { fetchApiaries, createApiary, updateApiary, deleteApiary, deleteApiaryPhoto, fetchApiarySharing, shareApiary, unshareApiary, clearError as clearApiariesError, clearApiaries, toggleApiaries, setShowApiaries, toggleApiaryCircles, toggleOnlyMyApiaries, toggleCircleHighlight, clearAllHighlights } from './slices/apiariesSlice';
-export { selectApiaries, selectApiariesLoading, selectApiariesError, selectShowApiaries, selectShowApiaryCircles, selectHighlightedCircles, selectOnlyMyApiaries } from './slices/apiariesSlice';
-export type { Apiary, ApiaryFormValues, ApiarySharingInfo, ApiaryGroupGrant } from './slices/apiariesSlice';
+export { fetchApiaries, createApiary, updateApiary, deleteApiary, deleteApiaryPhoto, fetchApiarySharing, shareApiary, unshareApiary, clearError as clearApiariesError, clearApiaries, toggleApiaries, setShowApiaries, toggleApiaryCircles, toggleOnlyMyApiaries, toggleCircleHighlight, clearAllHighlights, fetchManagedApiaries, fetchApiaryDetail, MANAGED_APIARIES_PAGE_SIZE } from './slices/apiariesSlice';
+export { selectApiaries, selectApiariesLoading, selectApiariesError, selectShowApiaries, selectShowApiaryCircles, selectHighlightedCircles, selectOnlyMyApiaries, selectManagedApiaries } from './slices/apiariesSlice';
+export type { Apiary, ApiaryFormValues, ApiarySharingInfo, ApiaryGroupGrant, ApiaryScope, ApiaryOrdering, ManagedApiariesQuery } from './slices/apiariesSlice';
 
 // Export des actions et thunks du slice nests
 export { fetchNests, fetchNestsDestroyedPublic, createNest, deleteNest, archiveNest, bulkArchiveNests, clearError as clearNestsError, clearNests, toggleNests, setShowNests, toggleShowArchived as toggleShowArchivedNests } from './slices/nestsSlice';

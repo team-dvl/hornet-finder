@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Button, Form, Spinner } from 'react-bootstrap';
 import { useAppDispatch } from '../../store/hooks';
 import { createApiary, updateApiary, type Apiary } from '../../store/store';
 import { HelpTip, InfestationLevelInput, type InfestationLevel } from '../common';
-import { PhotoInput } from '../traps';
+import CoordinateInput from '../common/CoordinateInput';
+import { AddressSearch, PhotoInput } from '../traps';
 import { AppModal } from '../ui';
 import { OBJECT_ICONS } from '../../utils/icons';
+import { reverseGeocode } from '../../utils/geocoding';
 
 interface ApiaryFormModalProps {
   /** Mounted only while open, so every opening starts from the right values */
@@ -21,7 +23,7 @@ interface ApiaryFormModalProps {
 const LEVEL_NAMES = { 1: 'low', 2: 'moderate', 3: 'high' } as const;
 const LEVEL_VALUES = { low: 1, moderate: 2, high: 3 } as const;
 
-/** Create or edit an apiary: infestation, AFSCA number, photo, comments. */
+/** Create or edit an apiary: infestation, position, AFSCA number, photo, comments. */
 export default function ApiaryFormModal({
   onHide, latitude, longitude, apiary = null, onSaved,
 }: ApiaryFormModalProps) {
@@ -29,17 +31,34 @@ export default function ApiaryFormModal({
   const isEdit = Boolean(apiary);
 
   const [infestationLevel, setInfestationLevel] = useState<1 | 2 | 3>(apiary?.infestation_level ?? 1);
+  const [lat, setLat] = useState(apiary?.latitude ?? latitude ?? 0);
+  const [lng, setLng] = useState(apiary?.longitude ?? longitude ?? 0);
+  const [address, setAddress] = useState(apiary?.address ?? '');
   const [afscaNumber, setAfscaNumber] = useState(apiary?.afsca_number ?? '');
   const [comments, setComments] = useState(apiary?.comments ?? '');
   const [photo, setPhoto] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Fill the address from the position, unless the user already has one
+  useEffect(() => {
+    if (!lat || !lng || address) return;
+    let cancelled = false;
+    reverseGeocode(lat, lng).then((found) => {
+      if (!cancelled && found) setAddress(found);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lat, lng]);
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setSaving(true);
     setError(null);
     const values = {
+      latitude: lat,
+      longitude: lng,
+      address: address.trim(),
       infestation_level: infestationLevel,
       afsca_number: afscaNumber.trim(),
       comments: comments.trim(),
@@ -48,7 +67,7 @@ export default function ApiaryFormModal({
     try {
       const saved = apiary?.id
         ? await dispatch(updateApiary({ id: apiary.id, values })).unwrap()
-        : await dispatch(createApiary({ ...values, latitude, longitude })).unwrap();
+        : await dispatch(createApiary(values)).unwrap();
       onSaved?.(saved);
       onHide();
     } catch (submitError) {
@@ -92,6 +111,37 @@ export default function ApiaryFormModal({
           onChange={(level) => setInfestationLevel(LEVEL_VALUES[level])}
         />
       </Form.Group>
+
+      <AddressSearch
+        onSelect={(suggestion) => {
+          setLat(suggestion.latitude);
+          setLng(suggestion.longitude);
+          setAddress(suggestion.displayName);
+        }}
+      />
+
+      <Form.Group className="mb-2" controlId="apiary-address">
+        <Form.Label>Adresse</Form.Label>
+        <Form.Control
+          type="text"
+          value={address}
+          maxLength={255}
+          onChange={(event) => setAddress(event.target.value)}
+          placeholder="Complétée depuis la position"
+          disabled={saving}
+        />
+      </Form.Group>
+
+      {/* The position comes from the map or the address search; typed by hand only to correct it */}
+      <details className="mb-3 small">
+        <summary className="text-muted py-1">
+          Coordonnées GPS : {lat.toFixed(5)}, {lng.toFixed(5)}
+        </summary>
+        <div className="d-flex flex-column gap-2 mt-2">
+          <CoordinateInput label="Latitude" value={lat} onChange={setLat} precision={6} labelPosition="horizontal" />
+          <CoordinateInput label="Longitude" value={lng} onChange={setLng} precision={6} labelPosition="horizontal" />
+        </div>
+      </details>
 
       <Form.Group className="mb-3" controlId="apiary-afsca">
         <Form.Label className="d-flex align-items-center">

@@ -13,6 +13,7 @@ export default function MapPage() {
   const requested = params.get('view_mode');
   const viewMode = isMapViewMode(requested) ? requested : 'map';
   const trapId = Number(params.get('trap')) || null;
+  const apiaryId = Number(params.get('apiary')) || null;
 
   return (
     <>
@@ -21,6 +22,7 @@ export default function MapPage() {
         <InteractiveMap
           preset={viewMode}
           focusTrapId={trapId}
+          focusApiaryId={apiaryId}
           returnTo={safeReturnPath(params.get('from'))}
         />
       </div>

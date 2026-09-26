@@ -123,7 +123,7 @@ class ApiarySerializer(GPSValidationMixin, serializers.ModelSerializer):
 
     class Meta:
         model = Apiary
-        fields = ['id', 'longitude', 'latitude', 'infestation_level', 'afsca_number',
+        fields = ['id', 'longitude', 'latitude', 'address', 'infestation_level', 'afsca_number',
                   'photo_url', 'photo_thumbnail_url', 'created_at', 'created_by', 'owner',
                   'comments']
         # The creator and the owner are set by the server, never by a form
@@ -137,8 +137,18 @@ class ApiarySerializer(GPSValidationMixin, serializers.ModelSerializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        data['created_by'] = user_summary(instance.created_by)
-        data['owner'] = user_summary(instance.owner)
+        # A listing may pass a cache so each name is looked up once per page
+        summaries = self.context.get('user_summaries')
+
+        def summary(user):
+            if summaries is None or user is None:
+                return user_summary(user)
+            if user.pk not in summaries:
+                summaries[user.pk] = user_summary(user)
+            return summaries[user.pk]
+
+        data['created_by'] = summary(instance.created_by)
+        data['owner'] = summary(instance.owner)
         data['extended_permissions'] = [
             {
                 'group': agp.group.path,
@@ -160,6 +170,9 @@ class ApiarySerializer(GPSValidationMixin, serializers.ModelSerializer):
         return data
 
     def validate_afsca_number(self, value: str) -> str:
+        return value.strip()
+
+    def validate_address(self, value: str) -> str:
         return value.strip()
 
     def validate_infestation_level(self, value: int) -> int:

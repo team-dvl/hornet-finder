@@ -3,7 +3,7 @@ import { DivIcon } from 'leaflet';
 import * as L from 'leaflet';
 import { useMemo, useRef } from 'react';
 import { Trap } from '../../store/slices/trapsSlice';
-import '../../styles/trapFocus.css';
+import '../../styles/markerFocus.css';
 
 /**
  * Marker of a trap. The colour carries the status (green in service, grey
@@ -34,7 +34,7 @@ const createTrapIcon = (trap: Trap, isMine: boolean, isMoving: boolean, highligh
     iconSize: [34, 34],
     iconAnchor: [16, 16],
     popupAnchor: [0, -16],
-    className: highlighted ? 'trap-icon trap-marker-focus' : 'trap-icon'
+    className: highlighted ? 'trap-icon map-marker-focus' : 'trap-icon'
   });
 };
 

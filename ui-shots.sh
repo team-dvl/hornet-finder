@@ -73,7 +73,8 @@ HORNET=$(create /hornets/ -H "Content-Type: application/json" \
     -d "{\"latitude\": 50.4870, \"longitude\": 4.8805, \"direction\": 300, \"duration\": 300}")
 # An apiary with every optional field, shared so its sheet shows a sharing row
 APIARY=$(create /apiaries/ -F "latitude=50.4910" -F "longitude=4.8790" -F "infestation_level=2" \
-    -F "afsca_number=2.000.000.001" -F "comments=ui-shots" -F "photo=@frontend/public/vsab-logo-transparent.png")
+    -F "afsca_number=2.000.000.001" -F "address=Rue de l'Essai 1, 5020 Namur" -F "comments=ui-shots" \
+    -F "photo=@frontend/public/vsab-logo-transparent.png")
 [[ -n "$APIARY" ]] && curl -sk -o /dev/null -X PUT "$BASE/apiaries/$APIARY/sharing/" "${H[@]}" \
     -H "Content-Type: application/json" -d '{"group_path": "/beekeepers/vsab", "can_update": true}'
 

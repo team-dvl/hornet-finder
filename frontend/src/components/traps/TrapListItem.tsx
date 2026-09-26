@@ -34,14 +34,14 @@ export default function TrapListItem({
   const thumbnail = trap.photo_thumbnail_url ?? trap.trap_type.photo_thumbnail_url ?? null;
 
   return (
-    <div className="list-group-item trap-list-item d-flex flex-wrap flex-sm-nowrap column-gap-2 align-items-start py-2 px-2">
+    <div className="list-group-item manager-list-item d-flex flex-wrap flex-sm-nowrap column-gap-2 align-items-start py-2 px-2">
       <button
         type="button"
-        className="trap-list-open btn p-0 border-0 text-start d-flex gap-2 flex-grow-1 min-w-0"
+        className="manager-list-open btn p-0 border-0 text-start d-flex gap-2 flex-grow-1 min-w-0"
         onClick={() => onOpen(trap)}
         aria-label={`Fiche du piège #${trap.id}`}
       >
-        <span className="trap-list-thumb flex-shrink-0 rounded">
+        <span className="manager-list-thumb flex-shrink-0 rounded">
           {thumbnail ? <img src={thumbnail} alt="" className="rounded" /> : <span aria-hidden="true">🪤</span>}
         </span>
         <span className="d-block min-w-0">
@@ -50,7 +50,7 @@ export default function TrapListItem({
             <span className="text-truncate">{trap.trap_type.name}</span>
             {!trap.active && <Badge bg="secondary">Remisé</Badge>}
             {trap.group && (
-              <Badge bg="info" text="dark" className="text-truncate trap-list-group" title={trap.group.path}>
+              <Badge bg="info" text="dark" className="text-truncate manager-list-group" title={trap.group.path}>
                 <i className="bi bi-people-fill me-1" aria-hidden="true" />{trap.group.name}
               </Badge>
             )}
@@ -79,7 +79,7 @@ export default function TrapListItem({
         </span>
       </button>
 
-      <div className="trap-list-actions d-flex flex-shrink-0">
+      <div className="manager-list-actions d-flex flex-shrink-0">
         <IconButton
           variant="link"
           icon={ACTION_ICONS.showOnMap}

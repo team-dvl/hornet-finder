@@ -83,7 +83,7 @@ Composants de mise en page de l'application :
 ### `/components/map/`
 Composants liés aux fonctionnalités de cartographie :
 - `InteractiveMap.tsx` : Carte interactive principale, ouverte dans un mode de vue (prop `preset`)
-- `viewModes.ts` : Modes de vue de la carte (`map`, `nests`, `apiaries`, `trap`, `trap-move`) : couches affichées, piège centré et mis en évidence, déplacement, bouton de retour vers l'appelant. Un module ouvre le module Carte dans un mode avec `mapUrl({ mode, trap, from })`, qui produit `/map?view_mode=trap&trap=12&from=/traps?show=mine` (`from` : chemin interne uniquement)
+- `viewModes.ts` : Modes de vue de la carte (`map`, `nests`, `apiary`, `trap`, `trap-move`) : couches affichées, piège ou rucher centré et mis en évidence, déplacement, bouton de retour vers l'appelant. Un module ouvre le module Carte dans un mode avec `mapUrl({ mode, trap, apiary, from })`, qui produit `/map?view_mode=trap&trap=12&from=/traps?show=mine` (`from` : chemin interne uniquement)
 - `CompassMap.tsx` : Carte avec fonctionnalités de boussole
 - `CompassCapture.tsx` : Capture de direction à la boussole
 - `HornetReturnZone.tsx` : Zone de retour des frelons
