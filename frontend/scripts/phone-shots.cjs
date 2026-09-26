@@ -370,6 +370,7 @@ async function walk(name) {
     ['/admin', 'admin'],
     ['/admin/species', 'admin-species'],
     ['/admin/trap-types', 'admin-trap-types'],
+    ['/admin/archiving', 'admin-archiving'],
     ['/admin/tags', 'admin-tags'],
     ['/admin/tags?tab=print', 'admin-tags-print'],
     ['/docs', 'docs'],

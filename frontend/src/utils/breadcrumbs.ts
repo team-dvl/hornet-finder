@@ -9,6 +9,7 @@ export interface Crumb {
 const ADMIN_SECTIONS: Record<string, string> = {
   'trap-types': 'Types de pièges',
   species: 'Espèces',
+  archiving: 'Archivage',
   tags: 'QR Codes',
 };
 

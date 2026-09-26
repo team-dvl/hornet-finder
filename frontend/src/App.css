@@ -842,3 +842,13 @@ button.module-card {
   max-width: 36rem;
   margin: 0 auto;
 }
+
+/* Year picker of the archiving module, finger-sized, beside its action */
+.year-select {
+  width: auto;
+  min-height: 44px;
+}
+
+.year-select-action {
+  min-height: 44px;
+}

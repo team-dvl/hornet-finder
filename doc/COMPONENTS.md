@@ -25,7 +25,6 @@ src/
 │   │   └── index.ts
 │   ├── map-controls/    # Contrôles de la carte
 │   │   ├── AddActionsButton.tsx
-│   │   ├── BulkArchivePanel.tsx
 │   │   ├── HornetColorFilterPanel.tsx
 │   │   ├── LayerControlsButton.tsx
 │   │   ├── LocateButton.tsx
@@ -113,7 +112,7 @@ Popups d'informations et formulaires de création/édition :
 ### `/components/map-controls/`
 Contrôles de la carte, trois boutons ronds au plus :
 - `LocateButton.tsx` : Centrer la carte sur ma position
-- `LayerControlsButton.tsx` : Feuille des couches, avec le filtre de couleur (`HornetColorFilterPanel.tsx`) et l'archivage d'une année pour les administrateurs (`BulkArchivePanel.tsx`)
+- `LayerControlsButton.tsx` : Feuille des couches, avec le filtre de couleur (`HornetColorFilterPanel.tsx`)
 - `AddActionsButton.tsx` : Bouton « + » : frelon vu d'ici (boussole), piège par adresse, scanner un QR Code
 - `MapControlsContainer.tsx` : Conteneur des contrôles
 - `MapFeedback.tsx` : Bandeaux de la carte
