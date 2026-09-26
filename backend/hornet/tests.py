@@ -1645,3 +1645,112 @@ class TrapManagerTests(TrapTestCase):
         with patch('hornet.serializers.get_user_display_name', return_value='Tester') as lookup:
             self._ids(self._managed(self.owner_user, 'active=all'))
         self.assertEqual(lookup.call_count, 1)
+
+
+# ---------------------------------------------------------------------------
+# Apiary manager (`GET /apiaries/managed/`)
+# ---------------------------------------------------------------------------
+
+class ApiaryManagerTests(ApiaryTestCase):
+    """Scopes, filters, sorting and pagination of the apiary manager."""
+
+    def setUp(self):
+        super().setUp()
+        self.apiary.address = 'Rue du Verger 1'
+        self.apiary.save()
+        # The member's apiary, shared with the owner's group
+        self.shared = Apiary.objects.create(
+            latitude=50.6, longitude=4.6, infestation_level=3, address='Chemin des Ruches 7',
+            created_by=self.member, owner=self.member,
+        )
+        ApiaryGroupPermission.objects.create(apiary=self.shared, group=self.group, can_read=True)
+        # The member's private apiary: nobody else's business
+        self.private = Apiary.objects.create(
+            latitude=50.5, longitude=4.5, infestation_level=2,
+            created_by=self.member, owner=self.member,
+        )
+        # A second apiary of the owner, far from the first one
+        self.far = Apiary.objects.create(
+            latitude=51.2, longitude=4.4, infestation_level=2, afsca_number='2.111.222',
+            created_by=self.owner, owner=self.owner,
+        )
+
+    def _managed(self, user, query=''):
+        return self._api('get', f'/apiaries/managed/?{query}', {'get': 'managed'}, user)
+
+    def _list(self, response):
+        self.assertEqual(response.status_code, 200, response.data)
+        return [apiary['id'] for apiary in response.data['results']]
+
+    def test_mine_lists_owned_apiaries_most_infested_first(self):
+        self.assertEqual(self._list(self._managed(self.owner_user)), [self.far.id, self.apiary.id])
+
+    def test_shared_lists_apiaries_of_my_groups_but_not_my_own(self):
+        self._share()  # the owner's own apiary, shared with their group
+        self.assertEqual(self._list(self._managed(self.owner_user, 'scope=shared')),
+                         [self.shared.id])
+
+    def test_shared_includes_the_parent_of_an_admin_subgroup(self):
+        self.assertEqual(self._list(self._managed(self.group_admin_user, 'scope=shared')),
+                         [self.shared.id])
+        self.assertEqual(self._list(self._managed(self.stranger_user, 'scope=shared')), [])
+
+    def test_all_is_reserved_to_platform_admins(self):
+        self.assertEqual(self._managed(self.owner_user, 'scope=all').status_code, 403)
+        ids = self._list(self._managed(self.admin_user, 'scope=all'))
+        self.assertEqual(set(ids), {self.apiary.id, self.shared.id, self.private.id, self.far.id})
+
+    def test_unknown_scope_or_ordering_is_rejected(self):
+        self.assertEqual(self._managed(self.owner_user, 'scope=everyone').status_code, 400)
+        self.assertEqual(self._managed(self.owner_user, 'ordering=owner').status_code, 400)
+        self.assertEqual(self._managed(self.owner_user, 'ordering=distance').status_code, 400)
+        self.assertEqual(self._managed(self.owner_user, 'infestation_level=x').status_code, 400)
+
+    def test_volunteers_have_no_access(self):
+        self.owner_user.roles = ['volunteer']
+        self.assertEqual(self._managed(self.owner_user).status_code, 403)
+
+    def test_search_by_address_afsca_and_number(self):
+        self.assertEqual(self._list(self._managed(self.owner_user, 'q=verger')), [self.apiary.id])
+        self.assertEqual(self._list(self._managed(self.owner_user, 'q=2.111')), [self.far.id])
+        self.assertEqual(self._list(self._managed(self.owner_user, f'q=%23{self.far.id}')),
+                         [self.far.id])
+
+    def test_group_and_infestation_filters(self):
+        ids = self._list(self._managed(self.admin_user, f'scope=all&group={self.group_path}'))
+        self.assertEqual(ids, [self.shared.id])
+        ids = self._list(self._managed(self.admin_user, 'scope=all&infestation_level=2'))
+        self.assertEqual(set(ids), {self.private.id, self.far.id})
+
+    def test_distance_ordering_has_no_radius_limit(self):
+        ids = self._list(self._managed(self.owner_user, 'ordering=distance&lat=51.2&lon=4.4'))
+        self.assertEqual(ids, [self.far.id, self.apiary.id])
+
+    def test_rows_carry_address_and_permissions(self):
+        response = self._managed(self.member_user, 'scope=mine')
+        row = next(r for r in response.data['results'] if r['id'] == self.shared.id)
+        self.assertEqual(row['address'], 'Chemin des Ruches 7')
+        self.assertEqual(row['permissions'], {'update': True, 'delete': True, 'share': True})
+
+    def test_pagination(self):
+        response = self._managed(self.owner_user, 'page_size=1')
+        self.assertEqual(response.data['count'], 2)
+        self.assertEqual(len(response.data['results']), 1)
+        self.assertIsNotNone(response.data['next'])
+
+    def test_owner_name_is_looked_up_once_per_page(self):
+        with patch('hornet.serializers.get_user_display_name', return_value='Tester') as lookup:
+            self._list(self._managed(self.owner_user))
+        self.assertEqual(lookup.call_count, 1)
+
+    def test_query_count_does_not_grow_with_the_page(self):
+        def count_queries():
+            with CaptureQueriesContext(connection) as context:
+                self._list(self._managed(self.owner_user))
+            return len(context.captured_queries)
+
+        few = count_queries()
+        for _ in range(5):
+            Apiary.objects.create(latitude=50.5, longitude=4.5, infestation_level=1,
+                                  created_by=self.owner, owner=self.owner)
+        self.assertEqual(count_queries(), few)

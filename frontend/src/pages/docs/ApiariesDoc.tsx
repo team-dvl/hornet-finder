@@ -5,7 +5,7 @@ export default function ApiariesDoc() {
   return (
     <>
       <p className="lead text-muted">
-        Situez vos ruchers, suivez leur niveau d'infestation et partagez-les avec votre association.
+        Gérez vos ruchers depuis une liste, suivez leur niveau d'infestation et partagez-les avec votre association.
       </p>
 
       <Row className="my-4">
@@ -13,7 +13,7 @@ export default function ApiariesDoc() {
           <div style={{ fontSize: '3rem' }}>🍯</div>
           <h6 className="mt-2">Situer</h6>
           <p className="small text-muted">
-            Placez un rucher d'un toucher sur la carte, avec une photo et son numéro AFSCA
+            Enregistrez un rucher là où vous êtes ou par son adresse, avec une photo et son numéro AFSCA
           </p>
         </Col>
         <Col md={4} className="text-center mb-3">
@@ -34,26 +34,45 @@ export default function ApiariesDoc() {
 
       <section className="mb-4">
         <h5 className="text-primary">
-          <span className="me-2">📍</span>
-          Ajouter un rucher
+          <span className="me-2">🗂️</span>
+          Le gestionnaire de ruchers
         </h5>
+        <p>
+          Le module <em>Ruchers</em> s'ouvre sur la liste de vos ruchers. Trois portées :
+          {' '}<strong>Mes ruchers</strong> (ceux dont vous êtes propriétaire),
+          {' '}<strong>Partagés</strong> (ceux qu'un apiculteur partage avec l'une de vos
+          associations) et, pour les administrateurs, <strong>Tous</strong>. Cherchez par numéro,
+          adresse, numéro AFSCA ou commentaire, filtrez par niveau d'infestation ou par
+          association, et triez : les plus infestés d'abord par défaut, ou « Le plus proche », qui
+          utilise votre position et affiche la distance de chaque rucher.
+        </p>
         <p className="mb-0">
-          Depuis le module <em>Ruchers</em>, touchez la carte à l'emplacement du rucher puis
-          choisissez « Rucher ». Le niveau d'infestation est demandé ; la photo, le numéro
-          d'enregistrement AFSCA et le commentaire sont facultatifs. Vous en devenez le
-          propriétaire. Tout se modifie ensuite depuis la fiche du rucher (bouton ✏️).
+          Sur chaque ligne : <strong>📍</strong> ouvre le module <em>Carte</em> centré sur le rucher,
+          mis en évidence parmi ses voisins, avec un bouton <strong>← Ruchers</strong> pour revenir
+          à la liste telle que vous l'aviez laissée ; le menu <strong>⋮</strong> donne accès à la
+          fiche (et à son partage), à la modification et à la suppression, selon vos droits. Vos
+          filtres sont conservés dans l'adresse de la page.
         </p>
       </section>
 
       <section className="mb-4">
         <h5 className="text-primary">
-          <span className="me-2">🗺️</span>
-          Retrouver ses ruchers
+          <span className="me-2">📍</span>
+          Ajouter un rucher
         </h5>
+        <p>
+          Le bouton <strong>+</strong> de la liste ouvre le formulaire à votre position actuelle ;
+          sa recherche d'adresse sert quand vous n'êtes pas au rucher. Dans le module
+          {' '}<em>Carte</em>, touchez aussi l'endroit voulu puis choisissez « Rucher ». Le niveau
+          d'infestation est demandé ; l'adresse est complétée depuis la position, la photo, le
+          numéro d'enregistrement AFSCA et le commentaire sont facultatifs. Vous en devenez le
+          propriétaire.
+        </p>
         <p className="mb-0">
-          La carte montre vos ruchers et ceux que vos associations partagent avec vous. Pour ne voir
-          que les vôtres, activez « Mes ruchers seulement » dans les couches. Le cercle de 1 km
-          autour de chaque rucher matérialise la zone de chasse des frelons à surveiller.
+          Tout se modifie ensuite depuis la fiche du rucher (bouton ✏️), position comprise : une
+          nouvelle adresse choisie dans la recherche déplace le rucher, les coordonnées GPS se
+          corrigent à la main. Sur la carte, le cercle de 1 km autour de chaque rucher matérialise
+          la zone de chasse des frelons à surveiller.
         </p>
       </section>
 

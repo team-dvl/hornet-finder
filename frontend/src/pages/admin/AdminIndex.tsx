@@ -30,6 +30,13 @@ const SECTIONS: AdminSection[] = [
     roles: ['admin'],
   },
   {
+    title: 'Archivage',
+    description: "Archivez les données d'une année écoulée.",
+    icon: 'bi-archive',
+    to: '/admin/archiving',
+    roles: ['admin'],
+  },
+  {
     title: 'QR Codes',
     description: 'Imprimez des planches de QR Codes pour vos objets.',
     icon: 'bi-qr-code',

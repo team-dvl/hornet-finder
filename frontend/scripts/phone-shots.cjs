@@ -281,7 +281,7 @@ async function walk(name) {
   await step('trap-locate', async () => {
     await open(FIXTURE_TRAPS);
     await page.waitForTimeout(1500);
-    await tap(page.locator('.trap-list-actions [aria-label="Voir sur la carte"]').first());
+    await tap(page.locator('.manager-list-actions [aria-label="Voir sur la carte"]').first());
     await shot('trap-locate', 2500);
     await tap(page.locator('.map-back-button'));
     await shot('trap-locate-back', 1500);
@@ -333,17 +333,19 @@ async function walk(name) {
     await escape();
   });
 
-  await step('apiaries-map', async () => {
+  // The apiary manager: a list, the map reached through "Voir sur la carte"
+  const FIXTURE_APIARIES = '/apiaries?q=ui-shots';
+  await step('apiaries-list', async () => {
     await open('/apiaries');
-    await shot('apiaries-map', 2500);
-    await tap(page.locator('[aria-label="Couches"]'));
-    await shot('apiaries-layers');
-    await escape();
-    await tapAt(viewport.width / 2, 10);
+    await shot('apiaries-list', 2000);
+    await tap(page.locator('[aria-label="Filtres"]'));
+    await shot('apiaries-filters', 600);
   });
 
   await step('apiary-sheet', async () => {
-    await tapAt(...(await markerAt('.apiary-icon')));
+    await open(FIXTURE_APIARIES);
+    await page.waitForTimeout(1500);
+    await tap(page.locator('.manager-list-open').first());
     await shot('apiary-sheet', 2000);
     await tap(page.locator('.modal.show .accordion-button').filter({ hasText: 'Partage' }));
     await scrollDown();
@@ -353,16 +355,34 @@ async function walk(name) {
   await step('apiary-edit', async () => {
     await tap(page.locator('.modal.show [aria-label="Modifier"]'));
     await shot('apiary-edit', 1200);
+    await scrollDown();
+    await shot('apiary-edit-bottom', 400);
     await escape();
+  });
+
+  await step('apiary-actions', async () => {
+    await open(FIXTURE_APIARIES);
+    await page.waitForTimeout(1500);
+    await tap(page.locator('.manager-list-actions [aria-label="Plus d\'actions"]').first());
+    await shot('apiary-actions', 800);
+    await escape();
+  });
+
+  await step('apiary-locate', async () => {
+    await open(FIXTURE_APIARIES);
+    await page.waitForTimeout(1500);
+    await tap(page.locator('.manager-list-actions [aria-label="Voir sur la carte"]').first());
+    await shot('apiary-locate', 2500);
+    await tap(page.locator('.map-back-button'));
+    await shot('apiary-locate-back', 1500);
   });
 
   await step('add-apiary', async () => {
     await open('/apiaries');
-    await page.waitForTimeout(2000);
-    await tapAt(viewport.width * 0.2, viewport.height * 0.8);
-    await page.waitForTimeout(1000);
-    await tap(page.locator('.show button:has-text("Rucher")'));
-    await shot('add-apiary', 1200);
+    await page.waitForTimeout(1500);
+    await tap(page.locator('[aria-label="Ajouter"]').first());
+    await page.waitForSelector('.modal.show', { timeout: 20000 });
+    await shot('add-apiary', 1500);
     await escape();
   });
 
@@ -370,6 +390,7 @@ async function walk(name) {
     ['/admin', 'admin'],
     ['/admin/species', 'admin-species'],
     ['/admin/trap-types', 'admin-trap-types'],
+    ['/admin/archiving', 'admin-archiving'],
     ['/admin/tags', 'admin-tags'],
     ['/admin/tags?tab=print', 'admin-tags-print'],
     ['/docs', 'docs'],

@@ -54,6 +54,14 @@ def has_apiary_permission(request, apiary, perm: str) -> bool:
     )
 
 
+def shared_with_requester_q(request) -> Q:
+    """Filter of the apiaries shared with one of the requester's groups."""
+    shared = ApiaryGroupPermission.objects.filter(
+        can_read=True, group__path__in=candidate_group_paths(membership_paths(request)),
+    ).values('apiary_id')
+    return Q(pk__in=shared)
+
+
 def readable_apiaries_q(request) -> Q:
     """Filter of the apiaries the requester may see (admins: everything)."""
     user = _authenticated(request)
@@ -61,10 +69,7 @@ def readable_apiaries_q(request) -> Q:
         return Q(pk__in=[])
     if is_platform_admin(user):
         return Q()
-    shared = ApiaryGroupPermission.objects.filter(
-        can_read=True, group__path__in=candidate_group_paths(membership_paths(request)),
-    ).values('apiary_id')
-    return Q(owner__guid=getattr(user, 'guid', None)) | Q(pk__in=shared)
+    return Q(owner__guid=getattr(user, 'guid', None)) | shared_with_requester_q(request)
 
 
 def can_share_apiary(request, apiary) -> bool:

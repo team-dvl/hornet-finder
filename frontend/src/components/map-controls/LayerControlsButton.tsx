@@ -31,7 +31,6 @@ import { selectColorFilters } from '../../store/slices/hornetsSlice';
 import { BottomSheet } from '../ui';
 import { OBJECT_ICONS } from '../../utils/icons';
 import HornetColorFilterPanel from './HornetColorFilterPanel';
-import BulkArchivePanel from './BulkArchivePanel';
 
 interface LayerControlsButtonProps {
   showApiariesButton?: boolean;
@@ -56,7 +55,7 @@ function LayerSwitch({ id, icon, label, checked, onChange, sub = false }: {
   );
 }
 
-/** Map button opening the layers sheet: layers, hornet colour filter, archives. */
+/** Map button opening the layers sheet: layers (archives included for admins), hornet colour filter. */
 export default function LayerControlsButton({ 
   showApiariesButton = false, 
   showNestsButton = false 
@@ -137,12 +136,6 @@ export default function LayerControlsButton({
         {showHornets && (
           <div className="border-top mt-3 pt-3">
             <HornetColorFilterPanel />
-          </div>
-        )}
-
-        {isAdmin && (
-          <div className="border-top mt-3 pt-3">
-            <BulkArchivePanel />
           </div>
         )}
       </BottomSheet>

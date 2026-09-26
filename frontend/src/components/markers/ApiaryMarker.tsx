@@ -3,6 +3,7 @@ import { DivIcon } from 'leaflet';
 import { useAppSelector } from '../../store/hooks';
 import { selectHighlightedCircles } from '../../store/store';
 import { Apiary } from '../../store/slices/apiariesSlice';
+import '../../styles/markerFocus.css';
 
 // Couleurs selon le niveau d'infestation
 const getInfestationColor = (level: 1 | 2 | 3): string => {
@@ -15,7 +16,7 @@ const getInfestationColor = (level: 1 | 2 | 3): string => {
 };
 
 // Créer une icône personnalisée avec le niveau d'infestation
-const createApiaryIcon = (infestationLevel: 1 | 2 | 3, isGlowing: boolean = false) => {
+const createApiaryIcon = (infestationLevel: 1 | 2 | 3, isGlowing: boolean = false, highlighted: boolean = false) => {
   const color = getInfestationColor(infestationLevel);
   
   // Créer des styles pour l'animation si nécessaire
@@ -45,16 +46,18 @@ const createApiaryIcon = (infestationLevel: 1 | 2 | 3, isGlowing: boolean = fals
     iconSize: [32, 32],
     iconAnchor: [16, 16],
     popupAnchor: [0, -16],
-    className: 'apiary-icon'
+    className: highlighted ? 'apiary-icon map-marker-focus' : 'apiary-icon'
   });
 };
 
 interface ApiaryMarkerProps {
   apiary: Apiary;
   onClick?: (apiary: Apiary) => void;
+  /** Apiary reached from "Voir sur la carte" in the apiary manager: pulses to be spotted */
+  highlighted?: boolean;
 }
 
-export default function ApiaryMarker({ apiary, onClick }: ApiaryMarkerProps) {
+export default function ApiaryMarker({ apiary, onClick, highlighted = false }: ApiaryMarkerProps) {
   const highlightedCircles = useAppSelector(selectHighlightedCircles);
   
   // Vérifier si ce rucher a son cercle surligné
@@ -69,8 +72,9 @@ export default function ApiaryMarker({ apiary, onClick }: ApiaryMarkerProps) {
   return (
     <Marker
       position={[apiary.latitude, apiary.longitude]}
-      icon={createApiaryIcon(apiary.infestation_level, isCircleHighlighted)}
-      zIndexOffset={100} // Ruchers au-dessus des frelons
+      icon={createApiaryIcon(apiary.infestation_level, isCircleHighlighted, highlighted)}
+      // Above the hornets; a highlighted apiary above everything
+      zIndexOffset={highlighted ? 1000 : 100}
       eventHandlers={{
         click: handleMarkerClick,
       }}

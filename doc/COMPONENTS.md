@@ -25,7 +25,6 @@ src/
 │   │   └── index.ts
 │   ├── map-controls/    # Contrôles de la carte
 │   │   ├── AddActionsButton.tsx
-│   │   ├── BulkArchivePanel.tsx
 │   │   ├── HornetColorFilterPanel.tsx
 │   │   ├── LayerControlsButton.tsx
 │   │   ├── LocateButton.tsx
@@ -84,7 +83,7 @@ Composants de mise en page de l'application :
 ### `/components/map/`
 Composants liés aux fonctionnalités de cartographie :
 - `InteractiveMap.tsx` : Carte interactive principale, ouverte dans un mode de vue (prop `preset`)
-- `viewModes.ts` : Modes de vue de la carte (`map`, `nests`, `apiaries`, `trap`, `trap-move`) : couches affichées, piège centré et mis en évidence, déplacement, bouton de retour vers l'appelant. Un module ouvre le module Carte dans un mode avec `mapUrl({ mode, trap, from })`, qui produit `/map?view_mode=trap&trap=12&from=/traps?show=mine` (`from` : chemin interne uniquement)
+- `viewModes.ts` : Modes de vue de la carte (`map`, `nests`, `apiary`, `trap`, `trap-move`) : couches affichées, piège ou rucher centré et mis en évidence, déplacement, bouton de retour vers l'appelant. Un module ouvre le module Carte dans un mode avec `mapUrl({ mode, trap, apiary, from })`, qui produit `/map?view_mode=trap&trap=12&from=/traps?show=mine` (`from` : chemin interne uniquement)
 - `CompassMap.tsx` : Carte avec fonctionnalités de boussole
 - `CompassCapture.tsx` : Capture de direction à la boussole
 - `HornetReturnZone.tsx` : Zone de retour des frelons
@@ -113,7 +112,7 @@ Popups d'informations et formulaires de création/édition :
 ### `/components/map-controls/`
 Contrôles de la carte, trois boutons ronds au plus :
 - `LocateButton.tsx` : Centrer la carte sur ma position
-- `LayerControlsButton.tsx` : Feuille des couches, avec le filtre de couleur (`HornetColorFilterPanel.tsx`) et l'archivage d'une année pour les administrateurs (`BulkArchivePanel.tsx`)
+- `LayerControlsButton.tsx` : Feuille des couches, avec le filtre de couleur (`HornetColorFilterPanel.tsx`)
 - `AddActionsButton.tsx` : Bouton « + » : frelon vu d'ici (boussole), piège par adresse, scanner un QR Code
 - `MapControlsContainer.tsx` : Conteneur des contrôles
 - `MapFeedback.tsx` : Bandeaux de la carte

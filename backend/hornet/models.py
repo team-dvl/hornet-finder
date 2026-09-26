@@ -154,6 +154,8 @@ class Apiary(GeolocatedModel):
                               related_name='owned_apiaries')
     # Registration number at the Belgian food safety agency (AFSCA / FAVV)
     afsca_number = models.CharField(max_length=32, blank=True, default='')
+    # Describes the position, filled from it by the form and editable by hand
+    address = models.CharField(max_length=255, blank=True, default='')
     photo = models.ImageField(upload_to=apiary_photo_path, null=True, blank=True)
     photo_thumbnail = models.ImageField(upload_to=apiary_photo_path, null=True, blank=True)
     comments = models.TextField(null=True, blank=True)

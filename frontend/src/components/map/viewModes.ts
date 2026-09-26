@@ -8,7 +8,7 @@
  * its URL (`/map?view_mode=...`), which lets another module open the map on an
  * object and come back (see `mapUrl`).
  */
-export type MapViewMode = 'map' | 'nests' | 'apiaries' | 'trap' | 'trap-move';
+export type MapViewMode = 'map' | 'nests' | 'apiary' | 'trap' | 'trap-move';
 
 interface LayerSet {
   traps: boolean;
@@ -24,6 +24,8 @@ export interface MapViewModeConfig {
   focusTrap?: boolean;
   /** Puts that trap in move mode; validating or cancelling returns to the caller */
   moveTrap?: boolean;
+  /** Centres on the apiary given by `focusApiaryId` and highlights it */
+  focusApiary?: boolean;
   /** Label of the back button, shown when the caller gave a return path */
   backLabel?: string;
 }
@@ -35,9 +37,12 @@ export const MAP_VIEW_MODES: Record<MapViewMode, MapViewModeConfig> = {
   },
   // Nest finding: the layers as the user left them
   nests: {},
-  // The apiaries alone, the other layers one switch away
-  apiaries: {
+  // One apiary among the others, reached from the apiary manager; the other
+  // layers one switch away
+  apiary: {
     layers: () => ({ traps: false, nests: false, apiaries: true, hornets: false }),
+    focusApiary: true,
+    backLabel: 'Ruchers',
   },
   // One trap in its surroundings, reached from the trap manager
   trap: {
@@ -65,9 +70,12 @@ export function safeReturnPath(value: string | null | undefined): string | undef
 }
 
 /** Link to the map module in a given view mode, e.g. from the trap manager. */
-export function mapUrl({ mode, trap, from }: { mode: MapViewMode; trap?: number; from?: string }): string {
+export function mapUrl({ mode, trap, apiary, from }: {
+  mode: MapViewMode; trap?: number; apiary?: number; from?: string;
+}): string {
   const params = new URLSearchParams({ view_mode: mode });
   if (trap !== undefined) params.set('trap', String(trap));
+  if (apiary !== undefined) params.set('apiary', String(apiary));
   const back = safeReturnPath(from);
   if (back) params.set('from', back);
   return `/map?${params}`;

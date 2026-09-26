@@ -20,6 +20,8 @@ import {
 } from '../store/store';
 import { signInFromCurrentPage } from '../utils/authRedirect';
 import { ACTION_ICONS } from '../utils/icons';
+import { memberGroups } from '../utils/groups';
+import { currentPosition } from '../utils/position';
 import type { TagResolution } from '../utils/tagsApi';
 
 const LIST_PATH = '/traps';
@@ -36,30 +38,6 @@ const ORDERINGS: TrapOrdering[] = [
  */
 const QUERY_KEYS = ['show', 'active', 'ordering', 'q', 'group', 'trap_type', 'has_tag'];
 const urlKey = (key: string) => (key === 'scope' ? 'show' : key);
-
-/** Current position, rounded to ~10 m: plenty to sort traps by distance. */
-function currentPosition(): Promise<{ lat: number; lon: number }> {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error("La géolocalisation n'est pas disponible sur cet appareil."));
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => resolve({
-        lat: Math.round(coords.latitude * 1e4) / 1e4,
-        lon: Math.round(coords.longitude * 1e4) / 1e4,
-      }),
-      () => reject(new Error('Position indisponible : autorisez la géolocalisation pour trier par distance.')),
-      { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 },
-    );
-  });
-}
-
-/** Group paths a trap may be delegated to, as seen from the token (`/x/admin` counts as `/x`). */
-function memberGroups(paths: string[]): string[] {
-  const groups = new Set(paths.map((path) => path.replace(/\/admin(\/.*)?$/, '')).filter(Boolean));
-  return Array.from(groups).sort();
-}
 
 /**
  * Trap manager: the traps the user owns or has been delegated, as a list to

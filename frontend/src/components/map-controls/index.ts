@@ -7,5 +7,4 @@ export { default as LocateButton } from './LocateButton';
 export { default as AddActionsButton } from './AddActionsButton';
 export { default as MapControlsContainer } from './MapControlsContainer';
 export { default as HornetColorFilterPanel } from './HornetColorFilterPanel';
-export { default as BulkArchivePanel } from './BulkArchivePanel';
 export { LoadingIndicator, ErrorAlert } from './MapFeedback';

@@ -4,7 +4,7 @@ import { Spinner } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 import L, { Map } from 'leaflet';
-import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowApiaryCircles, selectShowHornets, selectShowReturnZones, selectShowNests, initializeGeolocation, selectMapCenter, selectGeolocationError, setGeolocationError, setIsAdmin, selectTraps, selectShowTraps, selectMovingTrapId, setShowTraps, setShowNests, setShowApiaries, setShowHornets, startMovingTrap, stopMovingTrap, updateTrap, fetchTrapDetail } from '../../store/store';
+import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowApiaryCircles, selectShowHornets, selectShowReturnZones, selectShowNests, initializeGeolocation, selectMapCenter, selectGeolocationError, setGeolocationError, setIsAdmin, selectTraps, selectShowTraps, selectMovingTrapId, setShowTraps, setShowNests, setShowApiaries, setShowHornets, startMovingTrap, stopMovingTrap, updateTrap, fetchTrapDetail, fetchApiaryDetail } from '../../store/store';
 import { selectFilteredHornets } from '../../store/slices/hornetsSlice';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useMapDataFetching } from '../../hooks/useMapDataFetching';
@@ -100,11 +100,15 @@ interface InteractiveMapProps {
   preset?: MapViewMode;
   /** Trap to centre on and highlight, for the view modes that focus one */
   focusTrapId?: number | null;
+  /** Apiary to centre on and highlight, for the view modes that focus one */
+  focusApiaryId?: number | null;
   /** Page of the caller, reached by the back button (and after a move) */
   returnTo?: string;
 }
 
-export default function InteractiveMap({ preset = 'nests', focusTrapId = null, returnTo }: InteractiveMapProps) {
+export default function InteractiveMap({
+  preset = 'nests', focusTrapId = null, focusApiaryId = null, returnTo,
+}: InteractiveMapProps) {
   const viewMode = MAP_VIEW_MODES[preset];
   const dispatch = useAppDispatch();
   const auth = useAuth();
@@ -247,6 +251,22 @@ export default function InteractiveMap({ preset = 'nests', focusTrapId = null, r
       .catch(() => { if (!cancelled) setFocusError("Ce piège est introuvable, ou vous n'y avez pas accès."); });
     return () => { cancelled = true; };
   }, [focusedTrapId, preset, viewMode.moveTrap, leafletMap, auth.isLoading, dispatch]);
+
+  // Focused apiary (view mode `apiary`): centre on it and highlight it
+  const focusedApiaryId = viewMode.focusApiary ? focusApiaryId : null;
+  useEffect(() => {
+    if (!focusedApiaryId || !leafletMap || auth.isLoading) return;
+    const key = `${preset}:apiary:${focusedApiaryId}`;
+    if (focusApplied.current === key) return;
+    focusApplied.current = key;
+    let cancelled = false;
+    dispatch(fetchApiaryDetail(focusedApiaryId)).unwrap()
+      .then((apiary) => {
+        if (!cancelled) leafletMap.setView([apiary.latitude, apiary.longitude], Math.max(leafletMap.getZoom(), 16));
+      })
+      .catch(() => { if (!cancelled) setFocusError("Ce rucher est introuvable, ou vous n'y avez pas accès."); });
+    return () => { cancelled = true; };
+  }, [focusedApiaryId, preset, leafletMap, auth.isLoading, dispatch]);
 
   // A move started by the caller ends by going back to it
   const backToCaller = viewMode.moveTrap && returnTo ? returnTo : null;
@@ -605,7 +625,7 @@ export default function InteractiveMap({ preset = 'nests', focusTrapId = null, r
         ))}
         {/* Ruchers, nids et pièges : un seul groupe, les marqueurs qui se touchent se regroupent */}
         <MarkerClusterGroup onClusterClick={handleClusterClick} onSpiderfyChange={(open) => { spiderOpen.current = open; }}>
-          {apiariesVisible && apiaries.map((apiary, index) => (
+          {apiariesVisible && apiaries.filter((apiary) => apiary.id !== focusedApiaryId).map((apiary, index) => (
             <ApiaryMarker
               key={`apiary-${apiary.id || index}`}
               apiary={apiary}
@@ -631,7 +651,10 @@ export default function InteractiveMap({ preset = 'nests', focusTrapId = null, r
             />
           ))}
         </MarkerClusterGroup>
-        {/* Le piège mis en avant reste hors groupe, pour ne jamais disparaître dans un cluster */}
+        {/* Le rucher et le piège mis en avant restent hors groupe, pour ne jamais disparaître dans un cluster */}
+        {apiariesVisible && apiaries.filter((apiary) => apiary.id === focusedApiaryId).map((apiary) => (
+          <ApiaryMarker key={`apiary-${apiary.id}-focused`} apiary={apiary} highlighted onClick={handleApiaryClick} />
+        ))}
         {showTraps && traps.filter((trap) => trap.id === focusedTrapId && trap.id !== movingTrapId).map((trap) => (
           <TrapMarker
             key={`trap-${trap.id}-focused`}
