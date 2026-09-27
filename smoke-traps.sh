@@ -82,6 +82,14 @@ call 204 "t-owner supprime le lot"                      DELETE "/traps/$TRAP/cat
 COUNT=$(curl -sk "$BASE/traps/$TRAP/" "${H_OWNER[@]}" | python3 -c "import sys,json;print(json.load(sys.stdin)['hornet_catch_count'])")
 if [ "$COUNT" = "5" ]; then PASS=$((PASS+1)); echo "  ok   compteur revenu à 5"; else FAIL=$((FAIL+1)); echo "  FAIL compteur = $COUNT, attendu 5"; fi
 
+echo "== Relevé à zéro et visite"
+call 201 "t-owner enregistre un relevé vide, avec nettoyage" POST "/traps/$TRAP/catches/" "${H_OWNER[@]}" -F 'items=[{"species_slug":"vespa-velutina","quantity":0}]' -F "bycatch_counted=true" -F 'actions=["cleaning"]' -F "performed_at=$(date -Is)"
+BATCH=$(python3 -c "import sys,json;d=json.load(open(sys.argv[1]));print(d[0]['batch'] if sorted(e['kind'] for e in d)==['catch','cleaning'] and len({e['batch'] for e in d})==1 else '')" "$OUT")
+if [ -n "$BATCH" ]; then PASS=$((PASS+1)); echo "  ok   relevé et nettoyage dans un seul lot"; else FAIL=$((FAIL+1)); echo "  FAIL visite incohérente"; fi
+call 400 "une autre espèce à zéro refusée"              POST "/traps/$TRAP/catches/" "${H_OWNER[@]}" -F 'items=[{"species_slug":"apis-mellifera","quantity":0}]' -F "performed_at=$(date -Is)"
+call 400 "un retrait n'est pas une action de visite"    POST "/traps/$TRAP/catches/" "${H_OWNER[@]}" -F 'items=[{"species_slug":"vespa-velutina","quantity":1}]' -F 'actions=["removal"]' -F "performed_at=$(date -Is)"
+call 204 "t-owner supprime la visite"                   DELETE "/traps/$TRAP/catches/$BATCH/" "${H_OWNER[@]}"
+
 echo "== Avant délégation"
 call 403 "t-member ne peut pas agir (pas encore délégué)" POST "/traps/$TRAP/events/" "${H_MEMBER[@]}" -F "kind=inspection" -F "performed_at=$(date -Is)"
 
