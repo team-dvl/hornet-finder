@@ -309,19 +309,63 @@ Exports :
   graphique via `reportlab.graphics.charts`, ce qui évite `matplotlib`
   (plusieurs dizaines de Mo dans l'image).
 - **CSV** : gratuit, utile pour tout le reste.
-- **Google Sheets** : voir ci-dessous.
+- **Lien par email** : voir ci-dessous.
 
-### Export vers Google Sheets
+### Envoi d'un lien par email
 
-| Option | Principe | Pour | Contre |
-|---|---|---|---|
-| A. Fichier XLSX ouvert dans Sheets | l'utilisateur importe le fichier | rien à développer | manuel, deux étapes sur téléphone |
-| B. **Google Identity Services côté navigateur**, scope `drive.file` | le frontend obtient un jeton Google de courte durée, crée la feuille et y écrit la table (API Sheets) | instantané, la feuille appartient à l'utilisateur, le backend ne voit aucun jeton Google ; `drive.file` n'est pas un scope sensible (pas d'audit Google) | projet Google Cloud + client OAuth ; CSP à étendre (`accounts.google.com`, `sheets.googleapis.com`) ; fonctionne pour tout compte Google, indépendamment du fournisseur de connexion Keycloak |
-| C. `=IMPORTDATA(url)` sur un CSV à lien secret | feuille « vivante », rafraîchie par Google | se met à jour seule | le lien est un secret porteur qui sort des règles d'accès ; révocation et expiration à gérer |
+Depuis le panneau d'export, « Envoyer un lien par email » enregistre une
+**demande d'export** et envoie à la personne connectée un email contenant un
+lien. Ce lien ouvre une page qui produit la donnée à la demande, en Excel, PDF
+ou CSV. Usage visé : relancer l'export plus tard sur un ordinateur, sans se
+reconnecter.
 
-Recommandation : **B**, en phase 3. C seulement si un besoin réel de feuille
-auto-actualisée apparaît, avec liens révocables et limités aux totaux non
-localisés.
+Déroulement :
+1. `POST /api/stats/<id>/email-link/` `{params}` (JWT). Le serveur résout la
+   période en dates absolues (« 30 derniers jours » devient « du 28 août au
+   27 septembre ») pour que le lien donne les mêmes bornes qu'à l'écran, crée
+   un `StatExportJob` et envoie l'email. Réponse `202` avec l'échéance et
+   l'adresse masquée (« e•••@gmail.com »), que l'interface affiche.
+2. L'email (expéditeur `DEFAULT_FROM_EMAIL`, en dev capté par Mailpit) nomme
+   la statistique, la période, les filtres et l'heure d'échéance, et porte un
+   lien `https://<hôte>/export/<token>`.
+3. `GET /export/<token>` (page du frontend, sans connexion) appelle
+   `GET /api/stats/exports/<token>/` : description de l'export et échéance,
+   **sans rien calculer**. Les antivirus de messagerie ouvrent souvent les
+   liens d'un email avant la personne ; ils ne doivent ni consommer le lien ni
+   déclencher le calcul.
+4. Un bouton par format appelle `GET /api/stats/exports/<token>/<format>/`, qui
+   calcule la table et renvoie le fichier.
+
+`StatExportJob` : `id`, `token_hash` (SHA-256 du jeton, le jeton lui-même
+n'est jamais stocké), `user` (FK), `statistic`, `params` (JSON, période
+résolue), `scope` (JSON : rôles et chemins de groupes du JWT au moment de la
+demande), `created_at`, `expires_at`, `downloads`.
+
+Règles :
+- **Jeton** : 32 octets aléatoires (`secrets.token_urlsafe(32)`, 256 bits),
+  unique par demande. Valable **1 heure au plus** à compter de la demande,
+  refusé ensuite (`410`). Utilisable plusieurs fois dans l'heure, dans la
+  limite de 10 téléchargements, pour qu'un aperçu de messagerie ou un second
+  format ne le brûle pas.
+- **Droits** : le calcul se fait avec le périmètre figé dans `scope`, jamais
+  avec les droits de celui qui ouvre le lien (il n'est pas connecté). Un lien
+  transféré donne donc, pendant l'heure, exactement ce que le demandeur
+  voyait : le lien est un secret au porteur, ce que dit l'email.
+- **Adresse** : lue dans le claim `email` du JWT au moment de la demande,
+  utilisée pour l'envoi puis oubliée, jamais stockée (l'application ne garde
+  aucune adresse). Sans claim `email`, l'option est masquée.
+- **Données** : calculées à l'ouverture du lien, pas à la demande ; la date de
+  calcul figure dans la feuille « Paramètres » et en pied du PDF. Les bornes
+  de période étant figées, seuls des relevés saisis entre-temps peuvent
+  changer les chiffres.
+- **Abus** : au plus 5 demandes par personne et par heure (`429` au-delà).
+  Les demandes expirées sont purgées à chaque nouvelle demande ; pas de tâche
+  planifiée à ajouter.
+- **Pas de file d'attente** : aux volumes du §7 (quelques dizaines de ms pour
+  une table, moins d'une seconde pour un XLSX ou un PDF), le « job » est une
+  demande enregistrée exécutée à l'ouverture du lien. Une file (Celery ou
+  équivalent) ne se justifierait que pour des exports de plusieurs dizaines de
+  secondes.
 
 ### Frontend
 
@@ -334,7 +378,8 @@ localisés.
   - bascule segmentée **Tableau / Graphique / Carte** (carte pour T5 et T6) ;
   - tableau en liste sur téléphone (modèle `ReferentialTable`), pas de défilement
     horizontal ; pagination au-delà de ~50 lignes ;
-  - exports en `IconButton` dans `.sheet-actions` (XLSX, PDF, CSV, Sheets) ;
+  - un `IconButton` « Exporter » qui ouvre un `BottomSheet` : Excel, PDF, CSV
+    (téléchargement immédiat) et « Envoyer un lien par email » ;
   - explication de chaque indicateur (CPUE, sélectivité, couverture, IC) dans
     un `HelpTip`.
 - Graphiques : **Chart.js** (`react-chartjs-2`), importé à la carte. Ordre de
@@ -351,7 +396,7 @@ localisés.
 | 0 bis | Infestation des ruchers nullable (hors module) | fait |
 | 1 | Backend registre + T1, T3 en JSON, double régime d'accès ; frontend catalogue, page détail, filtres (dont saisons), tableau ; export CSV/XLSX | moyenne |
 | 2 | Couverture (T5) et pression (T6), en statistique et en couches de la carte | moyenne |
-| 3 | Graphiques (Chart.js) ; PDF ; T2, T4 ; comparaison à l'année précédente ; export Google Sheets (option B) | moyenne |
+| 3 | Graphiques (Chart.js) ; PDF ; T2, T4 ; comparaison à l'année précédente ; envoi d'un lien d'export par email | moyenne |
 | 4 | Restrictions par statistique, stats nids/observations, journalisation des déplacements | à définir |
 
 La couverture passe en phase 2 (avant les graphiques) pour être prête pour la
