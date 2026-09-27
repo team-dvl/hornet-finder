@@ -83,7 +83,7 @@ export default function Apiaries() {
       ordering: ordering && ORDERINGS.includes(ordering) ? ordering : '-infestation_level',
       q: searchParams.get('q') || undefined,
       group: searchParams.get('group') || undefined,
-      infestation_level: level === '1' || level === '2' || level === '3' ? level : undefined,
+      infestation_level: level === '1' || level === '2' || level === '3' || level === 'none' ? level : undefined,
     };
     if (result.ordering === 'distance' && origin) {
       result.lat = origin.lat;

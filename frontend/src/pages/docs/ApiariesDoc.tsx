@@ -20,7 +20,7 @@ export default function ApiariesDoc() {
           <div style={{ fontSize: '3rem' }}>📈</div>
           <h6 className="mt-2">Suivre</h6>
           <p className="small text-muted">
-            Tenez à jour le niveau d'infestation : faible, modéré ou fort
+            Indiquez, si vous le connaissez, le niveau d'infestation : faible, modéré ou fort
           </p>
         </Col>
         <Col md={4} className="text-center mb-3">
@@ -63,9 +63,9 @@ export default function ApiariesDoc() {
         <p>
           Le bouton <strong>+</strong> de la liste ouvre le formulaire à votre position actuelle ;
           sa recherche d'adresse sert quand vous n'êtes pas au rucher. Dans le module
-          {' '}<em>Carte</em>, touchez aussi l'endroit voulu puis choisissez « Rucher ». Le niveau
-          d'infestation est demandé ; l'adresse est complétée depuis la position, la photo, le
-          numéro d'enregistrement AFSCA et le commentaire sont facultatifs. Vous en devenez le
+          {' '}<em>Carte</em>, touchez aussi l'endroit voulu puis choisissez « Rucher ». L'adresse
+          est complétée depuis la position ; le niveau d'infestation (« Non évalué » par défaut),
+          la photo, le numéro d'enregistrement AFSCA et le commentaire sont facultatifs. Vous en devenez le
           propriétaire.
         </p>
         <p className="mb-0">

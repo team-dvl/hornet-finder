@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Button, Form, Spinner } from 'react-bootstrap';
 import { useAppDispatch } from '../../store/hooks';
 import { createApiary, updateApiary, type Apiary } from '../../store/store';
-import { HelpTip, InfestationLevelInput, type InfestationLevel } from '../common';
+import { HelpTip, InfestationLevelInput } from '../common';
 import CoordinateInput from '../common/CoordinateInput';
 import { AddressSearch, PhotoInput } from '../traps';
 import { AppModal } from '../ui';
@@ -30,7 +30,8 @@ export default function ApiaryFormModal({
   const dispatch = useAppDispatch();
   const isEdit = Boolean(apiary);
 
-  const [infestationLevel, setInfestationLevel] = useState<1 | 2 | 3>(apiary?.infestation_level ?? 1);
+  // Not assessed by default: the level is indicative and often unknown
+  const [infestationLevel, setInfestationLevel] = useState<1 | 2 | 3 | null>(apiary?.infestation_level ?? null);
   const [lat, setLat] = useState(apiary?.latitude ?? latitude ?? 0);
   const [lng, setLng] = useState(apiary?.longitude ?? longitude ?? 0);
   const [address, setAddress] = useState(apiary?.address ?? '');
@@ -107,8 +108,8 @@ export default function ApiaryFormModal({
       <Form.Group className="mb-3">
         <Form.Label>Infestation</Form.Label>
         <InfestationLevelInput
-          value={LEVEL_NAMES[infestationLevel] as InfestationLevel}
-          onChange={(level) => setInfestationLevel(LEVEL_VALUES[level])}
+          value={infestationLevel ? LEVEL_NAMES[infestationLevel] : null}
+          onChange={(level) => setInfestationLevel(level ? LEVEL_VALUES[level] : null)}
         />
       </Form.Group>
 

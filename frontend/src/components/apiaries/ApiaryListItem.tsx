@@ -40,9 +40,11 @@ export default function ApiaryListItem({
         <span className="d-block min-w-0">
           <span className="d-flex flex-wrap align-items-center gap-1">
             <strong>#{apiary.id}</strong>
-            <Badge bg="none" className={`infestation-badge infestation-badge-${apiary.infestation_level}`}>
-              {INFESTATION_LABELS[apiary.infestation_level]}
-            </Badge>
+            {apiary.infestation_level !== null && (
+              <Badge bg="none" className={`infestation-badge infestation-badge-${apiary.infestation_level}`}>
+                {INFESTATION_LABELS[apiary.infestation_level]}
+              </Badge>
+            )}
             {groups.length > 0 && (
               <Badge
                 bg="info"

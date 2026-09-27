@@ -6,17 +6,17 @@ import { Apiary } from '../../store/slices/apiariesSlice';
 import '../../styles/markerFocus.css';
 
 // Couleurs selon le niveau d'infestation
-const getInfestationColor = (level: 1 | 2 | 3): string => {
+const getInfestationColor = (level: 1 | 2 | 3 | null): string => {
   switch (level) {
     case 1: return '#ffc107'; // Jaune - Infestation faible (Light)
     case 2: return '#fd7e14'; // Orange - Infestation modérée (Medium)
     case 3: return '#dc3545'; // Rouge - Infestation élevée (High)
-    default: return '#6c757d'; // Gris - Inconnu
+    default: return '#6c757d'; // Gris - Non évalué
   }
 };
 
 // Créer une icône personnalisée avec le niveau d'infestation
-const createApiaryIcon = (infestationLevel: 1 | 2 | 3, isGlowing: boolean = false, highlighted: boolean = false) => {
+const createApiaryIcon = (infestationLevel: 1 | 2 | 3 | null, isGlowing: boolean = false, highlighted: boolean = false) => {
   const color = getInfestationColor(infestationLevel);
   
   // Créer des styles pour l'animation si nécessaire

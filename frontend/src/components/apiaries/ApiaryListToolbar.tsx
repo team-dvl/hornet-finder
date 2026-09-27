@@ -101,6 +101,7 @@ export default function ApiaryListToolbar({
               {([1, 2, 3] as const).map((level) => (
                 <option key={level} value={String(level)}>{INFESTATION_LABELS[level]}</option>
               ))}
+              <option value="none">Infestation non évaluée</option>
             </Form.Select>
           </div>
           {groupFilter && (

@@ -1,4 +1,7 @@
-/** Infestation levels of an apiary, as the lists and badges name them. */
+/**
+ * Infestation levels of an apiary, as the lists and badges name them. The
+ * level is optional (null): an apiary not assessed shows no badge.
+ */
 export const INFESTATION_LABELS: Record<1 | 2 | 3, string> = {
   1: 'Infestation faible',
   2: 'Infestation modérée',

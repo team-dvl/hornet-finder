@@ -24,7 +24,9 @@ const INFESTATION: Record<1 | 2 | 3, { bg: string; text: string }> = {
 /** One status badge per object, when its type has one */
 function StatusBadge({ object }: { object: MapObject }) {
   if (object.type === MapObjectType.APIARY && object.data) {
-    const level = INFESTATION[(object.data as Apiary).infestation_level];
+    const value = (object.data as Apiary).infestation_level;
+    if (value === null) return null;
+    const level = INFESTATION[value];
     return <Badge bg={level.bg}>{level.text}</Badge>;
   }
   if (object.type === MapObjectType.NEST && object.data) {

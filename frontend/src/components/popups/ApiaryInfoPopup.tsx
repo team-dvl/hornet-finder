@@ -45,8 +45,8 @@ export default function ApiaryInfoPopup({ show, onHide, apiary, onAddAtLocation,
   const canAddHere = auth.isAuthenticated && onAddAtLocation;
   const closeSub = () => setSub(null);
 
-  const handleLevel = async (level: InfestationLevel) => {
-    const value = LEVEL_VALUES[level];
+  const handleLevel = async (level: InfestationLevel | null) => {
+    const value = level ? LEVEL_VALUES[level] : null;
     if (value === current.infestation_level) return;
     setError(null);
     try {
@@ -95,7 +95,7 @@ export default function ApiaryInfoPopup({ show, onHide, apiary, onAddAtLocation,
 
         <div className="text-muted small mb-1">Infestation</div>
         <InfestationLevelInput
-          value={LEVEL_NAMES[current.infestation_level] as InfestationLevel}
+          value={current.infestation_level ? LEVEL_NAMES[current.infestation_level] : null}
           readOnly={!mayEdit}
           onChange={(level) => void handleLevel(level)}
         />

@@ -46,7 +46,7 @@ export function apiaryToMapObject(apiary: Apiary): MapObject {
     data: apiary,
     symbol: '🍯',
     title: `Rucher #${apiary.id || 'N/A'}`,
-    subtitle: infestationLabels[apiary.infestation_level]
+    subtitle: apiary.infestation_level === null ? undefined : infestationLabels[apiary.infestation_level]
   };
 }
 

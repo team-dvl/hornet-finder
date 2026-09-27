@@ -24,7 +24,8 @@ export interface Apiary {
   longitude: number;
   /** Describes the position; '' when unknown */
   address?: string;
-  infestation_level: 1 | 2 | 3; // Niveau d'infestation selon le backend : 1=Light, 2=Medium, 3=High
+  /** 1 light, 2 medium, 3 high; null when not assessed (the level is optional) */
+  infestation_level: 1 | 2 | 3 | null;
   /** Registration number at the AFSCA, '' when unknown */
   afsca_number?: string;
   photo_url?: string | null;
@@ -44,7 +45,8 @@ export interface ApiaryFormValues {
   latitude?: number;
   longitude?: number;
   address?: string;
-  infestation_level?: number;
+  /** null clears the level */
+  infestation_level?: number | null;
   afsca_number?: string;
   comments?: string;
   photo?: File | null;
@@ -72,7 +74,8 @@ export interface ManagedApiariesQuery {
   ordering: ApiaryOrdering;
   q?: string;
   group?: string;
-  infestation_level?: '1' | '2' | '3';
+  /** `none`: apiaries not assessed */
+  infestation_level?: '1' | '2' | '3' | 'none';
   /** Needed by the `distance` ordering */
   lat?: number;
   lon?: number;
@@ -124,8 +127,9 @@ const initialState: ApiariesState = {
 function apiaryFormData(values: ApiaryFormValues): FormData {
   const form = new FormData();
   Object.entries(values).forEach(([key, value]) => {
-    if (value === undefined || value === null || key === 'photo') return;
-    form.append(key, String(value));
+    if (value === undefined || key === 'photo') return;
+    // An empty value clears a nullable field (the infestation level)
+    form.append(key, value === null ? '' : String(value));
   });
   if (values.photo) {
     form.append('photo', values.photo);

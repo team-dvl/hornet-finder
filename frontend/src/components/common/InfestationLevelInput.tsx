@@ -2,15 +2,21 @@ import { Badge } from 'react-bootstrap';
 
 export type InfestationLevel = 'low' | 'moderate' | 'high';
 
-const LEVELS: { value: InfestationLevel; label: string; color: string }[] = [
+/** Label of an apiary whose level was not assessed (the level is optional) */
+const NOT_ASSESSED_LABEL = 'Non évalué';
+
+// "Not assessed" comes last: on a narrow phone it wraps under the three levels
+const LEVELS: { value: InfestationLevel | null; label: string; color: string }[] = [
   { value: 'low', label: 'Faible', color: 'warning' },
   { value: 'moderate', label: 'Modéré', color: 'orange' },
   { value: 'high', label: 'Fort', color: 'danger' },
+  { value: null, label: NOT_ASSESSED_LABEL, color: 'secondary' },
 ];
 
 interface InfestationLevelInputProps {
-  value: InfestationLevel;
-  onChange?: (level: InfestationLevel) => void;
+  /** null: not assessed */
+  value: InfestationLevel | null;
+  onChange?: (level: InfestationLevel | null) => void;
   readOnly?: boolean;
 }
 
@@ -38,13 +44,20 @@ const getInfestationStyle = (color: string) => {
         border: undefined,
         textColor: 'white',
       };
+    case 'secondary':
+      return {
+        backgroundColor: '#6c757d',
+        color: 'white',
+        border: undefined,
+        textColor: 'white',
+      };
     default:
       return {};
   }
 };
 
 export default function InfestationLevelInput({ value, onChange, readOnly = false }: InfestationLevelInputProps) {
-  const current = LEVELS.find(l => l.value === value) || LEVELS[0];
+  const current = LEVELS.find(l => l.value === value) || LEVELS[LEVELS.length - 1];
   const style = getInfestationStyle(current.color);
 
   if (readOnly) {
@@ -56,15 +69,15 @@ export default function InfestationLevelInput({ value, onChange, readOnly = fals
     );
   }
 
-  // Three levels: a segmented control, every choice visible and one tap away
+  // Not assessed and three levels: a segmented control, every choice visible and one tap away
   return (
-    <div className="d-flex gap-1" role="radiogroup" aria-label="Niveau d'infestation">
+    <div className="d-flex flex-wrap gap-1" role="radiogroup" aria-label="Niveau d'infestation">
       {LEVELS.map((level) => {
         const levelStyle = getInfestationStyle(level.color);
         const selected = level.value === value;
         return (
           <button
-            key={level.value}
+            key={level.value ?? 'none'}
             type="button"
             role="radio"
             aria-checked={selected}
