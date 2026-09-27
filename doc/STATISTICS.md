@@ -1,6 +1,6 @@
 # Module Statistiques : analyse et proposition
 
-Statut : **proposition**, rien n'est implémenté. Ce document fixe le périmètre,
+Statut : **proposition**. Seule la phase 0 (§5.1 à §5.3) est implémentée. Ce document fixe le périmètre,
 les définitions des indicateurs, l'architecture et un découpage en phases.
 
 ## 1. Ce que les données permettent aujourd'hui
@@ -215,11 +215,12 @@ dire exactement le cas où l'oubli biaise la sélectivité.
 ### 5.3 Niveau d'infestation des ruchers (hors module)
 
 Indicatif et souvent non renseigné : `Apiary.infestation_level` devient
-**nullable**, avec un état « Non renseigné » dans le formulaire
-(`InfestationLevelInput`), un marqueur neutre sur la carte et la ligne masquée
-dans la fiche. Les ruchers existants gardent leur valeur (impossible de
+**nullable**, avec un choix « Non évalué » dans `InfestationLevelInput` (valeur
+par défaut d'un nouveau rucher, placé après les trois niveaux pour passer à la
+ligne sur un téléphone étroit), un marqueur gris sur la carte, pas de badge
+dans les listes et un filtre « Infestation non évaluée » dans le gestionnaire. Les ruchers existants gardent leur valeur (impossible de
 distinguer une valeur choisie d'une valeur imposée par l'ancien formulaire).
-Aucune statistique dessus. Changement indépendant du module, à faire à part.
+Aucune statistique dessus.
 
 ### 5.4 Plus tard
 
@@ -336,8 +337,8 @@ localisés.
 
 | Phase | Contenu | Taille estimée |
 |---|---|---|
-| 0 | Relevé (renommage, zéro, question sur les autres espèces, `bycatch_counted`) et visite (actions cochées dans le même dialogue) | petite |
-| 0 bis | Infestation des ruchers nullable (hors module) | petite |
+| 0 | Relevé (renommage, zéro, question sur les autres espèces, `bycatch_counted`) et visite (actions cochées dans le même dialogue) | fait |
+| 0 bis | Infestation des ruchers nullable (hors module) | fait |
 | 1 | Backend registre + T1, T3 en JSON, double régime d'accès ; frontend catalogue, page détail, filtres (dont saisons), tableau ; export CSV/XLSX | moyenne |
 | 2 | Couverture (T5) et pression (T6), en statistique et en couches de la carte | moyenne |
 | 3 | Graphiques (Chart.js) ; PDF ; T2, T4 ; comparaison à l'année précédente ; export Google Sheets (option B) | moyenne |
