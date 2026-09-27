@@ -27,7 +27,7 @@ export default function TrapsDoc() {
           <div style={{ fontSize: '3rem' }}>🐝</div>
           <h6 className="mt-2">Compter</h6>
           <p className="small text-muted">
-            Enregistrez vos captures par espèce ; le compteur de frelons asiatiques se met à jour
+            Relevez vos pièges espèce par espèce, même vides ; le compteur de frelons asiatiques se met à jour
           </p>
         </Col>
       </Row>
@@ -52,7 +52,7 @@ export default function TrapsDoc() {
         <p className="mb-0">
           Sur chaque ligne : <strong>📍</strong> ouvre le module <em>Carte</em> centré sur le piège,
           mis en évidence parmi ses voisins, avec un bouton <strong>← Pièges</strong> pour revenir à
-          la liste telle que vous l'aviez laissée ; le bouton de capture enregistre un relevé
+          la liste telle que vous l'aviez laissée ; le bouton de relevé enregistre une visite
           (propriétaire et membres du groupe délégué) ; le menu <strong>⋮</strong> donne accès à la
           fiche, au déplacement, à la modification et à la suppression (propriétaire ou
           administrateur). Vos filtres sont conservés dans l'adresse de la page.
@@ -104,14 +104,17 @@ export default function TrapsDoc() {
           Le journal du piège
         </h5>
         <p>
-          Captures et entretien vivent dans un même journal, en ordre chronologique : constater une
-          capture, c'est aussi passer au piège. Chaque intervention porte une date, son auteur, un
-          commentaire et des photos facultatives.
+          Relevés et entretien vivent dans un même journal, en ordre chronologique. Chaque
+          intervention porte une date, son auteur, un commentaire et des photos facultatives.
         </p>
         <ul className="mb-0">
-          <li><strong>Capture</strong> : une carte par espèce trouvée dans le piège (frelon asiatique
-            par défaut), avec son décompte et une photo facultative</li>
-          <li><strong>Inspection, nettoyage, recharge, réparation</strong> : l'entretien courant</li>
+          <li><strong>Relevé</strong> : une carte par espèce retirée de la zone de capture, avec son
+            décompte et une photo facultative. Le frelon asiatique est toujours enregistré, même à
+            zéro : un piège vide est un résultat. Quand il est seul, l'application demande si
+            d'autres insectes étaient présents. Les actions faites pendant la même visite
+            (nettoyage, recharge, réparation) se cochent dans le relevé et forment avec lui une
+            seule entrée du journal</li>
+          <li><strong>Inspection, nettoyage, recharge, réparation</strong> : l'entretien courant, seul</li>
           <li><strong>Installation</strong> : remet le piège en service, à la date indiquée</li>
           <li><strong>Retrait</strong> : marque le piège comme remisé — il reste sur la carte, en gris</li>
         </ul>

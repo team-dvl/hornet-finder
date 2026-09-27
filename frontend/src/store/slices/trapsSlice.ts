@@ -74,8 +74,10 @@ export interface TrapEvent {
     photo_thumbnail_url: string | null;
   } | null;
   quantity: number | null;
-  /** Shared by the catch events recorded together during one visit */
+  /** Shared by the events recorded together during one visit (catches and actions) */
   batch: string | null;
+  /** On a catch: whether the other species were counted too, null when unknown */
+  bycatch_counted: boolean | null;
   comments: string;
   photos: TrapPhoto[];
   created_at: string;
@@ -361,14 +363,21 @@ export interface CatchItem {
   photo?: File | null;
 }
 
-/** Record one visit's catches: one journal entry per species, sharing a batch. */
+/**
+ * Record one visit: a reading (one journal entry per species, the Asian hornet
+ * possibly at zero) and the actions done at the same time, sharing a batch.
+ */
 export const addTrapCatch = createAsyncThunk(
   'traps/addTrapCatch',
-  async ({ trapId, performed_at, comments, items }: {
+  async ({ trapId, performed_at, comments, items, bycatch_counted = null, actions = [] }: {
     trapId: number;
     performed_at: string;
     comments?: string;
     items: CatchItem[];
+    /** Whether the other species were counted, null when not asked */
+    bycatch_counted?: boolean | null;
+    /** Maintenance done during the same visit */
+    actions?: TrapEventKind[];
   }, { rejectWithValue, dispatch }) => {
     try {
       const form = new FormData();
@@ -377,6 +386,8 @@ export const addTrapCatch = createAsyncThunk(
       form.append('items', JSON.stringify(
         items.map(({ species_slug, quantity }) => ({ species_slug, quantity })),
       ));
+      if (bycatch_counted !== null) form.append('bycatch_counted', String(bycatch_counted));
+      if (actions.length > 0) form.append('actions', JSON.stringify(actions));
       // A photo is matched to its item by position
       items.forEach((item, index) => {
         if (item.photo) form.append(`photo_${index}`, item.photo);
@@ -391,7 +402,7 @@ export const addTrapCatch = createAsyncThunk(
   }
 );
 
-/** Remove every catch event of a visit. */
+/** Remove every event of a visit, catches and actions. */
 export const deleteTrapCatch = createAsyncThunk(
   'traps/deleteTrapCatch',
   async ({ trapId, batch }: { trapId: number; batch: string }, { rejectWithValue, dispatch }) => {

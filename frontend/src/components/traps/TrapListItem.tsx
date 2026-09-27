@@ -91,7 +91,7 @@ export default function TrapListItem({
           <IconButton
             variant="link"
             icon={ACTION_ICONS.catch}
-            label="Enregistrer une capture"
+            label="Enregistrer un relevé"
             showLabel="never"
             onClick={() => onRecord(trap)}
           />

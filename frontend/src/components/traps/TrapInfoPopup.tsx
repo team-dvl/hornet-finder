@@ -107,8 +107,9 @@ function EventRow({ event, canDelete, onDelete, onPreview }: {
 }
 
 /**
- * Journal entries as displayed: the catch events recorded during one visit
- * (same batch) form one entry, every other event stands alone.
+ * Journal entries as displayed: the events recorded during one visit (same
+ * batch: the reading and the actions done with it) form one entry, every
+ * other event stands alone.
  */
 function journalEntries(events: TrapEvent[]): TrapEvent[][] {
   const entries: TrapEvent[][] = [];
@@ -130,29 +131,39 @@ function journalEntries(events: TrapEvent[]): TrapEvent[][] {
   return entries;
 }
 
-/** One visit's catches: a small card per species, with its count. */
-function CatchRow({ events, canDelete, onDelete, onPreview }: {
+/** Whether a journal entry is a visit with a reading, rather than a lone action */
+function isReading(entry: TrapEvent[]): boolean {
+  return entry.some((event) => event.kind === 'catch');
+}
+
+/**
+ * One visit: a small card per species found, with its count, then the actions
+ * done at the same time. A reading without any catch says so in its title.
+ */
+function VisitRow({ events, canDelete, onDelete, onPreview }: {
   events: TrapEvent[];
   canDelete: boolean;
   onDelete: (events: TrapEvent[]) => void;
   onPreview: (url: string) => void;
 }) {
-  const first = events[0];
+  const catches = events.filter((event) => event.kind === 'catch');
+  const actions = events.filter((event) => event.kind !== 'catch');
+  const first = catches[0];
   const info = eventKindInfo('catch');
-  const total = events.reduce((sum, event) => sum + (event.quantity ?? 0), 0);
+  const total = catches.reduce((sum, event) => sum + (event.quantity ?? 0), 0);
   const comments = events.map((event) => event.comments).filter(Boolean);
   return (
     <div className="py-2 border-bottom">
       <EntryHead
         icon={info.icon}
-        label={`${info.label} — ${total} insecte${total > 1 ? 's' : ''}`}
+        label={`${info.label} — ${total === 0 ? 'aucune capture' : `${total} insecte${total > 1 ? 's' : ''}`}`}
         date={first.performed_at}
         author={first.performed_by?.display_name}
-        deleteLabel="Supprimer cette capture"
+        deleteLabel="Supprimer ce relevé"
         onDelete={canDelete ? () => onDelete(events) : undefined}
       />
       <div className="journal-detail d-flex flex-wrap gap-2 mt-1">
-        {events.map((event) => {
+        {catches.filter((event) => (event.quantity ?? 0) > 0).map((event) => {
           const photo = event.photos[0];
           const thumbnail = photo?.thumbnail_url ?? event.species?.photo_thumbnail_url ?? null;
           const name = event.species?.name ?? '';
@@ -194,6 +205,20 @@ function CatchRow({ events, canDelete, onDelete, onPreview }: {
           );
         })}
       </div>
+      {(actions.length > 0 || first.bycatch_counted === false) && (
+        <div className="journal-detail small text-muted d-flex flex-wrap column-gap-3 mt-1">
+          {actions.map((action) => {
+            const actionInfo = eventKindInfo(action.kind);
+            return (
+              <span key={action.id}>
+                <span className="me-1" aria-hidden="true">{actionInfo.icon}</span>
+                {actionInfo.label}
+              </span>
+            );
+          })}
+          {first.bycatch_counted === false && <span>Autres insectes non comptés</span>}
+        </div>
+      )}
       {comments.map((text) => <div key={text} className="journal-detail small mt-1">{text}</div>)}
     </div>
   );
@@ -338,10 +363,10 @@ export default function TrapInfoPopup({
                     <Button
                       variant="primary"
                       onClick={() => setSub({ kind: 'event', eventKind: 'catch' })}
-                      aria-label="Enregistrer une capture"
+                      aria-label="Enregistrer un relevé"
                     >
                       <span className="me-2" aria-hidden="true">🐝</span>
-                      Capture
+                      Relevé
                     </Button>
                     <IconButton
                       variant="outline-primary"
@@ -400,8 +425,8 @@ export default function TrapInfoPopup({
               </p>
             ) : (
               <div className="trap-journal mb-2">
-                {entries.slice(0, journalLength).map((entry) => (entry[0].kind === 'catch' ? (
-                  <CatchRow
+                {entries.slice(0, journalLength).map((entry) => (isReading(entry) ? (
+                  <VisitRow
                     key={entry[0].id}
                     events={entry}
                     canDelete={entry.every(canDeleteEvent)}
@@ -449,7 +474,7 @@ export default function TrapInfoPopup({
         show={sub?.kind === 'delete-entry'}
         onHide={closeSub}
         onConfirm={() => sub?.kind === 'delete-entry' && handleDeleteEntry(sub.entry)}
-        itemName={sub?.kind === 'delete-entry' && sub.entry[0].kind === 'catch' ? 'cette capture' : 'cette intervention'}
+        itemName={sub?.kind === 'delete-entry' && isReading(sub.entry) ? 'ce relevé' : 'cette intervention'}
       />
 
       {/* Agrandissement d'une photo */}

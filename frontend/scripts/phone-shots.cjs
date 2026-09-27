@@ -234,7 +234,7 @@ async function walk(name) {
 
   await step('catch-form', async () => {
     if (!(await page.locator('.modal.show').count())) await openFixtureSheet();
-    await tap(page.locator('.modal.show button:has-text("capture"), .modal.show [aria-label="Enregistrer une capture"]'));
+    await tap(page.locator('.modal.show [aria-label="Enregistrer un relevé"]'));
     await shot('catch-form', 1500);
     await scrollDown();
     await shot('catch-form-bottom', 400);
@@ -245,7 +245,11 @@ async function walk(name) {
       .some((img) => img.src.startsWith('blob:') && img.complete && img.naturalWidth > 0));
     if (!previewShown) { warnings += 1; console.log(`WARN ${name}: the photo preview does not show`); }
     await shot('catch-photo', 300);
-    await tap(page.getByText('Ajouter une espèce'));
+    // Only the Asian hornet counted: saving asks about the other insects first,
+    // "Les compter" goes back to the reading with the species picker open
+    await tap(page.locator('.modal.show button[type=submit]'));
+    await shot('bycatch-question', 800);
+    await tap(page.locator('.offcanvas.show').getByText('Les compter'));
     await shot('species-picker', 1500);
     await tap(page.locator('.modal.show button:has-text("Retour"), .modal.show [aria-label="Retour"]'));
     await tap(page.locator('.modal.show button:has-text("Annuler"), .modal.show .btn-close'));
