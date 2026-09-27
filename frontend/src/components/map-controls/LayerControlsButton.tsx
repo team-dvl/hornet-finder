@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Form } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { useAuth } from 'react-oidc-context';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
@@ -25,8 +26,14 @@ import {
   toggleOnlyMyTraps,
   selectOnlyMyTraps,
   toggleOnlyMyApiaries,
-  selectOnlyMyApiaries
+  selectOnlyMyApiaries,
+  selectMapAnalysis,
+  setAnalysisLayer,
+  setAnalysisPeriod,
+  type AnalysisPeriod,
 } from '../../store/store';
+import { HelpTip } from '../common';
+import { analysisParams } from '../stats/statParams';
 import { selectColorFilters } from '../../store/slices/hornetsSlice';
 import { BottomSheet } from '../ui';
 import { OBJECT_ICONS } from '../../utils/icons';
@@ -63,7 +70,13 @@ export default function LayerControlsButton({
   const [open, setOpen] = useState(false);
   const dispatch = useAppDispatch();
   const auth = useAuth();
-  const { isAdmin, canAddApiary } = useUserPermissions();
+  const { isAdmin, canAddApiary, roles } = useUserPermissions();
+  const analysis = useAppSelector(selectMapAnalysis);
+  const canAnalyse = auth.isAuthenticated && ['admin', 'volunteer', 'beekeeper'].some((role) => roles.includes(role));
+  const thisYear = new Date().getFullYear();
+  const analysisLink = analysis.layer
+    ? `/stats/traps-${analysis.layer}?${new URLSearchParams(analysisParams(analysis.period, analysis.year))}`
+    : '';
   
   const showHornets = useAppSelector(selectShowHornets);
   const showReturnZones = useAppSelector(selectShowReturnZones);
@@ -115,6 +128,58 @@ export default function LayerControlsButton({
         )}
         {showTraps && auth.isAuthenticated && (
           <LayerSwitch id="layer-my-traps" icon="👤" label="Mes pièges seulement" checked={onlyMyTraps} onChange={() => dispatch(toggleOnlyMyTraps())} sub />
+        )}
+        {canAnalyse && (
+          <div className="border-top mt-2 pt-2">
+            <div className="small text-muted d-flex align-items-center">
+              Analyse du piégeage
+              <HelpTip id="layer-analysis-help" title="Analyse du piégeage">
+                Une grille de mailles de 250 m. La couverture montre la part de chaque maille à
+                moins de 250 m d&apos;un piège en service ; la pression, les frelons asiatiques par
+                piège et par semaine, lissés. Seuls les pièges que vous voyez sont comptés.
+              </HelpTip>
+            </div>
+            <LayerSwitch
+              id="layer-coverage"
+              icon="🟦"
+              label="Couverture"
+              checked={analysis.layer === 'coverage'}
+              onChange={() => dispatch(setAnalysisLayer(analysis.layer === 'coverage' ? null : 'coverage'))}
+            />
+            <LayerSwitch
+              id="layer-pressure"
+              icon="🟧"
+              label="Pression"
+              checked={analysis.layer === 'pressure'}
+              onChange={() => dispatch(setAnalysisLayer(analysis.layer === 'pressure' ? null : 'pressure'))}
+            />
+            {analysis.layer && (
+              <>
+                <Form.Select
+                  className="mt-2"
+                  aria-label="Période de l'analyse"
+                  value={`${analysis.period}:${analysis.year}`}
+                  onChange={(event) => {
+                    const [period, year] = event.target.value.split(':');
+                    dispatch(setAnalysisPeriod({ period: period as AnalysisPeriod, year: Number(year) }));
+                  }}
+                >
+                  {[thisYear, thisYear - 1].map((year) => (
+                    <optgroup key={year} label={String(year)}>
+                      <option value={`spring:${year}`}>Printemps {year}</option>
+                      <option value={`summer:${year}`}>Été {year}</option>
+                      <option value={`late:${year}`}>Été-automne-hiver {year}</option>
+                      <option value={`year:${year}`}>Année {year}</option>
+                    </optgroup>
+                  ))}
+                </Form.Select>
+                <Link to={analysisLink} className="d-inline-flex align-items-center small mt-2 stat-layer-link">
+                  Chiffres et export
+                  <i className="bi bi-chevron-right ms-1" aria-hidden="true" />
+                </Link>
+              </>
+            )}
+          </div>
         )}
         {isAdmin && (
           <LayerSwitch

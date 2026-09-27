@@ -24,6 +24,8 @@ interface StatGridOverlayProps {
   onSelect?: (cell: GridCellProperties | null) => void;
   /** Draw the traps counted (the stat page does, the main map has its own markers) */
   showTraps?: boolean;
+  /** Cells answer taps (stat page); on the main map taps go to the map itself */
+  interactive?: boolean;
 }
 
 const LAYERS: Record<StatGridOverlayProps['statId'], GridLayer> = {
@@ -46,7 +48,7 @@ type Loaded = { key: string; result?: MapStatResult; error?: string; status?: nu
  * Drawn on a canvas, which keeps a few thousand cells fluid on a phone.
  */
 export default function StatGridOverlay({
-  statId, params, onState, selectedId = null, onSelect, showTraps = false,
+  statId, params, onState, selectedId = null, onSelect, showTraps = false, interactive = true,
 }: StatGridOverlayProps) {
   const map = useMap();
   const layer = LAYERS[statId];
@@ -122,6 +124,7 @@ export default function StatGridOverlay({
           }}
           // @ts-expect-error: `renderer` is a path option Leaflet passes on to each cell
           renderer={renderer}
+          interactive={interactive}
           eventHandlers={{
             click: (event) => {
               L.DomEvent.stopPropagation(event);

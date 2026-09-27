@@ -13,6 +13,21 @@ export interface MapBounds {
   west: number;
 }
 
+/** Analysis layer of the traps drawn on the map (a 250 m grid), and its period */
+export type AnalysisLayer = 'coverage' | 'pressure';
+export type AnalysisPeriod = 'spring' | 'summer' | 'late' | 'year';
+
+export interface MapAnalysis {
+  layer: AnalysisLayer | null;
+  period: AnalysisPeriod;
+  year: number;
+}
+
+/** The latest spring: this year's from 1 February, else last year's */
+function latestSpringYear(today = new Date()): number {
+  return today.getMonth() >= 1 ? today.getFullYear() : today.getFullYear() - 1;
+}
+
 export interface MapState {
   center: MapPosition;
   zoom: number;
@@ -20,6 +35,7 @@ export interface MapState {
   geolocationError: string | null;
   isInitialized: boolean;
   isAdmin: boolean;
+  analysis: MapAnalysis;
   lastFetchedArea?: {
     center: MapPosition;
     radius: number;
@@ -35,6 +51,7 @@ const initialState: MapState = {
   geolocationError: null,
   isInitialized: false,
   isAdmin: false,
+  analysis: { layer: null, period: 'spring', year: latestSpringYear() },
   lastFetchedArea: undefined,
 };
 
@@ -125,6 +142,13 @@ const mapSlice = createSlice({
     setLastFetchedArea: (state, action: PayloadAction<{ center: MapPosition; radius: number; bounds: MapBounds; zoom: number }>) => {
       state.lastFetchedArea = action.payload;
     },
+    setAnalysisLayer: (state, action: PayloadAction<AnalysisLayer | null>) => {
+      state.analysis.layer = action.payload;
+    },
+    setAnalysisPeriod: (state, action: PayloadAction<{ period: AnalysisPeriod; year: number }>) => {
+      state.analysis.period = action.payload.period;
+      state.analysis.year = action.payload.year;
+    },
     updateMapViewport: (state, action: PayloadAction<{ center: MapPosition; zoom: number; bounds: MapBounds }>) => {
       const { center, zoom } = action.payload;
       state.center = center;
@@ -160,6 +184,8 @@ export const {
   setIsAdmin,
   updateMapViewport,
   setLastFetchedArea,
+  setAnalysisLayer,
+  setAnalysisPeriod,
 } = mapSlice.actions;
 
 export default mapSlice.reducer;
@@ -174,3 +200,4 @@ export const selectGeolocationError = (state: { map: MapState }) => state.map.ge
 export const selectIsInitialized = (state: { map: MapState }) => state.map.isInitialized;
 export const selectIsAdmin = (state: { map: MapState }) => state.map.isAdmin;
 export const selectLastFetchedArea = (state: { map: MapState }) => state.map.lastFetchedArea;
+export const selectMapAnalysis = (state: { map: MapState }) => state.map.analysis;

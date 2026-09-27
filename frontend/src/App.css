@@ -1001,6 +1001,10 @@ button.module-card {
 }
 
 /* On the main map: a small card at the bottom, clear of the buttons and the zoom */
+.stat-layer-link {
+  min-height: 2.75rem;
+}
+
 .stat-legend-overlay {
   position: absolute;
   z-index: 1000;

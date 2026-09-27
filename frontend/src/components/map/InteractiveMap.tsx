@@ -41,6 +41,7 @@ import { useMapModals, type MapPoint } from '../../hooks/useMapModals';
 import { MAP_VIEW_MODES, type MapViewMode } from './viewModes';
 import { ACTION_ICONS } from '../../utils/icons';
 import { MapObject } from './types';
+import MapAnalysisLayer from '../stats/MapAnalysisLayer';
 import "leaflet/dist/leaflet.css";
 import geomagnetism from "geomagnetism";
 
@@ -623,6 +624,8 @@ export default function InteractiveMap({
             apiary={apiary}
           />
         ))}
+        {/* Couverture ou pression des pièges, sous les marqueurs */}
+        <MapAnalysisLayer />
         {/* Ruchers, nids et pièges : un seul groupe, les marqueurs qui se touchent se regroupent */}
         <MarkerClusterGroup onClusterClick={handleClusterClick} onSpiderfyChange={(open) => { spiderOpen.current = open; }}>
           {apiariesVisible && apiaries.filter((apiary) => apiary.id !== focusedApiaryId).map((apiary, index) => (

@@ -113,3 +113,10 @@ export function filterableGroups(membership: string[]): { path: string; label: s
   });
   return [...paths].filter(Boolean).sort().map((path) => ({ path, label: path.split('/').pop() || path }));
 }
+
+/** Statistics parameters of the period picked in the map's layers sheet. */
+export function analysisParams(period: string, year: number): Record<string, string> {
+  return period === 'year'
+    ? { period: 'year', year: String(year) }
+    : { period: 'season', season: period, year: String(year) };
+}
