@@ -22,20 +22,26 @@ doit être rapporté à l'effort.
 
 ### 2.1 Relevé et exposition
 
-- **Relevé** : une visite où le contenu du piège est compté, c'est-à-dire un lot
-  d'événements `catch` (même `batch`), y compris un relevé **à zéro** (§5.1).
-  Une inspection, une recharge ou une réparation n'est pas un relevé : elle ne
-  dit rien du contenu.
-- **Intervalle d'exposition** d'un relevé : depuis l'événement précédent qui a
-  vidé ou mis en place le piège (relevé, `cleaning`, `installation`) jusqu'à ce
-  relevé. Une période entre `removal` et `installation` n'est pas exposée.
+- **Relevé** : une visite où le contenu de la zone de capture est compté **et
+  retiré**, c'est-à-dire les événements `catch` d'un même lot (`batch`), y
+  compris un relevé **à zéro** (§5.1). Compter sans retirer ferait compter les
+  mêmes insectes au relevé suivant : c'est une consigne, rappelée dans le
+  dialogue.
+- Les autres actions d'une visite (nettoyage, recharge, réparation) sont
+  enregistrées dans le même lot que le relevé (§5.1), mais ne délimitent rien :
+  un nettoyage ne vide pas forcément la zone de capture (p. ex. le bac inférieur
+  d'un JadeProbe, séparé de la zone de prise).
+- **Intervalle d'exposition** d'un relevé : depuis le relevé précédent ou
+  l'`installation`, jusqu'à ce relevé. Une période entre `removal` et
+  `installation` n'est pas exposée.
 - **Piège-jour** : unité d'effort. Un piège actif pendant 7 jours = 7 pièges-jours.
 
 Les captures d'un relevé sont attribuées à son intervalle d'exposition. Pour
 une granularité (jour, semaine ISO, mois) ou une borne de saison, elles sont
 **réparties au prorata des jours** de l'intervalle qui tombent de chaque côté.
-Exemple : 14 gynes relevées le 22 juin après 14 jours, soit 7 jours avant et
-7 jours après le 15 juin, comptent pour 7 dans le printemps et 7 après.
+Exemple : 14 gynes relevées le 22 juin après 14 jours (du 9 au 22 juin), soit
+7 jours jusqu'au 15 juin et 7 jours à partir du 16, comptent pour 7 dans le
+printemps et 7 dans l'été.
 C'est exact pour les totaux ; pour une case isolée, l'erreur est de l'ordre de
 la variation réelle des captures au sein de l'intervalle, donc importante si la
 granularité est plus fine que l'intervalle entre relevés. L'interface
@@ -89,14 +95,12 @@ administrateurs de groupe). Pas de regroupement par commune à ce stade.
   | Saison | Début | Fin | Objet |
   |---|---|---|---|
   | Printemps | 1er février | 15 juin | capture des gynes fondatrices |
-  | Été | 1er juin | 30 septembre | |
-  | Été-automne-hiver | 1er juin | 31 décembre | |
+  | Été | 16 juin | 30 septembre | |
+  | Été-automne-hiver | 16 juin | 31 décembre | |
 
-  Les saisons sont des **préréglages de période**, pas une partition de l'année :
-  le printemps chevauche les deux autres du 1er au 15 juin, et janvier n'est dans
-  aucune. Un tableau ne porte que sur une saison à la fois, donc rien n'y est
-  compté deux fois ; en revanche, additionner à la main le printemps et l'été
-  compte deux fois la première quinzaine de juin.
+  Le printemps et l'été se suivent sans se chevaucher. L'été-automne-hiver
+  englobe l'été (même début, par cohérence) : c'est un autre préréglage, pas une
+  saison de plus à additionner. Janvier n'est dans aucune saison.
 - **Granularité** : jour, semaine (ISO), mois.
 - **Type de piège**, **groupe** (délégation, limité aux groupes de la personne),
   **mes pièges seulement**, **zone** : cercle autour d'un point (`lat`, `lon`,
@@ -110,7 +114,8 @@ l'API et les exports.
 
 Le but est de voir, au printemps, **quelle part du territoire est couverte par
 des pièges** et où les gynes sont prises. Il faut pour cela une résolution de
-l'ordre de la centaine de mètres, pas du kilomètre.
+l'ordre de la centaine de mètres, pas du kilomètre : maille de **250 m** pour
+commencer (1 600 mailles pour une emprise de 10 × 10 km).
 
 ### 4.1 Couverture (T5)
 
@@ -123,13 +128,13 @@ l'ordre de la centaine de mètres, pas du kilomètre.
   les exports, pas une mesure.
 - Zone = le filtre de zone (cercle) ; sans filtre, l'emprise de la carte.
   Sans limites communales, c'est le seul dénominateur disponible.
-- Affichage : grille de mailles carrées (`ST_SquareGrid`, PostGIS ≥ 3.1 ;
-  l'image installe PostGIS 3), maille par défaut **100 m**, réglable 50 / 100 /
-  250 m ; une maille est couverte si son centre est à moins de *r* d'un piège.
-  L'écart entre la surface calculée par mailles et la surface exacte de l'union
-  des disques est de l'ordre d'une demi-maille sur le pourtour de chaque zone
-  couverte ; le pourcentage affiché vient du calcul exact, la grille ne sert
-  qu'au dessin.
+- Affichage : grille de mailles carrées de 250 m (`ST_SquareGrid`, PostGIS ≥
+  3.1 ; l'image installe PostGIS 3) ; une maille est couverte si son centre est
+  à moins de *r* d'un piège. Avec *r* = 250 m et des mailles de 250 m, le dessin
+  en escalier s'écarte du disque d'environ une demi-maille (~125 m) sur son
+  pourtour : le pourcentage affiché vient du calcul exact sur les disques, la
+  grille ne sert qu'au dessin. Une maille plus fine (100 m) pourra être proposée
+  si le rendu est trop grossier.
 
 ### 4.2 Carte de pression (T6)
 
@@ -147,8 +152,8 @@ couleur sans effort de piégeage. Une maille isolée affiche au survol ses
 pièges-jours et ses captures, pour que la couleur ne se lise pas sans son
 effectif.
 
-Ordres de grandeur du rendu : une emprise de 10 × 10 km en mailles de 100 m
-fait 10 000 mailles ; seules les mailles couvertes (T5) ou à effort suffisant
+Ordres de grandeur du rendu : une emprise de 10 × 10 km fait 1 600 mailles de
+250 m (10 000 à 100 m) ; seules les mailles couvertes (T5) ou à effort suffisant
 (T6) sont renvoyées, en GeoJSON limité à l'emprise (`bbox`). Au-delà d'environ
 20 000 mailles, l'API refuse et la carte invite à zoomer ou à grossir la maille.
 
@@ -162,16 +167,22 @@ de 4e bouton flottant.
 - Un piège déplacé est compté à sa position actuelle pour toute son histoire
   (§1). Pour des cartes justes sur plusieurs saisons, journaliser les
   déplacements (événement `relocation` portant l'ancienne position).
-- À 100-250 m, une maille désigne pratiquement un piège : voir §6 pour la
+- À 250 m, une maille désigne pratiquement un piège : voir §6 pour la
   confidentialité.
 
 ## 5. Prérequis de données (phase 0)
 
-### 5.1 Relevé, y compris à zéro
+### 5.1 Relevé, y compris à zéro, et visite
 
-- L'action « Capture » devient **« Relevé »** (libellé, icône, journal).
-  En base, le `kind` reste `catch` : pas de migration des données, seul le
-  libellé change.
+- L'action « Capture » devient **« Relevé »** (libellé, journal). En base, le
+  `kind` reste `catch` : pas de migration des données, seul le libellé change.
+- Le dialogue de relevé est celui de **la visite** : on compte, puis on coche
+  les autres actions faites sur place (nettoyage, recharge, réparation ; p. ex.
+  pour une harpe : compter, retirer les insectes du bac, changer la batterie).
+  Chaque action reste un événement du journal (même `performed_at`, même
+  `batch` que le relevé), enregistré dans la même requête ; le journal affiche
+  la visite en une seule entrée, supprimée d'un bloc. Le dialogue d'une action
+  seule (sans relevé) reste disponible.
 - La carte du frelon asiatique démarre à **0** (aujourd'hui à 1 : une saisie
   distraite enregistre un frelon) et est **toujours enregistrée**, même à 0 :
   un relevé sans prise produit un événement `vespa-velutina`, `quantity = 0`.
@@ -236,8 +247,6 @@ Journalisation des déplacements de pièges (§4.3).
 - Le pied de chaque tableau et de chaque carte indique le périmètre (« tous
   les pièges : 142 » ou « pièges visibles par vous : 87 ») : deux écrans peuvent
   donc donner des totaux différents, et cela doit se voir.
-- Variante plus simple si ce double régime paraît trop subtil : exclure partout
-  les pièges « groupe » des autres pour un non-admin.
 - L'admin voit tout, partout.
 - Chaque statistique déclare ses rôles requis (`required_roles`) dans un
   registre côté serveur ; le catalogue renvoyé au frontend est filtré. Les
@@ -327,7 +336,7 @@ localisés.
 
 | Phase | Contenu | Taille estimée |
 |---|---|---|
-| 0 | Relevé (renommage, zéro, question sur les autres espèces, `bycatch_counted`) | petite |
+| 0 | Relevé (renommage, zéro, question sur les autres espèces, `bycatch_counted`) et visite (actions cochées dans le même dialogue) | petite |
 | 0 bis | Infestation des ruchers nullable (hors module) | petite |
 | 1 | Backend registre + T1, T3 en JSON, double régime d'accès ; frontend catalogue, page détail, filtres (dont saisons), tableau ; export CSV/XLSX | moyenne |
 | 2 | Couverture (T5) et pression (T6), en statistique et en couches de la carte | moyenne |
@@ -337,17 +346,19 @@ localisés.
 La couverture passe en phase 2 (avant les graphiques) pour être prête pour la
 saison de printemps, qui commence le 1er février.
 
-## 9. Questions ouvertes
+## 9. Décisions et questions ouvertes
 
-1. Saisons : le chevauchement printemps / été du 1er au 15 juin est-il voulu ?
-   Sinon, l'été commencerait le 16 juin.
-2. Le nettoyage (`cleaning`) vide-t-il toujours le piège ? La proposition le
-   suppose (il démarre un nouvel intervalle d'exposition). Et la recharge
-   (`refill`) ?
-3. Rayon de couverture *r* par défaut (250 m proposé) : y a-t-il une valeur de
+Décidé :
+- l'été et l'été-automne-hiver commencent le 16 juin ;
+- un nettoyage ne vide pas forcément la zone de capture : seuls les relevés
+  délimitent l'exposition, les actions d'une visite se cochent dans le dialogue
+  du relevé ;
+- maille de 250 m pour commencer ;
+- double régime d'accès (§6).
+
+Ouvert :
+1. Rayon de couverture *r* par défaut (250 m proposé) : y a-t-il une valeur de
    référence utilisée par les associations (p. ex. une densité recommandée de
-   pièges par km² au printemps) ? Elle donnerait un *r* cohérent : une densité
-   *n* pièges/km² correspond à un rayon de ~ 1000 / √(π·*n*) m (disque de même surface que la part
-   de territoire de chaque piège), soit ~ 560 m pour 1 piège/km², ~ 250 m pour 5 pièges/km².
-4. Double régime d'accès (§6) ou variante simple (exclure partout les pièges
-   « groupe » des autres) ?
+   pièges par km² au printemps) ? À surface égale, une densité de *n*
+   pièges/km² correspond à un rayon de ~ 1000 / √(π·*n*) m, soit ~ 560 m pour
+   1 piège/km² et ~ 250 m pour 5 pièges/km².
