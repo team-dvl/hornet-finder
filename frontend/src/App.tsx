@@ -1,7 +1,7 @@
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css'
-import { Container, Alert } from 'react-bootstrap'
-import { useEffect } from 'react';
+import { Container, Alert, Spinner } from 'react-bootstrap'
+import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from 'react-oidc-context';
 import { Home, MapPage, Nests, Traps, Apiaries, DocsIndex, DocPage, AdminIndex, TrapTypesAdmin, SpeciesAdmin, TagsAdmin, ArchivingAdmin, PrivacyPolicy, DataDeletion } from './pages';
@@ -11,6 +11,11 @@ import { useUrlCleaner } from './utils/urlCleaner';
 import { setupPWAAuthMonitoring, setupTokenMonitoring, syncAuthStateWithServiceWorker } from './utils/pwaAuth';
 import { useMobileSessionPersistence } from './hooks/useMobileSessionPersistence';
 import { setApiAccessToken } from './utils/api';
+
+// The statistics are loaded on demand: they stay out of the first load of the PWA
+const StatsIndex = lazy(() => import('./pages/stats/StatsIndex'));
+const StatDetail = lazy(() => import('./pages/stats/StatDetail'));
+const pageFallback = <div className="text-center py-5"><Spinner animation="border" /></div>;
 
 // Import conditionnel pour les tests en développement
 if (import.meta.env.DEV) {
@@ -119,6 +124,14 @@ function App() {
         {/* Shortcut of the installed app (long press on its icon): opens the scanner */}
         <Route path="/scan" element={null} />
       </Route>
+      <Route
+        path="/stats"
+        element={<RequireRole roles={['volunteer', 'beekeeper', 'admin']}><Suspense fallback={pageFallback}><StatsIndex /></Suspense></RequireRole>}
+      />
+      <Route
+        path="/stats/:statId"
+        element={<RequireRole roles={['volunteer', 'beekeeper', 'admin']}><Suspense fallback={pageFallback}><StatDetail /></Suspense></RequireRole>}
+      />
       {/* Former printing page, now a tab of the QR Codes administration */}
       <Route path="/traps/tags" element={<Navigate to="/admin/tags?tab=print" replace />} />
       <Route path="/docs" element={<DocsIndex />} />

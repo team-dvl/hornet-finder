@@ -5,7 +5,7 @@
  * those realm roles (see `visibleModules` below); the route itself is guarded
  * by RequireRole.
  */
-export type ModuleId = 'map' | 'nests' | 'traps' | 'apiaries' | 'docs' | 'admin' | 'account';
+export type ModuleId = 'map' | 'nests' | 'traps' | 'apiaries' | 'stats' | 'docs' | 'admin' | 'account';
 
 export interface ModuleDefinition {
   id: ModuleId;
@@ -54,6 +54,15 @@ export const MODULES: ModuleDefinition[] = [
     icon: 'bi-hexagon-fill',
     path: '/apiaries',
     requiredRoles: ['beekeeper', 'admin'],
+  },
+  {
+    id: 'stats',
+    title: 'Statistiques',
+    shortTitle: 'Statistiques',
+    description: 'Captures, efficacité des pièges et couverture du territoire.',
+    icon: 'bi-bar-chart-line',
+    path: '/stats',
+    requiredRoles: ['admin', 'volunteer', 'beekeeper'],
   },
   {
     id: 'docs',

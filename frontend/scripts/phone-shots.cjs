@@ -391,6 +391,24 @@ async function walk(name) {
     await escape();
   });
 
+  // Statistics: catalogue, the catches table with its sheets, the trap types
+  await step('stats', async () => {
+    await open('/stats');
+    await shot('stats', 1500);
+    await open('/stats/traps-catches');
+    await shot('stats-catches', 2500);
+    await scrollDown();
+    await shot('stats-catches-bottom', 400);
+    await tap(page.locator('[aria-label="Filtres"]').first());
+    await shot('stats-filters', 800);
+    await escape();
+    await tap(page.locator('[aria-label="Exporter"]').first());
+    await shot('stats-export', 1500);
+    await escape();
+    await open('/stats/trap-types');
+    await shot('stats-trap-types', 2500);
+  });
+
   for (const [path, label] of [
     ['/admin', 'admin'],
     ['/admin/species', 'admin-species'],

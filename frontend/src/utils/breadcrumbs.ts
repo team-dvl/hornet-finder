@@ -13,6 +13,12 @@ const ADMIN_SECTIONS: Record<string, string> = {
   tags: 'QR Codes',
 };
 
+/** Statistics with a page, for the breadcrumb trail (short names). */
+export const STAT_SECTIONS: Record<string, string> = {
+  'traps-catches': 'Captures FA',
+  'trap-types': 'Types de piège',
+};
+
 /**
  * Breadcrumb trail for the current route, derived from the module config:
  * `/nests` → [Nids], `/docs/nests` → [Documentation, Nids],
@@ -29,6 +35,12 @@ export function getBreadcrumbs(pathname: string): Crumb[] {
     const documented = findModule(segments[1]);
     if (documented) {
       crumbs.push({ label: documented.shortTitle, path: `/docs/${documented.id}` });
+    }
+  }
+  if (module.id === 'stats' && segments[1]) {
+    const section = STAT_SECTIONS[segments[1]];
+    if (section) {
+      crumbs.push({ label: section, path: `/stats/${segments[1]}` });
     }
   }
   if (module.id === 'admin' && segments[1]) {

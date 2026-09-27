@@ -31,4 +31,7 @@ export const ACTION_ICONS = {
   action: 'clipboard-check',
   save: 'check-lg',
   back: 'arrow-left',
+  filters: 'funnel',
+  export: 'download',
+  help: 'info-circle',
 } as const;
