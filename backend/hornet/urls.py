@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .media_views import media_view
+from .stats.views import StatDetailView, StatsCatalogueView
 from .profile_views import my_avatar
 from .apiary_views import ApiaryViewSet
 from .views import HornetViewSet, NestViewSet
@@ -27,5 +28,7 @@ urlpatterns = [
     path('me/avatar/', my_avatar, name='my-avatar'),
     # Before the router, so `sheet` is not read as a tag value
     path('tags/sheet/<str:token>/', sheet_pdf, name='tag-sheet-pdf'),
+    path('stats/', StatsCatalogueView.as_view(), name='stats-catalogue'),
+    path('stats/<slug:stat_id>/', StatDetailView.as_view(), name='stats-detail'),
     path('', include(router.urls)),
 ]
