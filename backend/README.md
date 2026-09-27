@@ -51,6 +51,15 @@ A RESTful API built with Django and Django REST Framework for managing hornet de
 - `GET|POST /api/species/`, `GET|PATCH|DELETE /api/species/{id}/` - Species referential, same rules
 - `GET /api/media/{path}` - Uploaded photo, served only to users allowed to see the owning trap (nginx does the transfer through X-Accel-Redirect)
 
+### Statistics
+
+Signed-in users (any role). Definitions and access rules: `doc/STATISTICS.md`; code in `hornet/stats/`.
+
+- `GET /api/stats/` - Statistics the caller may open (`id`, `title`, `description`, `filters`)
+- `GET /api/stats/{id}/` - One table: `traps-catches` (Asian hornets per day, ISO week or month, per trap and per week with a 95 % Poisson interval, previous year alongside) or `trap-types` (per type: rate and selectivity with Wilson interval). Parameters: `period` (`d7`, `d30`, `month`, `season` with `season` = `spring`|`summer`|`late` and `year`, `year` with `year`, `custom` with `from`/`to`), `granularity` (`day`, `week`, `month`), `compare` (`false` to leave out the previous year), `trap_type` (slug), `group` (path, one of the caller's groups unless admin), `mine`, `lat`/`lon`/`radius` (km, 50 at most). Without a zone every trap is counted; with one, only the traps the caller can see (`scope` in the response says which). Errors are `{error}` in French
+- `POST /api/stats/{id}/export/` - `{format: xlsx|csv, params}`: signed link (`url`, `filename`, `expires_in` = 900 s) carrying the query and the caller's rights
+- `GET /api/stats/export/{token}/` - The file behind a link, no JWT; 410 once expired. The CSV uses `;` and decimal commas (UTF-8 with BOM); the XLSX adds a `Paramètres` sheet
+
 ### QR tags
 
 Signed QR labels stuck on traps (`hornet/tags.py`). A tag is generated blank, then attached to a trap by scanning it. The QR code carries the Vedrin s'Abeille pictogram in its centre (`hornet/assets/tag-logo.png`), on error correction level Q so it stays readable. Printing lives in the frontend under Administration → QR Codes, open to every role; management is admin only.

@@ -1,6 +1,6 @@
 # Module Statistiques : analyse et proposition
 
-Statut : **proposition**. Seule la phase 0 (§5.1 à §5.3) est implémentée. Ce document fixe le périmètre,
+Statut : phases 0 et 1 **implémentées** (`backend/hornet/stats/`, `frontend/src/pages/stats/`), la suite reste une **proposition**. Ce document fixe le périmètre,
 les définitions des indicateurs, l'architecture et un découpage en phases.
 
 ## 1. Ce que les données permettent aujourd'hui
@@ -33,7 +33,9 @@ doit être rapporté à l'effort.
   d'un JadeProbe, séparé de la zone de prise).
 - **Intervalle d'exposition** d'un relevé : depuis le relevé précédent ou
   l'`installation`, jusqu'à ce relevé. Une période entre `removal` et
-  `installation` n'est pas exposée.
+  `installation` n'est pas exposée. Un relevé sans début connu (premier après
+  un retrait, ou à plus de 180 jours du précédent : un piège oublié) compte
+  ses captures sans effort.
 - **Piège-jour** : unité d'effort. Un piège actif pendant 7 jours = 7 pièges-jours.
 
 Les captures d'un relevé sont attribuées à son intervalle d'exposition. Pour
@@ -289,14 +291,17 @@ objet alimente le JSON, l'XLSX et le PDF : un seul calcul, trois rendus.
 |---|---|
 | `GET /api/stats/` | catalogue filtré par rôle, avec la description des filtres et graphiques de chaque stat |
 | `GET /api/stats/<id>/?…` | table JSON |
-| `POST /api/stats/<id>/export/` `{format, params}` | lien signé à courte durée pour le fichier (même mécanisme que `tags/sheet/<token>/` : un téléphone doit pouvoir passer l'URL à son lecteur PDF/tableur sans JWT) |
+| `POST /api/stats/<id>/export/` `{format, params}` | lien signé valable 15 minutes (même mécanisme que `tags/sheet/<token>/` : un téléphone doit pouvoir passer l'URL à son lecteur PDF/tableur sans JWT) ; il porte la requête et les droits du demandeur |
+| `GET /api/stats/export/<token>/` | le fichier, calculé avec ces droits |
 | `GET /api/stats/traps-coverage/grid/?bbox=…` | GeoJSON des mailles couvertes (T5) |
 | `GET /api/stats/traps-pressure/grid/?bbox=…` | GeoJSON des mailles de pression (T6) |
 
-Calcul : SQL (ORM + requêtes brutes pour la répartition au prorata via
-`generate_series` et pour la grille), à la volée. Ordre de grandeur, hypothèse
-haute de 500 pièges × 30 relevés × 3 espèces ≈ 45 000 événements par saison :
-une agrégation PostgreSQL prend quelques dizaines de ms. La grille de pression
+Calcul, à la volée : PostgreSQL somme chaque lot en un relevé, Python répartit
+les relevés sur les cases de temps. Mesuré sur l'hypothèse haute de 500 pièges
+× 30 relevés × 3 espèces (45 500 événements, 15 000 relevés), dans le conteneur
+de développement avec PostgreSQL 16 local : ~0,24 s pour les captures par
+semaine avec la comparaison N-1, ~0,39 s par jour, ~0,22 s pour les types de
+piège. Le serveur de production n'a pas été mesuré. La grille de pression
 est le calcul le plus lourd (mailles × pièges à moins de ~3 *h*) : quelques
 millions de paires au pire pour 10 000 mailles, soit de l'ordre de la
 centaine de ms à la seconde, à mesurer. Ni vue matérialisée ni cache au départ.
@@ -394,7 +399,7 @@ Règles :
 |---|---|---|
 | 0 | Relevé (renommage, zéro, question sur les autres espèces, `bycatch_counted`) et visite (actions cochées dans le même dialogue) | fait |
 | 0 bis | Infestation des ruchers nullable (hors module) | fait |
-| 1 | Backend registre + T1, T3 en JSON, double régime d'accès ; frontend catalogue, page détail, filtres (dont saisons), tableau ; export CSV/XLSX | moyenne |
+| 1 | Backend registre + T1, T3 en JSON, double régime d'accès ; frontend catalogue, page détail, filtres (dont saisons), tableau ; export CSV/XLSX | fait |
 | 2 | Couverture (T5) et pression (T6), en statistique et en couches de la carte | moyenne |
 | 3 | Graphiques (Chart.js) ; PDF ; T2, T4 ; comparaison à l'année précédente ; envoi d'un lien d'export par email | moyenne |
 | 4 | Restrictions par statistique, stats nids/observations, journalisation des déplacements | à définir |

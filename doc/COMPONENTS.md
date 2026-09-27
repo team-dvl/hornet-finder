@@ -125,6 +125,13 @@ Briques partagées, à utiliser plutôt que les composants Bootstrap bruts :
 - `FieldRow.tsx` : Ligne « libellé — valeur » d'une fiche
 - `IconButton.tsx` : Bouton réduit à son icône sur téléphone, libellé en `aria-label` et infobulle
 
+### `/components/stats/`
+Module Statistiques (pages dans `pages/stats/`, chargées à la demande) :
+- `statParams.ts` : paramètres dans l'URL, libellés, formats des nombres
+- `StatFiltersSheet.tsx` : filtres en `BottomSheet`, appliqués au fil des choix
+- `StatExportSheet.tsx` : liens signés XLSX/CSV préparés à l'ouverture
+- `CatchesView.tsx`, `TrapTypesView.tsx` : tableaux en liste, sans défilement horizontal
+
 ## Imports
 
 Chaque dossier contient un fichier `index.ts` qui exporte tous les composants du dossier. 
