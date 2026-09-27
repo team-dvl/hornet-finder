@@ -1,4 +1,6 @@
+import io
 from datetime import date, datetime, time
+from unittest.mock import patch
 
 from rest_framework.test import force_authenticate
 
@@ -7,7 +9,7 @@ from ..tests import FakeTrapUser, TrapTestCase
 from .confidence import poisson_interval, wilson_interval
 from .exposure import load_readings, tally
 from .periods import LOCAL, PeriodError, buckets, resolve_period
-from .views import StatDetailView, StatsCatalogueView
+from .views import StatDetailView, StatExportLinkView, StatsCatalogueView
 
 
 def at(day: date, hour: int = 0):
@@ -240,8 +242,8 @@ class TrapTypesTests(StatsTestCase):
         self.assertIsNone(row['selectivity'])
 
 
-class AccessTests(StatsTestCase):
-    """Totals count every trap; anything located counts only visible ones."""
+class ThreeTrapsTestCase(StatsTestCase):
+    """A public trap, a group-only one and an apiary-bound (harp) one."""
 
     def setUp(self):
         super().setUp()
@@ -253,6 +255,10 @@ class AccessTests(StatsTestCase):
         self.harp = self.make_trap(trap_type=harp)
         self.reading(self.harp, date(2025, 3, 15), 56)
         self.zone = {**self.MARCH, 'lat': '50.5', 'lon': '4.5', 'radius': '2'}
+
+
+class AccessTests(ThreeTrapsTestCase):
+    """Totals count every trap; anything located counts only visible ones."""
 
     def hornets(self, query, user):
         response = self.stat('traps-catches', {**query, 'compare': 'false'}, user=user)
@@ -305,3 +311,60 @@ class CatalogueTests(TrapTestCase):
     def test_anonymous_and_roleless_users_are_refused(self):
         self.assertIn(self.catalogue().status_code, (401, 403))
         self.assertEqual(self.catalogue(FakeTrapUser([], None)).status_code, 403)
+
+
+class ExportTests(ThreeTrapsTestCase):
+    """Files behind a signed link, computed with the rights of the requester."""
+
+    def link(self, fmt, params, user=None):
+        request = self.factory.post('/stats/traps-catches/export/',
+                                    {'format': fmt, 'params': params}, format='json')
+        force_authenticate(request, user=user or self.admin_user)
+        return StatExportLinkView.as_view()(request, stat_id='traps-catches')
+
+    def download(self, url):
+        return self.client.get(url)
+
+    def test_csv(self):
+        response = self.link('csv', {**self.MARCH, 'granularity': 'week', 'compare': 'false'})
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['filename'],
+                         'captures-de-frelons-asiatiques-1-31-mars-2025.csv')
+        file = self.download(response.data['url'])
+        self.assertEqual(file.status_code, 200)
+        self.assertIn('attachment;', file['Content-Disposition'])
+        text = file.content.decode('utf-8')
+        self.assertTrue(text.startswith('﻿Période;Du;Au;'))
+        lines = text.strip().split('\r\n')
+        self.assertTrue(lines[-1].startswith('Total;2025-03-01;2025-03-31;'))
+        # 98 hornets in March with the three traps of the fixture, decimal comma
+        self.assertIn(';98,0;', lines[-1])
+
+    def test_xlsx_has_data_and_parameters(self):
+        from openpyxl import load_workbook
+        response = self.link('xlsx', {**self.MARCH, 'granularity': 'week'})
+        file = self.download(response.data['url'])
+        self.assertEqual(file.status_code, 200)
+        workbook = load_workbook(io.BytesIO(file.content))
+        self.assertEqual(workbook.sheetnames, ['Données', 'Paramètres'])
+        data = workbook['Données']
+        self.assertEqual(data.cell(1, 1).value, 'Période')
+        self.assertEqual(data.cell(data.max_row, 1).value, 'Total')
+        self.assertEqual(data.cell(2, 2).value.date(), date(2025, 3, 1))
+        labels = [row[0].value for row in workbook['Paramètres'].iter_rows()]
+        self.assertIn('Pièges comptés', labels)
+        self.assertIn('Comparée à', labels)
+
+    def test_the_file_keeps_the_rights_of_the_requester(self):
+        zone = {**self.zone, 'compare': 'false'}
+        url = self.link('csv', zone, user=self.stranger_user).data['url']
+        total = self.download(url).content.decode('utf-8').strip().split('\r\n')[-1]
+        self.assertIn(';14,0;', total)
+
+    def test_refusals(self):
+        self.assertEqual(self.link('pdf', self.MARCH).status_code, 400)
+        self.assertEqual(self.link('csv', {'period': 'nope'}).status_code, 400)
+        self.assertEqual(self.download('/api/stats/export/forged:token/').status_code, 404)
+        url = self.link('csv', self.MARCH).data['url']
+        with patch('hornet.stats.views.EXPORT_LINK_SECONDS', -1):
+            self.assertEqual(self.download(url).status_code, 410)
