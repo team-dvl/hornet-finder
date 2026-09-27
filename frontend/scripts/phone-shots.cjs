@@ -12,6 +12,7 @@ const BASE = process.env.BASE_URL;
 const LAT = Number(process.env.LAT);
 const LNG = Number(process.env.LNG);
 
+const DEFAULT_DEVICES = ['ip14', 'pixel7'];
 const DEVICES = {
   ip14: { engine: webkit, profile: devices['iPhone 14'] },
   se: { engine: webkit, profile: devices['iPhone SE'] },
@@ -435,7 +436,7 @@ async function walk(name) {
 
 (async () => {
   const names = (process.env.DEVICES || '').split(/\s+/).filter(Boolean);
-  for (const name of names.length ? names : Object.keys(DEVICES)) {
+  for (const name of names.length ? names : DEFAULT_DEVICES) {
     if (!DEVICES[name]) {
       console.log(`Unknown device ${name}: ${Object.keys(DEVICES).join(', ')}`);
       continue;

@@ -6,12 +6,18 @@
 # the dev-only test admin (KC_TEST_* in .env) and walks the main screens,
 # opening dialogs without ever submitting them.
 #
+# By default (no -d) only ip14 and pixel7 run, one WebKit and one Chromium
+# device: enough to catch both engines without the full run's memory/time
+# cost. Pass -d (repeatable) for se, w320 or galaxy when a change specifically
+# needs them.
+#
 # A few fixtures (two traps on the same spot, a nest, a hornet) are created
 # through the API beforehand so that every sheet can be opened, and deleted
 # on exit, like smoke-traps.sh does.
 #
 # Usage: ./ui-shots.sh [-d <device>]... [-o <out_dir>]
 #   -d  only this device (repeatable): ip14, se, w320, pixel7, galaxy
+#       (default: ip14 pixel7)
 #   -o  output directory (default: ui-shots/, ignored by git)
 #
 set -u
