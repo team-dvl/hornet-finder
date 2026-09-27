@@ -316,6 +316,11 @@ class TrapEvent(models.Model):
 
     One visit usually finds several species: each gets its own catch event,
     and the events recorded together share a `batch` and a `performed_at`.
+    Such a visit is a reading ("relevé"): what the capture zone holds is counted
+    and removed. The Asian hornet is always recorded, at zero if need be, so a
+    reading without any catch still shows in the journal and in the statistics.
+    The maintenance actions done during the same visit (cleaning, refill,
+    repair) join its batch.
     """
 
     KIND_INSTALLATION = 'installation'
@@ -334,6 +339,8 @@ class TrapEvent(models.Model):
         (KIND_REMOVAL, 'Removal'),
         (KIND_CATCH, 'Catch'),
     ]
+    # Actions that can be recorded along with a reading, in the same visit
+    VISIT_ACTION_KINDS = (KIND_CLEANING, KIND_REFILL, KIND_REPAIR)
 
     id = models.AutoField(primary_key=True)
     trap = models.ForeignKey(Trap, on_delete=models.CASCADE, related_name='events')
@@ -344,8 +351,12 @@ class TrapEvent(models.Model):
     species = models.ForeignKey(Species, null=True, blank=True, on_delete=models.PROTECT,
                                 related_name='trap_events')
     quantity = models.PositiveIntegerField(null=True, blank=True)
-    # Groups the catch events recorded together; NULL for a lone event
+    # Groups the events of one visit (catches and actions); NULL for a lone event
     batch = models.UUIDField(null=True, blank=True, db_index=True)
+    # Whether the other species were counted too during this reading, the same
+    # on every catch event of a batch: False when they were left uncounted,
+    # NULL when unknown (readings recorded before the question was asked)
+    bycatch_counted = models.BooleanField(null=True, blank=True)
     comments = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -354,9 +365,10 @@ class TrapEvent(models.Model):
         constraints = [
             models.CheckConstraint(
                 condition=(
-                    models.Q(kind='catch', species__isnull=False, quantity__gte=1)
+                    models.Q(kind='catch', species__isnull=False, quantity__gte=0)
                     | (~models.Q(kind='catch') & models.Q(species__isnull=True,
-                                                          quantity__isnull=True))
+                                                          quantity__isnull=True,
+                                                          bycatch_counted__isnull=True))
                 ),
                 name='trapevent_catch_fields',
             ),
@@ -370,12 +382,17 @@ class TrapEvent(models.Model):
         if self.kind == self.KIND_CATCH:
             if self.species_id is None:
                 raise ValidationError({'species': "A catch requires a species."})
-            if not self.quantity:
-                raise ValidationError({'quantity': "A catch requires a quantity of at least 1."})
-        else:
-            if self.species_id is not None or self.quantity is not None:
+            if self.quantity is None:
+                raise ValidationError({'quantity': "A catch requires a quantity."})
+            if self.quantity == 0 and self.species.slug != HORNET_SPECIES_SLUG:
                 raise ValidationError(
-                    "Only a catch can carry a species and a quantity."
+                    {'quantity': "Only the Asian hornet can be recorded at zero."}
+                )
+        else:
+            if (self.species_id is not None or self.quantity is not None
+                    or self.bycatch_counted is not None):
+                raise ValidationError(
+                    "Only a catch can carry a species, a quantity and a bycatch count."
                 )
 
 

@@ -478,6 +478,11 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
                 'comments': {'type': 'string'},
                 'items': {'type': 'string',
                           'description': 'JSON list of {"species_slug", "quantity"}'},
+                'bycatch_counted': {'type': 'boolean',
+                                    'description': 'Whether the other species were counted'},
+                'actions': {'type': 'string',
+                            'description': 'JSON list of actions done during the visit: '
+                                           '"cleaning", "refill", "repair"'},
                 'photo_0': {'type': 'string', 'format': 'binary',
                             'description': 'Optional photo of item 0 (photo_1 for item 1, ...)'},
             },
@@ -486,7 +491,8 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
     )
     @action(detail=True, methods=['post'], url_path='catches')
     def catches(self, request, pk=None):
-        """Record one visit's catches: one event per species, sharing a batch."""
+        """Record one visit: one catch event per species, then one event per
+        action done at the same time, all sharing a batch."""
         trap = self.get_object()
         if not perms.can_act_on_trap(request, trap):
             raise PermissionDenied(
@@ -506,6 +512,7 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
                         trap=trap, kind=TrapEvent.KIND_CATCH, performed_at=data['performed_at'],
                         performed_by=performed_by, species=item['species'],
                         quantity=item['quantity'], batch=batch,
+                        bycatch_counted=data['bycatch_counted'],
                         # Said once for the whole visit, not repeated per species
                         comments=data['comments'] if index == 0 else '',
                     )
@@ -515,6 +522,12 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
                         _store_photo(photo, 'image', 'thumbnail', uploaded)
                         stored.append(photo)
                         photo.save()
+                    events.append(event)
+                for kind in data['actions']:
+                    event = TrapEvent.objects.create(
+                        trap=trap, kind=kind, performed_at=data['performed_at'],
+                        performed_by=performed_by, batch=batch,
+                    )
                     events.append(event)
                 trap.recompute_hornet_catch_count()
         except Exception:
@@ -530,7 +543,7 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
                               404: OpenApiResponse(description='Unknown batch')})
     @action(detail=True, methods=['delete'], url_path=r'catches/(?P<batch>[0-9a-f-]{36})')
     def delete_catches(self, request, pk=None, batch=None):
-        """Remove every catch event recorded together, or none of them."""
+        """Remove every event of a visit (catches and actions), or none of them."""
         trap = self.get_object()
         events = list(trap.events.filter(batch=batch).select_related('trap'))
         if not events:

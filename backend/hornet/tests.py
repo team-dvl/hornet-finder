@@ -471,6 +471,21 @@ class TrapEventContentTests(TrapTestCase):
         response = self._post_event(kind=TrapEvent.KIND_INSPECTION, quantity=3)
         self.assertEqual(response.status_code, 400)
 
+    def test_only_the_asian_hornet_can_be_corrected_to_zero(self):
+        hornet = self._post_event(kind=TrapEvent.KIND_CATCH, quantity=4).data['id']
+        other = self._post_event(kind=TrapEvent.KIND_CATCH, quantity=2,
+                                 species_slug=self.other_species.slug).data['id']
+
+        def patch(event_id):
+            request = self.factory.patch(f'/trap-events/{event_id}/', {'quantity': 0})
+            force_authenticate(request, user=self.owner_user)
+            return TrapEventViewSet.as_view({'patch': 'partial_update'})(request, pk=event_id)
+
+        self.assertEqual(patch(hornet).status_code, 200)
+        self.assertEqual(patch(other).status_code, 400)
+        self.trap.refresh_from_db()
+        self.assertEqual(self.trap.hornet_catch_count, 0)
+
     def test_catch_defaults_to_vespa_velutina(self):
         response = self._post_event(kind=TrapEvent.KIND_CATCH, quantity=4)
         self.assertEqual(response.status_code, 201)
@@ -1094,13 +1109,67 @@ class TrapCatchTests(TrapTestCase):
         self.assertFalse(TrapEvent.objects.filter(trap=self.trap).exists())
         self.assertFalse(TrapPhoto.objects.filter(trap=self.trap).exists())
 
-    def test_zero_quantity_duplicates_and_empty_lists_are_refused(self):
-        self.assertEqual(self._post_catches(
-            [{'species_slug': 'vespa-velutina', 'quantity': 0}]).status_code, 400)
+    def test_duplicates_and_empty_lists_are_refused(self):
         self.assertEqual(self._post_catches(
             [{'species_slug': 'vespa-velutina', 'quantity': 1},
              {'species_slug': 'vespa-velutina', 'quantity': 2}]).status_code, 400)
         self.assertEqual(self._post_catches([]).status_code, 400)
+
+    def test_a_reading_without_catch_keeps_a_zero_hornet_event(self):
+        response = self._post_catches([{'species_slug': 'vespa-velutina', 'quantity': 0}],
+                                      bycatch_counted='true')
+        self.assertEqual(response.status_code, 201)
+        event = TrapEvent.objects.get(trap=self.trap)
+        self.assertEqual((event.species.slug, event.quantity), ('vespa-velutina', 0))
+        self.assertTrue(event.bycatch_counted)
+        self.trap.refresh_from_db()
+        self.assertEqual(self.trap.hornet_catch_count, 0)
+
+    def test_only_the_asian_hornet_can_be_recorded_at_zero(self):
+        response = self._post_catches([{'species_slug': 'vespa-velutina', 'quantity': 2},
+                                       {'species_slug': 'apis-mellifera', 'quantity': 0}])
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(TrapEvent.objects.filter(trap=self.trap).exists())
+
+    def test_bycatch_counted_is_stored_on_every_catch_of_the_reading(self):
+        self._post_catches([{'species_slug': 'vespa-velutina', 'quantity': 3}],
+                           bycatch_counted='false')
+        self.assertEqual(list(TrapEvent.objects.values_list('bycatch_counted', flat=True)),
+                         [False])
+
+    def test_bycatch_counted_is_unknown_when_not_said(self):
+        self._post_catches([{'species_slug': 'vespa-velutina', 'quantity': 3}])
+        self.assertIsNone(TrapEvent.objects.get(trap=self.trap).bycatch_counted)
+
+    def test_recording_another_species_means_the_bycatch_was_counted(self):
+        self._post_catches([{'species_slug': 'vespa-velutina', 'quantity': 3},
+                            {'species_slug': 'apis-mellifera', 'quantity': 1}],
+                           bycatch_counted='false')
+        self.assertEqual(set(TrapEvent.objects.values_list('bycatch_counted', flat=True)),
+                         {True})
+
+    def test_actions_of_the_visit_join_its_batch(self):
+        response = self._post_catches([{'species_slug': 'vespa-velutina', 'quantity': 4}],
+                                      actions=json.dumps(['cleaning', 'repair']))
+        self.assertEqual(response.status_code, 201)
+        events = TrapEvent.objects.filter(trap=self.trap)
+        self.assertEqual(sorted(event.kind for event in events),
+                         ['catch', 'cleaning', 'repair'])
+        self.assertEqual(len({event.batch for event in events}), 1)
+        self.assertEqual(len({event.performed_at for event in events}), 1)
+        actions = events.exclude(kind=TrapEvent.KIND_CATCH)
+        self.assertEqual({(e.species_id, e.quantity, e.bycatch_counted) for e in actions},
+                         {(None, None, None)})
+
+        self.assertEqual(self._delete_batch(response.data[0]['batch']).status_code, 204)
+        self.assertFalse(TrapEvent.objects.filter(trap=self.trap).exists())
+
+    def test_a_visit_takes_only_maintenance_actions_once(self):
+        for actions in (['removal'], ['catch'], ['cleaning', 'cleaning']):
+            response = self._post_catches([{'species_slug': 'vespa-velutina', 'quantity': 1}],
+                                          actions=json.dumps(actions))
+            self.assertEqual(response.status_code, 400, actions)
+        self.assertFalse(TrapEvent.objects.filter(trap=self.trap).exists())
 
     def test_a_stranger_cannot_record_catches(self):
         response = self._post_catches([{'species_slug': 'vespa-velutina', 'quantity': 1}],

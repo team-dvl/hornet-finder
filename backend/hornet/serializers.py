@@ -264,8 +264,10 @@ class TrapEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrapEvent
         fields = ['id', 'trap', 'kind', 'performed_at', 'performed_by', 'species',
-                  'species_slug', 'quantity', 'batch', 'comments', 'photos', 'created_at']
-        read_only_fields = ['id', 'trap', 'performed_by', 'species', 'batch', 'created_at']
+                  'species_slug', 'quantity', 'batch', 'bycatch_counted', 'comments', 'photos',
+                  'created_at']
+        read_only_fields = ['id', 'trap', 'performed_by', 'species', 'batch', 'bycatch_counted',
+                            'created_at']
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -299,9 +301,11 @@ class TrapEventSerializer(serializers.ModelSerializer):
                         {'species_slug': "A catch requires a species."}
                     )
                 attrs['species'] = species
-            if not quantity:
+            if quantity is None:
+                raise serializers.ValidationError({'quantity': "A catch requires a quantity."})
+            if quantity == 0 and species.slug != HORNET_SPECIES_SLUG:
                 raise serializers.ValidationError(
-                    {'quantity': "A catch requires a quantity of at least 1."}
+                    {'quantity': "Only the Asian hornet can be recorded at zero."}
                 )
         elif species is not None or quantity is not None:
             raise serializers.ValidationError(
@@ -314,35 +318,64 @@ class CatchItemSerializer(serializers.Serializer):
     species_slug = serializers.SlugRelatedField(
         source='species', slug_field='slug', queryset=Species.objects.all(),
     )
-    quantity = serializers.IntegerField(min_value=1)
+    # Zero is only meaningful for the Asian hornet (see CatchSerializer)
+    quantity = serializers.IntegerField(min_value=0)
 
 
 class CatchSerializer(serializers.Serializer):
     """
-    One visit's findings: a quantity per species, recorded as one catch event
-    per species. Write-only, the response is the list of created events.
+    One visit: a reading, recorded as one catch event per species, plus the
+    maintenance actions done at the same time, one event each. Write-only, the
+    response is the list of created events.
+
+    The Asian hornet may be recorded at zero, which is how a reading without
+    any catch is kept; another species at zero is refused. `bycatch_counted`
+    says whether the other species were counted: it is forced to true as soon
+    as one of them is recorded.
     """
 
     performed_at = serializers.DateTimeField()
     comments = serializers.CharField(required=False, allow_blank=True, default='')
     items = CatchItemSerializer(many=True, allow_empty=False)
+    bycatch_counted = serializers.BooleanField(required=False, allow_null=True, default=None)
+    actions = serializers.ListField(
+        child=serializers.ChoiceField(choices=TrapEvent.VISIT_ACTION_KINDS),
+        required=False, default=list,
+    )
+
+    # Fields a multipart request (the one carrying photos) sends as JSON
+    JSON_FIELDS = ('items', 'actions')
 
     def to_internal_value(self, data):
-        # A multipart request (the one carrying photos) sends the items as JSON
-        items = data.get('items')
-        if isinstance(items, str):
-            try:
-                items = json.loads(items)
-            except ValueError as exc:
-                raise serializers.ValidationError({'items': "Invalid JSON."}) from exc
-            data = {key: data.get(key) for key in data if key != 'items'} | {'items': items}
+        if any(isinstance(data.get(name), str) for name in self.JSON_FIELDS):
+            decoded = {key: data.get(key) for key in data}
+            for name in self.JSON_FIELDS:
+                if isinstance(decoded.get(name), str):
+                    try:
+                        decoded[name] = json.loads(decoded[name])
+                    except ValueError as exc:
+                        raise serializers.ValidationError({name: "Invalid JSON."}) from exc
+            data = decoded
         return super().to_internal_value(data)
 
     def validate_items(self, items):
         slugs = [item['species'].slug for item in items]
         if len(slugs) != len(set(slugs)):
             raise serializers.ValidationError("Each species can appear only once.")
+        if any(item['quantity'] == 0 and item['species'].slug != HORNET_SPECIES_SLUG
+               for item in items):
+            raise serializers.ValidationError("Only the Asian hornet can be recorded at zero.")
         return items
+
+    def validate_actions(self, actions):
+        if len(actions) != len(set(actions)):
+            raise serializers.ValidationError("Each action can appear only once.")
+        return actions
+
+    def validate(self, attrs):
+        if any(item['species'].slug != HORNET_SPECIES_SLUG for item in attrs['items']):
+            attrs['bycatch_counted'] = True
+        return attrs
 
 
 class TrapSerializer(GPSValidationMixin, serializers.ModelSerializer):
