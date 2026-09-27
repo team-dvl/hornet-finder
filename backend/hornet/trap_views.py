@@ -203,18 +203,7 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
 
     def _readable_queryset(self, request):
         """Traps the requester may see: public ones, their own, their groups'."""
-        # Same rule as `perms.is_publicly_visible`: apiary-bound types are never public
-        public = db_models.Q(visibility=Trap.VISIBILITY_PUBLIC, trap_type__apiary_bound=False)
-        user = getattr(request, 'user', None)
-        if not user or not getattr(user, 'is_authenticated', False):
-            return self.queryset.filter(public)
-        if perms.is_platform_admin(user):
-            return self.queryset
-        readable = public
-        readable |= db_models.Q(owner__guid=getattr(user, 'guid', None))
-        # A membership of `/beekeepers/ena/admin` also grants the parent
-        readable |= db_models.Q(group__path__in=perms.member_group_paths(request))
-        return self.queryset.filter(readable).distinct()
+        return perms.readable_traps(request, self.queryset)
 
     @geographic_list_schema()
     @extend_schema(parameters=[

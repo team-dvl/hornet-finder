@@ -14,6 +14,8 @@ Two ideas drive this module:
 
 import logging
 
+from django.db.models import Q
+
 from .models import User
 
 logger = logging.getLogger(__name__)
@@ -110,6 +112,25 @@ def is_publicly_visible(trap) -> bool:
     """
     return (trap.visibility == trap.VISIBILITY_PUBLIC
             and not (trap.trap_type_id and trap.trap_type.apiary_bound))
+
+
+def readable_traps(request, queryset):
+    """
+    The traps of `queryset` the requester may see: public ones (never those of
+    an apiary-bound type, as in `is_publicly_visible`), their own, their
+    groups'. Platform admins see everything.
+    """
+    public = Q(visibility='public', trap_type__apiary_bound=False)
+    user = getattr(request, 'user', None)
+    if not user or not getattr(user, 'is_authenticated', False):
+        return queryset.filter(public)
+    if is_platform_admin(user):
+        return queryset
+    readable = public
+    readable |= Q(owner__guid=getattr(user, 'guid', None))
+    # A membership of `/beekeepers/ena/admin` also grants the parent
+    readable |= Q(group__path__in=member_group_paths(request))
+    return queryset.filter(readable).distinct()
 
 
 def can_read_trap(request, trap) -> bool:
