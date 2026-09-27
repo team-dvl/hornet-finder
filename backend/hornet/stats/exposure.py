@@ -153,3 +153,44 @@ def tally(readings, bounds: list, key=None) -> list:
                 target(index, reading).add(reading, seconds / duration, seconds)
             index += 1
     return result
+
+
+def traps_in_service(traps: dict, window_start: datetime, window_end: datetime) -> set:
+    """
+    Ids of the traps in service at some point of [window_start, window_end):
+    from an installation to the next removal. `traps` maps each trap id to
+    (installed_at date, active flag), the fallback of a journal without any
+    installation (traps older than the journal).
+    """
+    from .periods import local_midnight
+
+    if not traps:
+        return set()
+    events = (TrapEvent.objects
+              .filter(trap_id__in=list(traps),
+                      kind__in=[TrapEvent.KIND_INSTALLATION, TrapEvent.KIND_REMOVAL],
+                      performed_at__lt=window_end)
+              .order_by('trap_id', 'performed_at', 'id')
+              .values_list('trap_id', 'kind', 'performed_at'))
+    by_trap = {}
+    for trap_id, kind, at in events:
+        by_trap.setdefault(trap_id, []).append((kind, at))
+
+    result = set()
+    for trap_id, (installed_at, active) in traps.items():
+        begin, spans = None, []
+        journal = by_trap.get(trap_id, [])
+        if not any(kind == TrapEvent.KIND_INSTALLATION for kind, _ in journal):
+            # No installation recorded: in place since `installed_at`
+            begin = local_midnight(installed_at)
+        for kind, at in journal:
+            if kind == TrapEvent.KIND_INSTALLATION:
+                begin = begin or at
+            elif begin is not None:
+                spans.append((begin, at))
+                begin = None
+        if begin is not None and (active or journal):
+            spans.append((begin, window_end))
+        if any(start < window_end and end > window_start for start, end in spans):
+            result.add(trap_id)
+    return result

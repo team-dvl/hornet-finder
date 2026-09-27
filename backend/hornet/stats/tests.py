@@ -1,4 +1,5 @@
 import io
+import math
 from datetime import date, datetime, time
 from unittest.mock import patch
 
@@ -306,7 +307,7 @@ class CatalogueTests(TrapTestCase):
     def test_every_role_gets_the_catalogue(self):
         for user in (self.owner_user, self.member_user, self.admin_user):
             ids = [entry['id'] for entry in self.catalogue(user).data]
-            self.assertEqual(ids, ['traps-catches', 'trap-types'])
+            self.assertEqual(ids, ['traps-catches', 'trap-types', 'traps-coverage', 'traps-pressure'])
 
     def test_anonymous_and_roleless_users_are_refused(self):
         self.assertIn(self.catalogue().status_code, (401, 403))
@@ -368,3 +369,98 @@ class ExportTests(ThreeTrapsTestCase):
         url = self.link('csv', self.MARCH).data['url']
         with patch('hornet.stats.views.EXPORT_LINK_SECONDS', -1):
             self.assertEqual(self.download(url).status_code, 410)
+
+
+class CoverageTests(StatsTestCase):
+    """A 2 km zone around the fixture trap (50.5, 4.5)."""
+
+    zone = {'period': 'custom', 'from': '2025-03-01', 'to': '2025-03-31',
+            'lat': '50.5', 'lon': '4.5', 'radius': '2'}
+
+    def map(self, stat_id, query, user=None):
+        response = self.stat(stat_id, query, user=user)
+        self.assertEqual(response.status_code, 200, response.data)
+        return response.data
+
+    def test_one_trap_covers_a_disc(self):
+        data = self.map('traps-coverage', self.zone)
+        summary = data['summary']
+        # pi * 0.25^2 of pi * 2^2: (0.25 / 2)^2, the buffer polygon within 0.2 %
+        self.assertAlmostEqual(summary['coverage'], (0.25 / 2) ** 2, delta=0.0002)
+        self.assertAlmostEqual(summary['covered_km2'], math.pi * 0.25 ** 2, delta=0.001)
+        self.assertEqual(summary['traps'], 1)
+        self.assertEqual(data['kind'], 'map')
+        self.assertEqual(data['scope']['kind'], 'visible')
+        features = data['cells']['features']
+        # A 500 m disc spans at most 3 x 3 cells of 250 m, and at least 2 x 2
+        self.assertTrue(4 <= len(features) <= 9, len(features))
+        self.assertTrue(all(0 < f['properties']['covered'] <= 1 for f in features))
+        self.assertEqual(data['traps'], [[50.5, 4.5]])
+
+    def test_the_reach_is_a_parameter(self):
+        wide = self.map('traps-coverage', {**self.zone, 'reach': '500'})['summary']
+        self.assertAlmostEqual(wide['coverage'], (0.5 / 2) ** 2, delta=0.0005)
+        self.assertEqual(self.stat('traps-coverage', {**self.zone, 'reach': '300'}).status_code, 400)
+
+    def test_a_trap_outside_the_zone_covers_its_edge(self):
+        # 2.1 km north of the centre: 150 m of its disc reach into the zone
+        self.make_trap(latitude=50.5 + 2.1 / 111.2, longitude=4.5)
+        summary = self.map('traps-coverage', self.zone)['summary']
+        self.assertEqual(summary['traps'], 1)
+        self.assertGreater(summary['covered_km2'], math.pi * 0.25 ** 2 + 0.01)
+
+    def test_a_trap_out_of_service_covers_nothing(self):
+        removed = self.make_trap(latitude=50.51, longitude=4.51)
+        self.install(removed, date(2025, 2, 20), TrapEvent.KIND_REMOVAL)
+        self.install(removed, date(2025, 4, 10))
+        # Its installation of 1 March is before the removal: out of service all March
+        removed.events.filter(performed_at=at(date(2025, 3, 1))).delete()
+        self.assertEqual(self.map('traps-coverage', self.zone)['summary']['traps'], 1)
+
+    def test_only_visible_traps_count(self):
+        self.make_trap(latitude=50.51, longitude=4.51, visibility=Trap.VISIBILITY_GROUP,
+                       group=self.group)
+        self.assertEqual(self.map('traps-coverage', self.zone, self.stranger_user)['summary']['traps'], 1)
+        self.assertEqual(self.map('traps-coverage', self.zone, self.member_user)['summary']['traps'], 2)
+
+    def test_area_limits(self):
+        march = {'period': 'custom', 'from': '2025-03-01', 'to': '2025-03-31'}
+        self.assertEqual(self.stat('traps-coverage', march).status_code, 400)
+        huge = self.stat('traps-coverage', {**march, 'bbox': '3,50,6,51'})
+        self.assertEqual(huge.status_code, 422)
+        self.assertIn('zoomez', huge.data['error'])
+        bbox = self.map('traps-coverage', {**march, 'bbox': '4.49,50.49,4.51,50.51'})
+        self.assertEqual(bbox['area']['kind'], 'bbox')
+        self.assertEqual(self.stat('traps-coverage', {**march, 'bbox': '4.5,50.5'}).status_code, 400)
+
+
+class PressureTests(StatsTestCase):
+    zone = CoverageTests.zone
+
+    def test_pressure_near_a_trap_is_its_rate(self):
+        self.reading(self.trap, date(2025, 3, 15), 14)  # 7 a week over 14 days
+        data = self.stat('traps-pressure', self.zone).data
+        self.assertEqual(data['summary']['traps'], 1)
+        self.assertAlmostEqual(data['summary']['rate'], 7, places=2)
+        rates = [f['properties']['rate'] for f in data['cells']['features']]
+        # A single trap: every cell with enough effort shows its rate
+        self.assertTrue(rates)
+        self.assertTrue(all(abs(rate - 7) < 1e-6 for rate in rates))
+        # The effort fades with distance: far cells stay transparent
+        efforts = [f['properties']['effort'] for f in data['cells']['features']]
+        self.assertGreaterEqual(min(efforts), 7)
+        self.assertLessEqual(max(efforts), 14.01)
+
+    def test_no_effort_no_colour(self):
+        data = self.stat('traps-pressure', self.zone).data
+        self.assertEqual(data['cells']['features'], [])
+
+    def test_export_of_a_map(self):
+        self.reading(self.trap, date(2025, 3, 15), 14)
+        request = self.factory.post('/stats/traps-coverage/export/',
+                                    {'format': 'csv', 'params': self.zone}, format='json')
+        force_authenticate(request, user=self.admin_user)
+        link = StatExportLinkView.as_view()(request, stat_id='traps-coverage')
+        self.assertEqual(link.status_code, 200, link.data)
+        text = self.client.get(link.data['url']).content.decode('utf-8')
+        self.assertTrue(text.startswith('﻿Latitude (centre);'))

@@ -38,7 +38,8 @@ def _lines(result: dict) -> list:
     """The rows, then the totals under the first column's 'Total'."""
     totals = dict(result['totals'])
     first = result['columns'][0]['key']
-    totals.setdefault(first, TOTAL_LABEL)
+    if result['columns'][0]['type'] == 'text':
+        totals.setdefault(first, TOTAL_LABEL)
     if first == 'bucket':
         totals[first] = TOTAL_LABEL
         totals['start'], totals['end'] = result['period']['start'], result['period']['end']
@@ -63,6 +64,7 @@ def parameters(result: dict) -> list:
         ('Intervalles de confiance', 'À 95 % : loi de Poisson exacte pour les captures, '
                                      'Wilson pour la sélectivité'),
     ]
+    lines += [tuple(note) for note in result.get('notes', [])]
     lines += [('Avertissement', warning) for warning in result['warnings']]
     return lines
 

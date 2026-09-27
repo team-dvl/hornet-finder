@@ -137,13 +137,15 @@ class Statistic:
     # Parameters the page offers for this statistic
     filters = ('period', 'trap_type', 'group', 'mine', 'zone')
     required_roles = ROLES
+    # 'table' (rows over time or by group) or 'map' (cells of a grid)
+    kind = 'table'
 
     def visible_to(self, scope: Scope) -> bool:
         return any(role in scope.roles for role in self.required_roles)
 
     def describe(self) -> dict:
         return {'id': self.id, 'title': self.title, 'description': self.description,
-                'filters': list(self.filters)}
+                'kind': self.kind, 'filters': list(self.filters)}
 
     def compute(self, params, scope: Scope, today=None) -> dict:  # pragma: no cover
         raise NotImplementedError
