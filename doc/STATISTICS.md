@@ -39,7 +39,7 @@ doit être rapporté à l'effort.
 Les captures d'un relevé sont attribuées à son intervalle d'exposition. Pour
 une granularité (jour, semaine ISO, mois) ou une borne de saison, elles sont
 **réparties au prorata des jours** de l'intervalle qui tombent de chaque côté.
-Exemple : 14 gynes relevées le 22 juin après 14 jours (du 9 au 22 juin), soit
+Exemple : 14 frelons relevés le 22 juin après 14 jours (du 9 au 22 juin), soit
 7 jours jusqu'au 15 juin et 7 jours à partir du 16, comptent pour 7 dans le
 printemps et 7 dans l'été.
 C'est exact pour les totaux ; pour une case isolée, l'erreur est de l'ordre de
@@ -87,20 +87,27 @@ administrateurs de groupe). Pas de regroupement par commune à ce stade.
 
 ### Filtres communs
 
-- **Période** : 7 derniers jours, 30 derniers jours, mois en cours, depuis le
-  1er janvier, **saison** (année au choix), dates libres. Option « comparer à la
-  même période de l'année précédente », indispensable vu la saisonnalité.
+- **Période** : 7 derniers jours, 30 derniers jours, mois en cours, **saison**
+  (année au choix), **année**, dates libres. Option « comparer à la même période
+  de l'année précédente », indispensable vu la saisonnalité.
+- **Année** : l'année du cycle de vie du frelon, assimilée à l'année civile
+  (1er janvier – 31 décembre) ; l'année en cours s'arrête à aujourd'hui, ce qui
+  remplace le préréglage « depuis le 1er janvier ».
 - **Saisons** (bornes incluses, fuseau `Europe/Brussels`) :
 
   | Saison | Début | Fin | Objet |
   |---|---|---|---|
-  | Printemps | 1er février | 15 juin | capture des gynes fondatrices |
+  | Printemps | 1er février | 15 juin | surtout des fondatrices (gynes) |
   | Été | 16 juin | 30 septembre | |
   | Été-automne-hiver | 16 juin | 31 décembre | |
 
   Le printemps et l'été se suivent sans se chevaucher. L'été-automne-hiver
   englobe l'été (même début, par cohérence) : c'est un autre préréglage, pas une
   saison de plus à additionner. Janvier n'est dans aucune saison.
+- **Vocabulaire** : l'interface parle de « frelons » (FA, frelon asiatique),
+  quelle que soit la saison. Les prises de printemps sont très probablement des
+  fondatrices, celles des autres saisons un mélange de castes que le relevé ne
+  distingue pas : aucun écran ne parle de gynes.
 - **Granularité** : jour, semaine (ISO), mois.
 - **Type de piège**, **groupe** (délégation, limité aux groupes de la personne),
   **mes pièges seulement**, **zone** : cercle autour d'un point (`lat`, `lon`,
@@ -113,7 +120,7 @@ l'API et les exports.
 ## 4. Couverture et carte de pression (piégeage de printemps)
 
 Le but est de voir, au printemps, **quelle part du territoire est couverte par
-des pièges** et où les gynes sont prises. Il faut pour cela une résolution de
+des pièges** et où les frelons sont pris. Il faut pour cela une résolution de
 l'ordre de la centaine de mètres, pas du kilomètre : maille de **250 m** pour
 commencer (1 600 mailles pour une emprise de 10 × 10 km).
 
