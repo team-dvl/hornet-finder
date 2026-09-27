@@ -247,7 +247,10 @@ Journalisation des déplacements de pièges (§4.3).
   | Totaux sans localisation (T1, T2, T3, sans filtre de zone) | **tous** les pièges, y compris les pièges « groupe » des autres |
   | Tout ce qui localise : filtre de zone, T4 (adresses), T5, T6, couches de la carte | seulement les pièges **lisibles** par la personne (publics, les siens, ceux de ses groupes), comme la liste des pièges (`TrapViewSet._readable_queryset`) |
 
-  Le second régime ne montre rien que la carte des pièges ne montre déjà.
+  Le second régime ne montre rien que la carte des pièges ne montre déjà. Il
+  exclut donc aussi les pièges des autres dont le type est lié au rucher
+  (`TrapType.apiary_bound`, p. ex. la harpe électrique) : `_readable_queryset`
+  ne les rend jamais publics.
 - Le filtre de zone bascule dans le régime restreint parce qu'un total global
   sur un petit cercle révélerait l'existence d'un piège privé (il suffit de
   comparer un total avec et sans le cercle). Pour la même raison, le filtre
