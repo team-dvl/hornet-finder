@@ -407,6 +407,10 @@ async function walk(name) {
     await escape();
     await open('/stats/trap-types');
     await shot('stats-trap-types', 2500);
+    await open('/stats/traps-coverage');
+    await shot('stats-coverage', 3500);
+    await open('/stats/traps-pressure');
+    await shot('stats-pressure', 3500);
   });
 
   for (const [path, label] of [

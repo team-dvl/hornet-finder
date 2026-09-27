@@ -3,7 +3,8 @@ export default function StatsDoc() {
   return (
     <>
       <p className="lead text-muted">
-        Suivez les captures de frelons asiatiques et comparez les pièges, sur la période de votre choix.
+        Suivez les captures de frelons asiatiques, comparez les pièges et voyez la couverture du
+        territoire, sur la période de votre choix.
       </p>
 
       <section className="mb-4">
@@ -35,6 +36,26 @@ export default function StatsDoc() {
           <strong>sélectivité</strong> : la part de frelons asiatiques parmi tous les insectes comptés,
           sur les seuls relevés où toutes les espèces ont été comptées. Deux modèles dont les
           intervalles de confiance se chevauchent largement ne sont pas départagés.
+        </p>
+      </section>
+
+      <section className="mb-4">
+        <h5 className="text-primary">
+          <span className="me-2">🗺️</span>
+          Couverture et pression
+        </h5>
+        <p>
+          Deux cartes en mailles de 250 m, sur la carte affichée ou sur une zone autour de vous.
+          La <strong>couverture</strong> donne la part du territoire à portée d&apos;un piège en
+          service pendant la période : chaque piège couvre un disque de 100, 250 ou 500 m. Cette
+          portée est une hypothèse de travail, pas une mesure. La <strong>pression</strong> lisse
+          les frelons asiatiques par piège et par semaine autour des pièges ; une maille trop
+          loin des pièges reste transparente.
+        </p>
+        <p className="mb-0">
+          Les deux cartes existent aussi comme couches du module <em>Carte</em>, dans la feuille
+          des couches (section « Analyse du piégeage »). Elles ne comptent que les pièges que vous
+          voyez sur la carte.
         </p>
       </section>
 

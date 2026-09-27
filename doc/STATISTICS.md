@@ -1,6 +1,6 @@
 # Module Statistiques : analyse et proposition
 
-Statut : phases 0 et 1 **implémentées** (`backend/hornet/stats/`, `frontend/src/pages/stats/`), la suite reste une **proposition**. Ce document fixe le périmètre,
+Statut : phases 0, 1 et 2 **implémentées** (`backend/hornet/stats/`, `frontend/src/pages/stats/`), la suite reste une **proposition**. Ce document fixe le périmètre,
 les définitions des indicateurs, l'architecture et un découpage en phases.
 
 ## 1. Ce que les données permettent aujourd'hui
@@ -128,48 +128,63 @@ commencer (1 600 mailles pour une emprise de 10 × 10 km).
 
 ### 4.1 Couverture (T5)
 
-- Chaque piège actif pendant la période couvre un disque de rayon *r*.
-  Couverture = surface de l'union des disques ∩ zone / surface de la zone
-  (PostGIS : `ST_Buffer` en projection métrique, `ST_Union`, `ST_Area`).
+- Chaque piège **en service** pendant la période (d'une installation au retrait
+  suivant, ou depuis `installed_at` sans installation au journal) couvre un
+  disque de rayon *r*. Couverture = surface de l'union des disques ∩ zone /
+  surface de la zone. Un piège juste hors de la zone compte pour son bord.
 - *r* est un paramètre (100 / 250 / 500 m, défaut **250 m**). Le rayon
   d'attraction réel d'un piège appâté n'est pas bien établi et dépend de l'appât
   et du vent : *r* est une **hypothèse de travail**, rappelée sur la page et dans
   les exports, pas une mesure.
 - Zone = le filtre de zone (cercle) ; sans filtre, l'emprise de la carte.
   Sans limites communales, c'est le seul dénominateur disponible.
-- Affichage : grille de mailles carrées de 250 m (`ST_SquareGrid`, PostGIS ≥
-  3.1 ; l'image installe PostGIS 3) ; une maille est couverte si son centre est
-  à moins de *r* d'un piège. Avec *r* = 250 m et des mailles de 250 m, le dessin
-  en escalier s'écarte du disque d'environ une demi-maille (~125 m) sur son
-  pourtour : le pourcentage affiché vient du calcul exact sur les disques, la
-  grille ne sert qu'au dessin. Une maille plus fine (100 m) pourra être proposée
-  si le rendu est trop grossier.
+- Grille de mailles carrées de 250 m (`ST_SquareGrid`) en Lambert belge 2008
+  (EPSG:3812, en mètres), ancrée sur l'origine de la projection : une maille
+  reste la même quand la carte bouge. Sur la carte Web Mercator, elle apparaît
+  très légèrement inclinée. Chaque maille porte la **part exacte de sa surface
+  couverte** (≤ 33 %, ≤ 66 %, > 66 %), plutôt qu'un oui/non au centre : le
+  dessin n'a pas l'effet d'escalier d'une demi-maille.
+- Calcul : chaque disque (polygone à 64 côtés, 0,16 % de surface en moins qu'un
+  cercle) est découpé par les mailles voisines de la sienne, puis les morceaux
+  sont unis maille par maille. Vérifié contre un tirage de Monte-Carlo de
+  200 000 points : 26,64 % contre 26,60 % ± 0,19 %.
 
 ### 4.2 Carte de pression (T6)
 
 Une heatmap classique (noyau de densité pondéré par les captures, type
 `leaflet.heat`) **dessine surtout la densité des pièges** : une zone avec 20
 pièges ressort même si chacun prend peu. Proposition : une **CPUE lissée**,
-rapport de deux densités à noyau calculées au centre de chaque maille :
+rapport de deux densités à noyau calculées au centre (centroïde) de chaque maille :
 
   pression(x) = Σ w(d) · captures FA / Σ w(d) · pièges-jours,
 
 où w est un noyau gaussien de largeur *h* (défaut 250 m, réglable) et d la
 distance maille–piège. Là où Σ w · pièges-jours est trop faible (moins de
 l'équivalent de ~7 pièges-jours), la maille reste transparente : pas de
-couleur sans effort de piégeage. Une maille isolée affiche au survol ses
-pièges-jours et ses captures, pour que la couleur ne se lise pas sans son
-effectif.
+couleur sans effort de piégeage. Une maille touchée affiche sa valeur et son
+effort pondéré, pour que la couleur ne se lise pas sans son effectif. Les
+pièges-jours sont ceux du §2.1 (exposition observée). Classes fixes, en frelons
+par piège et par semaine : < 0,1 ; 0,1 ; 0,25 ; 0,5 ; 1 ; ≥ 2. Elles permettent
+de comparer deux périodes, mais sont à revoir sur les premières données réelles :
+si presque tout tombe dans la dernière classe, la carte ne distingue plus rien.
 
-Ordres de grandeur du rendu : une emprise de 10 × 10 km fait 1 600 mailles de
-250 m (10 000 à 100 m) ; seules les mailles couvertes (T5) ou à effort suffisant
-(T6) sont renvoyées, en GeoJSON limité à l'emprise (`bbox`). Au-delà d'environ
-20 000 mailles, l'API refuse et la carte invite à zoomer ou à grossir la maille.
+Rendu : une emprise de 10 × 10 km fait 1 600 mailles de 250 m ; seules les
+mailles couvertes (T5) ou à effort suffisant (T6) sont renvoyées, en GeoJSON
+découpé à l'emprise (`bbox`) ou à la zone, et dessinées sur un canvas. Au-delà
+de 10 000 mailles (625 km²), l'API répond `422` et la carte invite à zoomer.
+
+Mesuré avec 500 pièges (hypothèse haute), PostgreSQL 16 local : vue de 79 km²
+(un téléphone vers le zoom 13) ~0,1 s pour la couverture et ~0,2 s pour la
+pression ; vue de 316 km² ~0,4 s (couverture, *r* = 250 m), ~0,9 s
+(*r* = 500 m), ~0,8 s (pression). Deux formulations naïves prenaient plus de
+60 s puis 4 s ; le code explique pourquoi.
 
 Intégration : une couche « Couverture » et une couche « Pression » dans la
 feuille des couches de la carte, avec un sélecteur de période (saison de
-printemps par défaut), et les mêmes couches en vue « carte » de T5 et T6. Pas
-de 4e bouton flottant.
+printemps le plus récent par défaut), et les mêmes couches en vue « carte » de
+T5 et T6. Pas de 4e bouton flottant. Sur la carte principale, la grille laisse
+passer les taps vers la carte (ajout d'objets, fiches) ; seule la page de la
+statistique détaille une maille touchée.
 
 ### 4.3 Limites
 
@@ -293,8 +308,8 @@ objet alimente le JSON, l'XLSX et le PDF : un seul calcul, trois rendus.
 | `GET /api/stats/<id>/?…` | table JSON |
 | `POST /api/stats/<id>/export/` `{format, params}` | lien signé valable 15 minutes (même mécanisme que `tags/sheet/<token>/` : un téléphone doit pouvoir passer l'URL à son lecteur PDF/tableur sans JWT) ; il porte la requête et les droits du demandeur |
 | `GET /api/stats/export/<token>/` | le fichier, calculé avec ces droits |
-| `GET /api/stats/traps-coverage/grid/?bbox=…` | GeoJSON des mailles couvertes (T5) |
-| `GET /api/stats/traps-pressure/grid/?bbox=…` | GeoJSON des mailles de pression (T6) |
+| `GET /api/stats/traps-coverage/?bbox=…` | T5 : chiffres, mailles couvertes en GeoJSON, pièges comptés |
+| `GET /api/stats/traps-pressure/?bbox=…` | T6 : chiffres, mailles de pression en GeoJSON |
 
 Calcul, à la volée : PostgreSQL somme chaque lot en un relevé, Python répartit
 les relevés sur les cases de temps. Mesuré sur l'hypothèse haute de 500 pièges
@@ -400,7 +415,7 @@ Règles :
 | 0 | Relevé (renommage, zéro, question sur les autres espèces, `bycatch_counted`) et visite (actions cochées dans le même dialogue) | fait |
 | 0 bis | Infestation des ruchers nullable (hors module) | fait |
 | 1 | Backend registre + T1, T3 en JSON, double régime d'accès ; frontend catalogue, page détail, filtres (dont saisons), tableau ; export CSV/XLSX | fait |
-| 2 | Couverture (T5) et pression (T6), en statistique et en couches de la carte | moyenne |
+| 2 | Couverture (T5) et pression (T6), en statistique et en couches de la carte | fait |
 | 3 | Graphiques (Chart.js) ; PDF ; T2, T4 ; comparaison à l'année précédente ; envoi d'un lien d'export par email | moyenne |
 | 4 | Restrictions par statistique, stats nids/observations, journalisation des déplacements | à définir |
 
