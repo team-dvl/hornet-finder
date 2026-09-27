@@ -41,14 +41,14 @@ def _warnings(period, readings, granularity=None) -> list:
         since = (f"avant le {format_day(timezone.localtime(first).date(), True)}"
                  if first else "jusqu'à la mise à jour du formulaire de relevé")
         warnings.append(
-            f"Les relevés sans capture n'étaient pas enregistrés {since} : "
+            f"Les relevés sans capture n'étaient pas enregistrés {since}\u00a0: "
             "sur cette période, les frelons par piège sont surestimés.")
     if granularity:
         spans = [(r.end - r.start).total_seconds() / 86400 for r in readings
                  if r.start is not None and r.end > r.start]
         if spans and median(spans) > 1.5 * BUCKET_DAYS[granularity]:
             warnings.append(
-                f"Les pièges sont relevés tous les {median(spans):.0f} jours en moyenne : "
+                f"Les pièges sont relevés tous les {median(spans):.0f} jours en moyenne\u00a0: "
                 "les valeurs de chaque ligne sont réparties au prorata, pas mesurées.")
     return warnings
 
