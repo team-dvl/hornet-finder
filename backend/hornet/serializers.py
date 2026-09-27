@@ -176,7 +176,9 @@ class ApiarySerializer(GPSValidationMixin, serializers.ModelSerializer):
     def validate_address(self, value: str) -> str:
         return value.strip()
 
-    def validate_infestation_level(self, value: int) -> int:
+    def validate_infestation_level(self, value):
+        if value is None:
+            return None
         valid_levels = [choice[0] for choice in Apiary.INFESTATION_LEVEL_CHOICES]
         if value not in valid_levels:
             raise serializers.ValidationError(f"Infestation level must be one of {valid_levels}.")

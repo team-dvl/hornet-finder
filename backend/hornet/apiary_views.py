@@ -92,8 +92,9 @@ class ApiaryViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
                              description="'mine' (default), 'shared' or 'all' (platform admins)"),
             OpenApiParameter(name='group', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY,
                              required=False, description='Path of a group the apiary is shared with'),
-            OpenApiParameter(name='infestation_level', type=OpenApiTypes.INT,
-                             location=OpenApiParameter.QUERY, required=False),
+            OpenApiParameter(name='infestation_level', type=OpenApiTypes.STR,
+                             location=OpenApiParameter.QUERY, required=False,
+                             description="1, 2, 3, or 'none' for apiaries not assessed"),
             OpenApiParameter(name='q', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY,
                              required=False,
                              description='Number, address, AFSCA number or comments'),
@@ -138,11 +139,14 @@ class ApiaryViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
 
         if params.get('group'):
             queryset = queryset.filter(apiarygrouppermission__group__path=params['group'])
-        if params.get('infestation_level'):
+        level = params.get('infestation_level')
+        if level == 'none':
+            queryset = queryset.filter(infestation_level__isnull=True)
+        elif level:
             try:
-                queryset = queryset.filter(infestation_level=int(params['infestation_level']))
+                queryset = queryset.filter(infestation_level=int(level))
             except ValueError:
-                raise DRFValidationError({'infestation_level': "Expected 1, 2 or 3."})
+                raise DRFValidationError({'infestation_level': "Expected 1, 2, 3 or 'none'."})
         search = params.get('q', '').strip().lstrip('#')
         if search:
             match = (Q(address__icontains=search) | Q(afsca_number__icontains=search)
@@ -162,7 +166,9 @@ class ApiaryViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
                 raise DRFValidationError({'ordering': "Sorting by distance needs lat and lon."})
             queryset = queryset.annotate(distance=Distance('point', center))
         expression = F(MANAGED_ORDERINGS[field])
-        expression = expression.desc() if ordering.startswith('-') else expression.asc()
+        # Apiaries without an infestation level come last, whatever the direction
+        expression = (expression.desc(nulls_last=True) if ordering.startswith('-')
+                      else expression.asc(nulls_last=True))
         queryset = queryset.order_by(expression, '-id')
 
         paginator = ManagedApiaryPagination()

@@ -146,7 +146,9 @@ class Apiary(GeolocatedModel):
     ]
 
     id = models.AutoField(primary_key=True)
-    infestation_level = models.IntegerField(choices=INFESTATION_LEVEL_CHOICES)
+    # Indicative, and often left out by the beekeepers: NULL means not assessed
+    infestation_level = models.IntegerField(choices=INFESTATION_LEVEL_CHOICES,
+                                            null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL)
     # The beekeeper in charge: the creator at first, reassignable by an admin

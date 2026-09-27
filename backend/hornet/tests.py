@@ -1536,6 +1536,24 @@ class ApiaryWriteTests(ApiaryTestCase):
         self.assertEqual(apiary.created_by_id, self.member_guid)
         self.assertEqual(apiary.afsca_number, '2.123.456.789')
 
+    def test_the_infestation_level_is_optional_and_can_be_cleared(self):
+        response = self._api('post', '/apiaries/', {'post': 'create'}, self.owner_user, {
+            'latitude': 50.4, 'longitude': 4.4,
+        }, format='multipart')
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertIsNone(response.data['infestation_level'])
+
+        # The form sends an empty value to clear it
+        response = self._api('patch', '/', {'patch': 'partial_update'}, self.owner_user,
+                             {'infestation_level': ''}, pk=self.apiary.id, format='multipart')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.apiary.refresh_from_db()
+        self.assertIsNone(self.apiary.infestation_level)
+
+        response = self._api('patch', '/', {'patch': 'partial_update'}, self.owner_user,
+                             {'infestation_level': 4}, pk=self.apiary.id, format='json')
+        self.assertEqual(response.status_code, 400)
+
     def test_update_needs_owner_or_update_grant(self):
         patch_data = {'afsca_number': 'X1'}
         response = self._api('patch', '/', {'patch': 'partial_update'}, self.member_user,
@@ -1858,6 +1876,17 @@ class ApiaryManagerTests(ApiaryTestCase):
         self.assertEqual(ids, [self.shared.id])
         ids = self._list(self._managed(self.admin_user, 'scope=all&infestation_level=2'))
         self.assertEqual(set(ids), {self.private.id, self.far.id})
+        self.far.infestation_level = None
+        self.far.save()
+        ids = self._list(self._managed(self.admin_user, 'scope=all&infestation_level=none'))
+        self.assertEqual(ids, [self.far.id])
+
+    def test_apiaries_not_assessed_come_last_in_both_directions(self):
+        self.far.infestation_level = None
+        self.far.save()
+        self.assertEqual(self._list(self._managed(self.owner_user)), [self.apiary.id, self.far.id])
+        self.assertEqual(self._list(self._managed(self.owner_user, 'ordering=infestation_level')),
+                         [self.apiary.id, self.far.id])
 
     def test_distance_ordering_has_no_radius_limit(self):
         ids = self._list(self._managed(self.owner_user, 'ordering=distance&lat=51.2&lon=4.4'))
