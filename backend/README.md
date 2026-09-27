@@ -66,6 +66,16 @@ Signed QR labels stuck on traps (`hornet/tags.py`). A tag is generated blank, th
 - `GET /api/tags/sheet/{token}/` - The PDF behind a signed link, shown inline. No JWT: the signature stands for the rights checked when the link was made, so the browser's own PDF viewer can open it (an iOS home-screen app ignores `window.print()` and blob downloads). Tags revoked since then are left out; 410 once expired
 - `POST /api/admin/tags/{id}/revoke/` - Revoke a tag, free or attached
 
+### Beekeeper group invitations
+
+An administrator of a beekeeper group (member of `/beekeepers/<id>/admin`) or a platform admin invites an existing, active account (enabled, email verified) to join `/beekeepers/<id>` by typing its full email address (`hornet/invitation_views.py`). The address only serves the Keycloak lookup: it is neither stored nor logged, and names shown with invitations are first/last names only, never an email. 10 addresses without an active account within 24 hours suspend the inviter's invitations for 24 hours (`InvitationThrottle`; a successful lookup does not reset the count). An invitation expires after 30 days. Accepting adds the invitee to the Keycloak group through the backend service account (`manage-users`).
+
+- `GET /api/group-invitations/invitable/` - Groups the caller may invite to (`path`, `name` from the `fancy_name` attribute) and `lookup` (`remaining_attempts`, `locked_until`)
+- `GET|POST /api/group-invitations/` - Pending invitations of those groups, or invite (`group_path`, `email`). Errors carry a `code`: `no_active_user` (404, counted, with `remaining_attempts`), `locked` (429, `Retry-After`), `self`, `already_member`, `already_invited` (409); a malformed address (400) or a Keycloak failure (503) is not counted
+- `DELETE /api/group-invitations/{id}/` - Withdraw a pending invitation (any administrator of its group)
+- `GET /api/me/group-invitations/` - Pending invitations of the caller
+- `POST /api/me/group-invitations/{id}/accept/`, `POST /api/me/group-invitations/{id}/decline/` - Answer one; the new membership shows in the next token
+
 ### Documentation
 
 - `GET /api/docs/` - Interactive Swagger UI documentation (development only)

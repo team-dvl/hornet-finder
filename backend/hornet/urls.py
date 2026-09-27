@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .media_views import media_view
 from .profile_views import my_avatar
 from .apiary_views import ApiaryViewSet
+from .invitation_views import GroupInvitationViewSet, MyGroupInvitationViewSet
 from .views import HornetViewSet, NestViewSet
 from .tag_views import TagAdminViewSet, TagViewSet, sheet_pdf
 from .trap_views import (
@@ -21,6 +22,8 @@ router.register(r'trap-photos', TrapPhotoViewSet, basename='trapphoto')
 router.register(r'species', SpeciesViewSet, basename='species')
 router.register(r'tags', TagViewSet, basename='tag')
 router.register(r'admin/tags', TagAdminViewSet, basename='tagadmin')
+router.register(r'group-invitations', GroupInvitationViewSet, basename='group-invitation')
+router.register(r'me/group-invitations', MyGroupInvitationViewSet, basename='my-group-invitation')
 
 urlpatterns = [
     path('media/<path:path>', media_view, name='media'),

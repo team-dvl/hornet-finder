@@ -859,6 +859,17 @@ button.module-card {
   margin: 0 auto;
 }
 
+/* Email of an invitation: takes the row, the button wraps below on a narrow phone */
+.invite-email {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+/* Text of a received invitation: its actions wrap below rather than squeeze it */
+.invitation-text {
+  flex: 1 1 10rem;
+}
+
 /* Year picker of the archiving module, finger-sized, beside its action */
 .year-select {
   width: auto;

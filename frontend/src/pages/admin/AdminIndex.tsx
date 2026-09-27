@@ -12,6 +12,8 @@ interface AdminSection {
   badge?: string;
   /** Realm roles that see the card; the route itself is guarded by RequireRole */
   roles: string[];
+  /** Outside platform admins, only for administrators of a beekeeper group */
+  beekeeperGroupAdmins?: boolean;
 }
 
 const SECTIONS: AdminSection[] = [
@@ -35,6 +37,14 @@ const SECTIONS: AdminSection[] = [
     icon: 'bi-archive',
     to: '/admin/archiving',
     roles: ['admin'],
+  },
+  {
+    title: 'Invitations',
+    description: 'Invitez des apiculteurs à rejoindre une association.',
+    icon: 'bi-person-plus',
+    to: '/admin/invitations',
+    roles: ['admin', 'beekeeper'],
+    beekeeperGroupAdmins: true,
   },
   {
     title: 'QR Codes',
@@ -67,10 +77,14 @@ const SECTIONS: AdminSection[] = [
  * other users get (printing QR Codes).
  */
 export default function AdminIndex() {
-  const { roles, isAdmin } = useUserPermissions();
+  const { roles, isAdmin, administeredGroups } = useUserPermissions();
+  const administersBeekeeperGroup = administeredGroups.some((path) => path.startsWith('/beekeepers/'));
   // An admin sees the admin variant of a card, never both
   const sections = SECTIONS.filter((section) =>
-    isAdmin ? section.roles.includes('admin') : section.roles.some((role) => roles.includes(role))
+    isAdmin
+      ? section.roles.includes('admin')
+      : section.roles.some((role) => roles.includes(role))
+        && (!section.beekeeperGroupAdmins || administersBeekeeperGroup)
   );
 
   return (

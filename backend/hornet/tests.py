@@ -1754,3 +1754,370 @@ class ApiaryManagerTests(ApiaryTestCase):
             Apiary.objects.create(latitude=50.5, longitude=4.5, infestation_level=1,
                                   created_by=self.owner, owner=self.owner)
         self.assertEqual(count_queries(), few)
+
+
+# ---------------------------------------------------------------------------
+# Beekeeper group invitations
+# ---------------------------------------------------------------------------
+
+from datetime import timedelta as _timedelta
+from unittest.mock import create_autospec as _autospec
+
+from .invitation_views import GroupInvitationViewSet, MyGroupInvitationViewSet
+from .models import GroupInvitation, InvitationThrottle
+
+_ENA = '/beekeepers/ena'
+_VSAB = '/beekeepers/vsab'
+
+
+class _FakeKeycloak:
+    """In-memory stand-in for the Keycloak helpers the invitations use."""
+
+    def __init__(self):
+        self.groups = {
+            _ENA: {'id': 'gid-ena', 'path': _ENA, 'name': 'ena',
+                   'attributes': {'fancy_name': ["école namuroise d'apiculture"]}},
+            _VSAB: {'id': 'gid-vsab', 'path': _VSAB, 'name': 'vsab', 'attributes': {}},
+        }
+        self.accounts = {}      # lowercased email -> user representation
+        self.memberships = {}   # guid -> group paths
+        self.down = False
+        self.lookups = 0
+        self.added = []
+
+    def _check(self):
+        if self.down:
+            raise RuntimeError('Keycloak down')
+
+    def find_active_user_by_email(self, email):
+        self._check()
+        self.lookups += 1
+        return self.accounts.get(email.strip().lower())
+
+    def get_group_by_path(self, path):
+        self._check()
+        return self.groups.get(path)
+
+    def get_child_groups(self, path):
+        self._check()
+        return [g for p, g in self.groups.items() if p.startswith(path + '/')]
+
+    def get_user_group_paths(self, guid):
+        return self.memberships.get(guid, [])
+
+    def add_user_to_group(self, guid, group_id):
+        self._check()
+        self.added.append((guid, group_id))
+
+    def get_user_display_name(self, guid, allow_email=True):
+        assert not allow_email, 'invitations must never show an email address'
+        return f'Name {guid[:8]}'
+
+
+class GroupInvitationTestCase(TestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.kc = _FakeKeycloak()
+        for name in ('find_active_user_by_email', 'get_group_by_path', 'get_child_groups',
+                     'get_user_group_paths', 'add_user_to_group', 'get_user_display_name'):
+            patcher = patch(f'hornet_finder_api.utils.{name}', side_effect=getattr(self.kc, name))
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+        self.aga = self._user(['beekeeper'], [f'{_ENA}/admin'])
+        self.member = self._user(['beekeeper'], [_ENA])
+        self.volunteer_admin = self._user(['volunteer'], ['/volunteers/vsa/admin'])
+        self.admin = self._user(['admin'], ['/admins'])
+
+        self.invitee_guid = str(uuid_module.uuid4())
+        self.kc.accounts['pi@example.org'] = {
+            'id': self.invitee_guid, 'email': 'pi@example.org', 'enabled': True, 'emailVerified': True,
+        }
+        self.invitee = FakeTrapUser(['volunteer'], self.invitee_guid, ['/volunteers'])
+
+    def _user(self, roles, membership):
+        guid = uuid_module.uuid4()
+        User.objects.create(guid=guid, group_paths=membership)
+        return FakeTrapUser(roles, guid, membership)
+
+    def _call(self, viewset, method, url, actions, user, data=None, **view_kwargs):
+        request = getattr(self.factory, method)(url, data, format='json')
+        force_authenticate(request, user=user)
+        return viewset.as_view(actions)(request, **view_kwargs)
+
+    def _invite(self, user=None, email='pi@example.org', group=_ENA):
+        return self._call(GroupInvitationViewSet, 'post', '/api/group-invitations/',
+                          {'post': 'create'}, user or self.aga, {'group_path': group, 'email': email})
+
+    def _throttle(self, user=None):
+        return InvitationThrottle.objects.get(user__guid=(user or self.aga).guid)
+
+
+class GroupInvitationRightsTests(GroupInvitationTestCase):
+    def test_a_group_admin_invites_an_active_user(self):
+        response = self._invite(email='  PI@Example.org ')
+        self.assertEqual(response.status_code, 201, response.data)
+        invitation = GroupInvitation.objects.get()
+        self.assertEqual(str(invitation.invitee_id), self.invitee_guid)
+        self.assertEqual(str(invitation.invited_by_id), self.aga.guid)
+        self.assertEqual(invitation.group_path, _ENA)
+        self.assertEqual(invitation.group_name, "école namuroise d'apiculture")
+        self.assertEqual(invitation.status, GroupInvitation.STATUS_PENDING)
+        # The email address is never kept
+        stored = [str(getattr(invitation, f.attname)) for f in GroupInvitation._meta.fields]
+        self.assertFalse(any('example.org' in value.lower() for value in stored))
+
+    def test_a_plain_member_cannot_invite(self):
+        self.assertEqual(self._invite(user=self.member).status_code, 403)
+
+    def test_a_group_admin_cannot_invite_to_another_group(self):
+        self.assertEqual(self._invite(group=_VSAB).status_code, 403)
+
+    def test_only_beekeeper_associations_are_invitable(self):
+        for path in (f'{_ENA}/admin', '/beekeepers', '/admins', '/volunteers/vsa'):
+            with self.subTest(path=path):
+                self.assertEqual(self._invite(user=self.admin, group=path).status_code, 403)
+
+    def test_an_administrator_of_a_volunteer_group_cannot_invite(self):
+        self.assertEqual(self._invite(user=self.volunteer_admin, group='/volunteers/vsa').status_code, 403)
+
+    def test_a_platform_admin_invites_to_any_beekeeper_group(self):
+        self.assertEqual(self._invite(user=self.admin, group=_VSAB).status_code, 201)
+
+    def test_an_unknown_group_is_rejected_without_a_lookup(self):
+        response = self._invite(user=self.admin, group='/beekeepers/ghost')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.kc.lookups, 0)
+
+    def test_invitable_groups_of_a_group_admin_and_of_an_admin(self):
+        url = '/api/group-invitations/invitable/'
+        response = self._call(GroupInvitationViewSet, 'get', url, {'get': 'invitable'}, self.aga)
+        self.assertEqual(response.data['groups'],
+                         [{'path': _ENA, 'name': "école namuroise d'apiculture"}])
+        self.assertEqual(response.data['lookup'], {'remaining_attempts': 10, 'locked_until': None})
+
+        response = self._call(GroupInvitationViewSet, 'get', url, {'get': 'invitable'}, self.admin)
+        self.assertEqual([g['path'] for g in response.data['groups']], [_ENA, _VSAB])
+
+        response = self._call(GroupInvitationViewSet, 'get', url, {'get': 'invitable'}, self.member)
+        self.assertEqual(response.data['groups'], [])
+
+    def test_conflicts(self):
+        self.assertEqual(self._invite().status_code, 201)
+        response = self._invite()
+        self.assertEqual((response.status_code, response.data['code']), (409, 'already_invited'))
+
+        self.kc.memberships[self.invitee_guid] = [f'{_VSAB}/admin']
+        response = self._invite(user=self.admin, group=_VSAB)
+        self.assertEqual((response.status_code, response.data['code']), (409, 'already_member'))
+
+        self.kc.accounts['aga@example.org'] = {'id': self.aga.guid, 'email': 'aga@example.org',
+                                               'enabled': True, 'emailVerified': True}
+        response = self._invite(email='aga@example.org')
+        self.assertEqual((response.status_code, response.data['code']), (409, 'self'))
+        # None of these is a failed lookup
+        self.assertEqual(self._throttle().failures, 0)
+
+    def test_keycloak_failure_is_a_503_and_not_a_failed_lookup(self):
+        self.kc.down = True
+        self.assertEqual(self._invite(email='nobody@example.org').status_code, 503)
+        self.assertFalse(InvitationThrottle.objects.filter(failures__gt=0).exists())
+
+
+class GroupInvitationThrottleTests(GroupInvitationTestCase):
+    def test_an_unknown_address_is_counted(self):
+        response = self._invite(email='nobody@example.org')
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.data['code'], 'no_active_user')
+        self.assertEqual(response.data['remaining_attempts'], 9)
+        self.assertIsNone(response.data['locked_until'])
+
+    def test_a_malformed_address_is_not_counted(self):
+        self.assertEqual(self._invite(email='pi@').status_code, 400)
+        self.assertEqual(self.kc.lookups, 0)
+
+    def test_ten_failures_lock_invitations_for_24_hours(self):
+        for attempt in range(9):
+            self.assertEqual(self._invite(email=f'x{attempt}@example.org').status_code, 404)
+        start = timezone.now()
+        response = self._invite(email='x9@example.org')
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(response.data['code'], 'locked')
+        locked_until = self._throttle().locked_until
+        self.assertAlmostEqual((locked_until - start).total_seconds(), 24 * 3600, delta=60)
+        self.assertGreater(int(response['Retry-After']), 24 * 3600 - 60)
+
+        # Locked: even a right address is refused, without asking Keycloak
+        lookups = self.kc.lookups
+        self.assertEqual(self._invite().status_code, 429)
+        self.assertEqual(self.kc.lookups, lookups)
+        # The limit is per inviter
+        self.assertEqual(self._invite(user=self.admin).status_code, 201)
+
+        with patch('django.utils.timezone.now', return_value=locked_until + _timedelta(seconds=1)):
+            response = self._invite(email='again@example.org')
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.data['remaining_attempts'], 9)
+
+    def test_a_success_does_not_reset_the_count(self):
+        for attempt in range(9):
+            self._invite(email=f'x{attempt}@example.org')
+        self.assertEqual(self._invite().status_code, 201)
+        self.assertEqual(self._invite(email='x9@example.org').status_code, 429)
+
+    def test_failures_older_than_the_window_are_forgotten(self):
+        for attempt in range(9):
+            self._invite(email=f'x{attempt}@example.org')
+        later = timezone.now() + InvitationThrottle.WINDOW + _timedelta(minutes=1)
+        with patch('django.utils.timezone.now', return_value=later):
+            response = self._invite(email='x9@example.org')
+        self.assertEqual((response.status_code, response.data['remaining_attempts']), (404, 9))
+
+    def test_invitable_reports_the_lock(self):
+        for attempt in range(10):
+            self._invite(email=f'x{attempt}@example.org')
+        response = self._call(GroupInvitationViewSet, 'get', '/api/group-invitations/invitable/',
+                              {'get': 'invitable'}, self.aga)
+        self.assertEqual(response.data['lookup']['remaining_attempts'], 0)
+        self.assertIsNotNone(response.data['lookup']['locked_until'])
+
+
+class GroupInvitationLifecycleTests(GroupInvitationTestCase):
+    def setUp(self):
+        super().setUp()
+        self.assertEqual(self._invite().status_code, 201)
+        self.invitation = GroupInvitation.objects.get()
+
+    def _mine(self, user=None):
+        return self._call(MyGroupInvitationViewSet, 'get', '/api/me/group-invitations/',
+                          {'get': 'list'}, user or self.invitee)
+
+    def _respond(self, verb, user=None):
+        return self._call(MyGroupInvitationViewSet, 'post',
+                          f'/api/me/group-invitations/{self.invitation.id}/{verb}/',
+                          {'post': verb}, user or self.invitee, pk=self.invitation.id)
+
+    def test_the_invitee_sees_and_accepts_the_invitation(self):
+        listed = self._mine().data
+        self.assertEqual([i['id'] for i in listed], [self.invitation.id])
+        self.assertEqual(listed[0]['group_name'], "école namuroise d'apiculture")
+        self.assertEqual(listed[0]['invited_by_name'], f'Name {self.aga.guid[:8]}')
+
+        response = self._respond('accept')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.kc.added, [(self.invitee_guid, 'gid-ena')])
+        self.invitation.refresh_from_db()
+        self.assertEqual(self.invitation.status, GroupInvitation.STATUS_ACCEPTED)
+        self.assertIsNotNone(self.invitation.responded_at)
+        self.assertEqual(self._mine().data, [])
+        self.assertEqual(self._respond('accept').status_code, 404)
+
+    def test_declining_leaves_keycloak_alone(self):
+        self.assertEqual(self._respond('decline').status_code, 200)
+        self.assertEqual(self.kc.added, [])
+        self.invitation.refresh_from_db()
+        self.assertEqual(self.invitation.status, GroupInvitation.STATUS_DECLINED)
+
+    def test_nobody_else_can_answer(self):
+        self.assertEqual(self._mine(user=self.member).data, [])
+        self.assertEqual(self._respond('accept', user=self.member).status_code, 404)
+        self.assertEqual(self.kc.added, [])
+
+    def test_a_failed_keycloak_call_keeps_the_invitation_pending(self):
+        self.kc.down = True
+        self.assertEqual(self._respond('accept').status_code, 503)
+        self.invitation.refresh_from_db()
+        self.assertEqual(self.invitation.status, GroupInvitation.STATUS_PENDING)
+
+    def test_an_expired_invitation_can_no_longer_be_accepted_nor_blocks_a_new_one(self):
+        GroupInvitation.objects.filter(pk=self.invitation.pk).update(
+            created_at=timezone.now() - GroupInvitation.VALIDITY - _timedelta(minutes=1))
+        self.assertEqual(self._mine().data, [])
+        self.assertEqual(self._respond('accept').status_code, 404)
+        self.assertEqual(self._invite().status_code, 201)
+        self.invitation.refresh_from_db()
+        self.assertEqual(self.invitation.status, GroupInvitation.STATUS_EXPIRED)
+
+    def test_administrators_list_and_withdraw_pending_invitations(self):
+        self.assertEqual(self._invite(user=self.admin, group=_VSAB).status_code, 201)
+        listing = {'get': 'list'}
+        aga_view = self._call(GroupInvitationViewSet, 'get', '/api/group-invitations/', listing, self.aga)
+        self.assertEqual([i['group_path'] for i in aga_view.data], [_ENA])
+        self.assertEqual(aga_view.data[0]['invitee_name'], f'Name {self.invitee_guid[:8]}')
+        admin_view = self._call(GroupInvitationViewSet, 'get', '/api/group-invitations/', listing, self.admin)
+        self.assertEqual(sorted(i['group_path'] for i in admin_view.data), [_ENA, _VSAB])
+
+        url = f'/api/group-invitations/{self.invitation.id}/'
+        destroy = {'delete': 'destroy'}
+        self.assertEqual(self._call(GroupInvitationViewSet, 'delete', url, destroy, self.member,
+                                    pk=self.invitation.id).status_code, 404)
+        self.assertEqual(self._call(GroupInvitationViewSet, 'delete', url, destroy, self.aga,
+                                    pk=self.invitation.id).status_code, 204)
+        self.invitation.refresh_from_db()
+        self.assertEqual(self.invitation.status, GroupInvitation.STATUS_CANCELLED)
+        self.assertEqual(self._respond('accept').status_code, 404)
+
+
+class KeycloakInvitationHelperTests(TestCase):
+    """The Keycloak helpers, against a mock built from the real python-keycloak class."""
+
+    def _admin(self):
+        from keycloak import KeycloakAdmin
+        return _autospec(KeycloakAdmin, instance=True)
+
+    def test_only_an_exact_enabled_and_verified_address_matches(self):
+        from hornet_finder_api.utils import find_active_user_by_email
+
+        admin = self._admin()
+        admin.get_users.return_value = [
+            {'id': '1', 'email': 'pi@example.org.evil', 'enabled': True, 'emailVerified': True},
+            {'id': '2', 'email': 'pi@example.org', 'enabled': False, 'emailVerified': True},
+        ]
+        with patch('hornet_finder_api.utils._get_keycloak_admin', return_value=admin):
+            self.assertIsNone(find_active_user_by_email('PI@example.org'))
+        admin.get_users.assert_called_once_with({'email': 'pi@example.org', 'exact': 'true'})
+
+        admin.get_users.return_value = [
+            {'id': '3', 'email': 'pi@example.org', 'enabled': True, 'emailVerified': False},
+            {'id': '4', 'email': 'PI@example.org', 'enabled': True, 'emailVerified': True},
+        ]
+        with patch('hornet_finder_api.utils._get_keycloak_admin', return_value=admin):
+            self.assertEqual(find_active_user_by_email('pi@example.org')['id'], '4')
+
+    def test_a_missing_group_is_none_and_other_errors_propagate(self):
+        from keycloak.exceptions import KeycloakGetError
+        from hornet_finder_api.utils import get_group_by_path
+
+        admin = self._admin()
+        admin.get_group_by_path.side_effect = KeycloakGetError('missing', response_code=404)
+        with patch('hornet_finder_api.utils._get_keycloak_admin', return_value=admin):
+            self.assertIsNone(get_group_by_path('/beekeepers/ghost'))
+        admin.get_group_by_path.side_effect = KeycloakGetError('boom', response_code=500)
+        with patch('hornet_finder_api.utils._get_keycloak_admin', return_value=admin):
+            with self.assertRaises(KeycloakGetError):
+                get_group_by_path('/beekeepers/ena')
+
+    def test_display_name_without_email(self):
+        from hornet_finder_api.utils import get_user_display_name
+
+        admin = self._admin()
+        admin.get_user.return_value = {'id': 'g', 'username': 'pi@example.org',
+                                       'email': 'pi@example.org'}
+        with patch('hornet_finder_api.utils._get_keycloak_admin', return_value=admin):
+            self.assertEqual(get_user_display_name('g'), 'pi@example.org')
+            self.assertIsNone(get_user_display_name('g', allow_email=False))
+        admin.get_user.return_value = {'id': 'g', 'firstName': 'Maya', 'lastName': 'Abeille'}
+        with patch('hornet_finder_api.utils._get_keycloak_admin', return_value=admin):
+            self.assertEqual(get_user_display_name('g', allow_email=False), 'Maya Abeille')
+
+    def test_children_and_membership_use_supported_calls(self):
+        from hornet_finder_api.utils import add_user_to_group, get_child_groups
+
+        admin = self._admin()
+        admin.get_group_by_path.return_value = {'id': 'root', 'path': '/beekeepers'}
+        admin.get_group_children.return_value = [{'id': 'c', 'path': '/beekeepers/ena'}]
+        with patch('hornet_finder_api.utils._get_keycloak_admin', return_value=admin):
+            self.assertEqual(get_child_groups('/beekeepers'), [{'id': 'c', 'path': '/beekeepers/ena'}])
+            add_user_to_group('guid', 'gid')
+        admin.get_group_children.assert_called_once_with('root', {'briefRepresentation': 'false'})
+        admin.group_user_add.assert_called_once_with('guid', 'gid')
