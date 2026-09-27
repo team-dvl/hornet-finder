@@ -8,6 +8,8 @@ import { fetchStatCatalogue, StatsError, type StatDescription } from '../../util
 const STAT_ICONS: Record<string, string> = {
   'traps-catches': 'bi-graph-up',
   'trap-types': 'bi-columns-gap',
+  'traps-coverage': 'bi-grid-3x3',
+  'traps-pressure': 'bi-bullseye',
 };
 
 /** Catalogue of the statistics the user may open. */

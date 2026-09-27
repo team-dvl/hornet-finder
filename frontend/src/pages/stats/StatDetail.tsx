@@ -5,6 +5,8 @@ import { PageHeader, PageLayout } from '../../components/layout';
 import { HelpTip } from '../../components/common';
 import { IconButton } from '../../components/ui';
 import CatchesView from '../../components/stats/CatchesView';
+import MapStatView from '../../components/stats/MapStatView';
+import type { GridState } from '../../components/stats/StatGridOverlay';
 import StatExportSheet from '../../components/stats/StatExportSheet';
 import StatFiltersSheet from '../../components/stats/StatFiltersSheet';
 import TrapTypesView from '../../components/stats/TrapTypesView';
@@ -34,6 +36,9 @@ const VIEWS: Record<string, (props: { result: StatResult }) => React.ReactElemen
   'trap-types': TrapTypesView,
 };
 
+/** Statistics drawn on a map: they load their own cells, view by view */
+const MAP_STATS = new Set(['traps-coverage', 'traps-pressure']);
+
 type Loaded = { key: string; result?: StatResult; error?: string };
 
 /**
@@ -52,6 +57,8 @@ export default function StatDetail() {
   const [catalogueError, setCatalogueError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState<Loaded>({ key: '' });
   const [sheet, setSheet] = useState<'filters' | 'export' | null>(null);
+  const [grid, setGrid] = useState<GridState | null>(null);
+  const isMap = MAP_STATS.has(statId);
 
   const params = useMemo(() => readParams(searchParams), [searchParams]);
   const requestKey = `${statId}?${writeParams(params)}`;
@@ -70,6 +77,7 @@ export default function StatDetail() {
   }, [trapTypes.length, dispatch]);
 
   useEffect(() => {
+    if (MAP_STATS.has(statId)) return undefined;
     let cancelled = false;
     fetchStat(statId, params)
       .then((result) => { if (!cancelled) setLoaded({ key: requestKey, result }); })
@@ -81,8 +89,14 @@ export default function StatDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestKey]);
 
-  const loading = loaded.key !== requestKey;
-  const result = loaded.result;
+  const loading = isMap ? Boolean(grid?.loading) : loaded.key !== requestKey;
+  const result = isMap ? grid?.result : loaded.result;
+  // The file of a map covers the view on screen
+  const gridBbox = grid?.bbox;
+  const exportParams = useMemo(
+    () => (isMap && gridBbox ? { ...params, bbox: gridBbox } : params),
+    [isMap, gridBbox, params],
+  );
 
   const update = useCallback((changes: StatParams) => {
     const next = { ...params, ...changes };
@@ -135,7 +149,8 @@ export default function StatDetail() {
 
         {result && (
           <div className="d-flex align-items-center small text-muted mb-2">
-            {result.scope.label}{'\u00a0'}: {result.scope.traps}
+            {/* A map shows its trap count in its key figures */}
+            {isMap ? result.scope.label : <>{result.scope.label}{'\u00a0'}: {result.scope.traps}</>}
             <HelpTip id="stat-scope-help" title="Pièges comptés">
               {result.scope.kind === 'all'
                 ? 'Ces totaux ne situent aucun piège : ils comptent tous les pièges, y compris ceux réservés à un groupe. Avec une zone, seuls les pièges que vous voyez sur la carte seraient comptés.'
@@ -145,10 +160,24 @@ export default function StatDetail() {
           </div>
         )}
 
-        {loaded.error && !loading && <Alert variant="danger">{loaded.error}</Alert>}
-        {!result && loading && <div className="text-center py-4"><Spinner animation="border" /></div>}
+        {!isMap && loaded.error && !loading && <Alert variant="danger">{loaded.error}</Alert>}
+        {!isMap && !result && loading && <div className="text-center py-4"><Spinner animation="border" /></div>}
 
-        {result && (
+        {isMap && (
+          <>
+            {result?.warnings.map((warning) => (
+              <Alert key={warning} variant="warning" className="small py-2">{warning}</Alert>
+            ))}
+            <MapStatView
+              statId={statId as 'traps-coverage' | 'traps-pressure'}
+              params={params}
+              onParams={update}
+              onState={setGrid}
+            />
+          </>
+        )}
+
+        {!isMap && result && (
           <div className={loading ? 'opacity-50' : undefined}>
             {result.warnings.map((warning) => (
               <Alert key={warning} variant="warning" className="small py-2">{warning}</Alert>
@@ -167,7 +196,7 @@ export default function StatDetail() {
         trapTypes={trapTypes}
         groups={groups}
       />
-      {sheet === 'export' && <StatExportSheet onHide={() => setSheet(null)} statId={statId} params={params} />}
+      {sheet === 'export' && <StatExportSheet onHide={() => setSheet(null)} statId={statId} params={exportParams} />}
     </PageLayout>
   );
 }

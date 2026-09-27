@@ -9,7 +9,7 @@ const LOCALE = 'fr-BE';
 /** Keys the URL may carry; the same names as the API's */
 export const PARAM_KEYS = [
   'period', 'season', 'year', 'from', 'to', 'granularity', 'compare',
-  'trap_type', 'group', 'mine', 'lat', 'lon', 'radius',
+  'trap_type', 'group', 'mine', 'lat', 'lon', 'radius', 'reach', 'bandwidth',
 ] as const;
 
 export const PERIOD_OPTIONS = [

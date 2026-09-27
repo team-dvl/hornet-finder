@@ -17,6 +17,8 @@ const ADMIN_SECTIONS: Record<string, string> = {
 export const STAT_SECTIONS: Record<string, string> = {
   'traps-catches': 'Captures FA',
   'trap-types': 'Types de piège',
+  'traps-coverage': 'Couverture',
+  'traps-pressure': 'Pression',
 };
 
 /**
