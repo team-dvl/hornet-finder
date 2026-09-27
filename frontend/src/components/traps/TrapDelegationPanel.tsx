@@ -89,7 +89,9 @@ export default function TrapDelegationPanel({ trap }: TrapDelegationPanelProps) 
           {trap.group ? (
             <p className="mb-2 small">
               Entretien délégué à <Badge bg="primary">{trap.group.name}</Badge>
-              {trap.visibility === 'group' && (
+              {trap.trap_type.apiary_bound ? (
+                <Badge bg="secondary" className="ms-2">privé</Badge>
+              ) : trap.visibility === 'group' && (
                 <Badge bg="secondary" className="ms-2">visible par ce groupe seulement</Badge>
               )}
             </p>
@@ -129,14 +131,17 @@ export default function TrapDelegationPanel({ trap }: TrapDelegationPanelProps) 
                 )}
               </Form.Group>
 
-              <Form.Check
-                type="switch"
-                id={`trap-${trap.id}-group-only`}
-                className="small mb-2"
-                label="Réserver la visibilité à ce groupe"
-                checked={groupOnly}
-                onChange={(event) => setGroupOnlyOverride(event.target.checked)}
-              />
+              {/* An apiary-bound trap is private anyway: nothing to restrict */}
+              {!trap.trap_type.apiary_bound && (
+                <Form.Check
+                  type="switch"
+                  id={`trap-${trap.id}-group-only`}
+                  className="small mb-2"
+                  label="Réserver la visibilité à ce groupe"
+                  checked={groupOnly}
+                  onChange={(event) => setGroupOnlyOverride(event.target.checked)}
+                />
+              )}
 
               <div className="d-flex gap-2">
                 <Button size="sm" variant="primary" onClick={handleSave} disabled={busy || !groupPath}>

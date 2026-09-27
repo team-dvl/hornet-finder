@@ -203,6 +203,9 @@ class TrapType(models.Model):
     photo = models.ImageField(upload_to=trap_type_photo_path, null=True, blank=True)
     photo_thumbnail = models.ImageField(upload_to=trap_type_photo_path, null=True, blank=True)
     sort_order = models.IntegerField(default=0)
+    # Only ever set up in front of hives (electric harp, muzzle...): showing such
+    # a trap would reveal an apiary, so it stays private whatever its visibility
+    apiary_bound = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['sort_order', 'name']

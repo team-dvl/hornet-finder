@@ -104,12 +104,25 @@ export default function TrapFormModal({
       footer={(
         <>
           <span className="me-auto small text-muted d-inline-flex align-items-center">
-            <i className="bi bi-globe2 me-1" aria-hidden="true" />
-            Public
-            <HelpTip id="trap-visibility-help" title="Visibilité">
-              Le piège est public par défaut : sa position et ses captures sont visibles de tous.
-              La délégation à une association se règle depuis la fiche du piège.
-            </HelpTip>
+            {selectedType?.apiary_bound ? (
+              <>
+                <i className="bi bi-lock-fill me-1" aria-hidden="true" />
+                Privé
+                <HelpTip id="trap-visibility-help" title="Visibilité">
+                  Ce type de piège ne s'installe que devant des ruches : le montrer révélerait un rucher.
+                  Il n'est visible que de vous, du groupe à qui vous en déléguez l'entretien et des admins.
+                </HelpTip>
+              </>
+            ) : (
+              <>
+                <i className="bi bi-globe2 me-1" aria-hidden="true" />
+                Public
+                <HelpTip id="trap-visibility-help" title="Visibilité">
+                  Le piège est public par défaut : sa position et ses captures sont visibles de tous.
+                  La délégation à une association se règle depuis la fiche du piège.
+                </HelpTip>
+              </>
+            )}
           </span>
           <Button type="submit" variant="primary" disabled={saving}>
             {saving ? <Spinner animation="border" size="sm" className="me-2" /> : <i className="bi bi-check-lg me-2" aria-hidden="true" />}

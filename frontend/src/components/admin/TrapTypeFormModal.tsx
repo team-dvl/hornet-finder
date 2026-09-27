@@ -20,6 +20,7 @@ export default function TrapTypeFormModal({ onHide, trapType = null }: TrapTypeF
   const [name, setName] = useState(trapType?.name ?? '');
   const [description, setDescription] = useState(trapType?.description ?? '');
   const [sortOrder, setSortOrder] = useState(trapType?.sort_order ?? 0);
+  const [apiaryBound, setApiaryBound] = useState(trapType?.apiary_bound ?? false);
   const [photo, setPhoto] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +30,7 @@ export default function TrapTypeFormModal({ onHide, trapType = null }: TrapTypeF
     setSaving(true);
     setError(null);
     try {
-      const values = { name, description, sort_order: sortOrder, photo };
+      const values = { name, description, sort_order: sortOrder, apiary_bound: apiaryBound, photo };
       if (trapType) {
         await dispatch(updateTrapType({ id: trapType.id, values })).unwrap();
       } else {
@@ -91,6 +92,20 @@ export default function TrapTypeFormModal({ onHide, trapType = null }: TrapTypeF
           value={sortOrder}
           onChange={(event) => setSortOrder(Number(event.target.value))}
         />
+      </Form.Group>
+
+      <Form.Group className="mb-3 d-flex align-items-center">
+        <Form.Check
+          type="switch"
+          id="trap-type-apiary-bound"
+          label="Lié à un rucher"
+          checked={apiaryBound}
+          onChange={(event) => setApiaryBound(event.target.checked)}
+        />
+        <HelpTip id="apiary-bound-help" title="Lié à un rucher">
+          Ces pièges ne s'installent que devant des ruches : les montrer révélerait un rucher.
+          Ils ne sont visibles que de leur propriétaire, du groupe à qui l'entretien est délégué et des admins.
+        </HelpTip>
       </Form.Group>
 
       <PhotoInput

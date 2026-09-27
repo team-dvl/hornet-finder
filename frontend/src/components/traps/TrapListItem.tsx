@@ -54,8 +54,8 @@ export default function TrapListItem({
                 <i className="bi bi-people-fill me-1" aria-hidden="true" />{trap.group.name}
               </Badge>
             )}
-            {trap.visibility === 'group' && (
-              <i className="bi bi-lock-fill text-muted" title="Visible du groupe seulement" aria-label="Visible du groupe seulement" />
+            {trap.publicly_visible === false && (
+              <i className="bi bi-lock-fill text-muted" title="Privé" aria-label="Privé" />
             )}
           </span>
           {trap.address && <span className="d-block small text-muted text-truncate">{trap.address}</span>}

@@ -58,7 +58,7 @@ def media_view(request, path):
         trap_match = TRAP_FILE_RE.match(path)
         apiary_match = APIARY_FILE_RE.match(path)
         if trap_match:
-            trap = Trap.objects.select_related('group', 'owner').filter(
+            trap = Trap.objects.select_related('group', 'owner', 'trap_type').filter(
                 pk=trap_match.group('trap_id')
             ).first()
             if trap is None or not perms.can_read_trap(request, trap):

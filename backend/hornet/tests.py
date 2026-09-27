@@ -270,6 +270,74 @@ class TrapVisibilityTests(TrapTestCase):
         self.assertEqual(response.data[0]['owner']['guid'], str(self.owner_guid))
 
 
+class ApiaryBoundTrapTests(TrapTestCase):
+    """A trap of an apiary-bound type (electric harp...) would reveal an apiary."""
+
+    def setUp(self):
+        super().setUp()
+        self.trap.trap_type = TrapType.objects.get(slug='electric-harp')
+        self.trap.group = self.group
+        self.trap.save()
+        self.public_trap = Trap.objects.create(
+            latitude=50.5, longitude=4.5, owner=self.owner, trap_type=self.trap_type,
+            installed_at=timezone.now().date(),
+        )
+
+    def _list_ids(self, user=None):
+        request = self.factory.get('/traps/?lat=50.5&lon=4.5&radius=5')
+        if user:
+            force_authenticate(request, user=user)
+        return {t['id'] for t in TrapViewSet.as_view({'get': 'list'})(request).data}
+
+    def _retrieve(self, user=None):
+        request = self.factory.get(f'/traps/{self.trap.id}/')
+        if user:
+            force_authenticate(request, user=user)
+        return TrapViewSet.as_view({'get': 'retrieve'})(request, pk=self.trap.id)
+
+    def test_electric_harp_is_flagged_by_the_migration(self):
+        self.assertTrue(TrapType.objects.get(slug='electric-harp').apiary_bound)
+
+    def test_hidden_from_anonymous_and_strangers_despite_public_visibility(self):
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_PUBLIC)
+        self.assertEqual(self._list_ids(), {self.public_trap.id})
+        self.assertEqual(self._list_ids(self.stranger_user), {self.public_trap.id})
+        self.assertIn(self._retrieve().status_code, (403, 404))
+        self.assertIn(self._retrieve(self.stranger_user).status_code, (403, 404))
+
+    def test_visible_to_owner_delegated_group_and_admin(self):
+        for user in (self.owner_user, self.member_user, self.group_admin_user,
+                     self.admin_user):
+            with self.subTest(user=user.roles):
+                self.assertIn(self.trap.id, self._list_ids(user))
+                response = self._retrieve(user)
+                self.assertEqual(response.status_code, 200)
+                self.assertFalse(response.data['publicly_visible'])
+
+    def test_flagging_a_type_hides_its_existing_traps(self):
+        self.assertIn(self.public_trap.id, self._list_ids())
+        self.trap_type.apiary_bound = True
+        self.trap_type.save()
+        self.assertEqual(self._list_ids(), set())
+
+    def test_photo_is_hidden_from_strangers(self):
+        request = self.factory.post(f'/traps/{self.trap.id}/photo/',
+                                    {'photo': _image_file()}, format='multipart')
+        force_authenticate(request, user=self.owner_user)
+        self.assertEqual(
+            TrapViewSet.as_view({'post': 'photo'})(request, pk=self.trap.id).status_code, 200)
+        self.trap.refresh_from_db()
+        self.addCleanup(self.trap.photo.delete, save=False)
+        self.addCleanup(self.trap.photo_thumbnail.delete, save=False)
+
+        path = self.trap.photo.name
+        self.assertEqual(media_view(self.factory.get(f'/api/media/{path}'), path=path)
+                         .status_code, 404)
+        allowed = self.factory.get(f'/api/media/{path}')
+        force_authenticate(allowed, user=self.member_user)
+        self.assertEqual(media_view(allowed, path=path).status_code, 200)
+
+
 class TrapCreationTests(TrapTestCase):
     def _create(self, user, **overrides):
         payload = {

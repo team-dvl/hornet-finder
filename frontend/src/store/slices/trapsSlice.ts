@@ -21,6 +21,8 @@ export interface TrapType {
   name: string;
   description: string;
   sort_order: number;
+  /** Only set up in front of hives: its traps are never public, they would reveal an apiary */
+  apiary_bound: boolean;
   photo_url: string | null;
   photo_thumbnail_url: string | null;
   /** Number of traps using this type; only returned to admins listing the referential */
@@ -88,10 +90,15 @@ export interface Trap {
   hornet_catch_count: number;
   photo_url: string | null;
   photo_thumbnail_url: string | null;
-  trap_type: { id?: number; slug: string; name: string; photo_thumbnail_url?: string | null };
+  trap_type: {
+    id?: number; slug: string; name: string; apiary_bound?: boolean;
+    photo_thumbnail_url?: string | null;
+  };
   // Absent from the public (anonymous) representation
   address?: string;
   visibility?: 'public' | 'group';
+  /** Public visibility and not of an apiary-bound type: what anonymous visitors actually see */
+  publicly_visible?: boolean;
   comments?: string;
   owner?: UserSummary | null;
   group?: GroupSummary | null;
@@ -498,6 +505,7 @@ export interface TrapTypeFormValues {
   name: string;
   description?: string;
   sort_order?: number;
+  apiary_bound?: boolean;
   photo?: File | null;
 }
 

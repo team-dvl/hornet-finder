@@ -35,7 +35,7 @@ A RESTful API built with Django and Django REST Framework for managing hornet de
 
 ### Traps
 
-- `GET|POST /api/traps/` - Traps around a position (`lat`, `lon`, `radius`, `active`, `mine`), or create one. The listing is open to anonymous visitors, who get the public shape (no owner, no group, no journal) and only public traps
+- `GET|POST /api/traps/` - Traps around a position (`lat`, `lon`, `radius`, `active`, `mine`), or create one. The listing is open to anonymous visitors, who get the public shape (no owner, no group, no journal) and only public traps. A trap whose type is `apiary_bound` (electric harp, muzzle...: only ever set up in front of hives) is never public, whatever its `visibility`: only its owner, the members of its delegated group and platform admins see it, on the map, in detail, through its photos and its QR tag. `publicly_visible` in the trap representation tells whether anonymous visitors see it
 - `GET|PATCH|DELETE /api/traps/{id}/` - Detail with its journal, update (owner or platform admin), delete
 - `GET /api/traps/my/` - Traps of the caller
 - `GET /api/traps/managed/` - Trap manager, paginated (`page`, `page_size` up to 200, default 50). `scope`: `mine` (default), `delegated` (traps delegated to one of the caller's groups, parents of their subgroups included, their own excluded) or `all` (platform admins only). Filters: `active` (`true` by default, `false`, `all`), `group` (path), `trap_type` (slug), `has_tag`, `q` (number, address, comments, QR code). `ordering`: `last_event_at` (default, never visited traps first), `hornet_catch_count`, `installed_at`, `address`, `id`, `distance` (needs `lat`/`lon`, no radius limit since the scope already bounds the result), `-` prefix for descending order
@@ -45,7 +45,7 @@ A RESTful API built with Django and Django REST Framework for managing hornet de
 - `PUT /api/traps/{id}/owner/` - Reassign a bequeathed trap (platform admin only)
 - `PATCH|DELETE /api/trap-events/{id}/` - Correct or remove a journal entry
 - `DELETE /api/trap-photos/{id}/` - Remove one photo
-- `GET|POST /api/trap-types/`, `GET|PATCH|DELETE /api/trap-types/{id}/` - Trap type referential; readable by any authenticated user, writable by platform admins. Deleting a type still in use answers 409 with its trap count
+- `GET|POST /api/trap-types/`, `GET|PATCH|DELETE /api/trap-types/{id}/` - Trap type referential; readable by any authenticated user, writable by platform admins. `apiary_bound` flags the types that would reveal an apiary. Deleting a type still in use answers 409 with its trap count
 - `GET|POST /api/species/`, `GET|PATCH|DELETE /api/species/{id}/` - Species referential, same rules
 - `GET /api/media/{path}` - Uploaded photo, served only to users allowed to see the owning trap (nginx does the transfer through X-Accel-Redirect)
 

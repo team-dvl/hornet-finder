@@ -29,7 +29,14 @@ const columns: ReferentialColumn<TrapType>[] = [
   {
     key: 'name',
     header: 'Nom',
-    render: (type) => type.name,
+    render: (type) => (
+      <>
+        {type.name}
+        {type.apiary_bound && (
+          <i className="bi bi-lock-fill ms-2 text-muted" title="Lié à un rucher : pièges privés" aria-label="Lié à un rucher" />
+        )}
+      </>
+    ),
   },
   {
     key: 'description',

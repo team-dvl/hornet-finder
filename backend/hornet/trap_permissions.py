@@ -102,9 +102,19 @@ def is_owner(user, trap) -> bool:
     return bool(trap.owner_id and guid and str(trap.owner_id) == str(guid))
 
 
+def is_publicly_visible(trap) -> bool:
+    """
+    Public and not of an apiary-bound type: those only stand in front of hives,
+    so showing one would reveal an apiary. Evaluated at read time from the type,
+    so flagging a type protects its existing traps at once.
+    """
+    return (trap.visibility == trap.VISIBILITY_PUBLIC
+            and not (trap.trap_type_id and trap.trap_type.apiary_bound))
+
+
 def can_read_trap(request, trap) -> bool:
     """Public traps are readable by anyone, including anonymous visitors."""
-    if trap.visibility == trap.VISIBILITY_PUBLIC:
+    if is_publicly_visible(trap):
         return True
     user = getattr(request, 'user', None)
     if user is None or not getattr(user, 'is_authenticated', False):

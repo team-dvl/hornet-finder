@@ -3,6 +3,7 @@ from typing import Optional
 
 from rest_framework import serializers
 from . import apiary_permissions as apiary_perms
+from .trap_permissions import is_publicly_visible
 from .models import (
     Apiary, Hornet, Nest, Species, Trap, TrapEvent, TrapPhoto, TrapType, User,
     HORNET_SPECIES_SLUG, unique_slug,
@@ -193,7 +194,7 @@ class TrapTypeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TrapType
-        fields = ['id', 'slug', 'name', 'description', 'sort_order',
+        fields = ['id', 'slug', 'name', 'description', 'sort_order', 'apiary_bound',
                   'photo_url', 'photo_thumbnail_url', 'trap_count']
         # The slug is internal identity, derived from the name on creation and
         # frozen afterwards: an administrator names a trap type, they do not
@@ -355,10 +356,12 @@ class TrapSerializer(GPSValidationMixin, serializers.ModelSerializer):
     photo_thumbnail_url = serializers.SerializerMethodField()
     last_event_at = serializers.SerializerMethodField()
     tag_short = serializers.SerializerMethodField()
+    publicly_visible = serializers.SerializerMethodField()
 
     class Meta:
         model = Trap
         fields = ['id', 'latitude', 'longitude', 'address', 'active', 'visibility',
+                  'publicly_visible',
                   'trap_type', 'trap_type_slug', 'photo_url', 'photo_thumbnail_url',
                   'installed_at', 'comments', 'hornet_catch_count', 'owner', 'group',
                   'last_event_at', 'tag_short', 'created_at', 'updated_at']
@@ -374,6 +377,9 @@ class TrapSerializer(GPSValidationMixin, serializers.ModelSerializer):
 
     def get_photo_thumbnail_url(self, instance) -> Optional[str]:
         return instance.photo_thumbnail.url if instance.photo_thumbnail else None
+
+    def get_publicly_visible(self, instance) -> bool:
+        return is_publicly_visible(instance)
 
     def get_tag_short(self, instance) -> Optional[str]:
         # `active_tags` is prefetched by the trap viewset; query otherwise
@@ -408,6 +414,7 @@ class TrapSerializer(GPSValidationMixin, serializers.ModelSerializer):
                 'id': instance.trap_type.id,
                 'slug': instance.trap_type.slug,
                 'name': instance.trap_type.name,
+                'apiary_bound': instance.trap_type.apiary_bound,
                 'photo_thumbnail_url': (
                     instance.trap_type.photo_thumbnail.url
                     if instance.trap_type.photo_thumbnail else None
