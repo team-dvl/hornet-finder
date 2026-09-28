@@ -307,7 +307,8 @@ class CatalogueTests(TrapTestCase):
     def test_every_role_gets_the_catalogue(self):
         for user in (self.owner_user, self.member_user, self.admin_user):
             ids = [entry['id'] for entry in self.catalogue(user).data]
-            self.assertEqual(ids, ['traps-catches', 'trap-types', 'traps-coverage', 'traps-pressure'])
+            self.assertEqual(ids, ['traps-catches', 'traps-species', 'trap-types', 'traps-ranking',
+                                   'traps-coverage', 'traps-pressure'])
 
     def test_anonymous_and_roleless_users_are_refused(self):
         self.assertIn(self.catalogue().status_code, (401, 403))
@@ -464,3 +465,57 @@ class PressureTests(StatsTestCase):
         self.assertEqual(link.status_code, 200, link.data)
         text = self.client.get(link.data['url']).content.decode('utf-8')
         self.assertTrue(text.startswith('﻿Latitude (centre);'))
+
+
+class SpeciesTests(StatsTestCase):
+    def test_catches_and_shares_per_species(self):
+        self.reading(self.trap, date(2025, 3, 8), 7, others=14, bycatch=True)
+        # Not complete: counted in the catches, not in the shares
+        self.reading(self.trap, date(2025, 3, 15), 5, others=0, bycatch=False)
+        data = self.stat('traps-species', {**self.MARCH, 'granularity': 'week'}).data
+        rows = {row['slug']: row for row in data['rows']}
+        self.assertEqual(data['rows'][0]['slug'], 'vespa-velutina')
+        self.assertAlmostEqual(rows['vespa-velutina']['catches'], 12)
+        self.assertAlmostEqual(rows['vespa-velutina']['counted'], 7)
+        self.assertAlmostEqual(rows['vespa-velutina']['share'], 7 / 21, places=4)
+        self.assertAlmostEqual(rows['apis-mellifera']['share'], 14 / 21, places=4)
+        self.assertLess(rows['apis-mellifera']['share_low'], 14 / 21)
+        self.assertEqual(data['totals']['readings'], 2)
+        self.assertEqual(data['totals']['complete_readings'], 1)
+        self.assertEqual([s['slug'] for s in data['series']['species']],
+                         ['apis-mellifera', 'vespa-velutina'])
+        # 1-7 March carries the whole complete reading: shares of that week
+        s10 = next(b for b in data['series']['buckets'] if b['bucket'] == 'S10')
+        self.assertAlmostEqual(s10['shares']['vespa-velutina'], 7 / 21, places=3)
+
+    def test_warns_when_few_readings_are_complete(self):
+        self.reading(self.trap, date(2025, 3, 8), 7, bycatch=False)
+        self.reading(self.trap, date(2025, 3, 15), 7, bycatch=False)
+        data = self.stat('traps-species', self.MARCH).data
+        self.assertTrue(any('toutes les espèces' in w for w in data['warnings']))
+        self.assertIsNone(data['rows'][0]['share'])
+
+
+class RankingTests(ThreeTrapsTestCase):
+    def test_ranks_visible_traps_by_rate(self):
+        busy = self.make_trap(latitude=50.51, longitude=4.51, address='Rue du Rucher 3')
+        self.reading(busy, date(2025, 3, 15), 140)
+        rows = self.stat('traps-ranking', self.MARCH, user=self.stranger_user).data['rows']
+        # The stranger sees the public traps only: not the group's, not the harp
+        self.assertEqual([row['id'] for row in rows], [busy.id, self.trap.id])
+        self.assertEqual(rows[0]['address'], 'Rue du Rucher 3')
+        self.assertAlmostEqual(rows[0]['rate'], 70, places=1)
+        owner_rows = self.stat('traps-ranking', self.MARCH, user=self.owner_user).data['rows']
+        self.assertEqual(len(owner_rows), 4)
+
+    def test_order_by_catches_and_too_little_effort(self):
+        short = self.make_trap(latitude=50.51, longitude=4.51)
+        self.install(short, date(2025, 3, 12))
+        short.events.filter(performed_at=at(date(2025, 3, 1))).delete()
+        self.reading(short, date(2025, 3, 14), 30)  # two days: no rate
+        rows = self.stat('traps-ranking', {**self.MARCH, 'order': 'hornets'}).data['rows']
+        self.assertEqual(rows[0]['id'], self.harp.id)
+        by_rate = self.stat('traps-ranking', self.MARCH).data['rows']
+        self.assertEqual(by_rate[-1]['id'], short.id)
+        self.assertIsNone(by_rate[-1]['rate'])
+        self.assertEqual(self.stat('traps-ranking', {**self.MARCH, 'order': 'x'}).status_code, 400)

@@ -139,13 +139,17 @@ class Statistic:
     required_roles = ROLES
     # 'table' (rows over time or by group) or 'map' (cells of a grid)
     kind = 'table'
+    # Place in the catalogue
+    position = 100
+    # Files it can be exported to
+    exports = ('xlsx', 'csv')
 
     def visible_to(self, scope: Scope) -> bool:
         return any(role in scope.roles for role in self.required_roles)
 
     def describe(self) -> dict:
         return {'id': self.id, 'title': self.title, 'description': self.description,
-                'kind': self.kind, 'filters': list(self.filters)}
+                'kind': self.kind, 'filters': list(self.filters), 'exports': list(self.exports)}
 
     def compute(self, params, scope: Scope, today=None) -> dict:  # pragma: no cover
         raise NotImplementedError
@@ -161,4 +165,5 @@ def register(statistic_class):
 
 
 def catalogue(scope: Scope) -> list:
-    return [stat.describe() for stat in REGISTRY.values() if stat.visible_to(scope)]
+    statistics = sorted(REGISTRY.values(), key=lambda stat: stat.position)
+    return [stat.describe() for stat in statistics if stat.visible_to(scope)]

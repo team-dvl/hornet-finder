@@ -193,6 +193,7 @@ def _feature(geometry: str, properties: dict) -> dict:
 @register
 class TrapsCoverage(MapStatistic):
     id = 'traps-coverage'
+    position = 50
     title = 'Couverture du territoire'
     description = "Part de la zone à portée d'un piège en service pendant la période."
     filters = MapStatistic.filters + ('reach',)
@@ -303,6 +304,7 @@ class TrapsCoverage(MapStatistic):
 @register
 class TrapsPressure(MapStatistic):
     id = 'traps-pressure'
+    position = 60
     title = 'Carte de pression'
     description = 'Frelons asiatiques par piège et par semaine, lissés sur la carte.'
     filters = MapStatistic.filters + ('bandwidth',)
