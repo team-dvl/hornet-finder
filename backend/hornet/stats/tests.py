@@ -3,14 +3,17 @@ import math
 from datetime import date, datetime, time
 from unittest.mock import patch
 
+from django.core import mail
+from django.utils import timezone
 from rest_framework.test import force_authenticate
 
-from ..models import Trap, TrapEvent, TrapType
+from ..models import StatExportJob, Trap, TrapEvent, TrapType
 from ..tests import FakeTrapUser, TrapTestCase
 from .confidence import poisson_interval, wilson_interval
 from .exposure import load_readings, tally
 from .periods import LOCAL, PeriodError, buckets, resolve_period
-from .views import StatDetailView, StatExportLinkView, StatsCatalogueView
+from .periods import freeze_period
+from .views import StatDetailView, StatEmailLinkView, StatExportLinkView, StatsCatalogueView
 
 
 def at(day: date, hour: int = 0):
@@ -396,6 +399,86 @@ class ExportTests(ThreeTrapsTestCase):
         url = self.link('csv', self.MARCH).data['url']
         with patch('hornet.stats.views.EXPORT_LINK_SECONDS', -1):
             self.assertEqual(self.download(url).status_code, 410)
+
+
+class EmailLinkTests(ThreeTrapsTestCase):
+    """An export sent by email: a page and its files, one hour, ten downloads."""
+
+    def ask(self, params, user=None, email='jeanne.dupont@example.org', stat_id='traps-catches'):
+        user = user or self.admin_user
+        user.token_info = {**user.token_info, 'email': email, 'name': 'Jeanne Dupont'}
+        request = self.factory.post(f'/stats/{stat_id}/email-link/', {'params': params}, format='json')
+        force_authenticate(request, user=user)
+        return StatEmailLinkView.as_view()(request, stat_id=stat_id)
+
+    def token(self):
+        body = mail.outbox[-1].body
+        return body.split('/export/')[1].split()[0]
+
+    def test_sends_a_link_and_keeps_neither_token_nor_address(self):
+        response = self.ask({**self.MARCH, 'compare': 'false'})
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['sent_to'], 'j•••@example.org')
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.to, ['jeanne.dupont@example.org'])
+        self.assertIn('Captures de frelons asiatiques', message.subject)
+        token = self.token()
+        self.assertGreaterEqual(len(token), 40)
+        job = StatExportJob.objects.get()
+        self.assertNotEqual(job.token_hash, token)
+        self.assertNotIn('example.org', str(job.__dict__))
+        self.assertEqual(job.requester_name, 'Jeanne Dupont')
+
+        page = self.client.get(f'/api/stats/exports/{token}/')
+        self.assertEqual(page.status_code, 200)
+        data = page.json()
+        self.assertEqual(data['statistic']['id'], 'traps-catches')
+        self.assertEqual([f['format'] for f in data['formats']], ['xlsx', 'pdf', 'csv'])
+        self.assertEqual(data['downloads_left'], 10)
+        csv_url = next(f['url'] for f in data['formats'] if f['format'] == 'csv')
+        file = self.client.get(csv_url)
+        self.assertEqual(file.status_code, 200)
+        self.assertIn(';98,0;', file.content.decode('utf-8').strip().split('\r\n')[-1])
+        self.assertEqual(self.client.get(f'/api/stats/exports/{token}/').json()['downloads_left'], 9)
+
+    def test_the_file_keeps_the_rights_of_the_requester(self):
+        self.ask({**self.zone, 'compare': 'false'}, user=self.stranger_user)
+        file = self.client.get(f'/api/stats/exports/{self.token()}/csv/')
+        self.assertIn(';14,0;', file.content.decode('utf-8').strip().split('\r\n')[-1])
+
+    def test_ten_downloads_then_one_hour(self):
+        self.ask(self.MARCH)
+        token = self.token()
+        for _ in range(10):
+            self.assertEqual(self.client.get(f'/api/stats/exports/{token}/csv/').status_code, 200)
+        self.assertEqual(self.client.get(f'/api/stats/exports/{token}/csv/').status_code, 410)
+        self.assertEqual(self.client.get(f'/api/stats/exports/{token}/').status_code, 410)
+
+        self.ask(self.MARCH)
+        token = self.token()
+        self.assertEqual(self.client.get(f'/api/stats/exports/{token}/docx/').status_code, 404)
+        StatExportJob.objects.update(expires_at=timezone.now())
+        self.assertEqual(self.client.get(f'/api/stats/exports/{token}/').status_code, 410)
+        self.assertEqual(self.client.get('/api/stats/exports/unknown-token/').status_code, 404)
+
+    def test_refusals(self):
+        self.assertEqual(self.ask(self.MARCH, email='').status_code, 400)
+        self.assertEqual(self.ask({'period': 'nope'}).status_code, 400)
+        self.assertEqual(len(mail.outbox), 0)
+        for _ in range(5):
+            self.assertEqual(self.ask(self.MARCH).status_code, 200)
+        self.assertEqual(self.ask(self.MARCH).status_code, 429)
+        # Expired jobs are purged and no longer count
+        StatExportJob.objects.update(expires_at=timezone.now())
+        self.assertEqual(self.ask(self.MARCH).status_code, 200)
+        self.assertEqual(StatExportJob.objects.count(), 1)
+
+    def test_sliding_periods_are_frozen(self):
+        frozen = freeze_period({'period': 'd7', 'granularity': 'day'}, date(2026, 5, 20))
+        self.assertEqual(frozen, {'period': 'custom', 'from': '2026-05-14', 'to': '2026-05-20',
+                                  'granularity': 'day'})
+        self.assertEqual(freeze_period({'period': 'year', 'year': '2025'}), {'period': 'year', 'year': '2025'})
 
 
 class CoverageTests(StatsTestCase):

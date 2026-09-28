@@ -205,3 +205,18 @@ def buckets(period: Period, granularity: str) -> list:
         result.append(Bucket(key, format_range(day, last, with_year=False), day, last))
         day = last + timedelta(days=1)
     return result
+
+
+# Periods that slide with the calendar
+RELATIVE_PERIODS = ('d7', 'd30', 'month')
+
+
+def freeze_period(params: dict, today: date | None = None) -> dict:
+    """`params` with a sliding period (last 7 days...) turned into its dates,
+    so a link used later still covers the days that were asked for."""
+    if params.get('period') not in RELATIVE_PERIODS:
+        return dict(params)
+    period = resolve_period(params, today)
+    frozen = {key: value for key, value in params.items() if key not in ('from', 'to')}
+    frozen.update(period='custom', **{'from': period.start.isoformat(), 'to': period.end.isoformat()})
+    return frozen

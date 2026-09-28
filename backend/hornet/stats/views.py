@@ -1,9 +1,12 @@
-"""API of the statistics: the catalogue, one statistic's table, its files."""
+"""API of the statistics: the catalogue, one statistic's table, its files
+(a signed link for the requester, or a link sent by email)."""
 
 import logging
 
 from django.core import signing
-from django.http import HttpResponse
+from django.db.models import F
+from django.http import HttpResponse, JsonResponse
+from django.utils import timezone
 from django.urls import reverse
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework.response import Response
@@ -11,7 +14,9 @@ from rest_framework.views import APIView
 
 from hornet_finder_api.authentication import HasAnyRole, JWTBearerAuthentication
 
+from . import mailing
 from .base import REGISTRY, ROLES, Scope, StatError, catalogue
+from .periods import freeze_period
 from .render import FORMATS, filename, render
 
 logger = logging.getLogger(__name__)
@@ -26,6 +31,13 @@ PARAMETERS = ('period', 'season', 'year', 'from', 'to', 'granularity', 'compare'
 
 def error_response(exc: StatError) -> Response:
     return Response({'error': str(exc)}, status=exc.status)
+
+
+def clean_params(raw) -> dict:
+    """The parameters of a statistic out of a request body, as strings."""
+    if not isinstance(raw, dict):
+        raise StatError("Paramètres invalides.")
+    return {key: str(raw[key]) for key in PARAMETERS if raw.get(key) not in (None, '')}
 
 
 class StatsView(APIView):
@@ -79,10 +91,8 @@ class StatExportLinkView(StatsView):
         raw = request.data.get('params') or {}
         if fmt not in FORMATS:
             return Response({'error': f"Format inconnu : {fmt}."}, status=400)
-        if not isinstance(raw, dict):
-            return Response({'error': "Paramètres invalides."}, status=400)
-        params = {key: str(raw[key]) for key in PARAMETERS if raw.get(key) not in (None, '')}
         try:
+            params = clean_params(raw)
             statistic = self.statistic_for(stat_id, scope)
             if fmt not in statistic.exports:
                 raise StatError(f"Format non disponible pour cette statistique : {fmt}.")
@@ -98,6 +108,15 @@ class StatExportLinkView(StatsView):
 
 def _text_response(message: str, status: int) -> HttpResponse:
     return HttpResponse(message, status=status, content_type='text/plain; charset=utf-8')
+
+
+def _file_response(result: dict, fmt: str) -> HttpResponse:
+    response = HttpResponse(render(result, fmt), content_type=FORMATS[fmt])
+    # A PDF opens in the browser's own viewer (an iOS home-screen app cannot save a download)
+    disposition = 'inline' if fmt == 'pdf' else 'attachment'
+    response['Content-Disposition'] = f'{disposition}; filename="{filename(result, fmt)}"'
+    response['Cache-Control'] = 'private, no-store'
+    return response
 
 
 def stat_export_file(request, token):
@@ -122,9 +141,82 @@ def stat_export_file(request, token):
         result = statistic.compute(payload.get('params', {}), scope)
     except StatError as exc:
         return _text_response(str(exc), exc.status)
-    response = HttpResponse(render(result, fmt), content_type=FORMATS[fmt])
-    # A PDF opens in the browser's own viewer (an iOS home-screen app cannot save a download)
-    disposition = 'inline' if fmt == 'pdf' else 'attachment'
-    response['Content-Disposition'] = f'{disposition}; filename="{filename(result, fmt)}"'
+    return _file_response(result, fmt)
+
+
+class StatEmailLinkView(StatsView):
+    @extend_schema(
+        request={'application/json': {'type': 'object', 'properties': {
+            'params': {'type': 'object', 'description': 'Same parameters as the table'}}}},
+        responses={200: OpenApiResponse(description='Sent: masked address (sent_to) and expires_at'),
+                   400: OpenApiResponse(description='Invalid parameter, or no verified email'),
+                   429: OpenApiResponse(description='Too many emails in the last hour')})
+    def post(self, request, stat_id):
+        scope = Scope.from_request(request)
+        claims = getattr(request.user, 'token_info', {}) or {}
+        address = claims.get('email')
+        if not address or claims.get('email_verified') is False:
+            return Response({'error': "Aucune adresse email vérifiée sur votre compte."}, status=400)
+        try:
+            params = clean_params(request.data.get('params') or {})
+            statistic = self.statistic_for(stat_id, scope)
+            # "Last 7 days" means the 7 days before the request, even if opened later
+            params = freeze_period(params)
+            result = statistic.compute(params, scope)
+            job, token = mailing.create_job(statistic, params, scope, result, claims)
+        except StatError as exc:
+            return error_response(exc)
+        try:
+            mailing.send_link(job, token, statistic.title, address)
+        except Exception:
+            logger.exception("Statistics export email failed")
+            job.delete()
+            return Response({'error': "L'email n'a pas pu être envoyé : réessayez plus tard."}, status=502)
+        return Response({'sent_to': mailing.mask_email(address), 'expires_at': job.expires_at.isoformat()})
+
+
+def _job_error(error) -> JsonResponse:
+    message, status = error
+    return JsonResponse({'error': message}, status=status)
+
+
+def stat_export_job(request, token):
+    """What an emailed link gives: the export described, and its files. No JWT."""
+    job, error = mailing.find_job(token)
+    if error:
+        return _job_error(error)
+    statistic = REGISTRY.get(job.statistic)
+    if statistic is None:
+        return _job_error(("Lien invalide.", 404))
+    response = JsonResponse({
+        'statistic': {'id': statistic.id, 'title': statistic.title},
+        'summary': job.summary,
+        'requested_by': job.requester_name,
+        'requested_at': timezone.localtime(job.created_at).isoformat(),
+        'expires_at': timezone.localtime(job.expires_at).isoformat(),
+        'downloads_left': mailing.MAX_DOWNLOADS - job.downloads,
+        'formats': [{'format': fmt, 'url': reverse('stats-job-file', args=[token, fmt])}
+                    for fmt in statistic.exports],
+    })
     response['Cache-Control'] = 'private, no-store'
     return response
+
+
+def stat_export_job_file(request, token, fmt):
+    """A file of an emailed export, computed now with the requester's rights."""
+    job, error = mailing.find_job(token)
+    if error:
+        return _text_response(*error)
+    statistic = REGISTRY.get(job.statistic)
+    scope = Scope.from_dict(job.scope)
+    if statistic is None or fmt not in statistic.exports or not statistic.visible_to(scope):
+        return _text_response("Lien invalide.", 404)
+    # Counted before computing, atomically: two taps at once cannot pass the limit
+    if not type(job).objects.filter(pk=job.pk, downloads__lt=mailing.MAX_DOWNLOADS).update(
+            downloads=F('downloads') + 1):
+        return _text_response(*mailing.find_job(token)[1])
+    try:
+        result = statistic.compute(job.params, scope)
+    except StatError as exc:
+        return _text_response(str(exc), exc.status)
+    return _file_response(result, fmt)
