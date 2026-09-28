@@ -258,8 +258,16 @@ LOGGING = {
 }
 
 # Outgoing email. In dev, EMAIL_HOST points at the Mailpit catch-all, which
-# never relays; unset, Django keeps its defaults (localhost:25).
+# never relays (no TLS, no authentication); unset, Django keeps its defaults
+# (localhost:25). In prod, the OVH MX Plan server: implicit TLS on 465
+# (EMAIL_USE_SSL) and authentication with a full mailbox address.
 if os.environ.get('EMAIL_HOST'):
     EMAIL_HOST = os.environ['EMAIL_HOST']
     EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '25'))
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'contact@velutina.ovh')
+    EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+    EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+    EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'False').lower() == 'true'
+    EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'False').lower() == 'true'
+    # Without it a stalled server would hold the request (and its worker) forever
+    EMAIL_TIMEOUT = 15
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'Velutina <contact@velutina.ovh>')

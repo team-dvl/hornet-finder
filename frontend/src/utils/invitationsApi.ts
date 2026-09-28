@@ -28,6 +28,8 @@ export interface GroupInvitation {
   status: 'pending' | 'accepted' | 'declined' | 'cancelled' | 'expired';
   created_at: string;
   expires_at: string;
+  /** Creation only: whether the invitee could be emailed */
+  notified?: boolean;
 }
 
 export type InviteErrorCode = 'no_active_user' | 'locked' | 'self' | 'already_member' | 'already_invited';

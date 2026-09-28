@@ -8,7 +8,8 @@ is never stored nor logged: the invitation keeps the Keycloak ids. Failed
 lookups are limited per inviter (`InvitationThrottle`), so the form cannot be
 used to probe which addresses have an account.
 
-The invitee sees the invitation in the app and accepts or declines it;
+The invitee is told by email (to the address of their Keycloak account),
+sees the invitation in the app and accepts or declines it;
 accepting adds them to the Keycloak group with the backend service account
 (`manage-users`). The new membership reaches their token at the next refresh.
 """
@@ -16,7 +17,9 @@ accepting adds them to the Keycloak group with the backend service account
 import logging
 import unicodedata
 
+from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.mail import send_mail
 from django.core.validators import validate_email
 from django.db import transaction
 from django.utils import timezone
@@ -118,6 +121,29 @@ class _Names:
         return self._cache[key]
 
 
+def _notify_invitee(invitation, email: str, inviter_name) -> bool:
+    """
+    Tell the invitee by email. A failure never loses the invitation, which
+    stays visible in the app; the inviter is told so they can warn the person.
+    """
+    expires = timezone.localtime(invitation.expires_at).strftime('%d/%m/%Y')
+    body = (
+        "Bonjour,\n\n"
+        f"{inviter_name or 'Un administrateur'} vous invite à rejoindre « {invitation.group_name} » "
+        "sur Velutina, l'application de gestion du frelon asiatique.\n\n"
+        f"Pour accepter ou refuser, connectez-vous à https://{settings.PUBLIC_HOST}/ : "
+        f"l'invitation apparaît sur la page d'accueil jusqu'au {expires}.\n\n"
+        "Si vous ne connaissez pas ce groupe, ignorez simplement ce message.\n"
+    )
+    try:
+        send_mail(f"Invitation à rejoindre {invitation.group_name}", body, None, [email])
+        return True
+    except Exception as exc:
+        # The exception text may quote the recipient: only its type is logged
+        logger.warning("Could not email group invitation %s: %s", invitation.id, type(exc).__name__)
+        return False
+
+
 def _serialize(invitation, names, with_invitee=False) -> dict:
     data = {
         'id': invitation.id,
@@ -144,6 +170,8 @@ class GroupInvitationSchema(serializers.Serializer):
     status = serializers.CharField()
     created_at = serializers.DateTimeField()
     expires_at = serializers.DateTimeField()
+    # Creation only: whether the invitee could be emailed
+    notified = serializers.BooleanField(required=False)
 
 
 LookupSerializer = inline_serializer('InvitationLookup', {
@@ -211,7 +239,8 @@ class GroupInvitationViewSet(viewsets.GenericViewSet):
         """
         Invite the active account whose email is exactly the one typed.
 
-        Errors carry a `code`: `no_active_user` (404, counted as a failed
+        The invitee is emailed once the invitation is stored; `notified` in
+        the response says whether that worked. Errors carry a `code`: `no_active_user` (404, counted as a failed
         lookup, with the remaining attempts), `locked` (429), `self`,
         `already_member` or `already_invited` (409).
         """
@@ -275,7 +304,9 @@ class GroupInvitationViewSet(viewsets.GenericViewSet):
             )
         logger.info("Group invitation %s: %s invited %s to %s",
                     invitation.id, inviter.guid, invitee.guid, group_path)
-        return Response(_serialize(invitation, _Names(), with_invitee=True),
+        names = _Names()
+        notified = _notify_invitee(invitation, account['email'], names(inviter))
+        return Response({**_serialize(invitation, names, with_invitee=True), 'notified': notified},
                         status=status.HTTP_201_CREATED)
 
     @extend_schema(responses={204: None})

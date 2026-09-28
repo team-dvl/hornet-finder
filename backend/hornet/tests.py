@@ -1867,6 +1867,38 @@ class GroupInvitationRightsTests(GroupInvitationTestCase):
         stored = [str(getattr(invitation, f.attname)) for f in GroupInvitation._meta.fields]
         self.assertFalse(any('example.org' in value.lower() for value in stored))
 
+    def test_the_invitee_is_emailed_at_their_account_address(self):
+        from django.core import mail
+
+        self.kc.accounts['pi@example.org']['email'] = 'pi@example.org'
+        response = self._invite(email='  PI@Example.org ')
+        self.assertTrue(response.data['notified'])
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.to, ['pi@example.org'])
+        self.assertIn("école namuroise d'apiculture", message.subject)
+        self.assertIn(f'Name {self.aga.guid[:8]}', message.body)
+        self.assertIn('https://', message.body)
+
+    def test_a_mail_failure_keeps_the_invitation_and_never_logs_the_address(self):
+        from smtplib import SMTPRecipientsRefused
+
+        refused = SMTPRecipientsRefused({'pi@example.org': (550, b'no')})
+        with patch('hornet.invitation_views.send_mail', side_effect=refused), \
+                self.assertLogs('hornet.invitation_views', level='INFO') as logs:
+            response = self._invite()
+        self.assertEqual(response.status_code, 201)
+        self.assertFalse(response.data['notified'])
+        self.assertTrue(GroupInvitation.objects.exists())
+        self.assertFalse(any('example.org' in line for line in logs.output))
+
+    def test_no_email_when_the_invitation_is_refused(self):
+        from django.core import mail
+
+        self._invite(email='nobody@example.org')
+        self._invite(user=self.member)
+        self.assertEqual(mail.outbox, [])
+
     def test_a_plain_member_cannot_invite(self):
         self.assertEqual(self._invite(user=self.member).status_code, 403)
 

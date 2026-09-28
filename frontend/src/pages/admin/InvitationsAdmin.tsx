@@ -75,10 +75,10 @@ export default function InvitationsAdmin() {
       const invitation = await sendInvitation(groupPath, email.trim());
       setInvitations((list) => [invitation, ...list]);
       setEmail('');
-      setFeedback({
-        variant: 'success',
-        text: invitation.invitee_name ? `Invitation envoyée à ${invitation.invitee_name}.` : 'Invitation envoyée.',
-      });
+      const who = invitation.invitee_name ? ` à ${invitation.invitee_name}` : '';
+      setFeedback(invitation.notified === false
+        ? { variant: 'danger', text: `Invitation enregistrée${who}, mais l'email n'a pas pu partir : prévenez la personne.` }
+        : { variant: 'success', text: `Invitation envoyée${who}.` });
     } catch (error) {
       const refused = inviteErrorOf(error);
       if (refused.lookup) setLookup(refused.lookup);
@@ -121,8 +121,8 @@ export default function InvitationsAdmin() {
                 Inviter
                 <HelpTip id="invite-help" title="Inviter un apiculteur">
                   La personne doit déjà avoir un compte actif, créé avec cette adresse. Tapez l'adresse
-                  complète : aucune suggestion n'est proposée. Elle voit l'invitation sur la page d'accueil de
-                  l'application et l'accepte ou la refuse ; sans réponse, l'invitation expire après 30 jours.
+                  complète : aucune suggestion n'est proposée. Elle reçoit un email et voit l'invitation sur la
+                  page d'accueil de l'application, où elle l'accepte ou la refuse ; sans réponse, l'invitation expire après 30 jours.
                   Après 10 adresses sans compte en 24 heures, les invitations sont suspendues pendant 24 heures.
                 </HelpTip>
               </h2>
