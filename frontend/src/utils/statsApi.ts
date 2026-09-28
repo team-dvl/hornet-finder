@@ -117,6 +117,24 @@ export interface ExportLink {
 
 export type ExportFormat = 'xlsx' | 'pdf' | 'csv';
 
+export interface EmailedLink {
+  /** j•••@example.org */
+  sent_to: string;
+  expires_at: string;
+}
+
+/** An export sent by email, as its public page shows it */
+export interface ExportJob {
+  statistic: { id: string; title: string };
+  /** [label, value] lines: period, granularity, filters, traps counted */
+  summary: [string, string][];
+  requested_by: string;
+  requested_at: string;
+  expires_at: string;
+  downloads_left: number;
+  formats: { format: ExportFormat; url: string }[];
+}
+
 /** The server's own message (`{error}`), else the generic one. */
 function fail(error: unknown): never {
   const response = (error as { response?: { status?: number; data?: { error?: string } } }).response;
@@ -142,6 +160,24 @@ export async function fetchStat<T extends StatResult = StatResult>(id: string, p
 export async function fetchExportLink(id: string, format: ExportFormat, params: StatParams): Promise<ExportLink> {
   try {
     return (await api.post(`/stats/${id}/export/`, { format, params })).data;
+  } catch (error) {
+    fail(error);
+  }
+}
+
+/** Mail the caller a link to the export of the statistic (valid one hour). */
+export async function sendExportEmail(id: string, params: StatParams): Promise<EmailedLink> {
+  try {
+    return (await api.post(`/stats/${id}/email-link/`, { params })).data;
+  } catch (error) {
+    fail(error);
+  }
+}
+
+/** The export behind an emailed link; needs no sign-in. */
+export async function fetchExportJob(token: string): Promise<ExportJob> {
+  try {
+    return (await api.get(`/stats/exports/${encodeURIComponent(token)}/`)).data;
   } catch (error) {
     fail(error);
   }

@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Alert, ListGroup, Spinner } from 'react-bootstrap';
+import { HelpTip } from '../common';
 import { BottomSheet } from '../ui';
+import { useUserPermissions } from '../../hooks/useUserPermissions';
+import { formatTime } from '../../utils/format';
 import {
-  fetchExportLink, StatsError, type ExportFormat, type ExportLink, type StatParams,
+  fetchExportLink, sendExportEmail, StatsError,
+  type EmailedLink, type ExportFormat, type ExportLink, type StatParams,
 } from '../../utils/statsApi';
 
 interface StatExportSheetProps {
@@ -30,6 +34,10 @@ export default function StatExportSheet({ onHide, statId, params, exports }: Sta
   const formatsKey = formats.map(({ format }) => format).join(',');
   const [links, setLinks] = useState<Partial<Record<ExportFormat, ExportLink>>>({});
   const [error, setError] = useState<string | null>(null);
+  const { userEmail } = useUserPermissions();
+  const [mailing, setMailing] = useState(false);
+  const [emailed, setEmailed] = useState<EmailedLink | null>(null);
+  const [mailError, setMailError] = useState<string | null>(null);
   const paramsKey = JSON.stringify(params);
 
   useEffect(() => {
@@ -41,6 +49,18 @@ export default function StatExportSheet({ onHide, statId, params, exports }: Sta
     });
     return () => { cancelled = true; };
   }, [statId, paramsKey, formatsKey]);
+
+  const sendEmail = async () => {
+    setMailing(true);
+    setMailError(null);
+    try {
+      setEmailed(await sendExportEmail(statId, params));
+    } catch (e) {
+      setMailError(e instanceof StatsError ? e.message : String(e));
+    } finally {
+      setMailing(false);
+    }
+  };
 
   return (
     <BottomSheet show onHide={onHide} title="Exporter">
@@ -69,7 +89,34 @@ export default function StatExportSheet({ onHide, statId, params, exports }: Sta
             </ListGroup.Item>
           );
         })}
+        {userEmail && !emailed && (
+          <ListGroup.Item
+            action
+            as="button"
+            type="button"
+            disabled={mailing}
+            onClick={() => void sendEmail()}
+            className="d-flex align-items-center gap-3 px-1 py-2"
+          >
+            <i className="bi bi-envelope fs-5 flex-shrink-0" aria-hidden="true" />
+            <span className="flex-grow-1">Envoyer un lien par email</span>
+            {mailing && <Spinner animation="border" size="sm" />}
+          </ListGroup.Item>
+        )}
       </ListGroup>
+      {mailError && <Alert variant="danger" className="small py-2 mt-2 mb-0">{mailError}</Alert>}
+      {emailed && (
+        <Alert variant="success" className="small py-2 mt-2 mb-0 d-flex align-items-center">
+          <span>
+            Lien envoyé à {emailed.sent_to}, valable jusqu&apos;à {formatTime(emailed.expires_at)}.
+          </span>
+          <HelpTip id="stat-email-help" title="Lien par email">
+            Le lien ouvre une page de téléchargement, sans connexion, pendant une heure et pour dix
+            fichiers au plus. Les chiffres y sont calculés au moment du téléchargement, sur la
+            période et avec les droits de la demande. Ne transférez pas cet email.
+          </HelpTip>
+        </Alert>
+      )}
     </BottomSheet>
   );
 }
