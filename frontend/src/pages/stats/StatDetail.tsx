@@ -238,6 +238,7 @@ export default function StatDetail() {
           statId={statId}
           params={exportParams}
           exports={description?.exports ?? ['xlsx', 'csv']}
+          emailLink={Boolean(description?.email_link)}
         />
       )}
     </PageLayout>

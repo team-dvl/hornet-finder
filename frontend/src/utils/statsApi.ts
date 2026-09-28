@@ -14,6 +14,8 @@ export interface StatDescription {
   filters: string[];
   /** File formats the statistic exports to */
   exports: ExportFormat[];
+  /** Whether the server can email a link to the files (an SMTP server is configured) */
+  email_link: boolean;
 }
 
 export interface StatColumn {

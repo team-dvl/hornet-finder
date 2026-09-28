@@ -16,6 +16,8 @@ interface StatExportSheetProps {
   params: StatParams;
   /** Formats the statistic offers (from the catalogue) */
   exports: ExportFormat[];
+  /** The server can email a link (from the catalogue) */
+  emailLink: boolean;
 }
 
 const FORMATS: { format: ExportFormat; label: string; icon: string }[] = [
@@ -29,7 +31,9 @@ const FORMATS: { format: ExportFormat; label: string; icon: string }[] = [
  * opens, so the tap is a plain link: the only thing an iOS home-screen app
  * follows (it ignores blob downloads). A link lasts 15 minutes.
  */
-export default function StatExportSheet({ onHide, statId, params, exports }: StatExportSheetProps) {
+export default function StatExportSheet({
+  onHide, statId, params, exports, emailLink,
+}: StatExportSheetProps) {
   const formats = FORMATS.filter(({ format }) => exports.includes(format));
   const formatsKey = formats.map(({ format }) => format).join(',');
   const [links, setLinks] = useState<Partial<Record<ExportFormat, ExportLink>>>({});
@@ -89,7 +93,7 @@ export default function StatExportSheet({ onHide, statId, params, exports }: Sta
             </ListGroup.Item>
           );
         })}
-        {userEmail && !emailed && (
+        {emailLink && userEmail && !emailed && (
           <ListGroup.Item
             action
             as="button"
