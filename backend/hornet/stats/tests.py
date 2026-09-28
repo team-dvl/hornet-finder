@@ -363,8 +363,34 @@ class ExportTests(ThreeTrapsTestCase):
         total = self.download(url).content.decode('utf-8').strip().split('\r\n')[-1]
         self.assertIn(';14,0;', total)
 
+    def test_pdf_of_every_table(self):
+        self.reading(self.trap, date(2025, 3, 8), 7, others=14, bycatch=True)
+        for stat_id in ('traps-catches', 'traps-species', 'trap-types', 'traps-ranking'):
+            for granularity in ('day', 'week'):
+                request = self.factory.post(f'/stats/{stat_id}/export/', {
+                    'format': 'pdf', 'params': {**self.MARCH, 'granularity': granularity}}, format='json')
+                force_authenticate(request, user=self.admin_user)
+                link = StatExportLinkView.as_view()(request, stat_id=stat_id)
+                self.assertEqual(link.status_code, 200, link.data)
+                self.assertTrue(link.data['filename'].endswith('.pdf'))
+                file = self.download(link.data['url'])
+                self.assertEqual(file.status_code, 200)
+                self.assertEqual(file['Content-Type'], 'application/pdf')
+                # Opened by the browser's viewer rather than saved
+                self.assertTrue(file['Content-Disposition'].startswith('inline;'))
+                self.assertTrue(file.content.startswith(b'%PDF-'), stat_id)
+
+    def test_pdf_without_any_reading(self):
+        response = self.link('pdf', {'period': 'custom', 'from': '2024-03-01', 'to': '2024-03-31'})
+        self.assertEqual(self.download(response.data['url']).status_code, 200)
+
     def test_refusals(self):
-        self.assertEqual(self.link('pdf', self.MARCH).status_code, 400)
+        self.assertEqual(self.link('docx', self.MARCH).status_code, 400)
+        # A map has no PDF: its cells need the map
+        request = self.factory.post('/stats/traps-coverage/export/', {
+            'format': 'pdf', 'params': {**self.MARCH, 'bbox': '4.4,50.4,4.6,50.6'}}, format='json')
+        force_authenticate(request, user=self.admin_user)
+        self.assertEqual(StatExportLinkView.as_view()(request, stat_id='traps-coverage').status_code, 400)
         self.assertEqual(self.link('csv', {'period': 'nope'}).status_code, 400)
         self.assertEqual(self.download('/api/stats/export/forged:token/').status_code, 404)
         url = self.link('csv', self.MARCH).data['url']

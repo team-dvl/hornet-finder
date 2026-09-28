@@ -84,6 +84,8 @@ class StatExportLinkView(StatsView):
         params = {key: str(raw[key]) for key in PARAMETERS if raw.get(key) not in (None, '')}
         try:
             statistic = self.statistic_for(stat_id, scope)
+            if fmt not in statistic.exports:
+                raise StatError(f"Format non disponible pour cette statistique : {fmt}.")
             # Computed once here, so a bad parameter fails now and not in the viewer
             result = statistic.compute(params, scope)
         except StatError as exc:
@@ -114,13 +116,15 @@ def stat_export_file(request, token):
     statistic = REGISTRY.get(payload.get('stat'))
     scope = Scope.from_dict(payload.get('scope', {}))
     fmt = payload.get('format')
-    if statistic is None or fmt not in FORMATS or not statistic.visible_to(scope):
+    if statistic is None or fmt not in statistic.exports or not statistic.visible_to(scope):
         return _text_response("Lien invalide.", 404)
     try:
         result = statistic.compute(payload.get('params', {}), scope)
     except StatError as exc:
         return _text_response(str(exc), exc.status)
     response = HttpResponse(render(result, fmt), content_type=FORMATS[fmt])
-    response['Content-Disposition'] = f'attachment; filename="{filename(result, fmt)}"'
+    # A PDF opens in the browser's own viewer (an iOS home-screen app cannot save a download)
+    disposition = 'inline' if fmt == 'pdf' else 'attachment'
+    response['Content-Disposition'] = f'{disposition}; filename="{filename(result, fmt)}"'
     response['Cache-Control'] = 'private, no-store'
     return response

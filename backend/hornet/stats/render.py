@@ -1,6 +1,7 @@
 """
 Files of a statistic, built from the table the API returns: CSV for any tool,
-XLSX with a second sheet naming the period, filters and scope.
+XLSX with a second sheet naming the period, filters and scope, PDF with the
+charts (`pdf.py`).
 
 The CSV follows the Belgian and French spreadsheet convention (`;` between
 fields, `,` in decimals, UTF-8 with a byte order mark) so it opens as a table
@@ -18,6 +19,7 @@ from django.utils.text import slugify
 FORMATS = {
     'csv': 'text/csv; charset=utf-8',
     'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'pdf': 'application/pdf',
 }
 GRANULARITY_LABELS = {'day': 'Par jour', 'week': 'Par semaine', 'month': 'Par mois'}
 TOTAL_LABEL = 'Total'
@@ -142,4 +144,7 @@ def render_xlsx(result: dict) -> bytes:
 
 
 def render(result: dict, fmt: str) -> bytes:
+    if fmt == 'pdf':
+        from .pdf import render_pdf
+        return render_pdf(result)
     return render_csv(result) if fmt == 'csv' else render_xlsx(result)

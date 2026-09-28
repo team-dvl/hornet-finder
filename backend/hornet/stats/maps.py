@@ -87,6 +87,7 @@ class MapStatistic(Statistic):
     """Common part of the grid statistics."""
     filters = ('period', 'trap_type', 'group', 'mine', 'zone')
     kind = 'map'
+    exports = ('xlsx', 'csv')
 
     def _prepare(self, params, scope, today, reach_m):
         try:

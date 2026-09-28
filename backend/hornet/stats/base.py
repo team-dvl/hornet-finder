@@ -141,8 +141,8 @@ class Statistic:
     kind = 'table'
     # Place in the catalogue
     position = 100
-    # Files it can be exported to
-    exports = ('xlsx', 'csv')
+    # Files it can be exported to (a map has no PDF: its cells need the map)
+    exports = ('xlsx', 'pdf', 'csv')
 
     def visible_to(self, scope: Scope) -> bool:
         return any(role in scope.roles for role in self.required_roles)
