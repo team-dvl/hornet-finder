@@ -17,6 +17,7 @@ Platform admins see every trap in both.
 from dataclasses import dataclass, field
 from types import SimpleNamespace
 
+from django.conf import settings
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
 
@@ -149,7 +150,9 @@ class Statistic:
 
     def describe(self) -> dict:
         return {'id': self.id, 'title': self.title, 'description': self.description,
-                'kind': self.kind, 'filters': list(self.filters), 'exports': list(self.exports)}
+                'kind': self.kind, 'filters': list(self.filters), 'exports': list(self.exports),
+                # Whether a link to the files can be emailed (an SMTP server is configured)
+                'email_link': bool(getattr(settings, 'EMAIL_CONFIGURED', False))}
 
     def compute(self, params, scope: Scope, today=None) -> dict:  # pragma: no cover
         raise NotImplementedError

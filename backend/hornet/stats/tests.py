@@ -4,6 +4,7 @@ from datetime import date, datetime, time
 from unittest.mock import patch
 
 from django.core import mail
+from django.test import override_settings
 from django.utils import timezone
 from rest_framework.test import force_authenticate
 
@@ -401,6 +402,7 @@ class ExportTests(ThreeTrapsTestCase):
             self.assertEqual(self.download(url).status_code, 410)
 
 
+@override_settings(EMAIL_CONFIGURED=True)
 class EmailLinkTests(ThreeTrapsTestCase):
     """An export sent by email: a page and its files, one hour, ten downloads."""
 
@@ -473,6 +475,16 @@ class EmailLinkTests(ThreeTrapsTestCase):
         StatExportJob.objects.update(expires_at=timezone.now())
         self.assertEqual(self.ask(self.MARCH).status_code, 200)
         self.assertEqual(StatExportJob.objects.count(), 1)
+
+    def test_not_offered_without_smtp_server(self):
+        def offered():
+            request = self.factory.get('/stats/')
+            force_authenticate(request, user=self.admin_user)
+            return StatsCatalogueView.as_view()(request).data[0]['email_link']
+        self.assertTrue(offered())
+        with override_settings(EMAIL_CONFIGURED=False):
+            self.assertFalse(offered())
+            self.assertEqual(self.ask(self.MARCH).status_code, 503)
 
     def test_sliding_periods_are_frozen(self):
         frozen = freeze_period({'period': 'd7', 'granularity': 'day'}, date(2026, 5, 20))

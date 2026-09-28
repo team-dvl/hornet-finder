@@ -3,6 +3,7 @@
 
 import logging
 
+from django.conf import settings
 from django.core import signing
 from django.db.models import F
 from django.http import HttpResponse, JsonResponse
@@ -150,8 +151,11 @@ class StatEmailLinkView(StatsView):
             'params': {'type': 'object', 'description': 'Same parameters as the table'}}}},
         responses={200: OpenApiResponse(description='Sent: masked address (sent_to) and expires_at'),
                    400: OpenApiResponse(description='Invalid parameter, or no verified email'),
-                   429: OpenApiResponse(description='Too many emails in the last hour')})
+                   429: OpenApiResponse(description='Too many emails in the last hour'),
+                   503: OpenApiResponse(description='No SMTP server configured')})
     def post(self, request, stat_id):
+        if not getattr(settings, 'EMAIL_CONFIGURED', False):
+            return Response({'error': "L'envoi d'emails n'est pas configuré sur ce serveur."}, status=503)
         scope = Scope.from_request(request)
         claims = getattr(request.user, 'token_info', {}) or {}
         address = claims.get('email')
