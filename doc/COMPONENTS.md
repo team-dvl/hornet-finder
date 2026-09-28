@@ -129,8 +129,10 @@ Briques partagées, à utiliser plutôt que les composants Bootstrap bruts :
 Module Statistiques (pages dans `pages/stats/`, chargées à la demande) :
 - `statParams.ts` : paramètres dans l'URL, libellés, formats des nombres
 - `StatFiltersSheet.tsx` : filtres en `BottomSheet`, appliqués au fil des choix
-- `StatExportSheet.tsx` : liens signés XLSX/CSV préparés à l'ouverture
-- `CatchesView.tsx`, `TrapTypesView.tsx` : tableaux en liste, sans défilement horizontal
+- `StatExportSheet.tsx` : liens signés des formats de la statistique (XLSX, PDF, CSV) préparés à l'ouverture, et « Envoyer un lien par email » quand le serveur peut envoyer
+- `charts/` : graphiques SVG sans bibliothèque (`TimeBars`, `TimeLine` avec bande d'IC et année précédente, `StackedShares`, `ForestPlot`, `ChartLegend`), largeur suivie par `useWidth`, palette et axes dans `scale.ts`
+- `CatchesView`, `TrapSpeciesView`, `TrapTypesView`, `TrapRankingView` : une statistique en liste (sans défilement horizontal) ou en graphiques (`chart`)
+- Page `pages/stats/ExportJob.tsx` (`/export/:token`, sans connexion) : téléchargement d'un export reçu par email
 
 ## Imports
 

@@ -391,7 +391,8 @@ async function walk(name) {
     await escape();
   });
 
-  // Statistics: catalogue, the catches table with its sheets, the trap types
+  // Statistics: catalogue, the catches table with its sheets, each table in
+  // list and chart view (the export sheet is opened, nothing is emailed)
   await step('stats', async () => {
     await open('/stats');
     await shot('stats', 1500);
@@ -405,8 +406,20 @@ async function walk(name) {
     await tap(page.locator('[aria-label="Exporter"]').first());
     await shot('stats-export', 1500);
     await escape();
+    await open('/stats/traps-catches?view=chart');
+    await shot('stats-catches-chart', 2500);
+    await open('/stats/traps-species');
+    await shot('stats-species', 2500);
+    await open('/stats/traps-species?view=chart');
+    await shot('stats-species-chart', 2500);
     await open('/stats/trap-types');
     await shot('stats-trap-types', 2500);
+    await open('/stats/trap-types?view=chart');
+    await shot('stats-trap-types-chart', 2500);
+    await open('/stats/traps-ranking');
+    await shot('stats-ranking', 2500);
+    await open('/stats/traps-ranking?view=chart');
+    await shot('stats-ranking-chart', 2500);
     await open('/stats/traps-coverage');
     await shot('stats-coverage', 3500);
     await open('/stats/traps-pressure');
