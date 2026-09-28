@@ -232,7 +232,14 @@ export default function StatDetail() {
         trapTypes={trapTypes}
         groups={groups}
       />
-      {sheet === 'export' && <StatExportSheet onHide={() => setSheet(null)} statId={statId} params={exportParams} />}
+      {sheet === 'export' && (
+        <StatExportSheet
+          onHide={() => setSheet(null)}
+          statId={statId}
+          params={exportParams}
+          exports={description?.exports ?? ['xlsx', 'csv']}
+        />
+      )}
     </PageLayout>
   );
 }

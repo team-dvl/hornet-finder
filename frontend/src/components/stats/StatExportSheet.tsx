@@ -10,10 +10,13 @@ interface StatExportSheetProps {
   onHide: () => void;
   statId: string;
   params: StatParams;
+  /** Formats the statistic offers (from the catalogue) */
+  exports: ExportFormat[];
 }
 
 const FORMATS: { format: ExportFormat; label: string; icon: string }[] = [
   { format: 'xlsx', label: 'Excel (.xlsx)', icon: 'file-earmark-spreadsheet' },
+  { format: 'pdf', label: 'PDF, tableau et graphique', icon: 'file-earmark-pdf' },
   { format: 'csv', label: 'CSV', icon: 'filetype-csv' },
 ];
 
@@ -22,26 +25,28 @@ const FORMATS: { format: ExportFormat; label: string; icon: string }[] = [
  * opens, so the tap is a plain link: the only thing an iOS home-screen app
  * follows (it ignores blob downloads). A link lasts 15 minutes.
  */
-export default function StatExportSheet({ onHide, statId, params }: StatExportSheetProps) {
+export default function StatExportSheet({ onHide, statId, params, exports }: StatExportSheetProps) {
+  const formats = FORMATS.filter(({ format }) => exports.includes(format));
+  const formatsKey = formats.map(({ format }) => format).join(',');
   const [links, setLinks] = useState<Partial<Record<ExportFormat, ExportLink>>>({});
   const [error, setError] = useState<string | null>(null);
   const paramsKey = JSON.stringify(params);
 
   useEffect(() => {
     let cancelled = false;
-    FORMATS.forEach(({ format }) => {
-      fetchExportLink(statId, format, JSON.parse(paramsKey))
+    formatsKey.split(',').filter(Boolean).forEach((format) => {
+      fetchExportLink(statId, format as ExportFormat, JSON.parse(paramsKey))
         .then((link) => { if (!cancelled) setLinks((current) => ({ ...current, [format]: link })); })
         .catch((e: unknown) => { if (!cancelled) setError(e instanceof StatsError ? e.message : String(e)); });
     });
     return () => { cancelled = true; };
-  }, [statId, paramsKey]);
+  }, [statId, paramsKey, formatsKey]);
 
   return (
     <BottomSheet show onHide={onHide} title="Exporter">
       {error && <Alert variant="danger" className="small py-2">{error}</Alert>}
       <ListGroup variant="flush">
-        {FORMATS.map(({ format, label, icon }) => {
+        {formats.map(({ format, label, icon }) => {
           const link = links[format];
           return (
             <ListGroup.Item
@@ -49,7 +54,8 @@ export default function StatExportSheet({ onHide, statId, params }: StatExportSh
               action
               as="a"
               href={link?.url}
-              download={link?.filename}
+              // A PDF opens in the browser's viewer; the tables are saved
+              download={format === 'pdf' ? undefined : link?.filename}
               target="_blank"
               rel="noopener"
               disabled={!link}

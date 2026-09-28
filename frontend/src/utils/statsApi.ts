@@ -115,7 +115,7 @@ export interface ExportLink {
   expires_in: number;
 }
 
-export type ExportFormat = 'xlsx' | 'csv';
+export type ExportFormat = 'xlsx' | 'pdf' | 'csv';
 
 /** The server's own message (`{error}`), else the generic one. */
 function fail(error: unknown): never {
