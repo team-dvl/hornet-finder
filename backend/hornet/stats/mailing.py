@@ -122,7 +122,7 @@ def find_job(token: str):
     if job is None:
         return None, ("Lien invalide.", 404)
     if job.expires_at <= timezone.now():
-        return None, ("Ce lien a expiré : relancez l'export depuis la statistique.", 410)
+        return None, ("Un lien d'export sert une heure : relancez l'export depuis la statistique.", 410)
     if job.downloads >= MAX_DOWNLOADS:
-        return None, (f"Ce lien a déjà servi {MAX_DOWNLOADS} fois : relancez l'export depuis la statistique.", 410)
+        return None, (f"Il a déjà servi {MAX_DOWNLOADS} fois : relancez l'export depuis la statistique.", 410)
     return job, None
