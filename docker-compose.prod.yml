@@ -57,6 +57,13 @@ services:
       - TAG_SITE_ID=${TAG_SITE_ID}
       - KC_INTERNAL_URL=http://hornet-finder-keycloak:8080/
       - KC_REALM=hornet-finder
+      # OVH MX Plan: implicit TLS on 465, authenticated with a full mailbox
+      # address (the same account as the realm's SMTP settings in Keycloak)
+      - EMAIL_HOST=ssl0.ovh.net
+      - EMAIL_PORT=465
+      - EMAIL_USE_SSL=true
+      - EMAIL_HOST_USER=${EMAIL_HOST_USER}
+      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
     volumes:
       - media:/app/media
     depends_on:

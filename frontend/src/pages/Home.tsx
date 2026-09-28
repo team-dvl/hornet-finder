@@ -2,7 +2,7 @@ import { Container } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 import { PageLayout } from '../components/layout';
-import { ModuleCard } from '../components/home';
+import { ModuleCard, PendingInvitations } from '../components/home';
 import { visibleModules } from '../config/modules';
 import { accountConsoleUrl, signInFromCurrentPage } from '../utils/authRedirect';
 import { useUserPermissions } from '../hooks/useUserPermissions';
@@ -29,6 +29,8 @@ export default function Home() {
             <div className="text-primary">Gestion du frelon asiatique</div>
           </div>
         </div>
+
+        {auth.isAuthenticated && <PendingInvitations />}
 
         <div className="tile-grid">
           {modules.map((module) => (

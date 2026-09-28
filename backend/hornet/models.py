@@ -1,4 +1,5 @@
 import uuid
+from datetime import timedelta
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -465,3 +466,105 @@ class Tag(models.Model):
     @property
     def is_revoked(self) -> bool:
         return self.revoked_at is not None
+
+
+class GroupInvitation(models.Model):
+    """
+    Invitation of an existing user to join a beekeeper group (`/beekeepers/<id>`).
+
+    Sent by a platform admin or an administrator of the group, who typed the
+    invitee's full email address; accepting it adds the invitee to the Keycloak
+    group. Only the Keycloak ids are stored, never the email address.
+    """
+
+    STATUS_PENDING = 'pending'
+    STATUS_ACCEPTED = 'accepted'
+    STATUS_DECLINED = 'declined'
+    STATUS_CANCELLED = 'cancelled'
+    STATUS_EXPIRED = 'expired'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'En attente'),
+        (STATUS_ACCEPTED, 'Acceptée'),
+        (STATUS_DECLINED, 'Refusée'),
+        (STATUS_CANCELLED, 'Annulée'),
+        (STATUS_EXPIRED, 'Expirée'),
+    ]
+    VALIDITY = timedelta(days=30)
+
+    group_path = models.CharField(max_length=256)
+    # Display name of the group when the invitation was sent
+    group_name = models.CharField(max_length=255)
+    invitee = models.ForeignKey('User', on_delete=models.CASCADE,
+                                related_name='received_group_invitations')
+    invited_by = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL,
+                                   related_name='sent_group_invitations')
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['group_path', 'invitee'],
+                condition=models.Q(status='pending'),
+                name='group_invitation_one_pending',
+            ),
+        ]
+
+    def __str__(self):
+        return f"Invitation of {self.invitee_id} to {self.group_path} ({self.status})"
+
+    @property
+    def expires_at(self):
+        return self.created_at + self.VALIDITY
+
+    @classmethod
+    def expire_stale(cls, **filters) -> None:
+        """Mark the pending invitations past their validity as expired."""
+        cls.objects.filter(
+            status=cls.STATUS_PENDING, created_at__lte=timezone.now() - cls.VALIDITY, **filters,
+        ).update(status=cls.STATUS_EXPIRED)
+
+
+class InvitationThrottle(models.Model):
+    """
+    Failed email lookups of an inviter. Invitations name a person by their full
+    email address; to keep that from probing which addresses have an account,
+    `MAX_FAILURES` misses within `WINDOW` block the inviter for `LOCKOUT`. A
+    successful lookup does not reset the count, otherwise a known address typed
+    between guesses would lift the limit.
+    """
+
+    MAX_FAILURES = 10
+    WINDOW = timedelta(hours=24)
+    LOCKOUT = timedelta(hours=24)
+
+    user = models.OneToOneField('User', on_delete=models.CASCADE, primary_key=True,
+                                related_name='invitation_throttle')
+    failures = models.PositiveSmallIntegerField(default=0)
+    window_started_at = models.DateTimeField(null=True, blank=True)
+    locked_until = models.DateTimeField(null=True, blank=True)
+
+    def refresh(self, now) -> None:
+        """Forget an elapsed lockout or failure window."""
+        if self.locked_until and self.locked_until <= now:
+            self.locked_until = None
+        if self.window_started_at and now - self.window_started_at >= self.WINDOW:
+            self.failures = 0
+            self.window_started_at = None
+
+    def is_locked(self, now) -> bool:
+        return bool(self.locked_until and self.locked_until > now)
+
+    def remaining(self, now) -> int:
+        return 0 if self.is_locked(now) else self.MAX_FAILURES - self.failures
+
+    def record_failure(self, now) -> None:
+        if not self.failures:
+            self.window_started_at = now
+        self.failures += 1
+        if self.failures >= self.MAX_FAILURES:
+            self.locked_until = now + self.LOCKOUT
+            self.failures = 0
+            self.window_started_at = None

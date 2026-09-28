@@ -1,5 +1,6 @@
 import os
 from keycloak import KeycloakOpenID, KeycloakAdmin
+from keycloak.exceptions import KeycloakGetError
 from typing import Optional
 import logging
 
@@ -109,13 +110,15 @@ def user_exists(guid: str) -> bool:
     except Exception:
         return False
 
-def get_user_display_name(guid: str) -> Optional[str]:
+def get_user_display_name(guid: str, allow_email: bool = True) -> Optional[str]:
     """
     Retrieve the user's display name (first and last name), or preferred_username/email/id if not available,
     for a given Keycloak user GUID.
 
     :param guid: The Keycloak user ID.
     :type guid: str
+    :param allow_email: When False, only a first/last name is returned: usernames are
+        email addresses in this realm, so every other identifier may disclose one.
     :return: The user's display name, or an alternative identifier, or None if not found.
     :rtype: Optional[str]
     """
@@ -126,6 +129,8 @@ def get_user_display_name(guid: str) -> Optional[str]:
         last = user.get('lastName', '')
         if first or last:
             return f"{first} {last}".strip()
+        if not allow_email:
+            return None
         return user.get('preferred_username') or user.get('email') or user.get('id')
     except Exception:
         return None
@@ -150,6 +155,71 @@ def get_user_group_paths(guid: str) -> list:
         # Never fatal: the caller falls back to the locally mirrored paths
         logger.warning(f"Failed to retrieve Keycloak groups of {guid}: {type(e).__name__}: {e}")
         return []
+
+def find_active_user_by_email(email: str) -> Optional[dict]:
+    """
+    The enabled Keycloak account whose verified email is exactly `email`.
+
+    Keycloak searches emails by substring unless `exact` is set; the equality
+    is checked again here so a partial address can never match. An account
+    with an unverified email does not count: nothing proves the address is
+    its holder's.
+
+    :param email: Full email address, compared case-insensitively.
+    :return: The user representation, or None.
+    :raises Exception: Any Keycloak failure, left to the caller.
+    """
+    email = email.strip().lower()
+    users = _get_keycloak_admin().get_users({'email': email, 'exact': 'true'})
+    for user in users:
+        if ((user.get('email') or '').lower() == email
+                and user.get('enabled') and user.get('emailVerified')):
+            return user
+    return None
+
+
+def get_group_by_path(path: str) -> Optional[dict]:
+    """
+    The Keycloak group at `path` (with its attributes), or None when it does not exist.
+
+    :raises Exception: Any other Keycloak failure, left to the caller.
+    """
+    try:
+        return _get_keycloak_admin().get_group_by_path(path)
+    except KeycloakGetError as exc:
+        if exc.response_code == 404:
+            return None
+        raise
+
+
+def get_child_groups(path: str) -> list:
+    """
+    The direct subgroups of the group at `path`, with their attributes.
+
+    :return: Group representations, empty when the parent does not exist.
+    :raises Exception: Any Keycloak failure, left to the caller.
+    """
+    parent = get_group_by_path(path)
+    if parent is None:
+        return []
+    return _get_keycloak_admin().get_group_children(parent['id'], {'briefRepresentation': 'false'})
+
+
+def group_display_name(group: dict) -> str:
+    """The `fancy_name` attribute of a Keycloak group, else its name."""
+    fancy = (group.get('attributes') or {}).get('fancy_name') or []
+    return fancy[0] if fancy else group.get('name') or group.get('path', '')
+
+
+def add_user_to_group(guid: str, group_id: str) -> None:
+    """
+    Make a user a direct member of a Keycloak group (idempotent).
+    Requires the `manage-users` role on the backend service account.
+
+    :raises Exception: Any Keycloak failure, left to the caller.
+    """
+    _get_keycloak_admin().group_user_add(guid, group_id)
+
 
 def set_user_picture(guid: str, url: Optional[str]) -> None:
     """

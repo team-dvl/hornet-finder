@@ -152,6 +152,18 @@ du *propriétaire* d'un piège — que le jeton du demandeur ne porte pas — le
 une copie locale des chemins de groupe de chaque utilisateur (`User.group_paths`),
 rafraîchie à chaque requête authentifiée.
 
+Un administrateur d'un groupe d'apiculteurs (`/beekeepers/<id>`) peut aussi **inviter**
+un utilisateur existant dans ce groupe, depuis *Administration → Invitations* ; un
+administrateur de la plateforme peut inviter dans n'importe quel groupe d'apiculteurs.
+L'invité doit avoir un compte actif (activé, email vérifié) et l'administrateur doit
+taper son adresse complète : aucune recherche ni suggestion n'est proposée, et l'adresse
+n'est pas conservée. Après 10 adresses sans compte actif en 24 heures, les invitations de
+cet administrateur sont suspendues 24 heures. L'invité voit l'invitation sur la page
+d'accueil ; en l'acceptant, il est ajouté au groupe Keycloak par le compte de service du
+backend (rôle `manage-users`, voir `doc/prod-migrations/0003-profile-photo.md`) et reçoit
+le rôle `beekeeper` hérité de `/beekeepers`. Une invitation sans réponse expire après
+30 jours. Les groupes de bénévoles ne sont pas concernés.
+
 L'import de realm ne s'applique qu'à un realm neuf : sur un environnement existant, créez
 le sous-groupe `admin` à la main dans la console Keycloak et attribuez-lui `group-admin`.
 

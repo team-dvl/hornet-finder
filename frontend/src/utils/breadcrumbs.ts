@@ -11,6 +11,7 @@ const ADMIN_SECTIONS: Record<string, string> = {
   species: 'Espèces',
   archiving: 'Archivage',
   tags: 'QR Codes',
+  invitations: 'Invitations',
 };
 
 /** Statistics with a page, for the breadcrumb trail (short names). */
