@@ -296,7 +296,9 @@ class TrapSpecies(Statistic):
         rows.sort(key=lambda row: (row['slug'] != HORNET_SPECIES_SLUG, -(row['catches'] or 0)))
 
         # Shares per bucket, on complete readings: the top species and the rest
-        ranked = sorted(whole.counted_species, key=lambda slug: -whole.counted_species[slug])
+        # The Asian hornet always first, so it keeps the first colour of the chart
+        ranked = sorted(whole.counted_species,
+                        key=lambda slug: (slug != HORNET_SPECIES_SLUG, -whole.counted_species[slug]))
         top = ranked[:TOP_SPECIES]
         series = []
         for part, t in zip(parts, tallies):

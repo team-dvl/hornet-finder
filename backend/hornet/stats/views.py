@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 EXPORT_SALT = 'hornet.stats.export'
 EXPORT_LINK_SECONDS = 15 * 60
 PARAMETERS = ('period', 'season', 'year', 'from', 'to', 'granularity', 'compare',
-              'trap_type', 'group', 'mine', 'lat', 'lon', 'radius', 'bbox', 'reach', 'bandwidth')
+              'trap_type', 'group', 'mine', 'lat', 'lon', 'radius', 'bbox', 'reach', 'bandwidth', 'order')
 
 
 def error_response(exc: StatError) -> Response:

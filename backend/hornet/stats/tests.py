@@ -482,8 +482,9 @@ class SpeciesTests(StatsTestCase):
         self.assertLess(rows['apis-mellifera']['share_low'], 14 / 21)
         self.assertEqual(data['totals']['readings'], 2)
         self.assertEqual(data['totals']['complete_readings'], 1)
+        # The Asian hornet first, though fewer were counted: it keeps the first colour
         self.assertEqual([s['slug'] for s in data['series']['species']],
-                         ['apis-mellifera', 'vespa-velutina'])
+                         ['vespa-velutina', 'apis-mellifera'])
         # 1-7 March carries the whole complete reading: shares of that week
         s10 = next(b for b in data['series']['buckets'] if b['bucket'] == 'S10')
         self.assertAlmostEqual(s10['shares']['vespa-velutina'], 7 / 21, places=3)
@@ -519,3 +520,14 @@ class RankingTests(ThreeTrapsTestCase):
         self.assertEqual(by_rate[-1]['id'], short.id)
         self.assertIsNone(by_rate[-1]['rate'])
         self.assertEqual(self.stat('traps-ranking', {**self.MARCH, 'order': 'x'}).status_code, 400)
+
+    def test_the_export_keeps_the_order(self):
+        request = self.factory.post('/stats/traps-ranking/export/',
+                                    {'format': 'csv', 'params': {**self.MARCH, 'order': 'hornets'}},
+                                    format='json')
+        force_authenticate(request, user=self.admin_user)
+        link = StatExportLinkView.as_view()(request, stat_id='traps-ranking')
+        self.assertEqual(link.status_code, 200, link.data)
+        lines = self.client.get(link.data['url']).content.decode('utf-8').strip().split('\r\n')
+        # The harp caught the most: first once sorted by catches
+        self.assertTrue(lines[1].startswith(f'{self.harp.id};'), lines[1])
