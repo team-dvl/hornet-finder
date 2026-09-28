@@ -112,6 +112,24 @@ wait_for_services() {
     sleep "$wait_time"
 }
 
+# show_migration_status polls the api container's logs for the [MIGRATION]
+# lines written by backend/docker-entrypoint.sh and prints them, so a
+# migration that actually ran (or didn't) is visible in the deploy output.
+show_migration_status() {
+    local service="$1"
+    local attempt
+    for attempt in $(seq 1 15); do
+        local lines
+        lines=$(docker compose logs --no-log-prefix "$service" 2>/dev/null | grep "^\[MIGRATION\]" || true)
+        if [[ -n "$lines" ]]; then
+            echo "$lines"
+            return 0
+        fi
+        sleep 1
+    done
+    echo "[MIGRATION] Status unavailable yet, check with: ./logs.sh $service"
+}
+
 # build_frontend_production builds the production bundle into the
 # frontend-dist volume. Pass 1 as first argument to bypass the Docker cache.
 build_frontend_production() {

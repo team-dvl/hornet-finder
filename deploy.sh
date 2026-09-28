@@ -140,6 +140,11 @@ if [[ -n "$SERVICE" ]]; then
         handle_error "Failed to restart service $RESOLVED_SERVICE"
     fi
 
+    # Report migration status for the api service
+    if [[ "$RESOLVED_SERVICE" == "$(resolve_service_name api "$MODE")" ]]; then
+        show_migration_status "$RESOLVED_SERVICE"
+    fi
+
     # Show service logs
     echo ""
     echo "[LOGS] Recent logs for $RESOLVED_SERVICE:"
@@ -164,6 +169,9 @@ fi
 
 # Wait for services to be ready
 wait_for_services
+
+# Report migration status for the api service
+show_migration_status "$(resolve_service_name api "$MODE")"
 
 # Check service status
 echo "[STATUS] Service status:"
