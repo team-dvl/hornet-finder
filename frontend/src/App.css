@@ -945,6 +945,35 @@ button.module-card {
   font-variant-numeric: tabular-nums;
 }
 
+/* Charts: drawn to the width of the page, never scrolled sideways */
+.stat-view-toggle .btn {
+  min-height: 2.75rem;
+}
+
+.stat-chart {
+  width: 100%;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.stat-chart svg {
+  display: block;
+}
+
+.stat-chart-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin: 0.75rem 0 0.125rem;
+}
+
+.stat-chart-legend {
+  font-size: 0.75rem;
+  color: var(--bs-secondary-color);
+  margin-bottom: 0.125rem;
+}
+
 /* Map statistics: the map, its legend and the cell tapped */
 .stat-map {
   position: relative;

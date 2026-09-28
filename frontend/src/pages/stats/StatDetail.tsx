@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Container, Spinner } from 'react-bootstrap';
+import { Alert, Button, ButtonGroup, Container, Spinner } from 'react-bootstrap';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PageHeader, PageLayout } from '../../components/layout';
 import { HelpTip } from '../../components/common';
@@ -9,9 +9,11 @@ import MapStatView from '../../components/stats/MapStatView';
 import type { GridState } from '../../components/stats/StatGridOverlay';
 import StatExportSheet from '../../components/stats/StatExportSheet';
 import StatFiltersSheet from '../../components/stats/StatFiltersSheet';
+import TrapRankingView from '../../components/stats/TrapRankingView';
+import TrapSpeciesView from '../../components/stats/TrapSpeciesView';
 import TrapTypesView from '../../components/stats/TrapTypesView';
 import {
-  filterableGroups, GRANULARITY_OPTIONS, readParams, writeParams,
+  filterableGroups, GRANULARITY_OPTIONS, ORDER_OPTIONS, readParams, writeParams,
 } from '../../components/stats/statParams';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
@@ -31,9 +33,12 @@ function loadCatalogue() {
   return cataloguePromise;
 }
 
-const VIEWS: Record<string, (props: { result: StatResult }) => React.ReactElement> = {
+/** Views of the table statistics: a list, or charts (`view=chart` in the URL) */
+const VIEWS: Record<string, (props: { result: StatResult; chart?: boolean }) => React.ReactElement> = {
   'traps-catches': CatchesView,
+  'traps-species': TrapSpeciesView,
   'trap-types': TrapTypesView,
+  'traps-ranking': TrapRankingView,
 };
 
 /** Statistics drawn on a map: they load their own cells, view by view */
@@ -61,6 +66,8 @@ export default function StatDetail() {
   const isMap = MAP_STATS.has(statId);
 
   const params = useMemo(() => readParams(searchParams), [searchParams]);
+  // How the table is shown is not a parameter of the statistic: never sent to the API
+  const chart = searchParams.get('view') === 'chart';
   const requestKey = `${statId}?${writeParams(params)}`;
   const groups = useMemo(() => filterableGroups(membership), [membership]);
 
@@ -105,14 +112,25 @@ export default function StatDetail() {
       next.from = result.period.start;
       next.to = result.period.end;
     }
-    const search = writeParams(next);
-    navigate({ search: search ? `?${search}` : '' }, { replace: true });
-  }, [params, navigate, result]);
+    const search = new URLSearchParams(writeParams(next));
+    if (chart) search.set('view', 'chart');
+    const text = search.toString();
+    navigate({ search: text ? `?${text}` : '' }, { replace: true });
+  }, [params, navigate, result, chart]);
+
+  const showChart = useCallback((on: boolean) => {
+    const search = new URLSearchParams(writeParams(params));
+    if (on) search.set('view', 'chart');
+    navigate({ search: `?${search.toString()}` }, { replace: true });
+  }, [params, navigate]);
 
   const chips = useMemo(() => {
     const list: string[] = [result?.period.label ?? '…'];
     if (description?.filters.includes('granularity')) {
       list.push(GRANULARITY_OPTIONS.find((o) => o.value === (params.granularity || 'week'))?.chip ?? '');
+    }
+    if (description?.filters.includes('order')) {
+      list.push(ORDER_OPTIONS.find((o) => o.value === (params.order || 'rate'))?.chip ?? '');
     }
     if (params.trap_type) list.push(trapTypes.find((t) => t.slug === params.trap_type)?.name ?? params.trap_type);
     if (params.group) list.push(groups.find((g) => g.path === params.group)?.label ?? params.group);
@@ -121,7 +139,7 @@ export default function StatDetail() {
     return list.filter(Boolean);
   }, [result, description, params, trapTypes, groups]);
 
-  const View = VIEWS[statId];
+  const View = VIEWS[statId] as (typeof VIEWS)[string] | undefined;
   const title = description?.title ?? result?.statistic.title ?? 'Statistique';
 
   return (
@@ -182,7 +200,25 @@ export default function StatDetail() {
             {result.warnings.map((warning) => (
               <Alert key={warning} variant="warning" className="small py-2">{warning}</Alert>
             ))}
-            {View ? <View result={result} /> : <Alert variant="secondary">Statistique inconnue.</Alert>}
+            {View && (
+              <ButtonGroup className="w-100 mb-3 stat-view-toggle" role="radiogroup" aria-label="Affichage">
+                {[false, true].map((on) => (
+                  <Button
+                    key={String(on)}
+                    variant={chart === on ? 'primary' : 'outline-primary'}
+                    role="radio"
+                    aria-checked={chart === on}
+                    onClick={() => showChart(on)}
+                  >
+                    <i className={`bi ${on ? 'bi-bar-chart-line' : 'bi-list-ul'} me-2`} aria-hidden="true" />
+                    {on ? 'Graphique' : 'Tableau'}
+                  </Button>
+                ))}
+              </ButtonGroup>
+            )}
+            {View
+              ? <View key={requestKey} result={result} chart={chart} />
+              : <Alert variant="secondary">Statistique inconnue.</Alert>}
           </div>
         )}
       </Container>

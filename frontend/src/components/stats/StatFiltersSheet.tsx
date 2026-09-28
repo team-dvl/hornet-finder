@@ -5,7 +5,7 @@ import { BottomSheet } from '../ui';
 import { currentPosition } from '../../utils/position';
 import type { StatParams } from '../../utils/statsApi';
 import {
-  GRANULARITY_OPTIONS, PERIOD_OPTIONS, RADIUS_OPTIONS, SEASON_OPTIONS, yearOptions,
+  GRANULARITY_OPTIONS, ORDER_OPTIONS, PERIOD_OPTIONS, RADIUS_OPTIONS, SEASON_OPTIONS, yearOptions,
 } from './statParams';
 
 interface StatFiltersSheetProps {
@@ -122,6 +122,31 @@ export default function StatFiltersSheet({
                 role="radio"
                 aria-checked={(params.granularity || 'week') === option.value}
                 onClick={() => onChange({ granularity: option.value })}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </ButtonGroup>
+        </>
+      )}
+
+      {offers('order') && (
+        <>
+          <Form.Label className="fw-semibold mt-3 mb-2 d-flex align-items-center">
+            Classement
+            <HelpTip id="stat-order-help" title="Classement">
+              Par semaine : frelons capturés par semaine de présence du piège, qui ne favorise pas les
+              pièges posés plus tôt. Captures : le total de la période.
+            </HelpTip>
+          </Form.Label>
+          <ButtonGroup className="w-100" role="radiogroup" aria-label="Classement">
+            {ORDER_OPTIONS.map((option) => (
+              <Button
+                key={option.value}
+                variant={(params.order || 'rate') === option.value ? 'primary' : 'outline-primary'}
+                role="radio"
+                aria-checked={(params.order || 'rate') === option.value}
+                onClick={() => onChange({ order: option.value })}
               >
                 {option.label}
               </Button>

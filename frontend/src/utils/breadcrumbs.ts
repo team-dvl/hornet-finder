@@ -17,7 +17,9 @@ const ADMIN_SECTIONS: Record<string, string> = {
 /** Statistics with a page, for the breadcrumb trail (short names). */
 export const STAT_SECTIONS: Record<string, string> = {
   'traps-catches': 'Captures FA',
+  'traps-species': 'Espèces',
   'trap-types': 'Types de piège',
+  'traps-ranking': 'Classement',
   'traps-coverage': 'Couverture',
   'traps-pressure': 'Pression',
 };

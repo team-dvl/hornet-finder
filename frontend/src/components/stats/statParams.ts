@@ -9,7 +9,7 @@ const LOCALE = 'fr-BE';
 /** Keys the URL may carry; the same names as the API's */
 export const PARAM_KEYS = [
   'period', 'season', 'year', 'from', 'to', 'granularity', 'compare',
-  'trap_type', 'group', 'mine', 'lat', 'lon', 'radius', 'reach', 'bandwidth',
+  'trap_type', 'group', 'mine', 'lat', 'lon', 'radius', 'reach', 'bandwidth', 'order',
 ] as const;
 
 export const PERIOD_OPTIONS = [
@@ -31,6 +31,11 @@ export const GRANULARITY_OPTIONS = [
   { value: 'day', label: 'Jour', chip: 'Par jour' },
   { value: 'week', label: 'Semaine', chip: 'Par semaine' },
   { value: 'month', label: 'Mois', chip: 'Par mois' },
+];
+
+export const ORDER_OPTIONS = [
+  { value: 'rate', label: 'Par semaine', chip: 'Classés par semaine' },
+  { value: 'hornets', label: 'Captures', chip: 'Classés par captures' },
 ];
 
 export const RADIUS_OPTIONS = [1, 2, 5, 10];

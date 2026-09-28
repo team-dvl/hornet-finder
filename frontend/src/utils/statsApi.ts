@@ -10,8 +10,10 @@ export interface StatDescription {
   description: string;
   /** `table`: rows over time or by group; `map`: cells of a 250 m grid */
   kind: 'table' | 'map';
-  /** Parameters the page offers: period, granularity, compare, trap_type, group, mine, zone */
+  /** Parameters the page offers: period, granularity, compare, order, trap_type, group, mine, zone */
   filters: string[];
+  /** File formats the statistic exports to */
+  exports: ExportFormat[];
 }
 
 export interface StatColumn {
@@ -47,6 +49,13 @@ export interface StatResult {
   totals: StatRow;
   warnings: string[];
   computed_at: string;
+  /** Ranking of the traps: `rate` or `hornets` */
+  order?: 'rate' | 'hornets';
+  /** Species: the top species and, per bucket, the share of each among the insects counted */
+  series?: {
+    species: { slug: string; name: string }[];
+    buckets: { bucket: string; dates: string; start: string; counted: number; shares: Record<string, number | null> }[];
+  };
 }
 
 /** Properties of a grid cell: `covered` (share, coverage) or `rate` (pressure) */
