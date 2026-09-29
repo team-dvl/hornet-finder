@@ -66,6 +66,8 @@ services:
       - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
     volumes:
       - media:/app/media
+      # Layout and logo of the Keycloak email theme, reused by the API's emails
+      - ./auth/themes/velutina/email:/app/email-theme:ro
     depends_on:
       - hornet-finder-api-db
       - hornet-finder-keycloak

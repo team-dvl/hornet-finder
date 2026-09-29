@@ -84,7 +84,10 @@ An administrator of a beekeeper group (member of `/beekeepers/<id>/admin`) or a 
 
 - `GET /api/group-invitations/invitable/` - Groups the caller may invite to (`path`, `name` from the `fancy_name` attribute) and `lookup` (`remaining_attempts`, `locked_until`)
 - `GET|POST /api/group-invitations/` - Pending invitations of those groups, or invite (`group_path`, `email`). Errors carry a `code`: `no_active_user` (404, counted, with `remaining_attempts`), `locked` (429, `Retry-After`), `self`, `already_member`, `already_invited` (409); a malformed address (400) or a Keycloak failure (503) is not counted
+- `POST /api/group-invitations/{id}/remind/` - Email the invitee again (any administrator of its group), at most once per 24 hours since the last email that left, the invitation's own included. Errors carry a `code`: `too_soon` (429, `next_reminder_at`), `inactive` (409, account disabled or deleted since), `mail_failed` (502, nothing counted). The listing gives `next_reminder_at` (null: now) and `reminders_sent`
 - `DELETE /api/group-invitations/{id}/` - Withdraw a pending invitation (any administrator of its group)
+
+The emails use the layout of the Keycloak email theme (`auth/themes/velutina/email/html/template.ftl`), read at sending time from `EMAIL_THEME_DIR` (the theme folder, mounted read-only by both compose files): no copy of the HTML, the logo travels inline (`cid:`). `hornet/emails.py` resolves the four FreeMarker expressions the layout uses and refuses any other, which the tests catch; without the theme, the email goes as plain text.
 - `GET /api/me/group-invitations/` - Pending invitations of the caller
 - `POST /api/me/group-invitations/{id}/accept/`, `POST /api/me/group-invitations/{id}/decline/` - Answer one; the new membership shows in the next token
 

@@ -490,6 +490,8 @@ class GroupInvitation(models.Model):
         (STATUS_EXPIRED, 'Expirée'),
     ]
     VALIDITY = timedelta(days=30)
+    # At most one email per interval, the invitation's own included
+    REMINDER_INTERVAL = timedelta(hours=24)
 
     group_path = models.CharField(max_length=256)
     # Display name of the group when the invitation was sent
@@ -501,6 +503,9 @@ class GroupInvitation(models.Model):
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_PENDING)
     created_at = models.DateTimeField(auto_now_add=True)
     responded_at = models.DateTimeField(null=True, blank=True)
+    # Last email that reached the mail server (invitation or reminder)
+    last_notified_at = models.DateTimeField(null=True, blank=True)
+    reminders_sent = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
         ordering = ['-created_at', '-id']
@@ -518,6 +523,11 @@ class GroupInvitation(models.Model):
     @property
     def expires_at(self):
         return self.created_at + self.VALIDITY
+
+    @property
+    def next_reminder_at(self):
+        """When a reminder may be sent; None when no email ever left (right away)."""
+        return self.last_notified_at + self.REMINDER_INTERVAL if self.last_notified_at else None
 
     @classmethod
     def expire_stale(cls, **filters) -> None:

@@ -162,7 +162,10 @@ cet administrateur sont suspendues 24 heures. L'invité voit l'invitation sur la
 d'accueil ; en l'acceptant, il est ajouté au groupe Keycloak par le compte de service du
 backend (rôle `manage-users`, voir `doc/prod-migrations/0003-profile-photo.md`) et reçoit
 le rôle `beekeeper` hérité de `/beekeepers`. Une invitation sans réponse expire après
-30 jours. Les groupes de bénévoles ne sont pas concernés.
+30 jours. L'invité est prévenu par un email à l'adresse de son compte, dans la mise en
+page des emails de Keycloak (le thème `auth/themes/velutina/email` est relu par l'API) ;
+un administrateur du groupe peut lui envoyer un rappel au plus une fois par 24 heures.
+Les groupes de bénévoles ne sont pas concernés.
 
 L'import de realm ne s'applique qu'à un realm neuf : sur un environnement existant, créez
 le sous-groupe `admin` à la main dans la console Keycloak et attribuez-lui `group-admin`.
