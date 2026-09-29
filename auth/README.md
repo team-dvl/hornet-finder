@@ -54,6 +54,8 @@ Complete realm configuration export containing:
 - **Authentication flows and security policies**
 - **Session and token configurations**
 
+To refresh the committed exports from the running realm, run `./export-realm.sh` from the worktree of the environment (`-n` for a dry run). It relies on the `flow-admin` client from `.env`, Keycloak masks the secrets, and the script refuses any export that still contains one. The exports only feed the import of a new realm: the masked secrets must be set again after such an import.
+
 ## Configuration
 
 ### Environment Variables
