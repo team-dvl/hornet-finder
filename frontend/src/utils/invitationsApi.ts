@@ -28,6 +28,9 @@ export interface GroupInvitation {
   status: 'pending' | 'accepted' | 'declined' | 'cancelled' | 'expired';
   created_at: string;
   expires_at: string;
+  /** Group administrators only: when a reminder may be sent, `null` for right away */
+  next_reminder_at?: string | null;
+  reminders_sent?: number;
   /** Creation only: whether the invitee could be emailed */
   notified?: boolean;
 }
@@ -51,6 +54,11 @@ export async function fetchSentInvitations(): Promise<GroupInvitation[]> {
 
 export async function sendInvitation(groupPath: string, email: string): Promise<GroupInvitation> {
   return (await api.post('/group-invitations/', { group_path: groupPath, email })).data;
+}
+
+/** Email the invitee again: once per 24 hours, the invitation's own email included. */
+export async function remindInvitation(id: number): Promise<GroupInvitation> {
+  return (await api.post(`/group-invitations/${id}/remind/`)).data;
 }
 
 export async function cancelInvitation(id: number): Promise<void> {

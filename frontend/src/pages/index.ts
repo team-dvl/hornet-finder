@@ -7,3 +7,4 @@ export { DocsIndex, DocPage } from './docs';
 export { AdminIndex, TrapTypesAdmin, SpeciesAdmin, TagsAdmin, ArchivingAdmin, InvitationsAdmin } from './admin';
 export { default as PrivacyPolicy } from './PrivacyPolicy';
 export { default as DataDeletion } from './DataDeletion';
+export { default as Invitations } from './Invitations';
