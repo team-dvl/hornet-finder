@@ -178,6 +178,23 @@ def find_active_user_by_email(email: str) -> Optional[dict]:
     return None
 
 
+def get_active_user_email(guid: str) -> Optional[str]:
+    """
+    The verified email of an enabled account, or None (disabled, unverified or deleted).
+
+    :raises Exception: Any other Keycloak failure, left to the caller.
+    """
+    try:
+        user = _get_keycloak_admin().get_user(guid)
+    except KeycloakGetError as exc:
+        if exc.response_code == 404:
+            return None
+        raise
+    if user.get('enabled') and user.get('emailVerified'):
+        return user.get('email') or None
+    return None
+
+
 def get_group_by_path(path: str) -> Optional[dict]:
     """
     The Keycloak group at `path` (with its attributes), or None when it does not exist.

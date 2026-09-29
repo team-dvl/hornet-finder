@@ -271,3 +271,6 @@ if os.environ.get('EMAIL_HOST'):
     # Without it a stalled server would hold the request (and its worker) forever
     EMAIL_TIMEOUT = 15
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'Velutina <contact@velutina.ovh>')
+# Keycloak email theme (auth/themes/velutina/email), mounted read-only: the
+# API's HTML emails use its layout (see hornet/emails.py)
+EMAIL_THEME_DIR = os.environ.get('EMAIL_THEME_DIR', '/app/email-theme')
