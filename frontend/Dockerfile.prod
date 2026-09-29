@@ -11,6 +11,10 @@ RUN npm ci
 # Copier le code source
 COPY . .
 
+# Version shown in the app (git tag), read by Vite at build time
+ARG VITE_APP_VERSION=unknown
+ENV VITE_APP_VERSION=$VITE_APP_VERSION
+
 # Définir l'environnement de production
 ENV NODE_ENV=production
 

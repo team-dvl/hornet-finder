@@ -175,6 +175,8 @@ services:
       # URLs pour le développement - utiliser les vrais services
       - VITE_API_URL=https://dev.velutina.ovh/api/
       - VITE_KEYCLOAK_URL=https://auth.dev.velutina.ovh/
+      # Set by the scripts (lib/version.sh) from the git tag
+      - VITE_APP_VERSION=${APP_VERSION:-dev}
     volumes:
       - ./frontend:/app
       - /app/node_modules

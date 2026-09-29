@@ -118,6 +118,9 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
+      args:
+        # Set by the scripts (lib/version.sh) from the git tag
+        VITE_APP_VERSION: ${APP_VERSION:-unknown}
     container_name: hornet-finder-frontend-build
     environment:
       - VITE_API_URL=https://velutina.ovh/api/

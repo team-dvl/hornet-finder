@@ -152,6 +152,19 @@ button.module-card {
   padding-left: 0;
 }
 
+/* Version: last line of the phone menu, at the far end of the bar on desktop */
+.navbar-version {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  padding: 0.25rem 0;
+}
+
+@media (min-width: 992px) {
+  .navbar-version {
+    margin-left: 1rem;
+  }
+}
+
 /* Menu opened on a phone: list rows large enough for a finger */
 @media (max-width: 991.98px) {
   .navbar-collapse {
