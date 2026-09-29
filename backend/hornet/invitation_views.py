@@ -136,22 +136,23 @@ def _notify_invitee(invitation, email: str, inviter_name, reminder: bool = False
         lead = inviter_name or 'Un administrateur'
         subject = f"Invitation à rejoindre {group}"
     expires = timezone.localtime(invitation.expires_at).strftime('%d/%m/%Y')
-    url = f"https://{settings.PUBLIC_HOST}/"
+    # The app signs the visitor in first, then lists their invitations
+    url = f"https://{settings.PUBLIC_HOST}/invitations"
     text = (
         "Bonjour,\n\n"
         f"{lead} vous invite à rejoindre « {group} » sur Velutina, "
         "l'application de gestion du frelon asiatique.\n\n"
-        f"Pour accepter ou refuser, connectez-vous à {url} : "
-        f"l'invitation apparaît sur la page d'accueil jusqu'au {expires}.\n\n"
+        f"Pour l'accepter ou la refuser, jusqu'au {expires} : {url}\n"
+        "(une connexion vous sera demandée si nécessaire)\n\n"
         "Si vous ne connaissez pas ce groupe, ignorez simplement ce message.\n"
     )
     html = format_html(
         '<p>Bonjour,</p>'
         '<p>{} vous invite à rejoindre <strong>« {} »</strong> sur Velutina, '
         "l'application de gestion du frelon asiatique.</p>"
-        '<p><a href="{}">Ouvrir Velutina</a></p>'
-        "<p>Une fois connecté, vous trouverez l'invitation sur la page d'accueil : vous pouvez "
-        "l'accepter ou la refuser jusqu'au {}.</p>"
+        '<p><a href="{}">Voir l\'invitation</a></p>'
+        "<p>Vous pouvez l'accepter ou la refuser jusqu'au {} ; une connexion vous sera "
+        "demandée si nécessaire.</p>"
         '<p style="color:#7a8177; font-size:13px;">Si vous ne connaissez pas ce groupe, '
         'ignorez simplement ce message.</p>',
         lead, group, url, expires,

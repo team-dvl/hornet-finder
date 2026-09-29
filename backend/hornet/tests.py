@@ -2130,12 +2130,12 @@ class GroupInvitationRightsTests(GroupInvitationTestCase):
         self.assertEqual(message.to, ['pi@example.org'])
         self.assertIn("école namuroise d'apiculture", message.subject)
         self.assertIn(f'Name {self.aga.guid[:8]}', message.body)
-        self.assertIn('https://', message.body)
+        self.assertIn('/invitations', message.body)
         self.assertEqual(GroupInvitation.objects.get().last_notified_at is not None, True)
         if _THEME_DIR:
             html = message.alternatives[0].content
             self.assertIn('cid:vsab-logo@velutina', html)
-            self.assertIn('Ouvrir Velutina', html)
+            self.assertIn('/invitations">Voir l\'invitation</a>', html)
             # Escaped in the HTML part
             self.assertIn('école namuroise d&#x27;apiculture', html)
 

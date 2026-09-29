@@ -4,7 +4,7 @@ import { Container, Alert, Spinner } from 'react-bootstrap'
 import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from 'react-oidc-context';
-import { Home, MapPage, Nests, Traps, Apiaries, DocsIndex, DocPage, AdminIndex, TrapTypesAdmin, SpeciesAdmin, TagsAdmin, ArchivingAdmin, InvitationsAdmin, PrivacyPolicy, DataDeletion } from './pages';
+import { Home, MapPage, Nests, Traps, Apiaries, DocsIndex, DocPage, AdminIndex, TrapTypesAdmin, SpeciesAdmin, TagsAdmin, ArchivingAdmin, InvitationsAdmin, PrivacyPolicy, DataDeletion, Invitations } from './pages';
 import { RequireRole } from './components/common';
 import { initIOSViewportFix } from './utils/iosViewportFix';
 import { useUrlCleaner } from './utils/urlCleaner';
@@ -160,6 +160,8 @@ function App() {
         path="/admin/tags"
         element={<RequireRole roles={['volunteer', 'beekeeper', 'admin']}><TagsAdmin /></RequireRole>}
       />
+      {/* Link of the invitation emails: signs in first, then lists the invitations */}
+      <Route path="/invitations" element={<Invitations />} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="/data-deletion" element={<DataDeletion />} />
       <Route path="*" element={<Navigate to="/" replace />} />
