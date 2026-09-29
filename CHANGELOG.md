@@ -24,5 +24,10 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   once per 24 hours.
 
 ### Changed
+- New app icon: an Asian hornet traced after a photo, in a target on the yellow
+  of the Vedrin s'abeille logo; the dev icon is purple with a red "DEV" band.
+  Full-bleed icons (maskable on Android, opaque on iOS) fill the home-screen
+  shape instead of showing black corners or a white disc. Sources and build in
+  `frontend/icons/`.
 - Groups are shown by their Keycloak description (e.g. "Vedrin s'abeille")
   instead of the `fancy_name` attribute, in invitations, delegation and sharing.
