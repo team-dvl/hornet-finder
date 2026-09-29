@@ -1,6 +1,6 @@
 status: pending
 
-# Keycloak 26.7.3 → 26.7.4 (`main` 3d79b93 → `devel`)
+# Keycloak 26.7.3 → 26.7.4 (`devel`)
 
 **À exécuter depuis le worktree prod (`/home/debian/hornet-finder`).**
 
