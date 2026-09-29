@@ -330,7 +330,12 @@ Exports :
   les graphiques de la page dessinés en vectoriel (`reportlab.graphics.shapes`,
   mêmes couleurs et échelles que l'écran, `hornet/stats/pdf.py`), puis le
   tableau, en-têtes répétés à chaque page. Servi `inline` pour s'ouvrir dans
-  le lecteur du navigateur. Rendu mesuré dans le conteneur de dev : 15 à
+  le lecteur du navigateur. Dans l'application installée (PWA iOS), un lien
+  `target="_blank"` ouvre une vue sans partage, sans impression ni retour :
+  là, le fichier est récupéré puis passé à la feuille de partage native
+  (`navigator.share`), comme les planches de QR codes. Le fichier étant
+  calculé à la demande, Safari peut juger le partage trop éloigné du tap ;
+  le fichier est alors gardé et un second tap le partage. Rendu mesuré dans le conteneur de dev : 15 à
   115 ms (500 lignes du classement : ~0,11 s, 12 pages), en plus du calcul.
   Pas de `matplotlib` (plusieurs dizaines de Mo dans l'image).
 - **CSV** : gratuit, utile pour tout le reste.

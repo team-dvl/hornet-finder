@@ -31,8 +31,10 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   summer-autumn-winter), year, free dates. Totals count every trap; anything
   located (zone, map, trap list) only the traps the user can see.
 - Each table as a list or as charts, and exported to Excel, PDF (with its
-  charts) or CSV; maps to Excel or CSV. A link to the files can be emailed to
-  the signed-in user (download page valid one hour, ten downloads).
+  charts) or CSV; maps to Excel or CSV. In the installed app the file goes
+  through the share sheet (print, save to Files, other apps). A link to the
+  files can be emailed to the signed-in user (download page valid one hour, ten
+  downloads).
 
 ### Changed
 - A trap visit is recorded as a reading ("Relevé"), zero catches included,

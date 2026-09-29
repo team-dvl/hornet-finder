@@ -129,7 +129,10 @@ export default function StatsDoc() {
         <p>
           Le bouton d&apos;export donne le tableau affiché en Excel, en PDF (avec ses graphiques)
           ou en CSV, avec la période, les filtres et les pièges comptés. Le lien du fichier reste
-          valable 15 minutes. Les cartes s&apos;exportent en Excel et en CSV.
+          valable 15 minutes. Les cartes s&apos;exportent en Excel et en CSV. Dans l&apos;application
+          installée sur l&apos;écran d&apos;accueil, le fichier s&apos;ouvre dans la feuille de partage :
+          imprimer, enregistrer dans Fichiers, envoyer. Si elle ne s&apos;ouvre pas du premier coup,
+          touchez « partager » une seconde fois.
         </p>
         <p className="mb-0">
           <strong>Envoyer un lien par email</strong> : vous recevez un lien vers une page de
