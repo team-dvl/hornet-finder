@@ -504,11 +504,8 @@
               "clientRoles": {}
             }
           ],
-          "attributes": {
-            "fancy_name": [
-              "école namuroise d'apiculture"
-            ]
-          },
+          "description": "école namuroise d'apiculture",
+          "attributes": {},
           "realmRoles": [],
           "clientRoles": {}
         },
@@ -532,11 +529,8 @@
               "clientRoles": {}
             }
           ],
-          "attributes": {
-            "fancy_name": [
-              "Vedrin s'abeille"
-            ]
-          },
+          "description": "Vedrin s'abeille",
+          "attributes": {},
           "realmRoles": [],
           "clientRoles": {}
         }
@@ -571,11 +565,8 @@
               "clientRoles": {}
             }
           ],
-          "attributes": {
-            "fancy_name": [
-              "Vedrin s'anime"
-            ]
-          },
+          "description": "Vedrin s'anime",
+          "attributes": {},
           "realmRoles": [],
           "clientRoles": {}
         }

@@ -165,6 +165,9 @@ le rôle `beekeeper` hérité de `/beekeepers`. Une invitation sans réponse exp
 30 jours. L'invité est prévenu par un email à l'adresse de son compte, dans la mise en
 page des emails de Keycloak (le thème `auth/themes/velutina/email` est relu par l'API) ;
 un administrateur du groupe peut lui envoyer un rappel au plus une fois par 24 heures.
+Le nom du groupe montré dans l'application et dans les emails est sa **description**
+Keycloak (Groups → le groupe → *Description*, par exemple « Vedrin s'abeille ») ; sans
+description, c'est son nom technique (`vsab`).
 Les groupes de bénévoles ne sont pas concernés.
 
 L'import de realm ne s'applique qu'à un realm neuf : sur un environnement existant, créez

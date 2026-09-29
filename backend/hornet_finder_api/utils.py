@@ -223,9 +223,8 @@ def get_child_groups(path: str) -> list:
 
 
 def group_display_name(group: dict) -> str:
-    """The `fancy_name` attribute of a Keycloak group, else its name."""
-    fancy = (group.get('attributes') or {}).get('fancy_name') or []
-    return fancy[0] if fancy else group.get('name') or group.get('path', '')
+    """The description of a Keycloak group (its full name, e.g. "Vedrin s'abeille"), else its name."""
+    return (group.get('description') or '').strip() or group.get('name') or group.get('path', '')
 
 
 def add_user_to_group(guid: str, group_id: str) -> None:
