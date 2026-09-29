@@ -8,7 +8,7 @@ import { accountConsoleUrl, signInFromCurrentPage } from '../utils/authRedirect'
 import { useUserPermissions } from '../hooks/useUserPermissions';
 
 /** App icon, the dev one (purple, "DEV" band) on the dev server, as for the installed PWA. */
-const APP_ICON = import.meta.env.DEV ? '/icons/pwa-dev-192x192.png' : '/icons/pwa-192x192.png';
+const APP_ICON = import.meta.env.VITE_APP_ICON;
 
 /** Landing page: title and the module menu. Descriptive content lives in the documentation module. */
 export default function Home() {

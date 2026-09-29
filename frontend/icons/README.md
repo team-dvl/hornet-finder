@@ -31,6 +31,13 @@ picks the dev ones on the Vite dev server).
 `icons/shortcut-scan-96x96.png` (the "Scanner" shortcut) is a separate
 pictogram, not generated here.
 
+`vite.config.ts` references every icon with a hash of its content
+(`?v=1a2b3c4d`), so a new icon gets a new URL: prod nginx serves images as
+immutable for a year, and iOS keeps touch icons in a cache of its own. On the
+dev server, the root paths Safari fetches by itself (`/apple-touch-icon.png`,
+`/apple-touch-icon-precomposed.png`, `/favicon.ico`) answer with the dev icons,
+otherwise an iPhone home screen gets the prod icon for the dev app.
+
 ## Constraints
 
 - Full bleed, no transparency on the maskable and Apple icons.

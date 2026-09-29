@@ -27,7 +27,13 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 - New app icon: an Asian hornet traced after a photo, in a target on the yellow
   of the Vedrin s'abeille logo; the dev icon is purple with a red "DEV" band.
   Full-bleed icons (maskable on Android, opaque on iOS) fill the home-screen
-  shape instead of showing black corners or a white disc. Sources and build in
+  shape instead of showing black corners or a white disc. Icon URLs carry a hash
+  of their content, so no cache keeps an old icon. Sources and build in
   `frontend/icons/`.
 - Groups are shown by their Keycloak description (e.g. "Vedrin s'abeille")
   instead of the `fancy_name` attribute, in invitations, delegation and sharing.
+
+### Fixed
+- The dev PWA added to an iPhone home screen got the prod icon: Safari also
+  fetches `/apple-touch-icon.png` on its own, which the dev server now answers
+  with the dev icon.
