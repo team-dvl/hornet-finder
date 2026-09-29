@@ -8,7 +8,7 @@ status: pending
 Gestion de versions par tags git (`release.sh`, `CHANGELOG.md`, `doc/VERSIONING.md`). Frontend seul : la version s'affiche en bas du menu. Ni backend, ni base, ni `.env`, ni Keycloak, ni nginx.
 
 ## Prérequis
-- Notes 0001 à 0006 appliquées.
+- Notes 0001 à 0007 appliquées.
 - Au moins un tag `vX.Y.Z` posé depuis le worktree dev (sinon le menu affiche `v0.0.0-<sha>`).
 
 ## Étapes
