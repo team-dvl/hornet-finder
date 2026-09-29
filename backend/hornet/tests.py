@@ -1776,7 +1776,7 @@ class _FakeKeycloak:
     def __init__(self):
         self.groups = {
             _ENA: {'id': 'gid-ena', 'path': _ENA, 'name': 'ena',
-                   'attributes': {'fancy_name': ["école namuroise d'apiculture"]}},
+                   'description': "école namuroise d'apiculture", 'attributes': {}},
             _VSAB: {'id': 'gid-vsab', 'path': _VSAB, 'name': 'vsab', 'attributes': {}},
         }
         self.accounts = {}      # lowercased email -> user representation
@@ -2292,6 +2292,14 @@ class KeycloakInvitationHelperTests(TestCase):
         with patch('hornet_finder_api.utils._get_keycloak_admin', return_value=admin):
             with self.assertRaises(KeycloakGetError):
                 get_group_by_path('/beekeepers/ena')
+
+    def test_a_group_is_shown_by_its_description(self):
+        from hornet_finder_api.utils import group_display_name
+
+        self.assertEqual(group_display_name({'name': 'vsab', 'description': "Vedrin s'abeille"}),
+                         "Vedrin s'abeille")
+        self.assertEqual(group_display_name({'name': 'vsab', 'description': '  '}), 'vsab')
+        self.assertEqual(group_display_name({'name': 'vsab'}), 'vsab')
 
     def test_active_email_of_an_account(self):
         from keycloak.exceptions import KeycloakGetError
