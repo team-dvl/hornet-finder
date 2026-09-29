@@ -3,9 +3,9 @@ import { Alert, Button, Container, Form, ListGroup, Spinner } from 'react-bootst
 import { PageHeader, PageLayout } from '../../components/layout';
 import { HelpTip } from '../../components/common';
 import { ConfirmDialog, IconButton } from '../../components/ui';
-import { formatDate, formatDateTime } from '../../utils/format';
+import { formatDate, formatDateTime, formatShortDateTime } from '../../utils/format';
 import {
-  cancelInvitation, fetchInvitable, fetchSentInvitations, inviteErrorOf, sendInvitation,
+  cancelInvitation, fetchInvitable, fetchSentInvitations, inviteErrorOf, remindInvitation, sendInvitation,
   type GroupInvitation, type InvitableGroup, type InviteError, type LookupState,
 } from '../../utils/invitationsApi';
 
@@ -13,6 +13,12 @@ type Feedback = { variant: 'success' | 'danger'; text: string };
 
 function isLocked(lookup: LookupState | null): boolean {
   return Boolean(lookup?.locked_until && new Date(lookup.locked_until) > new Date());
+}
+
+/** When the next reminder may go, or null when it may go now. */
+function reminderWait(invitation: GroupInvitation): string | null {
+  const next = invitation.next_reminder_at;
+  return next && new Date(next) > new Date() ? next : null;
 }
 
 /** The error of a refused invitation, with what it costs when it was a failed lookup. */
@@ -43,6 +49,9 @@ export default function InvitationsAdmin() {
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+
+  const [remindingId, setRemindingId] = useState<number | null>(null);
+  const [listFeedback, setListFeedback] = useState<Feedback | null>(null);
 
   const [withdrawing, setWithdrawing] = useState<GroupInvitation | null>(null);
   const [withdrawBusy, setWithdrawBusy] = useState(false);
@@ -88,6 +97,21 @@ export default function InvitationsAdmin() {
     }
   };
 
+  const handleRemind = async (invitation: GroupInvitation) => {
+    setRemindingId(invitation.id);
+    setListFeedback(null);
+    try {
+      const updated = await remindInvitation(invitation.id);
+      setInvitations((list) => list.map((item) => (item.id === updated.id ? updated : item)));
+      const who = updated.invitee_name ? ` à ${updated.invitee_name}` : '';
+      setListFeedback({ variant: 'success', text: `Rappel envoyé${who}.` });
+    } catch (error) {
+      setListFeedback({ variant: 'danger', text: inviteErrorOf(error).detail });
+    } finally {
+      setRemindingId(null);
+    }
+  };
+
   const handleWithdraw = async () => {
     if (!withdrawing) return;
     setWithdrawBusy(true);
@@ -123,6 +147,7 @@ export default function InvitationsAdmin() {
                   La personne doit déjà avoir un compte actif, créé avec cette adresse. Tapez l'adresse
                   complète : aucune suggestion n'est proposée. Elle reçoit un email et voit l'invitation sur la
                   page d'accueil de l'application, où elle l'accepte ou la refuse ; sans réponse, l'invitation expire après 30 jours.
+                  Depuis la liste des invitations en attente, un rappel peut lui être envoyé une fois par 24 heures.
                   Après 10 adresses sans compte en 24 heures, les invitations sont suspendues pendant 24 heures.
                 </HelpTip>
               </h2>
@@ -182,31 +207,54 @@ export default function InvitationsAdmin() {
 
             <section className="mt-4">
               <h2 className="h5 mb-3">En attente</h2>
+              {listFeedback && (
+                <Alert variant={listFeedback.variant} dismissible onClose={() => setListFeedback(null)}>
+                  {listFeedback.text}
+                </Alert>
+              )}
               {invitations.length === 0 ? (
                 <p className="text-muted mb-0">Aucune invitation en attente.</p>
               ) : (
                 <ListGroup>
-                  {invitations.map((invitation) => (
-                    <ListGroup.Item key={invitation.id} className="d-flex align-items-center gap-2 py-2 px-2">
-                      <div className="flex-grow-1 min-w-0">
-                        <div className="text-truncate">
-                          {invitation.invitee_name ?? <span className="text-muted">Compte sans nom</span>}
+                  {invitations.map((invitation) => {
+                    const wait = reminderWait(invitation);
+                    return (
+                      <ListGroup.Item key={invitation.id} className="d-flex align-items-center gap-2 py-2 px-2">
+                        <div className="flex-grow-1 min-w-0">
+                          <div className="text-truncate">
+                            {invitation.invitee_name ?? <span className="text-muted">Compte sans nom</span>}
+                          </div>
+                          <div className="small text-muted text-truncate">
+                            {severalGroups && `${invitation.group_name} · `}
+                            expire le {formatDate(invitation.expires_at)}
+                          </div>
+                          {wait && (
+                            <div className="small text-muted text-truncate">
+                              <i className="bi bi-bell-slash me-1" aria-hidden="true" />
+                              rappel dès le {formatShortDateTime(wait)}
+                            </div>
+                          )}
                         </div>
-                        <div className="small text-muted text-truncate">
-                          {severalGroups && `${invitation.group_name} · `}
-                          expire le {formatDate(invitation.expires_at)}
+                        <div className="d-flex gap-1 flex-shrink-0">
+                          <IconButton
+                            variant="outline-primary"
+                            icon="bell"
+                            label={wait ? `Rappel possible le ${formatDateTime(wait)}` : 'Envoyer un rappel'}
+                            showLabel="never"
+                            disabled={Boolean(wait) || remindingId !== null}
+                            onClick={() => void handleRemind(invitation)}
+                          />
+                          <IconButton
+                            variant="outline-danger"
+                            icon="x-lg"
+                            label="Retirer l'invitation"
+                            showLabel="never"
+                            onClick={() => { setWithdrawError(null); setWithdrawing(invitation); }}
+                          />
                         </div>
-                      </div>
-                      <IconButton
-                        variant="outline-danger"
-                        icon="x-lg"
-                        label="Retirer l'invitation"
-                        showLabel="never"
-                        className="flex-shrink-0"
-                        onClick={() => { setWithdrawError(null); setWithdrawing(invitation); }}
-                      />
-                    </ListGroup.Item>
-                  ))}
+                      </ListGroup.Item>
+                    );
+                  })}
                 </ListGroup>
               )}
             </section>

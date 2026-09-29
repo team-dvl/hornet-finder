@@ -1813,16 +1813,40 @@ class _FakeKeycloak:
         assert not allow_email, 'invitations must never show an email address'
         return f'Name {guid[:8]}'
 
+    def get_active_user_email(self, guid):
+        self._check()
+        return next((a['email'] for a in self.accounts.values() if a['id'] == guid), None)
+
+
+def _email_theme_dir():
+    """The Keycloak email theme: mounted in the API container, else in the repository."""
+    from pathlib import Path
+    from django.conf import settings as django_settings
+
+    for candidate in (Path(django_settings.EMAIL_THEME_DIR),
+                      Path(django_settings.BASE_DIR).parent / 'auth/themes/velutina/email'):
+        if (candidate / 'html/template.ftl').exists():
+            return candidate
+    return None
+
+
+_THEME_DIR = _email_theme_dir()
+
 
 class GroupInvitationTestCase(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
         self.kc = _FakeKeycloak()
         for name in ('find_active_user_by_email', 'get_group_by_path', 'get_child_groups',
-                     'get_user_group_paths', 'add_user_to_group', 'get_user_display_name'):
+                     'get_user_group_paths', 'add_user_to_group', 'get_user_display_name',
+                     'get_active_user_email'):
             patcher = patch(f'hornet_finder_api.utils.{name}', side_effect=getattr(self.kc, name))
             patcher.start()
             self.addCleanup(patcher.stop)
+        if _THEME_DIR:
+            theme = override_settings(EMAIL_THEME_DIR=str(_THEME_DIR))
+            theme.enable()
+            self.addCleanup(theme.disable)
 
         self.aga = self._user(['beekeeper'], [f'{_ENA}/admin'])
         self.member = self._user(['beekeeper'], [_ENA])
@@ -1879,12 +1903,19 @@ class GroupInvitationRightsTests(GroupInvitationTestCase):
         self.assertIn("école namuroise d'apiculture", message.subject)
         self.assertIn(f'Name {self.aga.guid[:8]}', message.body)
         self.assertIn('https://', message.body)
+        self.assertEqual(GroupInvitation.objects.get().last_notified_at is not None, True)
+        if _THEME_DIR:
+            html = message.alternatives[0].content
+            self.assertIn('cid:vsab-logo@velutina', html)
+            self.assertIn('Ouvrir Velutina', html)
+            # Escaped in the HTML part
+            self.assertIn('école namuroise d&#x27;apiculture', html)
 
     def test_a_mail_failure_keeps_the_invitation_and_never_logs_the_address(self):
         from smtplib import SMTPRecipientsRefused
 
         refused = SMTPRecipientsRefused({'pi@example.org': (550, b'no')})
-        with patch('hornet.invitation_views.send_mail', side_effect=refused), \
+        with patch('hornet.emails.BrandedEmail.send', side_effect=refused), \
                 self.assertLogs('hornet.invitation_views', level='INFO') as logs:
             response = self._invite()
         self.assertEqual(response.status_code, 201)
@@ -2090,6 +2121,139 @@ class GroupInvitationLifecycleTests(GroupInvitationTestCase):
         self.assertEqual(self._respond('accept').status_code, 404)
 
 
+class GroupInvitationReminderTests(GroupInvitationTestCase):
+    def setUp(self):
+        super().setUp()
+        self.assertEqual(self._invite().status_code, 201)
+        self.invitation = GroupInvitation.objects.get()
+
+    def _remind(self, user=None, when=None):
+        call = lambda: self._call(  # noqa: E731
+            GroupInvitationViewSet, 'post', f'/api/group-invitations/{self.invitation.id}/remind/',
+            {'post': 'remind'}, user or self.aga, pk=self.invitation.id)
+        if when is None:
+            return call()
+        with patch('django.utils.timezone.now', return_value=when):
+            return call()
+
+    def _tomorrow(self):
+        return self.invitation.created_at + GroupInvitation.REMINDER_INTERVAL + _timedelta(minutes=1)
+
+    def test_the_invitation_email_counts_as_the_first_of_the_day(self):
+        response = self._remind()
+        self.assertEqual((response.status_code, response.data['code']), (429, 'too_soon'))
+        self.invitation.refresh_from_db()
+        self.assertEqual(response.data['next_reminder_at'], self.invitation.next_reminder_at)
+        self.assertGreater(int(response['Retry-After']), 24 * 3600 - 120)
+
+    def test_one_reminder_per_day(self):
+        from django.core import mail
+
+        mail.outbox.clear()
+        tomorrow = self._tomorrow()
+        response = self._remind(when=tomorrow)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['reminders_sent'], 1)
+        self.assertEqual(response.data['next_reminder_at'], tomorrow + GroupInvitation.REMINDER_INTERVAL)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['pi@example.org'])
+        self.assertTrue(mail.outbox[0].subject.startswith('Rappel'))
+        self.assertIn('Pour rappel', mail.outbox[0].body)
+
+        later = tomorrow + _timedelta(hours=23)
+        self.assertEqual(self._remind(when=later).status_code, 429)
+        self.assertEqual(self._remind(when=tomorrow + _timedelta(hours=25)).status_code, 200)
+
+    def test_a_reminder_is_immediate_when_no_email_ever_left(self):
+        GroupInvitation.objects.filter(pk=self.invitation.pk).update(last_notified_at=None)
+        self.assertEqual(self._remind().status_code, 200)
+
+    def test_only_the_administrators_of_the_group_can_remind(self):
+        tomorrow = self._tomorrow()
+        self.assertEqual(self._remind(user=self.member, when=tomorrow).status_code, 404)
+        self.assertEqual(self._remind(user=self.admin, when=tomorrow).status_code, 200)
+
+    def test_an_account_no_longer_active_is_not_reminded(self):
+        self.kc.accounts.clear()
+        response = self._remind(when=self._tomorrow())
+        self.assertEqual((response.status_code, response.data['code']), (409, 'inactive'))
+
+    def test_a_failed_reminder_can_be_retried_at_once(self):
+        tomorrow = self._tomorrow()
+        with patch('hornet.emails.BrandedEmail.send', side_effect=OSError('down')):
+            response = self._remind(when=tomorrow)
+        self.assertEqual((response.status_code, response.data['code']), (502, 'mail_failed'))
+        self.invitation.refresh_from_db()
+        self.assertEqual(self.invitation.reminders_sent, 0)
+        self.assertEqual(self._remind(when=tomorrow).status_code, 200)
+
+    def test_answered_or_expired_invitations_are_not_reminded(self):
+        after_expiry = self.invitation.created_at + GroupInvitation.VALIDITY + _timedelta(minutes=1)
+        self.assertEqual(self._remind(when=after_expiry).status_code, 404)
+
+    def test_the_administrators_listing_tells_when_to_remind(self):
+        listed = self._call(GroupInvitationViewSet, 'get', '/api/group-invitations/',
+                            {'get': 'list'}, self.aga).data[0]
+        self.invitation.refresh_from_db()
+        self.assertEqual(listed['next_reminder_at'], self.invitation.next_reminder_at)
+        self.assertEqual(listed['reminders_sent'], 0)
+        # The invitee does not see the administrators' bookkeeping
+        mine = self._call(MyGroupInvitationViewSet, 'get', '/api/me/group-invitations/',
+                          {'get': 'list'}, self.invitee).data[0]
+        self.assertNotIn('next_reminder_at', mine)
+
+
+class EmailLayoutTests(TestCase):
+    """The API's emails reuse the Keycloak email theme without copying it."""
+
+    def setUp(self):
+        if _THEME_DIR is None:
+            self.skipTest('Keycloak email theme not available')
+
+    def test_the_real_theme_resolves_completely(self):
+        from .emails import email_layout
+
+        html = email_layout(_THEME_DIR)
+        self.assertEqual(html.count('<#nested>'), 1)
+        self.assertNotIn('${', html)
+        self.assertIn('lang="fr"', html)
+        self.assertIn('src="cid:vsab-logo@velutina"', html)
+
+    def test_an_unknown_expression_is_refused(self):
+        import tempfile
+        from pathlib import Path
+        from .emails import LayoutError, email_layout
+
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / 'html').mkdir()
+            (Path(tmp) / 'html/template.ftl').write_text(
+                '<#macro emailLayout><p>${user.firstName}</p><#nested></#macro>')
+            with self.assertRaises(LayoutError):
+                email_layout(tmp)
+
+    def test_the_logo_travels_inline_next_to_the_html(self):
+        from .emails import BrandedEmail
+
+        with override_settings(EMAIL_THEME_DIR=str(_THEME_DIR)):
+            message = BrandedEmail('Sujet', 'Texte', '<p>Texte</p>', ['x@example.org']).message()
+        self.assertEqual(message.get_content_type(), 'multipart/alternative')
+        text, related = message.get_payload()
+        self.assertEqual(text.get_content_type(), 'text/plain')
+        self.assertEqual(related.get_content_type(), 'multipart/related')
+        html, logo = related.get_payload()
+        self.assertIn('<p>Texte</p>', html.get_content())
+        self.assertEqual((logo.get_content_type(), logo['Content-ID']), ('image/png', '<vsab-logo@velutina>'))
+
+    def test_without_the_theme_the_message_goes_as_plain_text(self):
+        from django.core import mail
+        from .emails import BrandedEmail
+
+        with override_settings(EMAIL_THEME_DIR='/nonexistent'), self.assertLogs('hornet.emails', 'WARNING'):
+            BrandedEmail('Sujet', 'Texte', '<p>Texte</p>', ['x@example.org']).send()
+        self.assertEqual(mail.outbox[0].alternatives, [])
+        self.assertEqual(mail.outbox[0].message().get_content_type(), 'text/plain')
+
+
 class KeycloakInvitationHelperTests(TestCase):
     """The Keycloak helpers, against a mock built from the real python-keycloak class."""
 
@@ -2128,6 +2292,24 @@ class KeycloakInvitationHelperTests(TestCase):
         with patch('hornet_finder_api.utils._get_keycloak_admin', return_value=admin):
             with self.assertRaises(KeycloakGetError):
                 get_group_by_path('/beekeepers/ena')
+
+    def test_active_email_of_an_account(self):
+        from keycloak.exceptions import KeycloakGetError
+        from hornet_finder_api.utils import get_active_user_email
+
+        admin = self._admin()
+        cases = [
+            ({'email': 'pi@example.org', 'enabled': True, 'emailVerified': True}, 'pi@example.org'),
+            ({'email': 'pi@example.org', 'enabled': False, 'emailVerified': True}, None),
+            ({'email': 'pi@example.org', 'enabled': True, 'emailVerified': False}, None),
+        ]
+        for user, expected in cases:
+            admin.get_user.return_value = user
+            with patch('hornet_finder_api.utils._get_keycloak_admin', return_value=admin):
+                self.assertEqual(get_active_user_email('g'), expected)
+        admin.get_user.side_effect = KeycloakGetError('gone', response_code=404)
+        with patch('hornet_finder_api.utils._get_keycloak_admin', return_value=admin):
+            self.assertIsNone(get_active_user_email('g'))
 
     def test_display_name_without_email(self):
         from hornet_finder_api.utils import get_user_display_name

@@ -19,10 +19,10 @@ import unicodedata
 
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.core.mail import send_mail
 from django.core.validators import validate_email
 from django.db import transaction
 from django.utils import timezone
+from django.utils.html import format_html
 
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
@@ -36,6 +36,7 @@ from hornet_finder_api import utils as keycloak
 from hornet_finder_api.authentication import HasAnyRole, JWTBearerAuthentication
 
 from . import trap_permissions as perms
+from .emails import BrandedEmail
 from .models import GroupInvitation, InvitationThrottle, User
 
 logger = logging.getLogger(__name__)
@@ -121,22 +122,42 @@ class _Names:
         return self._cache[key]
 
 
-def _notify_invitee(invitation, email: str, inviter_name) -> bool:
+def _notify_invitee(invitation, email: str, inviter_name, reminder: bool = False) -> bool:
     """
-    Tell the invitee by email. A failure never loses the invitation, which
-    stays visible in the app; the inviter is told so they can warn the person.
+    Tell the invitee by email, in the layout of the Keycloak emails. A failure
+    never loses the invitation, which stays visible in the app; the inviter is
+    told so they can warn the person.
     """
+    group = invitation.group_name
+    if reminder:
+        lead = f"Pour rappel, {inviter_name or 'un administrateur'}"
+        subject = f"Rappel : invitation à rejoindre {group}"
+    else:
+        lead = inviter_name or 'Un administrateur'
+        subject = f"Invitation à rejoindre {group}"
     expires = timezone.localtime(invitation.expires_at).strftime('%d/%m/%Y')
-    body = (
+    url = f"https://{settings.PUBLIC_HOST}/"
+    text = (
         "Bonjour,\n\n"
-        f"{inviter_name or 'Un administrateur'} vous invite à rejoindre « {invitation.group_name} » "
-        "sur Velutina, l'application de gestion du frelon asiatique.\n\n"
-        f"Pour accepter ou refuser, connectez-vous à https://{settings.PUBLIC_HOST}/ : "
+        f"{lead} vous invite à rejoindre « {group} » sur Velutina, "
+        "l'application de gestion du frelon asiatique.\n\n"
+        f"Pour accepter ou refuser, connectez-vous à {url} : "
         f"l'invitation apparaît sur la page d'accueil jusqu'au {expires}.\n\n"
         "Si vous ne connaissez pas ce groupe, ignorez simplement ce message.\n"
     )
+    html = format_html(
+        '<p>Bonjour,</p>'
+        '<p>{} vous invite à rejoindre <strong>« {} »</strong> sur Velutina, '
+        "l'application de gestion du frelon asiatique.</p>"
+        '<p><a href="{}">Ouvrir Velutina</a></p>'
+        "<p>Une fois connecté, vous trouverez l'invitation sur la page d'accueil : vous pouvez "
+        "l'accepter ou la refuser jusqu'au {}.</p>"
+        '<p style="color:#7a8177; font-size:13px;">Si vous ne connaissez pas ce groupe, '
+        'ignorez simplement ce message.</p>',
+        lead, group, url, expires,
+    )
     try:
-        send_mail(f"Invitation à rejoindre {invitation.group_name}", body, None, [email])
+        BrandedEmail(subject, text, html, [email]).send()
         return True
     except Exception as exc:
         # The exception text may quote the recipient: only its type is logged
@@ -156,6 +177,8 @@ def _serialize(invitation, names, with_invitee=False) -> dict:
     }
     if with_invitee:
         data['invitee_name'] = names(invitation.invitee)
+        data['next_reminder_at'] = invitation.next_reminder_at
+        data['reminders_sent'] = invitation.reminders_sent
     return data
 
 
@@ -170,6 +193,9 @@ class GroupInvitationSchema(serializers.Serializer):
     status = serializers.CharField()
     created_at = serializers.DateTimeField()
     expires_at = serializers.DateTimeField()
+    # For the group's administrators: when a reminder may be sent (null: now)
+    next_reminder_at = serializers.DateTimeField(allow_null=True, required=False)
+    reminders_sent = serializers.IntegerField(required=False)
     # Creation only: whether the invitee could be emailed
     notified = serializers.BooleanField(required=False)
 
@@ -306,8 +332,52 @@ class GroupInvitationViewSet(viewsets.GenericViewSet):
                     invitation.id, inviter.guid, invitee.guid, group_path)
         names = _Names()
         notified = _notify_invitee(invitation, account['email'], names(inviter))
+        if notified:
+            invitation.last_notified_at = timezone.now()
+            invitation.save(update_fields=['last_notified_at'])
         return Response({**_serialize(invitation, names, with_invitee=True), 'notified': notified},
                         status=status.HTTP_201_CREATED)
+
+    @extend_schema(request=None, responses={200: GroupInvitationSchema})
+    @action(detail=True, methods=['post'])
+    def remind(self, request, pk=None):
+        """
+        Email the invitee again, at most once per `REMINDER_INTERVAL` since the
+        last email that left (the invitation's own included). Errors carry a
+        `code`: `too_soon` (429, with `next_reminder_at`), `inactive` (409: the
+        account was disabled or deleted since), `mail_failed` (502).
+        """
+        GroupInvitation.expire_stale(pk=pk)
+        names = _Names()
+        with transaction.atomic():
+            # Locked while the email goes: a double tap cannot send two reminders
+            invitation = GroupInvitation.objects.select_for_update().filter(
+                pk=pk, status=GroupInvitation.STATUS_PENDING,
+            ).first()
+            if invitation is None or not can_invite_to(request, invitation.group_path):
+                raise NotFound()
+            now = timezone.now()
+            next_at = invitation.next_reminder_at
+            if next_at and next_at > now:
+                return Response({
+                    'code': 'too_soon',
+                    'detail': "Un email est déjà parti il y a moins de 24 heures.",
+                    'next_reminder_at': next_at,
+                }, status=status.HTTP_429_TOO_MANY_REQUESTS,
+                    headers={'Retry-After': str(int((next_at - now).total_seconds()) + 1)})
+            email = _keycloak(keycloak.get_active_user_email, str(invitation.invitee_id))
+            if not email:
+                return self._conflict('inactive', "Le compte de cette personne n'est plus actif.")
+            if not _notify_invitee(invitation, email, names(invitation.invited_by), reminder=True):
+                return Response({'code': 'mail_failed',
+                                 'detail': "L'email n'a pas pu partir. Réessayez plus tard."},
+                                status=status.HTTP_502_BAD_GATEWAY)
+            invitation.last_notified_at = now
+            invitation.reminders_sent += 1
+            invitation.save(update_fields=['last_notified_at', 'reminders_sent'])
+        logger.info("Group invitation %s: reminder %s sent by %s",
+                    invitation.id, invitation.reminders_sent, request.user.guid)
+        return Response(_serialize(invitation, names, with_invitee=True))
 
     @extend_schema(responses={204: None})
     def destroy(self, request, pk=None):
