@@ -69,7 +69,7 @@ def _keycloak_group_name(path: str):
 def _group_choices(paths, extra=()):
     """
     Groups offered in a picker, as `{path, name}` sorted by name, named as in
-    Keycloak (`fancy_name`, else the group name).
+    Keycloak (its description, else the group name).
 
     `paths=None` stands for "any group" (platform admin): every beekeeper
     association is then offered, plus the `extra` paths (the current choice).

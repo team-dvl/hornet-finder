@@ -567,7 +567,7 @@ class TrapDelegationTests(TrapTestCase):
     # Keycloak representations of the groups, with their display name
     KC_GROUPS = {
         '/beekeepers/ena': {'id': '1', 'path': '/beekeepers/ena', 'name': 'ena',
-                            'attributes': {'fancy_name': ['Entente namuroise']}},
+                            'description': 'Entente namuroise'},
         '/beekeepers/abc': {'id': '2', 'path': '/beekeepers/abc', 'name': 'ABC apiculture'},
     }
 

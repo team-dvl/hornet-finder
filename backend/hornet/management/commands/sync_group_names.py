@@ -8,7 +8,7 @@ from hornet.trap_views import _group_for_path
 
 class Command(BaseCommand):
     help = ("Give every local group the display name of its Keycloak group "
-            "(`fancy_name`, else the group name). Groups unknown to Keycloak "
+            "(its description, else the group name). Groups unknown to Keycloak "
             "keep a name derived from their path.")
 
     def handle(self, *args, **options):
