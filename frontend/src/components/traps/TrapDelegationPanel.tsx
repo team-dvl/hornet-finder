@@ -5,7 +5,6 @@ import {
   clearTrapDelegation, fetchTrapDelegation, setTrapDelegation,
   type DelegationInfo, type Trap,
 } from '../../store/store';
-import { GroupChips } from '../common';
 
 interface TrapDelegationPanelProps {
   trap: Trap;
@@ -106,17 +105,21 @@ export default function TrapDelegationPanel({ trap }: TrapDelegationPanelProps) 
 
           {info?.can_set_delegation && (
             <>
-              <div className="mb-2">
-                <div id={`trap-${trap.id}-group-label`} className="small mb-1">Désigner un groupe</div>
-                <GroupChips
-                  groups={info.allowed_groups}
+              <Form.Group className="mb-2">
+                <Form.Label className="small mb-1">Désigner un groupe</Form.Label>
+                <Form.Select
                   value={groupPath}
-                  onChange={setGroupPath}
-                  labelledBy={`trap-${trap.id}-group-label`}
-                  emptyText="Aucun groupe disponible"
-                  disabled={busy}
-                />
-              </div>
+                  onChange={(event) => setGroupPath(event.target.value)}
+                  disabled={info.allowed_groups.length === 0}
+                >
+                  {info.allowed_groups.length === 0 && (
+                    <option value="">Aucun groupe disponible</option>
+                  )}
+                  {info.allowed_groups.map((group) => (
+                    <option key={group.path} value={group.path}>{group.name}</option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
 
               {/* An apiary-bound trap is private anyway: nothing to restrict */}
               {!trap.trap_type.apiary_bound && (

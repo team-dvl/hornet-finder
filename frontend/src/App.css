@@ -833,33 +833,6 @@ button.module-card {
   max-width: 60vw;
 }
 
-/* Group picker (delegation, sharing): wrapping pill chips */
-.group-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 0.375rem;
-}
-
-/* Badge-like chip (36 px, the badge's rounded corners) whose touch area
-   still reaches 44 px: the invisible ::before overhangs the border by 4 px,
-   exactly half the row gap. */
-.group-chip {
-  position: relative;
-  min-height: 2.25rem;
-  max-width: 100%;
-  padding: 0.375rem 0.75rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  line-height: 1.5;
-  border-radius: var(--bs-border-radius-lg);
-}
-
-.group-chip::before {
-  content: '';
-  position: absolute;
-  inset: calc(-0.25rem - var(--bs-btn-border-width)) calc(-1 * var(--bs-btn-border-width));
-}
-
 /* Statistics: chips, key figures and table rows as a list (no sideways scrolling) */
 .stat-section-title {
   font-size: 0.8rem;
