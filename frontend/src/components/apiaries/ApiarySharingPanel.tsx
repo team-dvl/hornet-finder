@@ -5,7 +5,7 @@ import {
   fetchApiarySharing, shareApiary, unshareApiary,
   type Apiary, type ApiarySharingInfo,
 } from '../../store/store';
-import { HelpTip } from '../common';
+import { GroupChips, HelpTip } from '../common';
 import { ACTION_ICONS } from '../../utils/icons';
 
 interface ApiarySharingPanelProps {
@@ -125,28 +125,21 @@ export default function ApiarySharingPanel({ apiary }: ApiarySharingPanelProps) 
 
           {canShare && info && (
             <div className="mt-3">
-              <Form.Label htmlFor={`apiary-${apiary.id}-share-group`} className="small mb-1 d-flex align-items-center">
+              <Form.Label as="div" id={`apiary-${apiary.id}-share-group`} className="small mb-1 d-flex align-items-center">
                 Partager avec
                 <HelpTip id="apiary-share-help" title="Partage">
                   Les membres de l'association voient le rucher ; avec « Peut modifier », ils
                   peuvent aussi le mettre à jour. La suppression reste réservée au propriétaire.
                 </HelpTip>
               </Form.Label>
-              <Form.Select
-                id={`apiary-${apiary.id}-share-group`}
+              <GroupChips
+                groups={available}
                 value={selectedPath}
-                onChange={(event) => setGroupPath(event.target.value)}
-                disabled={available.length === 0}
-              >
-                {available.length === 0 && (
-                  <option value="">
-                    {info.allowed_groups.length === 0 ? 'Aucune association' : 'Déjà partagé avec toutes vos associations'}
-                  </option>
-                )}
-                {available.map((group) => (
-                  <option key={group.path} value={group.path}>{group.name}</option>
-                ))}
-              </Form.Select>
+                onChange={setGroupPath}
+                labelledBy={`apiary-${apiary.id}-share-group`}
+                emptyText={info.allowed_groups.length === 0 ? 'Aucune association' : 'Déjà partagé avec toutes vos associations'}
+                disabled={busy}
+              />
               <div className="d-flex flex-wrap align-items-center gap-2 mt-2">
                 <Form.Check
                   type="switch"
