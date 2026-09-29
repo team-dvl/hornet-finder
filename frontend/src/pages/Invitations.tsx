@@ -1,13 +1,14 @@
 import { useEffect, useRef } from 'react';
 import { Container, Spinner } from 'react-bootstrap';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
-import { PageHeader, PageLayout } from '../components/layout';
-import { PendingInvitations } from '../components/home';
+import { PageLayout } from '../components/layout';
 import { signInFromCurrentPage } from '../utils/authRedirect';
 
 /**
  * Target of the link in the invitation emails: signs the visitor in first
- * (Keycloak, then back here), so the invitation is always there to answer.
+ * (Keycloak, then back here), then hands over to the landing page, whose
+ * banner offers the pending invitations.
  */
 export default function Invitations() {
   const auth = useAuth();
@@ -22,20 +23,15 @@ export default function Invitations() {
     void signInFromCurrentPage(auth);
   }, [mustSignIn, auth]);
 
+  if (signedIn) return <Navigate to="/" replace />;
+
   return (
     <PageLayout>
       <Container className="py-4">
-        <PageHeader title="Invitations" help="Vos invitations à rejoindre un groupe d'apiculteurs." />
-        {signedIn ? (
-          <PendingInvitations
-            emptyMessage={<p className="text-muted">Aucune invitation en attente pour ce compte.</p>}
-          />
-        ) : (
-          <div className="d-flex align-items-center gap-2 text-muted">
-            <Spinner animation="border" size="sm" role="status" />
-            Connexion…
-          </div>
-        )}
+        <div className="d-flex align-items-center gap-2 text-muted">
+          <Spinner animation="border" size="sm" role="status" />
+          Connexion…
+        </div>
       </Container>
     </PageLayout>
   );

@@ -18,7 +18,8 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   its full email address; 10 addresses without an account within 24 hours pause
   the invitations for 24 hours. The invitee answers from the landing page.
 - Invitation emails, sent through the OVH MX Plan server in the layout of the
-  Keycloak emails, with a link to `/invitations` that signs the visitor in first.
+  Keycloak emails, with a link to `/invitations` that signs the visitor in first,
+  then opens the landing page, where the pending invitations come first.
 - A reminder can be emailed to the invitee from the pending invitations, at most
   once per 24 hours.
 

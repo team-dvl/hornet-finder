@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Button, Card, Spinner } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
 import { ConfirmDialog, IconButton } from '../ui';
@@ -29,24 +29,14 @@ function forgetJoinedMessage(): void {
   try { sessionStorage.removeItem(JOINED_KEY); } catch { /* nothing kept */ }
 }
 
-interface PendingInvitationsProps {
-  /**
-   * Shown once loaded when nothing waits, and loading errors are shown too.
-   * Without it (landing page), the component stays silent.
-   */
-  emptyMessage?: ReactNode;
-}
-
 /**
  * Invitations to a beekeeper group waiting for the signed-in user's answer.
  * Accepting adds them to the Keycloak group; the token is then renewed so the
  * new group and its role apply at once.
  */
-export default function PendingInvitations({ emptyMessage }: PendingInvitationsProps) {
+export default function PendingInvitations() {
   const auth = useAuth();
   const [invitations, setInvitations] = useState<GroupInvitation[]>([]);
-  const [loaded, setLoaded] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(joinedFeedback);
   const [declining, setDeclining] = useState<GroupInvitation | null>(null);
@@ -57,11 +47,10 @@ export default function PendingInvitations({ emptyMessage }: PendingInvitationsP
   useEffect(() => {
     if (!auth.isAuthenticated) return;
     let cancelled = false;
-    // On the landing page a failure stays silent: the invitations show at the next visit
+    // Not worth an error on the landing page: the invitations show at the next visit
     fetchMyInvitations()
       .then((list) => { if (!cancelled) setInvitations(list); })
-      .catch((error) => { if (!cancelled) setLoadError(inviteErrorOf(error).detail); })
-      .finally(() => { if (!cancelled) setLoaded(true); });
+      .catch(() => undefined);
     return () => { cancelled = true; };
   }, [auth.isAuthenticated]);
 
@@ -99,10 +88,7 @@ export default function PendingInvitations({ emptyMessage }: PendingInvitationsP
     }
   };
 
-  if (invitations.length === 0 && !feedback) {
-    if (!emptyMessage || !loaded) return null;
-    return loadError ? <Alert variant="danger">{loadError}</Alert> : <>{emptyMessage}</>;
-  }
+  if (invitations.length === 0 && !feedback) return null;
 
   return (
     <div className="mb-3">
