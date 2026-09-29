@@ -172,8 +172,9 @@ class StatEmailLinkView(StatsView):
             return error_response(exc)
         try:
             mailing.send_link(job, token, statistic.title, address)
-        except Exception:
-            logger.exception("Statistics export email failed")
+        except Exception as exc:
+            # The exception text may quote the recipient: only its type is logged
+            logger.warning("Could not email statistics export %s: %s", stat_id, type(exc).__name__)
             job.delete()
             return Response({'error': "L'email n'a pas pu être envoyé : réessayez plus tard."}, status=502)
         return Response({'sent_to': mailing.mask_email(address), 'expires_at': job.expires_at.isoformat()})

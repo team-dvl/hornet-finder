@@ -13,10 +13,11 @@ import secrets
 from datetime import timedelta
 
 from django.conf import settings
-from django.core.mail import EmailMultiAlternatives
 from django.utils import timezone
-from django.utils.html import escape
+from django.utils.html import format_html, format_html_join
+from django.utils.safestring import mark_safe
 
+from ..emails import BrandedEmail
 from ..models import StatExportJob
 from .base import StatError
 from .render import GRANULARITY_LABELS
@@ -52,7 +53,9 @@ def _hour(moment) -> str:
 def summary(result: dict) -> list:
     """What the download page and the email say about the export."""
     period = result['period']
-    lines = [('Période', f"{period['label']} ({period['dates']})")]
+    # Free dates are their own label: named once
+    dates = period['dates'] if period['label'] == period['dates'] else f"{period['label']} ({period['dates']})"
+    lines = [('Période', dates)]
     if result.get('granularity'):
         lines.append(('Granularité', GRANULARITY_LABELS[result['granularity']]))
     lines.append(('Filtres', ', '.join(result['filters']) or 'Aucun'))
@@ -85,7 +88,8 @@ def job_url(token: str) -> str:
 def send_link(job: StatExportJob, token: str, title: str, address: str):
     url = job_url(token)
     asked, until = _hour(job.created_at), _hour(job.expires_at)
-    details = [value for label, value in job.summary if label in ('Période', 'Granularité', 'Filtres')]
+    details = [value for label, value in job.summary if label in ('Période', 'Granularité')]
+    details += [f"Filtres : {value}" for label, value in job.summary if label == 'Filtres' and value != 'Aucun']
     subject = f"Votre export « {title} »"
     text = (
         f"Bonjour,\n\n"
@@ -96,23 +100,19 @@ def send_link(job: StatExportJob, token: str, title: str, address: str):
         f"ne transférez pas cet email.\n\n"
         f"Vous n'avez rien demandé ? Ignorez ce message, le lien expirera seul.\n"
     )
-    html = (
-        '<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;'
-        'font-size:16px;line-height:1.5;color:#212529;max-width:560px">'
+    html = format_html(
         '<p>Bonjour,</p>'
-        f'<p>Voici le lien vers l’export demandé à {asked} :</p>'
-        '<p style="padding:12px 14px;border-radius:8px;background:#f8f9fa">'
-        f'<strong>{escape(title)}</strong><br>' + '<br>'.join(escape(d) for d in details) + '</p>'
-        f'<p><a href="{escape(url)}" style="display:inline-block;padding:12px 20px;border-radius:8px;'
-        'background:#0d6efd;color:#ffffff;text-decoration:none;font-weight:600">Ouvrir l’export</a></p>'
-        f'<p style="font-size:14px;color:#6c757d">Le lien est valable jusqu’à {until}. Il donne accès '
-        'à ces données sans connexion : ne transférez pas cet email.<br>'
-        'Vous n’avez rien demandé ? Ignorez ce message, le lien expirera seul.</p>'
-        '</div>'
+        "<p>Voici le lien vers l'export demandé à {} :</p>"
+        '<p><strong>{}</strong><br>{}</p>'
+        '<p><a href="{}">Ouvrir l\'export</a></p>'
+        "<p>Le lien est valable jusqu'à {}. Il donne accès à ces données sans connexion : "
+        'ne transférez pas cet email.</p>'
+        '<p style="color:#7a8177; font-size:13px;">Vous n\'avez rien demandé ? Ignorez ce message, '
+        'le lien expirera seul.</p>',
+        asked, title, format_html_join(mark_safe('<br>'), '{}', ((d,) for d in details)), url, until,
     )
-    message = EmailMultiAlternatives(subject, text, settings.DEFAULT_FROM_EMAIL, [address])
-    message.attach_alternative(html, 'text/html')
-    message.send()
+    # In the layout of the Keycloak emails, like the group invitations
+    BrandedEmail(subject, text, html, [address]).send()
     logger.info("Statistics export %s sent by email for %s", job.statistic, job.requester)
 
 

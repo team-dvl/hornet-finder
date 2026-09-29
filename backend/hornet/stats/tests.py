@@ -1,8 +1,10 @@
 import io
 import math
+from pathlib import Path
 from datetime import date, datetime, time
 from unittest.mock import patch
 
+from django.conf import settings
 from django.core import mail
 from django.test import override_settings
 from django.utils import timezone
@@ -431,6 +433,16 @@ class EmailLinkTests(ThreeTrapsTestCase):
         self.assertNotEqual(job.token_hash, token)
         self.assertNotIn('example.org', str(job.__dict__))
         self.assertEqual(job.requester_name, 'Jeanne Dupont')
+        # In the layout of the Keycloak emails, when the theme is readable
+        theme = Path(settings.BASE_DIR).parent / 'auth/themes/velutina/email'
+        if (theme / 'html/template.ftl').exists():
+            with override_settings(EMAIL_THEME_DIR=str(theme)):
+                self.ask(self.MARCH)
+            html = mail.outbox[-1].alternatives[0].content
+            self.assertIn('cid:vsab-logo@velutina', html)
+            self.assertIn("Ouvrir l'export</a>", html)
+            # Free dates are named once; no filter line when there is none
+            self.assertIn('<strong>Captures de frelons asiatiques</strong><br>1–31 mars 2025<br>Par semaine</p>', html)
 
         page = self.client.get(f'/api/stats/exports/{token}/')
         self.assertEqual(page.status_code, 200)
