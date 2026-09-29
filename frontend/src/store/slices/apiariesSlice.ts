@@ -54,8 +54,8 @@ export interface ApiaryFormValues {
 
 export interface ApiarySharingInfo {
   can_share: boolean;
-  /** null means "any group" (platform admin) */
-  allowed_groups: { path: string; name: string }[] | null;
+  /** Named as in Keycloak; every association for a platform admin */
+  allowed_groups: { path: string; name: string }[];
 }
 
 /** Whose apiaries the manager lists */

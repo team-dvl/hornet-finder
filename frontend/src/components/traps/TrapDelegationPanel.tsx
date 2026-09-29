@@ -34,7 +34,7 @@ export default function TrapDelegationPanel({ trap }: TrapDelegationPanelProps) 
       .then((delegation) => {
         if (cancelled) return;
         setInfo(delegation);
-        setGroupPath(delegation.group?.path ?? delegation.allowed_groups?.[0]?.path ?? '');
+        setGroupPath(delegation.group?.path ?? delegation.allowed_groups[0]?.path ?? '');
       })
       .catch(() => { /* the panel then only shows what the trap already carries */ });
     return () => { cancelled = true; };
@@ -107,28 +107,18 @@ export default function TrapDelegationPanel({ trap }: TrapDelegationPanelProps) 
             <>
               <Form.Group className="mb-2">
                 <Form.Label className="small mb-1">Désigner un groupe</Form.Label>
-                {info.allowed_groups === null ? (
-                  // Platform admin: any group path is accepted
-                  <Form.Control
-                    type="text"
-                    value={groupPath}
-                    placeholder="/beekeepers/mon-association"
-                    onChange={(event) => setGroupPath(event.target.value)}
-                  />
-                ) : (
-                  <Form.Select
-                    value={groupPath}
-                    onChange={(event) => setGroupPath(event.target.value)}
-                    disabled={info.allowed_groups.length === 0}
-                  >
-                    {info.allowed_groups.length === 0 && (
-                      <option value="">Aucun groupe disponible</option>
-                    )}
-                    {info.allowed_groups.map((group) => (
-                      <option key={group.path} value={group.path}>{group.name}</option>
-                    ))}
-                  </Form.Select>
-                )}
+                <Form.Select
+                  value={groupPath}
+                  onChange={(event) => setGroupPath(event.target.value)}
+                  disabled={info.allowed_groups.length === 0}
+                >
+                  {info.allowed_groups.length === 0 && (
+                    <option value="">Aucun groupe disponible</option>
+                  )}
+                  {info.allowed_groups.map((group) => (
+                    <option key={group.path} value={group.path}>{group.name}</option>
+                  ))}
+                </Form.Select>
               </Form.Group>
 
               {/* An apiary-bound trap is private anyway: nothing to restrict */}

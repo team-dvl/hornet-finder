@@ -115,8 +115,8 @@ export interface Trap {
 export interface DelegationInfo {
   group: GroupSummary | null;
   can_set_delegation: boolean;
-  /** null means "any group" (platform admin) */
-  allowed_groups: GroupSummary[] | null;
+  /** Named as in Keycloak; every association for a platform admin */
+  allowed_groups: GroupSummary[];
 }
 
 /** Payload shared by the create and update forms. */
