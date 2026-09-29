@@ -5,7 +5,7 @@ import {
   fetchApiarySharing, shareApiary, unshareApiary,
   type Apiary, type ApiarySharingInfo,
 } from '../../store/store';
-import { HelpTip } from '../common';
+import { GroupChips, HelpTip } from '../common';
 import { ACTION_ICONS } from '../../utils/icons';
 
 interface ApiarySharingPanelProps {
@@ -39,11 +39,11 @@ export default function ApiarySharingPanel({ apiary }: ApiarySharingPanelProps) 
   }, [dispatch, apiary.id, canShare]);
 
   const shared = new Set(grants.map((grant) => grant.group));
-  const available = info?.allowed_groups?.filter((group) => !shared.has(group.path)) ?? [];
+  const available = info?.allowed_groups.filter((group) => !shared.has(group.path)) ?? [];
   // The select shows the first available group until the user picks another
-  const selectedPath = info?.allowed_groups === null
+  const selectedPath = available.some((group) => group.path === groupPath)
     ? groupPath
-    : (available.some((group) => group.path === groupPath) ? groupPath : available[0]?.path ?? '');
+    : available[0]?.path ?? '';
 
   const run = async (action: () => Promise<unknown>) => {
     setBusy(true);
@@ -58,7 +58,7 @@ export default function ApiarySharingPanel({ apiary }: ApiarySharingPanelProps) 
   };
 
   const handleShare = () => run(async () => {
-    await dispatch(shareApiary({ id: apiary.id, groupPath: selectedPath.trim(), canUpdate })).unwrap();
+    await dispatch(shareApiary({ id: apiary.id, groupPath: selectedPath, canUpdate })).unwrap();
     setGroupPath('');
     setCanUpdate(false);
   });
@@ -125,39 +125,21 @@ export default function ApiarySharingPanel({ apiary }: ApiarySharingPanelProps) 
 
           {canShare && info && (
             <div className="mt-3">
-              <Form.Label htmlFor={`apiary-${apiary.id}-share-group`} className="small mb-1 d-flex align-items-center">
+              <Form.Label as="div" id={`apiary-${apiary.id}-share-group`} className="small mb-1 d-flex align-items-center">
                 Partager avec
                 <HelpTip id="apiary-share-help" title="Partage">
                   Les membres de l'association voient le rucher ; avec « Peut modifier », ils
                   peuvent aussi le mettre à jour. La suppression reste réservée au propriétaire.
                 </HelpTip>
               </Form.Label>
-              {info.allowed_groups === null ? (
-                // Platform admin: any group path is accepted
-                <Form.Control
-                  id={`apiary-${apiary.id}-share-group`}
-                  type="text"
-                  value={groupPath}
-                  placeholder="/beekeepers/mon-association"
-                  onChange={(event) => setGroupPath(event.target.value)}
-                />
-              ) : (
-                <Form.Select
-                  id={`apiary-${apiary.id}-share-group`}
-                  value={selectedPath}
-                  onChange={(event) => setGroupPath(event.target.value)}
-                  disabled={available.length === 0}
-                >
-                  {available.length === 0 && (
-                    <option value="">
-                      {info.allowed_groups.length === 0 ? 'Aucune association' : 'Déjà partagé avec toutes vos associations'}
-                    </option>
-                  )}
-                  {available.map((group) => (
-                    <option key={group.path} value={group.path}>{group.name}</option>
-                  ))}
-                </Form.Select>
-              )}
+              <GroupChips
+                groups={available}
+                value={selectedPath}
+                onChange={setGroupPath}
+                labelledBy={`apiary-${apiary.id}-share-group`}
+                emptyText={info.allowed_groups.length === 0 ? 'Aucune association' : 'Déjà partagé avec toutes vos associations'}
+                disabled={busy}
+              />
               <div className="d-flex flex-wrap align-items-center gap-2 mt-2">
                 <Form.Check
                   type="switch"
@@ -167,7 +149,7 @@ export default function ApiarySharingPanel({ apiary }: ApiarySharingPanelProps) 
                   checked={canUpdate}
                   onChange={(event) => setCanUpdate(event.target.checked)}
                 />
-                <Button variant="primary" onClick={handleShare} disabled={busy || !selectedPath.trim()}>
+                <Button variant="primary" onClick={handleShare} disabled={busy || !selectedPath}>
                   {busy ? <Spinner animation="border" size="sm" className="me-2" /> : <i className="bi bi-share me-2" aria-hidden="true" />}
                   Partager
                 </Button>

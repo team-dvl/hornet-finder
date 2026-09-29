@@ -564,6 +564,68 @@ class TrapDelegationTests(TrapTestCase):
         self.assertEqual([g['path'] for g in response.data['allowed_groups']],
                          [self.group_path])
 
+    # Keycloak representations of the groups, with their display name
+    KC_GROUPS = {
+        '/beekeepers/ena': {'id': '1', 'path': '/beekeepers/ena', 'name': 'ena',
+                            'attributes': {'fancy_name': ['Entente namuroise']}},
+        '/beekeepers/abc': {'id': '2', 'path': '/beekeepers/abc', 'name': 'ABC apiculture'},
+    }
+
+    def _get(self, user):
+        request = self.factory.get(f'/traps/{self.trap.id}/delegation/')
+        force_authenticate(request, user=user)
+        return TrapViewSet.as_view({'get': 'delegation'})(request, pk=self.trap.id)
+
+    def _keycloak(self):
+        from unittest.mock import patch
+        return (patch('hornet_finder_api.utils.get_group_by_path', side_effect=self.KC_GROUPS.get),
+                patch('hornet_finder_api.utils.get_child_groups',
+                      return_value=list(self.KC_GROUPS.values())))
+
+    def test_groups_are_offered_by_their_keycloak_name(self):
+        by_path, children = self._keycloak()
+        with by_path, children:
+            response = self._get(self.owner_user)
+        self.assertEqual(response.data['allowed_groups'],
+                         [{'path': self.group_path, 'name': 'Entente namuroise'}])
+
+    def test_platform_admin_picks_among_every_association(self):
+        self.trap.group = BeekeeperGroup.objects.create(name='misc', path='/misc')
+        self.trap.save()
+        by_path, children = self._keycloak()
+        with by_path, children:
+            response = self._get(self.admin_user)
+        # Sorted by name, the current group kept even outside /beekeepers
+        self.assertEqual(response.data['allowed_groups'], [
+            {'path': '/beekeepers/abc', 'name': 'ABC apiculture'},
+            {'path': '/beekeepers/ena', 'name': 'Entente namuroise'},
+            {'path': '/misc', 'name': 'misc'},
+        ])
+
+    def test_keycloak_down_falls_back_on_local_groups(self):
+        from unittest.mock import patch
+        with patch('hornet_finder_api.utils._get_keycloak_admin', side_effect=RuntimeError('down')):
+            owner = self._get(self.owner_user)
+            admin = self._get(self.admin_user)
+        self.assertEqual(owner.data['allowed_groups'],
+                         [{'path': self.group_path, 'name': 'beekeepers / ena'}])
+        self.assertEqual(admin.data['allowed_groups'], [{'path': self.group_path, 'name': 'ena'}])
+
+    def test_delegation_renames_the_local_group_as_in_keycloak(self):
+        by_path, children = self._keycloak()
+        with by_path, children:
+            self.assertEqual(self._put(self.owner_user, self.group_path).status_code, 200)
+        self.group.refresh_from_db()
+        self.assertEqual(self.group.name, 'Entente namuroise')
+
+    def test_local_name_clash_keeps_a_path_derived_name(self):
+        BeekeeperGroup.objects.create(name='Entente namuroise', path='/beekeepers/other')
+        by_path, children = self._keycloak()
+        with by_path, children:
+            self.assertEqual(self._put(self.owner_user, self.group_path).status_code, 200)
+        self.group.refresh_from_db()
+        self.assertEqual(self.group.name, 'beekeepers / ena')
+
 
 class TrapOwnerChangeTests(TrapTestCase):
     def _put(self, user, guid):
