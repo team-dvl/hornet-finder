@@ -25,6 +25,7 @@ export const ACTION_ICONS = {
   showOnMap: 'geo-alt-fill',
   sheet: 'card-text',
   more: 'three-dots-vertical',
+  moreActions: 'three-dots',
   layers: 'layers',
   compass: 'compass',
   catch: 'bug',

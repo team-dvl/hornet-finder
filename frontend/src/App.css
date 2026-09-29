@@ -599,6 +599,50 @@ button.module-card {
   min-width: 2.5rem;
 }
 
+/* The "⋯" menu of a sheet's action bar opens over the dialog it belongs to */
+.offcanvas.bottom-sheet {
+  z-index: 1065;
+}
+
+.offcanvas-backdrop {
+  z-index: 1060;
+}
+
+.sheet-menu {
+  display: flex;
+  flex-direction: column;
+}
+
+.sheet-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  width: 100%;
+  min-height: 3rem;
+  padding: 0 0.5rem;
+  border: 0;
+  background: transparent;
+  color: var(--bs-body-color);
+  font-size: 1rem;
+  text-align: start;
+}
+
+.sheet-menu-item .bi {
+  width: 1.5rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.sheet-menu-item-warning {
+  color: var(--bs-warning-text-emphasis);
+}
+
+.sheet-menu-item-danger {
+  color: var(--bs-danger);
+  border-top: 1px solid var(--bs-border-color);
+  margin-top: 0.25rem;
+}
+
 /* Choice among a few object types: large tiles, two per row */
 .choice-grid {
   display: grid;

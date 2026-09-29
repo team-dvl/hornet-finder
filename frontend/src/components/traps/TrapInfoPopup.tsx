@@ -9,7 +9,7 @@ import {
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { ClampedText } from '../common';
 import { ConfirmationModal } from '../modals';
-import { AppModal, FieldRow, IconButton } from '../ui';
+import { AppModal, FieldRow, IconButton, SheetActions } from '../ui';
 import { ACTION_ICONS, OBJECT_ICONS } from '../../utils/icons';
 import { formatDate, formatShortDateTime } from '../../utils/format';
 import TrapDelegationPanel from './TrapDelegationPanel';
@@ -357,7 +357,19 @@ export default function TrapInfoPopup({
         {auth.isAuthenticated && (
           <>
             {(mayAct || mayEdit || canAddHere || onLocate) && (
-              <div className="sheet-actions mb-3">
+              <SheetActions
+                className="mb-3"
+                more={[
+                  mayEdit && { icon: ACTION_ICONS.move, label: 'Déplacer', onClick: handleMove },
+                  mayEdit && { icon: ACTION_ICONS.edit, label: 'Modifier', onClick: () => setSub({ kind: 'edit' }) },
+                  canAddHere && {
+                    icon: ACTION_ICONS.addHere,
+                    label: 'Ajouter à cette position',
+                    onClick: () => onAddAtLocation(current.latitude, current.longitude),
+                  },
+                  mayEdit && { icon: ACTION_ICONS.delete, label: 'Supprimer', tone: 'danger', onClick: () => setSub({ kind: 'delete' }) },
+                ]}
+              >
                 {mayAct && (
                   <>
                     <Button
@@ -384,35 +396,7 @@ export default function TrapInfoPopup({
                     onClick={() => onLocate(current)}
                   />
                 )}
-                {mayEdit && (
-                  <>
-                    <IconButton variant="outline-secondary" icon={ACTION_ICONS.move} label="Déplacer" onClick={handleMove} />
-                    <IconButton
-                      variant="outline-secondary"
-                      icon={ACTION_ICONS.edit}
-                      label="Modifier"
-                      onClick={() => setSub({ kind: 'edit' })}
-                    />
-                  </>
-                )}
-                {canAddHere && (
-                  <IconButton
-                    variant="outline-secondary"
-                    icon={ACTION_ICONS.addHere}
-                    label="Ajouter à cette position"
-                    onClick={() => onAddAtLocation(current.latitude, current.longitude)}
-                  />
-                )}
-                {mayEdit && (
-                  <IconButton
-                    variant="outline-danger"
-                    icon={ACTION_ICONS.delete}
-                    label="Supprimer"
-                    className="ms-auto"
-                    onClick={() => setSub({ kind: 'delete' })}
-                  />
-                )}
-              </div>
+              </SheetActions>
             )}
 
             <h6 className="mb-1">
