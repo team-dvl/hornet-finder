@@ -22,8 +22,23 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   then opens the landing page, where the pending invitations come first.
 - A reminder can be emailed to the invitee from the pending invitations, at most
   once per 24 hours.
+- Statistics module (menu → Statistiques), for every signed-in user: Asian
+  hornet catches per day, week or month, per trap and per week with a 95 %
+  interval and the previous year alongside; catches per species; trap types
+  compared (efficiency, selectivity); most active traps; coverage of the
+  territory and catch pressure on a 250 m grid, also as layers of the map.
+  Periods: last 7 or 30 days, month, season (spring, summer,
+  summer-autumn-winter), year, free dates. Totals count every trap; anything
+  located (zone, map, trap list) only the traps the user can see.
+- Each table as a list or as charts, and exported to Excel, PDF (with its
+  charts) or CSV; maps to Excel or CSV. A link to the files can be emailed to
+  the signed-in user (download page valid one hour, ten downloads).
 
 ### Changed
+- A trap visit is recorded as a reading ("Relevé"), zero catches included,
+  with the maintenance done on the spot (cleaning, refill, repair) and whether
+  the other species were counted.
+- The infestation level of an apiary is optional ("Non évalué").
 - New app icon: an Asian hornet traced after a photo, in a target on the yellow
   of the Vedrin s'abeille logo; the dev icon is purple with a red "DEV" band.
   Full-bleed icons (maskable on Android, opaque on iOS) fill the home-screen
