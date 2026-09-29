@@ -22,6 +22,8 @@ export default function Home() {
       <img src="/vsab-logo-transparent.png" alt="" aria-hidden="true" className="home-backdrop" />
 
       <Container className="pt-2 pb-4 position-relative">
+        {auth.isAuthenticated && <PendingInvitations />}
+
         <div className="d-flex align-items-center justify-content-center gap-3 mb-3">
           <img src={APP_ICON} alt="" width={56} height={56} className="flex-shrink-0" />
           <div>
@@ -29,8 +31,6 @@ export default function Home() {
             <div className="text-primary">Gestion du frelon asiatique</div>
           </div>
         </div>
-
-        {auth.isAuthenticated && <PendingInvitations />}
 
         <div className="tile-grid">
           {modules.map((module) => (
