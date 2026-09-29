@@ -17,8 +17,8 @@ export default defineConfig(({ mode }) => {
   const isLocalEnvironment = env.VITE_ENVIRONMENT === 'local'
   const devDomain = isLocalEnvironment ? 'localhost' : 'dev.velutina.ovh'
 
-  // DEV runs the Vite dev server, prod a build: the dev icons (purple outline)
-  // tell the two installed PWAs apart
+  // DEV runs the Vite dev server, prod a build: the dev icons (purple, with a
+  // "DEV" band) tell the two installed PWAs apart
   const isDevServer = mode !== 'production'
   const iconSuffix = isDevServer ? '-dev' : ''
 
@@ -85,17 +85,34 @@ export default defineConfig(({ mode }) => {
         orientation: 'portrait-primary',
         start_url: '/',
         scope: '/',
+        // Rendered from frontend/icons/app-icon*.svg (see its README): rounded
+        // "any" icons for desktops, full-bleed "maskable" ones that Android
+        // crops to the launcher's shape
         icons: [
           {
             src: `icons/pwa${iconSuffix}-192x192.png`,
             sizes: '192x192',
             type: 'image/png',
+            purpose: 'any',
           },
           {
             src: `icons/pwa${iconSuffix}-512x512.png`,
             sizes: '512x512',
             type: 'image/png',
-          }
+            purpose: 'any',
+          },
+          {
+            src: `icons/pwa${iconSuffix}-maskable-192x192.png`,
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+          {
+            src: `icons/pwa${iconSuffix}-maskable-512x512.png`,
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
         ],
         // Long press on the installed app icon (Android, desktop; not iOS)
         shortcuts: [
