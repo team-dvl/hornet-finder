@@ -37,6 +37,9 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   asked to set up an authenticator app at their first sign-in. The "My account"
   page follows the same sign-in flow as the application, so it no longer offers a
   way around the code. Sign-in with Google or Facebook is not affected.
+- Access tokens last 15 minutes instead of 3 hours, so a disabled account or a
+  removed role stops working on the API within 15 minutes; the session itself
+  lasts as long as before.
 
 
 ## [1.0.0] - 2026-09-30
