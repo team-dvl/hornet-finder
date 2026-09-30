@@ -14,16 +14,18 @@ Deux réglages WebAuthn du realm `hornet-finder`, portés dans `auth/realm-expor
 
 Dev seulement : `webAuthnPolicyRpId` et `webAuthnPolicyPasswordlessRpId` passent de vide à `dev.velutina.ovh`. La prod a déjà `velutina.ovh`.
 
-Ce qui **ne change pas** : le flux de connexion. La prod reste sur le flux `browser` (mot de passe) : **cette note ne lie pas `browser-passkey`**, qui reste une décision à part. Backend, frontend, nginx, `.env`, volumes, thèmes inchangés. `./deploy.sh` n'est pas nécessaire.
+Ce qui **ne change pas** : le flux de connexion, le backend, le frontend, nginx, `.env`, volumes, thèmes. `./deploy.sh` n'est pas nécessaire.
+
+**Correction** : le flux du realm prod est `browser`, mais le client `hornet-app` est surchargé pour utiliser `browser-passkey` (Clients → `hornet-app` → Advanced → Authentication flow overrides). La connexion par passkey est donc **déjà active pour l'application en prod**, et ce changement y prend effet dès qu'il est appliqué.
 
 **Impact utilisateurs**
-- Prod aujourd'hui : aucun, la connexion par passkey n'y est pas active.
-- Quand `browser-passkey` sera lié : une passkey utilisée seule doit vérifier l'utilisateur (Face ID, empreinte ou code de l'appareil). Une clé USB sans PIN serait refusée. Le mot de passe et la réinitialisation par e-mail restent disponibles.
+- Prod, dès l'application : une passkey utilisée seule doit vérifier l'utilisateur (Face ID, empreinte ou code de l'appareil). Une clé USB sans PIN serait refusée. Le mot de passe et la réinitialisation par e-mail restent disponibles.
+- Aucun effet pour les utilisateurs qui n'ont pas de passkey.
 - Dev : changer le `RpId` invalide les passkeys déjà enregistrées avec l'ancien (elles étaient rattachées à `auth.dev.velutina.ovh`). Elles sont à réenregistrer depuis « Mon compte ».
 
 ## Prérequis
 - Appliquer et tester d'abord en dev (realm `hornet-finder-dev`) : enregistrer une passkey sur un iPhone (Safari) et sur un Android (Chrome), se déconnecter, se reconnecter avec, et noter si l'appareil demande Face ID, l'empreinte ou le code.
-- Savoir si des utilisateurs prod ont déjà une passkey : lecture seule, `GET $K/users/<id>/credentials`, type `webauthn-passwordless` (`flow-admin` a `view-users`).
+- Savoir si des utilisateurs prod ont déjà une passkey sans mot de passe : lecture seule, `GET $K/users/<id>/credentials`, type `webauthn-passwordless` (`flow-admin` a `view-users`). Avec le flux actif en prod, c'est ce qui décide de l'impact réel.
 
 ## Étapes
 1. `git merge --ff-only devel`
