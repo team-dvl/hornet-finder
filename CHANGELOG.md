@@ -10,6 +10,13 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 
 ## [Unreleased]
 
+### Added
+- Species can be reordered by an administrator (Administration → Espèces, "Ordre"
+  button): move up / move down on each row. New species are added at the end.
+
+### Removed
+- The "display order" number of the species form, replaced by the move buttons.
+
 ## [1.0.0] - 2026-09-30
 
 ### Added
