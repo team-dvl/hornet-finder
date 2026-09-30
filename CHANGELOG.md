@@ -30,6 +30,9 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 - A passkey used alone, without a password, must verify the user on the device
   (Face ID, fingerprint or device code); a security key without a PIN is
   refused. Sign-in with a password, Google or Facebook is unchanged.
+- Sign-in requests of the application must carry a PKCE `S256` challenge in
+  production too, as they already did in development.
+
 
 ## [1.0.0] - 2026-09-30
 

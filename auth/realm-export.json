@@ -1113,7 +1113,8 @@
         "acr.loa.map": "{}",
         "tls.client.certificate.bound.access.tokens": "false",
         "display.on.consent.screen": "false",
-        "token.response.type.bearer.lower-case": "false"
+        "token.response.type.bearer.lower-case": "false",
+        "pkce.code.challenge.method": "S256"
       },
       "authenticationFlowBindingOverrides": {
         "browser": "e24cc354-6ca9-40e5-b8a0-85adae6e4d08"
@@ -1205,7 +1206,8 @@
         "acr.loa.map": "{}",
         "display.on.consent.screen": "false",
         "request.object.encryption.enc": "any",
-        "token.response.type.bearer.lower-case": "false"
+        "token.response.type.bearer.lower-case": "false",
+        "pkce.code.challenge.method": "S256"
       },
       "authenticationFlowBindingOverrides": {},
       "fullScopeAllowed": true,
