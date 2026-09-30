@@ -141,11 +141,20 @@ commencer (1 600 mailles pour une emprise de 10 × 10 km).
 - Grille de mailles carrées de 250 m (`ST_SquareGrid`) en Lambert belge 2008
   (EPSG:3812, en mètres), ancrée sur l'origine de la projection : une maille
   reste la même quand la carte bouge. Sur la carte Web Mercator, elle apparaît
-  très légèrement inclinée. Chaque maille porte la **part exacte de sa surface
+  très légèrement inclinée. Au choix (`grid=hex`), des hexagones de même
+  surface (`ST_HexagonGrid`, côté a = √(2 · 250² / 3√3) = 155,1 m, 6,25 ha) :
+  six voisins tous à 268,6 m au lieu de quatre à 250 m et quatre à 353,6 m,
+  point le plus éloigné du centre à 155,1 m au lieu de 176,8 m (distance
+  moyenne 94,3 m au lieu de 95,7 m). Les totaux de la zone ne dépendent pas de
+  la forme ; le calcul de couverture est 10 à 30 % plus long. Chaque maille porte la **part exacte de sa surface
   couverte** (≤ 33 %, ≤ 66 %, > 66 %), plutôt qu'un oui/non au centre : le
   dessin n'a pas l'effet d'escalier d'une demi-maille.
 - Calcul : chaque disque (polygone à 64 côtés, 0,16 % de surface en moins qu'un
-  cercle) est découpé par les mailles voisines de la sienne, puis les morceaux
+  cercle) est découpé par les mailles voisines de la sienne (indices
+  `floor(x / pas)`, `floor(y / pas)` ; pour les hexagones, pas de 1,5 a en
+  colonne et √3 a en ligne, décalage d'une demi-ligne une colonne sur deux :
+  l'indice est faux d'au plus un, d'où une maille de marge, vérifiée sur
+  20 000 points), puis les morceaux
   sont unis maille par maille. Vérifié contre un tirage de Monte-Carlo de
   200 000 points : 26,64 % contre 26,60 % ± 0,19 %.
 

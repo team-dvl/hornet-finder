@@ -8,7 +8,7 @@ export interface StatDescription {
   id: string;
   title: string;
   description: string;
-  /** `table`: rows over time or by group; `map`: cells of a 250 m grid */
+  /** `table`: rows over time or by group; `map`: cells of a grid (250 m squares or hexagons) */
   kind: 'table' | 'map';
   /** Parameters the page offers: period, granularity, compare, order, trap_type, group, mine, zone */
   filters: string[];
@@ -60,6 +60,9 @@ export interface StatResult {
   };
 }
 
+/** Shape of the cells of a map statistic: 250 m squares or hexagons of the same area */
+export type GridShape = 'square' | 'hex';
+
 /** Properties of a grid cell: `covered` (share, coverage) or `rate` (pressure) */
 export interface GridCellProperties {
   id: string;
@@ -83,7 +86,8 @@ export interface MapStatResult extends StatResult {
   area: { kind: 'zone' | 'bbox'; km2: number };
   /** [lat, lon] of the traps in service near the area */
   traps: [number, number][];
-  parameters: { reach?: number; bandwidth?: number; cell: number; min_effort_days?: number };
+  /** `cell`: side of a square cell in metres; `grid`: shape of the cells, both of 6.25 ha */
+  parameters: { reach?: number; bandwidth?: number; cell: number; grid?: GridShape; min_effort_days?: number };
   summary: {
     coverage?: number | null;
     covered_km2?: number;

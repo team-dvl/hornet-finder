@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, ZoomControl } from 'react-leaflet';
 import { HelpTip } from '../common';
 import { useAppSelector } from '../../store/hooks';
 import { selectMapCenter } from '../../store/store';
-import type { GridCellProperties, StatParams } from '../../utils/statsApi';
+import type { GridCellProperties, GridShape, StatParams } from '../../utils/statsApi';
 import StatGridLegend from './StatGridLegend';
 import StatGridOverlay, { type GridState } from './StatGridOverlay';
 import { formatPercent, formatRate } from './statParams';
@@ -17,6 +17,10 @@ interface MapStatViewProps {
 }
 
 const DISTANCES = ['100', '250', '500'];
+const GRIDS: { value: GridShape; label: string; icon: string }[] = [
+  { value: 'square', label: 'Carré', icon: 'square' },
+  { value: 'hex', label: 'Hexagone', icon: 'hexagon' },
+];
 const LOCALE = 'fr-BE';
 
 function Kpi({ value, label }: { value: string; label: string }) {
@@ -28,7 +32,7 @@ function Kpi({ value, label }: { value: string; label: string }) {
   );
 }
 
-/** Coverage or pressure of the traps on a 250 m grid, over the map view or a zone. */
+/** Coverage or pressure of the traps on a grid of 6.25 ha cells, over the map view or a zone. */
 export default function MapStatView({ statId, params, onParams, onState }: MapStatViewProps) {
   const center = useAppSelector(selectMapCenter);
   const [grid, setGrid] = useState<GridState>({ loading: true, bbox: null });
@@ -36,6 +40,7 @@ export default function MapStatView({ statId, params, onParams, onState }: MapSt
   const coverage = statId === 'traps-coverage';
   const parameter = coverage ? 'reach' : 'bandwidth';
   const distance = params[parameter] || '250';
+  const gridShape: GridShape = params.grid === 'hex' ? 'hex' : 'square';
   const result = grid.result;
   const summary = result?.summary;
 
@@ -110,9 +115,34 @@ export default function MapStatView({ statId, params, onParams, onState }: MapSt
       {result && (
         <div className="small text-muted mt-1">
           Surface étudiée : {result.area.km2.toLocaleString(LOCALE, { maximumFractionDigits: 1 })} km²
-          {result.area.kind === 'bbox' ? ' (la carte affichée)' : ' (la zone choisie)'} · maille de {result.parameters.cell} m
+          {result.area.kind === 'bbox' ? ' (la carte affichée)' : ' (la zone choisie)'} ·{' '}
+          {result.parameters.grid === 'hex' ? 'mailles hexagonales de 6,25 ha' : `mailles de ${result.parameters.cell} m`}
         </div>
       )}
+
+      <div className="d-flex align-items-center mt-3 mb-1 fw-semibold small">
+        Maille
+        <HelpTip id="stat-grid-help" title="Maille">
+          Carrés de 250 m ou hexagones de même surface (6,25 ha, 155 m de côté). Les totaux de la
+          zone ne changent pas. Un hexagone a six voisins à la même distance (269 m), un carré
+          quatre à 250 m et quatre en diagonale à 354 m : les hexagones évitent les effets
+          d&apos;escalier et de diagonale du dessin.
+        </HelpTip>
+      </div>
+      <ButtonGroup className="w-100" role="radiogroup" aria-label="Maille">
+        {GRIDS.map(({ value, label, icon }) => (
+          <Button
+            key={value}
+            variant={gridShape === value ? 'primary' : 'outline-primary'}
+            role="radio"
+            aria-checked={gridShape === value}
+            onClick={() => { setSelected(null); onParams({ grid: value === 'square' ? '' : value }); }}
+          >
+            <i className={`bi bi-${icon} me-2`} aria-hidden="true" />
+            {label}
+          </Button>
+        ))}
+      </ButtonGroup>
 
       <div className="d-flex align-items-center mt-3 mb-1 fw-semibold small">
         {coverage ? "Rayon d'action supposé d'un piège" : 'Lissage'}

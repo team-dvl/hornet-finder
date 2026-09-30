@@ -11,6 +11,9 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ## [Unreleased]
 
 ### Added
+- The coverage and pressure maps can be drawn on hexagons instead of 250 m
+  squares ("Maille" selector under the map, `grid=hex` in the API): cells of the
+  same area (6.25 ha), six neighbours at the same distance, same totals.
 - Species can be reordered by an administrator (Administration → Espèces, "Ordre"
   button): move up / move down on each row. New species are added at the end.
 

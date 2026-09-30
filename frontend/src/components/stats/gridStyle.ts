@@ -1,5 +1,5 @@
 /**
- * Colours of the 250 m grid: one hue, light to dark, for a magnitude (the
+ * Colours of the grid cells: one hue, light to dark, for a magnitude (the
  * share of a cell covered, the pressure). Cells without a value are not
  * drawn at all, so the map shows through.
  */
