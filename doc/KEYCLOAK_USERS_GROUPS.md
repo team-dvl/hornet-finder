@@ -23,6 +23,8 @@ Les rôles applicatifs à définir dans le realm sont :
 | `volunteer` | Peut créer des observations de frelons et des nids. Peut lire les ruchers auxquels un groupe lui donne `can_read`. Ne peut pas modifier les frelons ou les nids, qui sont réservés à `admin`. |
 | `beekeeper-group-admin` | Rôle prévu pour identifier l'administrateur d'un groupe d'apiculteurs. Il est attribué aux sous-groupes `admin` des groupes d'apiculteurs. À ce jour, le backend ne l'utilise pas directement pour autoriser une opération : sa présence dans Keycloak ne remplace donc pas une permission Django. |
 
+Le rôle technique `mfa-required` n'ouvre aucune permission applicative : il impose un second facteur (OTP) à la connexion par mot de passe, à configurer à la première connexion s'il manque. Il est porté par `admin` et `beekeeper-group-admin` comme rôle composite, donc par les membres de `/admins` et des sous-groupes `admin` des groupes d'apiculteurs. Pour l'imposer à un autre groupe ou à une autre personne, lui attribuer ce rôle. Une connexion par passkey (vérification de l'utilisateur exigée) ou par Google ou Facebook n'est pas soumise à cette exigence. Le rôle apparaît dans `realm_access.roles` du token.
+
 Les rôles `offline_access`, `uma_authorization` et les rôles techniques des clients Keycloak sont des rôles de fonctionnement Keycloak, pas des entitlements métier Hornet Finder.
 
 ### Point important sur l'héritage

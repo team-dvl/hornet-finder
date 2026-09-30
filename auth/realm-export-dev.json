@@ -63,19 +63,29 @@
         "id": "3e83f3c4-9d09-4c9c-8804-e0fa0ccd5ee1",
         "name": "beekeeper-group-admin",
         "description": "Beekeeper group administrator: can accept/reject new submissions, can exclude members from a beekeeper group",
-        "composite": false,
+        "composite": true,
         "clientRole": false,
         "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
-        "attributes": {}
+        "attributes": {},
+        "composites": {
+          "realm": [
+            "mfa-required"
+          ]
+        }
       },
       {
         "id": "6828d02c-06de-443e-88ac-fd31e6b20c4a",
         "name": "admin",
         "description": "",
-        "composite": false,
+        "composite": true,
         "clientRole": false,
         "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
-        "attributes": {}
+        "attributes": {},
+        "composites": {
+          "realm": [
+            "mfa-required"
+          ]
+        }
       },
       {
         "id": "1afe8454-5dd5-4fd3-bf0c-2fbbdfedc557",
@@ -142,6 +152,14 @@
         "clientRole": false,
         "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
         "attributes": {}
+      },
+      {
+        "id": "2a6cfff8-c1aa-4c56-b47e-546d1b80d688",
+        "name": "mfa-required",
+        "description": "Users holding this role must use a second factor (OTP) to sign in with a password",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049"
       }
     ],
     "client": {
@@ -2698,35 +2716,44 @@
     {
       "id": "18a9547f-cbd0-4c66-8337-d87430a46abb",
       "alias": "Conditional OTP",
-      "description": "OTP only if user has one configured",
+      "description": "OTP if the user has one configured and does not hold the mfa-required role",
       "providerId": "basic-flow",
       "topLevel": false,
       "builtIn": false,
       "authenticationExecutions": [
         {
-          "authenticatorConfig": "skip-otp-if-passkey-used",
-          "authenticator": "conditional-credential",
+          "authenticator": "conditional-user-configured",
           "authenticatorFlow": false,
           "requirement": "REQUIRED",
-          "priority": 0,
+          "priority": 10,
           "autheticatorFlow": false,
           "userSetupAllowed": false
         },
         {
-          "authenticator": "conditional-user-configured",
+          "authenticator": "conditional-user-role",
           "authenticatorFlow": false,
           "requirement": "REQUIRED",
-          "priority": 0,
+          "priority": 20,
           "autheticatorFlow": false,
-          "userSetupAllowed": false
+          "userSetupAllowed": false,
+          "authenticatorConfig": "mfa-role-not-required"
         },
         {
           "authenticator": "auth-otp-form",
           "authenticatorFlow": false,
           "requirement": "REQUIRED",
-          "priority": 0,
+          "priority": 30,
           "autheticatorFlow": false,
           "userSetupAllowed": false
+        },
+        {
+          "authenticator": "conditional-credential",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 40,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false,
+          "authenticatorConfig": "skip-otp-if-passkey-used"
         }
       ]
     },
@@ -2889,16 +2916,24 @@
           "authenticator": "auth-password-form",
           "authenticatorFlow": false,
           "requirement": "REQUIRED",
-          "priority": 0,
+          "priority": 10,
           "autheticatorFlow": false,
           "userSetupAllowed": false
         },
         {
           "authenticatorFlow": true,
           "requirement": "CONDITIONAL",
-          "priority": 0,
+          "priority": 20,
           "autheticatorFlow": true,
           "flowAlias": "Conditional OTP",
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 30,
+          "autheticatorFlow": true,
+          "flowAlias": "Mandatory OTP",
           "userSetupAllowed": false
         }
       ]
@@ -3426,6 +3461,33 @@
           "userSetupAllowed": false
         }
       ]
+    },
+    {
+      "id": "90eb24f5-9779-4d12-8b52-7a8976a4605c",
+      "alias": "Mandatory OTP",
+      "description": "OTP for users holding the mfa-required role, configured at sign-in when missing",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-user-role",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false,
+          "authenticatorConfig": "mfa-role-required"
+        },
+        {
+          "authenticator": "auth-otp-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
     }
   ],
   "authenticatorConfig": [
@@ -3449,6 +3511,22 @@
       "config": {
         "credentials": "webauthn-passwordless",
         "included": "false"
+      }
+    },
+    {
+      "id": "267913ad-7e8a-42db-86ec-230529f457b1",
+      "alias": "mfa-role-required",
+      "config": {
+        "condUserRole": "mfa-required",
+        "negate": "false"
+      }
+    },
+    {
+      "id": "1a34079f-d15a-49b6-986e-33d3b78fac85",
+      "alias": "mfa-role-not-required",
+      "config": {
+        "condUserRole": "mfa-required",
+        "negate": "true"
       }
     }
   ],
