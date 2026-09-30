@@ -1,4 +1,5 @@
-from datetime import datetime, timezone as dt_timezone
+from datetime import date, datetime, timezone as dt_timezone
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.utils import timezone
@@ -110,6 +111,85 @@ class HornetArchiveActionPermissionTests(TestCase):
         other_year_hornet.refresh_from_db()
         self.assertTrue(self.hornet.archived)
         self.assertFalse(other_year_hornet.archived)
+
+
+def _make_hornet_on(day, archived=False):
+    hornet = Hornet.objects.create(latitude=50.5, longitude=4.5, direction=0)
+    Hornet.objects.filter(pk=hornet.pk).update(created_at=day, archived=archived)
+    return hornet
+
+
+class ArchiveBySeasonTests(TestCase):
+    """Archiving with the granularity of the statistics' seasons; today is 2026-10-15."""
+
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        patcher = patch('hornet.stats.periods.local_today', return_value=date(2026, 10, 15))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        utc = dt_timezone.utc
+        self.in_spring = _make_hornet_on(datetime(2026, 3, 10, 12, tzinfo=utc))
+        self.in_summer = _make_hornet_on(datetime(2026, 7, 10, 12, tzinfo=utc))
+        self.in_january = _make_hornet_on(datetime(2026, 1, 10, 12, tzinfo=utc))
+        self.in_december = _make_hornet_on(datetime(2026, 12, 10, 12, tzinfo=utc))
+        self.spring_archived = _make_hornet_on(datetime(2026, 4, 10, 12, tzinfo=utc), archived=True)
+
+    def _call(self, method, action_name, query, roles=('admin',)):
+        request = getattr(self.factory, method)(f'/hornets/{action_name}/?{query}')
+        force_authenticate(request, user=FakeUser(roles=list(roles)))
+        return HornetViewSet.as_view({method: action_name})(request)
+
+    def test_candidates_count_the_season_not_yet_archived(self):
+        response = self._call('get', 'archive_candidates', 'period=season&season=spring&year=2026')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['count'], 1)  # the archived one is left out
+        self.assertEqual(response.data['period']['start'], '2026-02-01')
+        self.assertEqual(response.data['period']['end'], '2026-06-15')
+
+    def test_candidates_of_a_season_do_not_archive_anything(self):
+        self._call('get', 'archive_candidates', 'period=season&season=spring&year=2026')
+        self.in_spring.refresh_from_db()
+        self.assertFalse(self.in_spring.archived)
+
+    def test_bulk_archive_season_archives_that_season_only(self):
+        response = self._call('post', 'bulk_archive', 'period=season&season=spring&year=2026')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['archived_count'], 1)
+        for hornet, expected in [(self.in_spring, True), (self.in_summer, False),
+                                 (self.in_january, False), (self.in_december, False)]:
+            hornet.refresh_from_db()
+            self.assertEqual(hornet.archived, expected)
+
+    def test_late_season_covers_summer_and_after(self):
+        response = self._call('get', 'archive_candidates', 'period=season&season=late&year=2026')
+        # Still running (ends 31 Dec): refused
+        self.assertEqual(response.status_code, 400)
+        with patch('hornet.stats.periods.local_today', return_value=date(2027, 1, 5)):
+            response = self._call('get', 'archive_candidates', 'period=season&season=late&year=2026')
+        self.assertEqual(response.data['count'], 2)  # July and December
+
+    def test_year_without_period_is_the_whole_year(self):
+        with patch('hornet.stats.periods.local_today', return_value=date(2027, 1, 5)):
+            response = self._call('get', 'archive_candidates', 'year=2026')
+        self.assertEqual(response.data['count'], 4)
+
+    def test_running_period_is_refused(self):
+        response = self._call('post', 'bulk_archive', 'year=2026')
+        self.assertEqual(response.status_code, 400)
+        self.in_spring.refresh_from_db()
+        self.assertFalse(self.in_spring.archived)
+
+    def test_year_before_the_project_is_refused(self):
+        response = self._call('get', 'archive_candidates', 'year=2024')
+        self.assertEqual(response.status_code, 400)
+
+    def test_unknown_season_is_refused(self):
+        response = self._call('get', 'archive_candidates', 'period=season&season=winter&year=2026')
+        self.assertEqual(response.status_code, 400)
+
+    def test_candidates_forbidden_for_non_admin(self):
+        response = self._call('get', 'archive_candidates', 'year=2025', roles=('beekeeper',))
+        self.assertEqual(response.status_code, 403)
 
 
 class NestArchiveFilterTests(TestCase):

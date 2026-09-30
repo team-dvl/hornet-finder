@@ -54,6 +54,13 @@ export function currentSeason(today = new Date()): string | null {
   return null;
 }
 
+/** Last day of a season (or of the year for `year`) */
+export function periodEnd(period: string, year: number): Date {
+  if (period === 'spring') return new Date(year, 5, 15);
+  if (period === 'summer') return new Date(year, 8, 30);
+  return new Date(year, 11, 31);
+}
+
 /** The parameters of the page: the URL's, completed with the defaults. */
 export function readParams(search: URLSearchParams): StatParams {
   const params: StatParams = {};

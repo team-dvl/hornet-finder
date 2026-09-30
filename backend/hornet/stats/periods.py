@@ -33,6 +33,8 @@ GRANULARITIES = ('day', 'week', 'month')
 # Longest custom period, and so the most buckets a table can have
 MAX_SPAN_DAYS = 3 * 366
 FIRST_YEAR = 2020
+# The project started in 2025: nothing to archive before
+ARCHIVE_FIRST_YEAR = 2025
 
 
 class PeriodError(ValueError):
@@ -165,6 +167,38 @@ def resolve_period(params, today: date | None = None) -> Period:
     if start > today:
         raise PeriodError("Cette période n'a pas encore commencé.")
     end = min(end, today)
+    return Period(key, start, end, label, season, year)
+
+
+def resolve_archive_period(params, today: date | None = None) -> Period:
+    """
+    The whole season (`period=season` + `season`) or year (`period=year`, the
+    default) of `year` that `params` ask to archive, with the same bounds as
+    the statistics' periods but never clipped to today: only a period that is
+    over can be archived, so an object still to come cannot slip in.
+    """
+    today = today or local_today()
+    key = params.get('period') or 'year'
+    if key not in ('season', 'year'):
+        raise PeriodError("Seuls une saison ou une année peuvent être archivées.")
+    try:
+        year = int(params.get('year') or '')
+    except ValueError:
+        raise PeriodError("Année invalide.")
+    if not ARCHIVE_FIRST_YEAR <= year <= today.year:
+        raise PeriodError(f"Année hors limites ({ARCHIVE_FIRST_YEAR} à {today.year}).")
+
+    season = ''
+    if key == 'season':
+        season = params.get('season') or ''
+        if season not in SEASONS:
+            raise PeriodError(f"Saison inconnue : {season}.")
+        name, (m1, d1), (m2, d2) = SEASONS[season]
+        start, end, label = date(year, m1, d1), date(year, m2, d2), f"{name} {year}"
+    else:
+        start, end, label = date(year, 1, 1), date(year, 12, 31), f"Année {year}"
+    if end >= today:
+        raise PeriodError("Cette période n'est pas terminée.")
     return Period(key, start, end, label, season, year)
 
 

@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from .models import Hornet, Nest, User
+from .stats.periods import PeriodError, resolve_archive_period
 from .serializers import HornetSerializer, NestSerializer, PublicNestSerializer
 from hornet_finder_api.authentication import JWTBearerAuthentication, HasAnyRole
 from rest_framework import status
@@ -50,7 +51,7 @@ class GeographicFilterMixin:
 
 
 class ArchiveFilterMixin:
-    """Mixin adding `year`/`archived` query param filtering and archive/bulk_archive actions."""
+    """Mixin adding `year`/`archived` query param filtering and archive/archive_candidates/bulk_archive actions."""
 
     def apply_archive_year_filters(self, queryset, request):
         """
@@ -85,21 +86,50 @@ class ArchiveFilterMixin:
         serializer = self.get_serializer(obj)
         return Response(serializer.data)
 
+    def archivable(self, request):
+        """
+        The objects still to archive in the period asked (whole season or year
+        that is over), and that period; or an error response.
+        """
+        try:
+            period = resolve_archive_period(request.query_params)
+        except PeriodError as error:
+            return None, None, Response({"error": str(error)}, status=400)
+        queryset = self.queryset.filter(
+            created_at__gte=period.start_dt, created_at__lt=period.end_dt, archived=False
+        )
+        return queryset, period, None
+
+    ARCHIVE_PARAMETERS = [
+        OpenApiParameter(name='period', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, required=False,
+                         enum=['season', 'year'], description="`year` (default) or `season`"),
+        OpenApiParameter(name='season', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, required=False,
+                         enum=['spring', 'summer', 'late'], description="Required with `period=season`"),
+        OpenApiParameter(name='year', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, required=True),
+    ]
+
     @extend_schema(
-        parameters=[
-            OpenApiParameter(name='year', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, required=True),
-        ],
+        parameters=ARCHIVE_PARAMETERS,
+        responses={200: OpenApiResponse(description='Number of objects an archiving of the period would archive')},
+    )
+    @action(detail=False, methods=['get'], permission_classes=[HasAnyRole(['admin'])])
+    def archive_candidates(self, request):
+        queryset, period, error = self.archivable(request)
+        if error:
+            return error
+        return Response({"count": queryset.count(), "period": period.as_dict()})
+
+    @extend_schema(
+        parameters=ARCHIVE_PARAMETERS,
         responses={200: OpenApiResponse(description='Number of archived objects')},
     )
     @action(detail=False, methods=['post'], permission_classes=[HasAnyRole(['admin'])])
     def bulk_archive(self, request):
-        year = request.query_params.get('year')
-        if not year or not year.isdigit():
-            return Response({"error": "year parameter is required and must be a valid year"}, status=400)
-        updated_count = self.queryset.filter(created_at__year=year, archived=False).update(
-            archived=True, archived_at=timezone.now()
-        )
-        return Response({"archived_count": updated_count})
+        queryset, period, error = self.archivable(request)
+        if error:
+            return error
+        updated_count = queryset.update(archived=True, archived_at=timezone.now())
+        return Response({"archived_count": updated_count, "period": period.as_dict()})
 
 
 def geographic_list_schema(default_radius=5):
@@ -153,7 +183,7 @@ class HornetViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelVie
         # Each action corresponds to a method in the viewset, e.g. list corresponds to the GET /hornets/ endpoint.
         # if hasattr(self, 'action') and self.action in ['list', 'retrieve', 'update', 'partial_update', 'destroy']:
         # Allow public access to list action (viewing hornets)
-        if hasattr(self, 'action') and self.action in ['retrieve', 'create', 'update', 'partial_update', 'destroy', 'my', 'archive', 'bulk_archive']:
+        if hasattr(self, 'action') and self.action in ['retrieve', 'create', 'update', 'partial_update', 'destroy', 'my', 'archive', 'archive_candidates', 'bulk_archive']:
             return [JWTBearerAuthentication()]
         return super().get_authenticators()
 
@@ -161,7 +191,7 @@ class HornetViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelVie
         # Allow public access to list action (viewing hornets)
         if hasattr(self, 'action') and self.action in ('create', 'my'):
             return [HasAnyRole(['volunteer', 'beekeeper', 'admin'])]
-        elif hasattr(self, 'action') and self.action in ['retrieve', 'update', 'partial_update', 'destroy', 'archive', 'bulk_archive']:
+        elif hasattr(self, 'action') and self.action in ['retrieve', 'update', 'partial_update', 'destroy', 'archive', 'archive_candidates', 'bulk_archive']:
             return [HasAnyRole(['admin'])]
         return super().get_permissions()
     

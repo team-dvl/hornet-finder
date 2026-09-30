@@ -208,27 +208,6 @@ export const archiveNest = createAsyncThunk(
   }
 );
 
-// Thunk async pour archiver en masse les nids d'une année donnée (admin uniquement)
-export const bulkArchiveNests = createAsyncThunk(
-  'nests/bulkArchiveNests',
-  async ({ year, accessToken }: { year: number; accessToken: string }, { rejectWithValue }) => {
-    try {
-      const response = await api.post(`/nests/bulk_archive/?year=${year}`, {}, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      });
-      return response.data as { archived_count: number };
-    } catch (error: unknown) {
-      const axiosError = error as { response?: { data?: { message?: string; error?: string }; status?: number } };
-      const errorMessage = axiosError.response?.data?.message ||
-                          axiosError.response?.data?.error ||
-                          `HTTP error! status: ${axiosError.response?.status}`;
-      return rejectWithValue(errorMessage || "Erreur lors de l'archivage en masse des nids");
-    }
-  }
-);
-
 // Slice pour les nids
 const nestsSlice = createSlice({
   name: 'nests',
@@ -316,10 +295,6 @@ const nestsSlice = createSlice({
         state.nests = state.nests.filter(nest => nest.id !== action.payload.id);
       })
       .addCase(archiveNest.rejected, (state, action) => {
-        state.error = action.payload as string;
-      })
-      // Cas de bulkArchiveNests
-      .addCase(bulkArchiveNests.rejected, (state, action) => {
         state.error = action.payload as string;
       });
   },
