@@ -7,7 +7,7 @@
   "defaultSignatureAlgorithm": "RS256",
   "revokeRefreshToken": false,
   "refreshTokenMaxReuse": 0,
-  "accessTokenLifespan": 900,
+  "accessTokenLifespan": 3600,
   "accessTokenLifespanForImplicitFlow": 900,
   "ssoSessionIdleTimeout": 259200,
   "ssoSessionMaxLifespan": 604800,
@@ -72,15 +72,10 @@
         "id": "3e83f3c4-9d09-4c9c-8804-e0fa0ccd5ee1",
         "name": "beekeeper-group-admin",
         "description": "Beekeeper group administrator: can accept/reject new submissions, can exclude members from a beekeeper group",
-        "composite": true,
+        "composite": false,
         "clientRole": false,
         "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
-        "attributes": {},
-        "composites": {
-          "realm": [
-            "mfa-required"
-          ]
-        }
+        "attributes": {}
       },
       {
         "id": "6828d02c-06de-443e-88ac-fd31e6b20c4a",

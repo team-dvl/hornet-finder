@@ -32,13 +32,13 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   refused. Sign-in with a password, Google or Facebook is unchanged.
 - Sign-in requests of the application must carry a PKCE `S256` challenge in
   production too, as they already did in development.
-- Administrators (platform administrators and administrators of beekeeper
-  groups) must enter a one-time code when they sign in with a password, and are
-  asked to set up an authenticator app at their first sign-in. The "My account"
-  page follows the same sign-in flow as the application, so it no longer offers a
-  way around the code. Sign-in with Google or Facebook is not affected.
-- Access tokens last 15 minutes instead of 3 hours, so a disabled account or a
-  removed role stops working on the API within 15 minutes; the session itself
+- Platform administrators must enter a one-time code when they sign in with a
+  password, and are asked to set up an authenticator app at their first
+  sign-in. The "My account" page follows the same sign-in flow as the
+  application, so it no longer offers a way around the code. Group
+  administrators and sign-in with Google or Facebook are not affected.
+- Access tokens last 60 minutes instead of 3 hours, so a disabled account or a
+  removed role stops working on the API within 60 minutes; the session itself
   lasts as long as before.
 
 

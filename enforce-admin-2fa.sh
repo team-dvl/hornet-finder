@@ -8,8 +8,7 @@ set -euo pipefail
 # through the Admin API, in the custom browser-passkey flow.
 #
 # What it sets up (idempotent, each step is skipped when already done):
-#   1. the realm role mfa-required, carried by admin and beekeeper-group-admin
-#      as a composite child
+#   1. the realm role mfa-required, carried by admin as a composite child
 #   2. flow "Conditional OTP": a condition "user does NOT hold mfa-required",
 #      so the voluntary OTP keeps working for everybody else
 #   3. flow "Mandatory OTP" under "Password and OTP": OTP for the holders of
@@ -52,7 +51,7 @@ import json, os, sys, urllib.error, urllib.parse, urllib.request
 
 KC, REALM, APPLY = os.environ["KC_URL"], os.environ["REALM"], os.environ["APPLY"] == "1"
 ROLE = "mfa-required"
-CARRIERS = ("admin", "beekeeper-group-admin")
+CARRIERS = ("admin",)
 REQUIRED_CFG = "mfa-role-required"
 NOT_REQUIRED_CFG = "mfa-role-not-required"
 
