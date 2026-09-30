@@ -1,5 +1,6 @@
 import json
 from typing import Optional
+from django.db.models import Max
 
 from rest_framework import serializers
 from . import apiary_permissions as apiary_perms
@@ -237,6 +238,9 @@ class SpeciesSerializer(serializers.ModelSerializer):
         validated_data['slug'] = unique_slug(
             Species, validated_data.get('scientific_name') or validated_data['name'],
         )
+        # A new species goes to the end of the list, the admin moves it from there
+        last = Species.objects.aggregate(last=Max('sort_order'))['last']
+        validated_data.setdefault('sort_order', 0 if last is None else last + 1)
         return super().create(validated_data)
 
 

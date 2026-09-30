@@ -23,7 +23,7 @@ export {
   fetchTraps, fetchTrapDetail, createTrap, updateTrap, deleteTrap, addTrapEvent,
   deleteTrapEvent, fetchTrapDelegation, setTrapDelegation, clearTrapDelegation,
   setTrapOwner, fetchTrapTypes, fetchSpecies, createTrapType, updateTrapType,
-  deleteTrapType, addTrapCatch, deleteTrapCatch, createSpecies, updateSpecies, deleteSpecies,
+  deleteTrapType, addTrapCatch, deleteTrapCatch, createSpecies, updateSpecies, deleteSpecies, reorderSpecies,
   clearTrapsError, clearTraps, toggleTraps, toggleInactiveTraps,
   toggleOnlyMyTraps, setShowTraps, setSelectedTrap, startMovingTrap, stopMovingTrap,
   fetchManagedTraps, MANAGED_PAGE_SIZE,

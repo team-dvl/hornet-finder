@@ -7,7 +7,7 @@ import { ConfirmationModal } from '../../components/modals';
 import { ThumbnailPreview } from '../../components/common';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
-  deleteSpecies, fetchSpecies, selectSpecies, selectTrapsLoading, type Species,
+  deleteSpecies, fetchSpecies, reorderSpecies, selectSpecies, selectTrapsLoading, type Species,
 } from '../../store/store';
 
 const columns: ReferentialColumn<Species>[] = [
@@ -72,6 +72,7 @@ export default function SpeciesAdmin() {
   const [toDelete, setToDelete] = useState<Species | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reordering, setReordering] = useState(false);
 
   useEffect(() => {
     // Always refetch: the cached copy may predate the usage counts
@@ -93,6 +94,22 @@ export default function SpeciesAdmin() {
     }
   };
 
+  const handleMove = async (item: Species, direction: -1 | 1) => {
+    const ids = species.map((row) => row.id);
+    const from = ids.indexOf(item.id);
+    const to = from + direction;
+    if (from < 0 || to < 0 || to >= ids.length) return;
+    [ids[from], ids[to]] = [ids[to], ids[from]];
+    setError(null);
+    try {
+      await dispatch(reorderSpecies(ids)).unwrap();
+    } catch (moveError) {
+      setError(moveError as string);
+      // The list moved optimistically: bring back the server order
+      dispatch(fetchSpecies());
+    }
+  };
+
   return (
     <PageLayout>
       <Container className="py-4">
@@ -100,12 +117,21 @@ export default function SpeciesAdmin() {
           title="Espèces"
           help="Ces espèces sont proposées lors de l'enregistrement d'une capture."
           actions={(
-            <IconButton
-              variant="primary"
-              icon="plus-lg"
-              label="Ajouter"
-              onClick={() => { setEditing(null); setShowForm(true); }}
-            />
+            <>
+              <IconButton
+                variant={reordering ? 'secondary' : 'outline-secondary'}
+                icon={reordering ? 'check-lg' : 'arrow-down-up'}
+                label={reordering ? 'Terminé' : 'Ordre'}
+                aria-pressed={reordering}
+                onClick={() => setReordering((value) => !value)}
+              />
+              <IconButton
+                variant="primary"
+                icon="plus-lg"
+                label="Ajouter"
+                onClick={() => { setEditing(null); setShowForm(true); }}
+              />
+            </>
           )}
         />
 
@@ -117,6 +143,7 @@ export default function SpeciesAdmin() {
           rowKey={(item) => item.id}
           onEdit={(item) => { setEditing(item); setShowForm(true); }}
           onDelete={setToDelete}
+          onMove={reordering ? handleMove : undefined}
           emptyMessage={loading ? 'Chargement…' : 'Aucune espèce.'}
         />
       </Container>

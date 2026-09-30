@@ -613,6 +613,19 @@ export const deleteSpecies = createAsyncThunk(
   }
 );
 
+/** Persists a new display order: `ids` lists every species, first = top. */
+export const reorderSpecies = createAsyncThunk(
+  'traps/reorderSpecies',
+  async (ids: number[], { rejectWithValue }) => {
+    try {
+      await api.post('/species/reorder/', { ids });
+      return ids;
+    } catch (error: unknown) {
+      return rejectWithValue(getAxiosErrorMessage(error));
+    }
+  }
+);
+
 // --- Slice -----------------------------------------------------------------
 
 const trapsSlice = createSlice({
@@ -746,6 +759,11 @@ const trapsSlice = createSlice({
       .addCase(updateSpecies.fulfilled, (state, action) => {
         const index = state.species.findIndex((s) => s.id === action.payload.id);
         if (index >= 0) state.species[index] = action.payload;
+      })
+      // Optimistic: the list moves at once, a failure restores the server order
+      .addCase(reorderSpecies.pending, (state, action) => {
+        const position = new Map(action.meta.arg.map((id, index) => [id, index]));
+        state.species.sort((a, b) => (position.get(a.id) ?? 0) - (position.get(b.id) ?? 0));
       })
       .addCase(deleteSpecies.fulfilled, (state, action) => {
         state.species = state.species.filter((s) => s.id !== action.payload);

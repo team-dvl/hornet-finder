@@ -194,6 +194,27 @@ class SpeciesViewSet(ReferentialViewSet):
             instance.save(update_fields=['photo_credit', 'photo_source_url'])
         super()._attach_photo(instance)
 
+    @extend_schema(
+        request={'application/json': {'type': 'object', 'properties': {
+            'ids': {'type': 'array', 'items': {'type': 'integer'}}}, 'required': ['ids']}},
+        responses={204: OpenApiResponse(description='Reordered'),
+                   400: OpenApiResponse(description='ids is not the list of every species')},
+    )
+    @action(detail=False, methods=['post'])
+    def reorder(self, request):
+        """Set the display order to the given list of species ids (first = top)."""
+        ids = request.data.get('ids')
+        current = set(Species.objects.values_list('id', flat=True))
+        if (not isinstance(ids, list) or len(ids) != len(set(ids))
+                or not all(isinstance(pk, int) and not isinstance(pk, bool) for pk in ids)
+                or set(ids) != current):
+            raise DRFValidationError({'ids': 'Must list every species exactly once.'})
+        # Renumber everything: existing sort_order values are often all equal
+        with transaction.atomic():
+            for position, pk in enumerate(ids):
+                Species.objects.filter(pk=pk).update(sort_order=position)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     @extend_schema(responses={204: OpenApiResponse(description='Deleted'),
                               409: OpenApiResponse(description='Species still in use')})
     def destroy(self, request, *args, **kwargs):

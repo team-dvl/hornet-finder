@@ -1294,6 +1294,31 @@ class SpeciesAdminTests(TrapTestCase):
         response = SpeciesViewSet.as_view({'post': 'create'})(request)
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['slug'], 'vespa-orientalis')
+        # A new species goes to the end of the list
+        self.assertEqual(response.data['sort_order'], Species.objects.count() - 1)
+
+    def _reorder(self, user, ids):
+        request = self.factory.post('/species/reorder/', {'ids': ids}, format='json')
+        force_authenticate(request, user=user)
+        return SpeciesViewSet.as_view({'post': 'reorder'})(request)
+
+    def test_admin_reorders_the_species(self):
+        ids = list(Species.objects.values_list('id', flat=True))[::-1]
+        self.assertEqual(self._reorder(self.admin_user, ids).status_code, 204)
+        self.assertEqual(list(Species.objects.values_list('id', flat=True)), ids)
+        self.assertEqual(list(Species.objects.values_list('sort_order', flat=True)),
+                         list(range(len(ids))))
+
+    def test_reordering_needs_every_species_exactly_once(self):
+        ids = list(Species.objects.values_list('id', flat=True))
+        before = list(Species.objects.values_list('sort_order', flat=True))
+        for bad in (ids[:-1], ids + [ids[0]], ids + [max(ids) + 1], 'x', None):
+            self.assertEqual(self._reorder(self.admin_user, bad).status_code, 400)
+        self.assertEqual(list(Species.objects.values_list('sort_order', flat=True)), before)
+
+    def test_only_admins_reorder_the_species(self):
+        ids = list(Species.objects.values_list('id', flat=True))
+        self.assertEqual(self._reorder(self.owner_user, ids).status_code, 403)
 
     def test_the_listing_counts_the_events(self):
         TrapEvent.objects.create(trap=self.trap, kind=TrapEvent.KIND_CATCH,
