@@ -37,7 +37,7 @@
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
   "editUsernameAllowed": true,
-  "bruteForceProtected": false,
+  "bruteForceProtected": true,
   "permanentLockout": false,
   "maxTemporaryLockouts": 0,
   "bruteForceStrategy": "MULTIPLE",
@@ -46,7 +46,7 @@
   "waitIncrementSeconds": 60,
   "quickLoginCheckMilliSeconds": 1000,
   "maxDeltaTimeSeconds": 43200,
-  "failureFactor": 30,
+  "failureFactor": 10,
   "maxSecondaryAuthFailures": 0,
   "roles": {
     "realm": [
@@ -2234,7 +2234,7 @@
       "internalId": "0afa5020-abbd-4b5f-9459-0372299ba91d",
       "providerId": "facebook",
       "enabled": true,
-      "trustEmail": true,
+      "trustEmail": false,
       "storeToken": false,
       "addReadTokenRoleOnCreate": false,
       "authenticateByDefault": false,
@@ -3504,5 +3504,6 @@
   },
   "clientPolicies": {
     "policies": []
-  }
+  },
+  "passwordPolicy": "length(12) and notUsername and notEmail"
 }

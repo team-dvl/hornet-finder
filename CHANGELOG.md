@@ -17,6 +17,17 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ### Removed
 - The "display order" number of the species form, replaced by the move buttons.
 
+### Security
+- Passwords need at least 12 characters and may not contain the username or the
+  email address; they are checked when an account is created or a password is
+  changed, existing passwords stay valid until then.
+- After 10 failed sign-ins an account is locked for a minute, the wait doubling
+  up to 15 minutes; a successful sign-in or the end of the wait unlocks it.
+- An email address given by Facebook is no longer trusted as verified: a new
+  Facebook account confirms its address by email, and one that matches an
+  existing account must prove it owns that account before being linked. Google
+  addresses are still trusted.
+
 ## [1.0.0] - 2026-09-30
 
 ### Added
