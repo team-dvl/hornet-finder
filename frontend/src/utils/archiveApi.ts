@@ -35,9 +35,11 @@ const PERIODS = [
 /** The periods that are over, most recent first: only those can be archived. */
 export function archiveChoices(today = new Date()): ArchiveChoice[] {
   const choices: ArchiveChoice[] = [];
+  // Over means the last day is behind us, as the server has it
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   for (let year = today.getFullYear(); year >= ARCHIVE_FIRST_YEAR; year--) {
     [...PERIODS].reverse().forEach(({ value, name, dates }) => {
-      if (periodEnd(value, year) < today) {
+      if (periodEnd(value, year) < startOfToday) {
         choices.push({ id: `${value}-${year}`, period: value, year, label: `${name} ${year}`, dates });
       }
     });
