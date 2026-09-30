@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette – Administration de groupe</title>
+<style>
+  :root { --bg:#f1f3f5; --card:#fff; --ink:#212529; --muted:#6c757d; --line:#dee2e6;
+          --pri:#b8860b; --pri-ink:#fff; --danger:#c0392b; --ok:#2e7d32; --warn:#b26a00; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14171a; --card:#1e2226; --ink:#e9ecef; --muted:#9aa3ab; --line:#343a40; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.4 system-ui,sans-serif; }
+  h1 { font-size:1.25rem; margin:0; }
+  header.doc { padding:16px; max-width:1500px; margin:auto; }
+  header.doc p { color:var(--muted); margin:.25rem 0 0; }
+  .board { display:flex; flex-wrap:wrap; gap:24px; padding:0 16px 32px; max-width:1500px; margin:auto; }
+  figure { margin:0; }
+  figcaption { font-size:.85rem; color:var(--muted); margin:0 0 8px; max-width:390px; }
+  figcaption b { color:var(--ink); }
+  .phone { width:390px; height:760px; background:var(--card); border:1px solid var(--line);
+           border-radius:28px; overflow:hidden; position:relative; display:flex; flex-direction:column; }
+  .nav { display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid var(--line); min-height:48px; }
+  .nav .back { color:var(--pri); text-decoration:none; white-space:nowrap; }
+  .nav .cur { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .nav .menu { margin-left:auto; font-size:1.25rem; }
+  .body { flex:1; overflow:hidden; padding:12px; }
+  .desc { color:var(--muted); font-size:.9rem; margin:0 0 10px; }
+  .seg { display:flex; border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:12px; }
+  .seg span { flex:1; text-align:center; padding:10px 4px; min-height:44px; font-size:.9rem; }
+  .seg span.on { background:var(--pri); color:var(--pri-ink); font-weight:600; }
+  .seg small { opacity:.85; }
+  .row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); min-height:56px; }
+  .row:last-child { border-bottom:0; }
+  .av { width:36px; height:36px; border-radius:50%; background:var(--line); display:grid; place-items:center;
+        font-weight:600; flex-shrink:0; }
+  .grow { flex:1; min-width:0; }
+  .name { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sub { font-size:.8rem; color:var(--muted); }
+  .badge { font-size:.72rem; padding:2px 8px; border-radius:99px; border:1px solid var(--line); white-space:nowrap; }
+  .badge.adm { background:var(--pri); color:var(--pri-ink); border-color:var(--pri); }
+  .badge.warn { color:var(--warn); border-color:var(--warn); }
+  .ib { width:44px; height:44px; border:1px solid var(--line); border-radius:10px; display:grid; place-items:center;
+        background:transparent; color:var(--ink); flex-shrink:0; }
+  .btn { display:block; width:100%; min-height:44px; padding:10px; border-radius:10px; border:1px solid var(--line);
+         background:transparent; color:var(--ink); text-align:center; font-size:1rem; margin-top:8px; }
+  .btn.pri { background:var(--pri); color:var(--pri-ink); border-color:var(--pri); font-weight:600; }
+  .btn.danger { color:var(--danger); border-color:var(--danger); }
+  .btn.solid-danger { background:var(--danger); color:#fff; border-color:var(--danger); font-weight:600; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+  .chip { padding:8px 12px; min-height:44px; border:1px solid var(--line); border-radius:99px; display:flex; align-items:center; font-size:.9rem; }
+  .chip.on { background:var(--pri); color:var(--pri-ink); border-color:var(--pri); }
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px; }
+  .stats div { border:1px solid var(--line); border-radius:10px; padding:8px; text-align:center; }
+  .stats b { display:block; font-size:1.25rem; }
+  .stats span { font-size:.75rem; color:var(--muted); }
+  input, select { width:100%; min-height:44px; font-size:16px; padding:8px 10px; border:1px solid var(--line);
+                  border-radius:10px; background:var(--card); color:var(--ink); }
+  .veil { position:absolute; inset:0; background:rgba(0,0,0,.45); }
+  .sheet { position:absolute; left:0; right:0; bottom:0; background:var(--card); border-radius:18px 18px 0 0;
+           padding:16px 12px 20px; box-shadow:0 -4px 20px rgba(0,0,0,.25); }
+  .sheet h2 { font-size:1.05rem; margin:0 0 2px; }
+  .modal { position:absolute; left:16px; right:16px; top:210px; background:var(--card); border-radius:14px; padding:16px; }
+  .modal h2 { font-size:1.05rem; margin:0 0 8px; }
+  .modal p { margin:0 0 6px; font-size:.92rem; }
+  .log { font-size:.85rem; }
+  .log .row { min-height:48px; }
+  .help { display:inline-grid; place-items:center; width:20px; height:20px; border-radius:50%; border:1px solid var(--muted);
+          font-size:.7rem; color:var(--muted); margin-left:6px; }
+  .legend { max-width:1500px; margin:0 auto; padding:0 16px 40px; color:var(--muted); font-size:.85rem; }
+</style>
+</head>
+<body>
+<header class="doc">
+  <h1>Administration de groupe – maquette (phone d'abord, 390 px)</h1>
+  <p>Maquette statique, aucune donnée réelle. Les noms sont fictifs. Écrans : aperçu des membres, fiche d'un membre, confirmation de retrait, invitations, journal.</p>
+</header>
+
+<div class="board">
+
+  <!-- 1. Members -->
+  <figure>
+    <figcaption><b>1. Mon groupe – Membres.</b> Nouvelle carte « Mon groupe » dans Administration (remplace « Invitations », qui devient un onglet).</figcaption>
+    <div class="phone">
+      <div class="nav"><a class="back">‹ Administration</a><span class="cur">Vedrin s'abeille</span><span class="menu">☰</span></div>
+      <div class="body">
+        <p class="desc">Gérez les membres et les invitations de votre association.</p>
+        <div class="stats">
+          <div><b>14</b><span>membres</span></div>
+          <div><b>2</b><span>administrateurs</span></div>
+          <div><b>3</b><span>invitations</span></div>
+        </div>
+        <div class="seg"><span class="on">Membres</span><span>Invitations <small>3</small></span><span>Journal</span></div>
+        <div class="row"><div class="av">MD</div><div class="grow"><div class="name">Marie Dupont</div><div class="sub">vous</div></div><span class="badge adm">Admin</span></div>
+        <div class="row"><div class="av">JL</div><div class="grow"><div class="name">Jean Lambert</div></div><span class="badge adm">Admin</span><button class="ib" aria-label="Actions">⋯</button></div>
+        <div class="row"><div class="av">AB</div><div class="grow"><div class="name">Anne Bastin</div></div><button class="ib" aria-label="Actions">⋯</button></div>
+        <div class="row"><div class="av">PC</div><div class="grow"><div class="name">Pierre Collin</div></div><button class="ib" aria-label="Actions">⋯</button></div>
+        <div class="row"><div class="av">SG</div><div class="grow"><div class="name">Sophie Gilson</div></div><button class="ib" aria-label="Actions">⋯</button></div>
+        <div class="row"><div class="av">TH</div><div class="grow"><div class="name">Thomas Henry</div></div><button class="ib" aria-label="Actions">⋯</button></div>
+        <div class="row"><div class="av">+</div><div class="grow"><div class="name">9 autres…</div><div class="sub">Page suivante (pagination, pas de défilement interne)</div></div></div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- 2. Member sheet -->
+  <figure>
+    <figcaption><b>2. Fiche d'un membre</b> (<code>BottomSheet</code>). Actions : icône seule sur phone, libellé dès <code>sm</code>.</figcaption>
+    <div class="phone">
+      <div class="nav"><a class="back">‹ Administration</a><span class="cur">Vedrin s'abeille</span><span class="menu">☰</span></div>
+      <div class="body">
+        <div class="seg"><span class="on">Membres</span><span>Invitations <small>3</small></span><span>Journal</span></div>
+        <div class="row"><div class="av">MD</div><div class="grow"><div class="name">Marie Dupont</div></div><span class="badge adm">Admin</span></div>
+        <div class="row"><div class="av">JL</div><div class="grow"><div class="name">Jean Lambert</div></div><span class="badge adm">Admin</span></div>
+        <div class="row"><div class="av">AB</div><div class="grow"><div class="name">Anne Bastin</div></div></div>
+      </div>
+      <div class="veil"></div>
+      <div class="sheet">
+        <div class="row" style="border:0">
+          <div class="av">AB</div>
+          <div class="grow"><h2>Anne Bastin</h2><div class="sub">Membre · a accepté l'invitation le 12 mars 2026</div></div>
+        </div>
+        <button class="btn">Nommer administratrice<span class="help">?</span></button>
+        <button class="btn danger">Retirer du groupe</button>
+      </div>
+    </div>
+  </figure>
+
+  <!-- 3. Confirm removal -->
+  <figure>
+    <figcaption><b>3. Confirmation de retrait</b> (<code>ConfirmationModal</code>). Dit la conséquence, y compris le délai réel de prise d'effet.</figcaption>
+    <div class="phone">
+      <div class="nav"><a class="back">‹ Administration</a><span class="cur">Vedrin s'abeille</span><span class="menu">☰</span></div>
+      <div class="body">
+        <div class="seg"><span class="on">Membres</span><span>Invitations <small>3</small></span><span>Journal</span></div>
+        <div class="row"><div class="av">AB</div><div class="grow"><div class="name">Anne Bastin</div></div></div>
+      </div>
+      <div class="veil"></div>
+      <div class="modal">
+        <h2>Retirer Anne Bastin ?</h2>
+        <p>Elle perd l'accès aux ruchers et pièges partagés avec Vedrin s'abeille. Ses propres données ne sont pas supprimées.</p>
+        <p class="sub">Effet au plus tard ≈ 60 min (renouvellement de son jeton de connexion).</p>
+        <button class="btn solid-danger">Retirer</button>
+        <button class="btn">Annuler</button>
+      </div>
+    </div>
+  </figure>
+
+  <!-- 4. Invitations -->
+  <figure>
+    <figcaption><b>4. Invitations.</b> Le formulaire et la liste existants, déplacés tels quels dans l'onglet ; historique (acceptées, refusées, expirées) en dessous.</figcaption>
+    <div class="phone">
+      <div class="nav"><a class="back">‹ Administration</a><span class="cur">Vedrin s'abeille</span><span class="menu">☰</span></div>
+      <div class="body">
+        <div class="seg"><span>Membres</span><span class="on">Invitations <small>3</small></span><span>Journal</span></div>
+        <input type="email" inputmode="email" placeholder="Adresse email complète" aria-label="Email">
+        <button class="btn pri">Inviter</button>
+        <div class="chips" style="margin-top:12px">
+          <span class="chip on">En attente</span><span class="chip">Historique</span>
+        </div>
+        <div class="row"><div class="grow"><div class="name">Luc Martin</div><div class="sub">Envoyée le 28 sept. · expire le 28 oct.</div></div><button class="ib" aria-label="Rappeler">✉</button><button class="ib" aria-label="Retirer">✕</button></div>
+        <div class="row"><div class="grow"><div class="name">Claire Noël</div><div class="sub">Envoyée le 20 sept. · 1 rappel</div></div><button class="ib" aria-label="Rappeler">✉</button><button class="ib" aria-label="Retirer">✕</button></div>
+        <div class="row"><div class="grow"><div class="name">Paul Renard</div><div class="sub">Envoyée le 02 sept. · <span class="badge warn">expire dans 3 j</span></div></div><button class="ib" aria-label="Rappeler">✉</button><button class="ib" aria-label="Retirer">✕</button></div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- 5. Journal -->
+  <figure>
+    <figcaption><b>5. Journal.</b> Trace des actions d'administration (qui, quoi, quand). Identifiants Keycloak seulement, jamais d'email.</figcaption>
+    <div class="phone">
+      <div class="nav"><a class="back">‹ Administration</a><span class="cur">Vedrin s'abeille</span><span class="menu">☰</span></div>
+      <div class="body log">
+        <div class="seg"><span>Membres</span><span>Invitations <small>3</small></span><span class="on">Journal</span></div>
+        <div class="row"><div class="grow"><div class="name">Anne Bastin nommée admin</div><div class="sub">par Marie Dupont · 29 sept. 2026, 18:42</div></div></div>
+        <div class="row"><div class="grow"><div class="name">Luc Martin invité</div><div class="sub">par Jean Lambert · 28 sept. 2026, 09:10</div></div></div>
+        <div class="row"><div class="grow"><div class="name">Thomas Henry retiré</div><div class="sub">par Marie Dupont · 14 sept. 2026, 20:03</div></div></div>
+        <div class="row"><div class="grow"><div class="name">Sophie Gilson a accepté</div><div class="sub">invitation de Jean Lambert · 2 sept. 2026</div></div></div>
+        <div class="row"><div class="grow"><div class="name">Paul Renard invité</div><div class="sub">par Marie Dupont · 2 sept. 2026</div></div></div>
+        <button class="btn">Plus ancien</button>
+      </div>
+    </div>
+  </figure>
+
+</div>
+
+<div class="legend">
+  Composants existants réutilisés : <code>PageHeader</code>, <code>BottomSheet</code>, <code>ConfirmationModal</code>, <code>IconButton</code>, <code>HelpTip</code>, <code>UserAvatar</code>.
+  Cibles tactiles ≥ 44 px, champs à 16 px, pas de défilement interne (pagination).
+</div>
+</body>
+</html>
