@@ -19,9 +19,11 @@ from rest_framework.response import Response
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from drf_spectacular.types import OpenApiTypes
 
+from hornet_finder_api import utils as keycloak
 from hornet_finder_api.authentication import HasAnyRole, JWTBearerAuthentication
 
 from . import trap_permissions as perms
+from .invitation_views import BEEKEEPERS_ROOT, _sort_key
 from .images import processed_image
 from .models import BeekeeperGroup, Species, Tag, Trap, TrapEvent, TrapPhoto, TrapType, User
 from .serializers import (
@@ -54,11 +56,51 @@ def _group_label(path: str) -> str:
     return path.strip('/').replace('/', ' / ')
 
 
+def _keycloak_group_name(path: str):
+    """Display name of the Keycloak group at `path`; None if unknown or Keycloak is down."""
+    try:
+        group = keycloak.get_group_by_path(path)
+    except Exception as exc:
+        logger.warning("Could not read Keycloak group %s: %s", path, exc)
+        return None
+    return keycloak.group_display_name(group) if group else None
+
+
+def _group_choices(paths, extra=()):
+    """
+    Groups offered in a picker, as `{path, name}` sorted by name, named as in
+    Keycloak (its description, else the group name).
+
+    `paths=None` stands for "any group" (platform admin): every beekeeper
+    association is then offered, plus the `extra` paths (the current choice).
+    When Keycloak cannot be reached, names fall back on the paths and "any
+    group" on the groups already known locally.
+    """
+    if paths is None:
+        try:
+            groups = [{'path': g['path'], 'name': keycloak.group_display_name(g)}
+                      for g in keycloak.get_child_groups(BEEKEEPERS_ROOT)]
+        except Exception as exc:
+            logger.warning("Could not list Keycloak groups: %s", exc)
+            groups = [{'path': g.path, 'name': g.name} for g in BeekeeperGroup.objects.all()]
+        known = {g['path'] for g in groups}
+        paths = [p for p in extra if p and p not in known]
+    else:
+        groups = []
+    groups += [{'path': p, 'name': _keycloak_group_name(p) or _group_label(p)} for p in paths]
+    return sorted(groups, key=lambda g: (_sort_key(g['name']), g['path']))
+
+
 def _group_for_path(path: str) -> BeekeeperGroup:
-    """Local row mirroring a Keycloak group, created on first use."""
-    group, _ = BeekeeperGroup.objects.get_or_create(
-        path=path, defaults={'name': _group_label(path)},
-    )
+    """Local row mirroring a Keycloak group, created on first use, renamed as in Keycloak."""
+    name = _keycloak_group_name(path) or _group_label(path)
+    # The local name is unique: never steal the one of another group
+    if BeekeeperGroup.objects.filter(name=name).exclude(path=path).exists():
+        name = _group_label(path)
+    group, created = BeekeeperGroup.objects.get_or_create(path=path, defaults={'name': name})
+    if not created and group.name != name:
+        group.name = name
+        group.save(update_fields=['name'])
     return group
 
 
@@ -568,10 +610,9 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
                 'group': ({'path': trap.group.path, 'name': trap.group.name}
                           if trap.group else None),
                 'can_set_delegation': allowed is None or bool(allowed),
-                'allowed_groups': (
-                    None if allowed is None
-                    else [{'path': p, 'name': _group_label(p)} for p in sorted(allowed)]
-                ),
+                # Always a list: a platform admin picks among every association
+                'allowed_groups': _group_choices(
+                    allowed, extra=[trap.group.path] if trap.group else []),
             })
 
         if not perms.can_set_delegation(request, trap):

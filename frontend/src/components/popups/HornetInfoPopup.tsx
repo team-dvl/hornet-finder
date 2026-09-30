@@ -5,7 +5,7 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useAuth } from 'react-oidc-context';
 import { ColorSelector, HelpTip } from '../common';
-import { AppModal, FieldRow, IconButton } from '../ui';
+import { AppModal, FieldRow, IconButton, SheetActions } from '../ui';
 import { ACTION_ICONS, OBJECT_ICONS } from '../../utils/icons';
 import { formatDateTime, formatDistance, formatDuration } from '../../utils/format';
 import { ConfirmationModal } from '../modals';
@@ -266,28 +266,18 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation,
         </div>
 
         {(canDelete || canArchive || (auth.isAuthenticated && onAddAtLocation)) && (
-          <div className="sheet-actions mt-3">
-            {auth.isAuthenticated && onAddAtLocation && (
-              <IconButton
-                variant="outline-secondary"
-                icon={ACTION_ICONS.addHere}
-                label="Ajouter à cette position"
-                onClick={() => onAddAtLocation(currentHornet.latitude, currentHornet.longitude)}
-              />
-            )}
-            {canArchive && (
-              <IconButton variant="outline-warning" icon={ACTION_ICONS.archive} label="Archiver" className="ms-auto" onClick={() => setShowArchiveModal(true)} />
-            )}
-            {canDelete && (
-              <IconButton
-                variant="outline-danger"
-                icon={ACTION_ICONS.delete}
-                label="Supprimer"
-                className={canArchive ? '' : 'ms-auto'}
-                onClick={() => setShowDeleteModal(true)}
-              />
-            )}
-          </div>
+          <SheetActions
+            className="mt-3"
+            more={[
+              auth.isAuthenticated && onAddAtLocation && {
+                icon: ACTION_ICONS.addHere,
+                label: 'Ajouter à cette position',
+                onClick: () => onAddAtLocation(currentHornet.latitude, currentHornet.longitude),
+              },
+              canArchive && { icon: ACTION_ICONS.archive, label: 'Archiver', tone: 'warning', onClick: () => setShowArchiveModal(true) },
+              canDelete && { icon: ACTION_ICONS.delete, label: 'Supprimer', tone: 'danger', onClick: () => setShowDeleteModal(true) },
+            ]}
+          />
         )}
       </AppModal>
 

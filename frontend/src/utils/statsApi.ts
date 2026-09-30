@@ -10,8 +10,12 @@ export interface StatDescription {
   description: string;
   /** `table`: rows over time or by group; `map`: cells of a 250 m grid */
   kind: 'table' | 'map';
-  /** Parameters the page offers: period, granularity, compare, trap_type, group, mine, zone */
+  /** Parameters the page offers: period, granularity, compare, order, trap_type, group, mine, zone */
   filters: string[];
+  /** File formats the statistic exports to */
+  exports: ExportFormat[];
+  /** Whether the server can email a link to the files (an SMTP server is configured) */
+  email_link: boolean;
 }
 
 export interface StatColumn {
@@ -47,6 +51,13 @@ export interface StatResult {
   totals: StatRow;
   warnings: string[];
   computed_at: string;
+  /** Ranking of the traps: `rate` or `hornets` */
+  order?: 'rate' | 'hornets';
+  /** Species: the top species and, per bucket, the share of each among the insects counted */
+  series?: {
+    species: { slug: string; name: string }[];
+    buckets: { bucket: string; dates: string; start: string; counted: number; shares: Record<string, number | null> }[];
+  };
 }
 
 /** Properties of a grid cell: `covered` (share, coverage) or `rate` (pressure) */
@@ -106,7 +117,25 @@ export interface ExportLink {
   expires_in: number;
 }
 
-export type ExportFormat = 'xlsx' | 'csv';
+export type ExportFormat = 'xlsx' | 'pdf' | 'csv';
+
+export interface EmailedLink {
+  /** j•••@example.org */
+  sent_to: string;
+  expires_at: string;
+}
+
+/** An export sent by email, as its public page shows it */
+export interface ExportJob {
+  statistic: { id: string; title: string };
+  /** [label, value] lines: period, granularity, filters, traps counted */
+  summary: [string, string][];
+  requested_by: string;
+  requested_at: string;
+  expires_at: string;
+  downloads_left: number;
+  formats: { format: ExportFormat; url: string }[];
+}
 
 /** The server's own message (`{error}`), else the generic one. */
 function fail(error: unknown): never {
@@ -133,6 +162,24 @@ export async function fetchStat<T extends StatResult = StatResult>(id: string, p
 export async function fetchExportLink(id: string, format: ExportFormat, params: StatParams): Promise<ExportLink> {
   try {
     return (await api.post(`/stats/${id}/export/`, { format, params })).data;
+  } catch (error) {
+    fail(error);
+  }
+}
+
+/** Mail the caller a link to the export of the statistic (valid one hour). */
+export async function sendExportEmail(id: string, params: StatParams): Promise<EmailedLink> {
+  try {
+    return (await api.post(`/stats/${id}/email-link/`, { params })).data;
+  } catch (error) {
+    fail(error);
+  }
+}
+
+/** The export behind an emailed link; needs no sign-in. */
+export async function fetchExportJob(token: string): Promise<ExportJob> {
+  try {
+    return (await api.get(`/stats/exports/${encodeURIComponent(token)}/`)).data;
   } catch (error) {
     fail(error);
   }

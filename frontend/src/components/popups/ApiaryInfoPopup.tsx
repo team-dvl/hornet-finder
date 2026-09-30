@@ -7,7 +7,7 @@ import { ConfirmationModal } from '../modals';
 import InfestationLevelInput, { InfestationLevel } from '../common/InfestationLevelInput';
 import { AuthImage, ClampedText } from '../common';
 import { ApiaryFormModal, ApiarySharingPanel } from '../apiaries';
-import { AppModal, FieldRow, IconButton } from '../ui';
+import { AppModal, FieldRow, IconButton, SheetActions } from '../ui';
 import { ACTION_ICONS, OBJECT_ICONS } from '../../utils/icons';
 import { formatDate } from '../../utils/format';
 
@@ -117,7 +117,18 @@ export default function ApiaryInfoPopup({ show, onHide, apiary, onAddAtLocation,
         {current.comments && <p className="small mt-2 mb-0">{current.comments}</p>}
 
         {(mayEdit || canAddHere || mayDelete || onLocate) && (
-          <div className="sheet-actions mt-3">
+          <SheetActions
+            className="mt-3"
+            more={[
+              mayEdit && { icon: ACTION_ICONS.edit, label: 'Modifier', onClick: () => setSub('edit') },
+              canAddHere && {
+                icon: ACTION_ICONS.addHere,
+                label: 'Ajouter à cette position',
+                onClick: () => onAddAtLocation(current.latitude, current.longitude),
+              },
+              mayDelete && { icon: ACTION_ICONS.delete, label: 'Supprimer', tone: 'danger', onClick: () => setSub('delete') },
+            ]}
+          >
             {onLocate && (
               <IconButton
                 variant="outline-secondary"
@@ -126,21 +137,7 @@ export default function ApiaryInfoPopup({ show, onHide, apiary, onAddAtLocation,
                 onClick={() => onLocate(current)}
               />
             )}
-            {mayEdit && (
-              <IconButton variant="outline-secondary" icon={ACTION_ICONS.edit} label="Modifier" onClick={() => setSub('edit')} />
-            )}
-            {canAddHere && (
-              <IconButton
-                variant="outline-secondary"
-                icon={ACTION_ICONS.addHere}
-                label="Ajouter à cette position"
-                onClick={() => onAddAtLocation(current.latitude, current.longitude)}
-              />
-            )}
-            {mayDelete && (
-              <IconButton variant="outline-danger" icon={ACTION_ICONS.delete} label="Supprimer" className="ms-auto" onClick={() => setSub('delete')} />
-            )}
-          </div>
+          </SheetActions>
         )}
 
         <ApiarySharingPanel apiary={{ ...current, id: apiaryId }} />

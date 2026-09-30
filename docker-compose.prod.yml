@@ -66,6 +66,8 @@ services:
       - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
     volumes:
       - media:/app/media
+      # Layout and logo of the Keycloak email theme, reused by the API's emails
+      - ./auth/themes/velutina/email:/app/email-theme:ro
     depends_on:
       - hornet-finder-api-db
       - hornet-finder-keycloak
@@ -118,6 +120,9 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
+      args:
+        # Set by the scripts (lib/version.sh) from the git tag
+        VITE_APP_VERSION: ${APP_VERSION:-unknown}
     container_name: hornet-finder-frontend-build
     environment:
       - VITE_API_URL=https://velutina.ovh/api/

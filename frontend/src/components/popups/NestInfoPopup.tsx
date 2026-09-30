@@ -6,7 +6,7 @@ import { Nest, deleteNest, archiveNest } from '../../store/slices/nestsSlice';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { ConfirmationModal } from '../modals';
 import { AppDispatch } from '../../store/store';
-import { AppModal, FieldRow, IconButton } from '../ui';
+import { AppModal, FieldRow, SheetActions } from '../ui';
 import { ACTION_ICONS, OBJECT_ICONS } from '../../utils/icons';
 import { formatDate } from '../../utils/format';
 
@@ -109,28 +109,18 @@ export default function NestInfoPopup({ show, onHide, nest, onAddAtLocation }: N
         {nest.comments && <p className="small mt-2 mb-0">{nest.comments}</p>}
 
         {(canAddHere || canArchive || canDelete) && (
-          <div className="sheet-actions mt-3">
-            {canAddHere && (
-              <IconButton
-                variant="outline-secondary"
-                icon={ACTION_ICONS.addHere}
-                label="Ajouter à cette position"
-                onClick={() => onAddAtLocation(nest.latitude, nest.longitude)}
-              />
-            )}
-            {canArchive && (
-              <IconButton variant="outline-warning" icon={ACTION_ICONS.archive} label="Archiver" className="ms-auto" onClick={() => setShowArchiveModal(true)} />
-            )}
-            {canDelete && (
-              <IconButton
-                variant="outline-danger"
-                icon={ACTION_ICONS.delete}
-                label="Supprimer"
-                className={canArchive ? '' : 'ms-auto'}
-                onClick={() => setShowDeleteModal(true)}
-              />
-            )}
-          </div>
+          <SheetActions
+            className="mt-3"
+            more={[
+              canAddHere && {
+                icon: ACTION_ICONS.addHere,
+                label: 'Ajouter à cette position',
+                onClick: () => onAddAtLocation(nest.latitude, nest.longitude),
+              },
+              canArchive && { icon: ACTION_ICONS.archive, label: 'Archiver', tone: 'warning', onClick: () => setShowArchiveModal(true) },
+              canDelete && { icon: ACTION_ICONS.delete, label: 'Supprimer', tone: 'danger', onClick: () => setShowDeleteModal(true) },
+            ]}
+          />
         )}
       </AppModal>
 

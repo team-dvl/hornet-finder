@@ -261,7 +261,9 @@ LOGGING = {
 # never relays (no TLS, no authentication); unset, Django keeps its defaults
 # (localhost:25). In prod, the OVH MX Plan server: implicit TLS on 465
 # (EMAIL_USE_SSL) and authentication with a full mailbox address.
-if os.environ.get('EMAIL_HOST'):
+# Features that send email (statistics export links) are offered only then
+EMAIL_CONFIGURED = bool(os.environ.get('EMAIL_HOST'))
+if EMAIL_CONFIGURED:
     EMAIL_HOST = os.environ['EMAIL_HOST']
     EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '25'))
     EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
@@ -271,3 +273,6 @@ if os.environ.get('EMAIL_HOST'):
     # Without it a stalled server would hold the request (and its worker) forever
     EMAIL_TIMEOUT = 15
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'Velutina <contact@velutina.ovh>')
+# Keycloak email theme (auth/themes/velutina/email), mounted read-only: the
+# API's HTML emails use its layout (see hornet/emails.py)
+EMAIL_THEME_DIR = os.environ.get('EMAIL_THEME_DIR', '/app/email-theme')

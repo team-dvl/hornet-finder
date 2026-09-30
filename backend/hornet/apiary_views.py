@@ -21,7 +21,7 @@ from . import apiary_permissions as perms
 from .models import Apiary, ApiaryGroupPermission, User
 from .serializers import ApiarySerializer
 from .trap_permissions import local_user
-from .trap_views import _delete_files, _group_for_path, _group_label, _store_photo
+from .trap_views import _delete_files, _group_choices, _group_for_path, _store_photo
 from .views import GeographicFilterMixin, geographic_list_schema
 
 logger = logging.getLogger(__name__)
@@ -250,7 +250,7 @@ class ApiaryViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=['get', 'put', 'delete'], url_path='sharing')
     def sharing(self, request, pk=None):
         """
-        GET: the groups the requester may share with (`null`: any group).
+        GET: the groups the requester may share with, named as in Keycloak.
         PUT: share with a group, or change what it may do.
         DELETE: stop sharing with a group.
         """
@@ -261,10 +261,8 @@ class ApiaryViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         if request.method == 'GET':
             return Response({
                 'can_share': perms.can_share_apiary(request, apiary),
-                'allowed_groups': (
-                    None if allowed is None
-                    else [{'path': p, 'name': _group_label(p)} for p in sorted(allowed)]
-                ),
+                # Always a list: a platform admin picks among every association
+                'allowed_groups': _group_choices(allowed),
             })
 
         if not perms.can_share_apiary(request, apiary):

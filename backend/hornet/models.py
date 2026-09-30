@@ -490,6 +490,8 @@ class GroupInvitation(models.Model):
         (STATUS_EXPIRED, 'Expirée'),
     ]
     VALIDITY = timedelta(days=30)
+    # At most one email per interval, the invitation's own included
+    REMINDER_INTERVAL = timedelta(hours=24)
 
     group_path = models.CharField(max_length=256)
     # Display name of the group when the invitation was sent
@@ -501,6 +503,9 @@ class GroupInvitation(models.Model):
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_PENDING)
     created_at = models.DateTimeField(auto_now_add=True)
     responded_at = models.DateTimeField(null=True, blank=True)
+    # Last email that reached the mail server (invitation or reminder)
+    last_notified_at = models.DateTimeField(null=True, blank=True)
+    reminders_sent = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
         ordering = ['-created_at', '-id']
@@ -518,6 +523,11 @@ class GroupInvitation(models.Model):
     @property
     def expires_at(self):
         return self.created_at + self.VALIDITY
+
+    @property
+    def next_reminder_at(self):
+        """When a reminder may be sent; None when no email ever left (right away)."""
+        return self.last_notified_at + self.REMINDER_INTERVAL if self.last_notified_at else None
 
     @classmethod
     def expire_stale(cls, **filters) -> None:
@@ -568,3 +578,29 @@ class InvitationThrottle(models.Model):
             self.locked_until = now + self.LOCKOUT
             self.failures = 0
             self.window_started_at = None
+
+
+class StatExportJob(models.Model):
+    """
+    A statistics export sent by email: the link carries a random token, only
+    its SHA-256 is kept. The file is computed when downloaded, with the
+    parameters and the rights of the requester frozen here. The address it
+    was sent to is not kept.
+    """
+    token_hash = models.CharField(max_length=64, unique=True)
+    statistic = models.CharField(max_length=50)
+    params = models.JSONField(default=dict)
+    scope = models.JSONField(default=dict)
+    # (label, value) lines shown on the download page
+    summary = models.JSONField(default=list)
+    requester = models.CharField(max_length=64, db_index=True)
+    requester_name = models.CharField(max_length=150, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+    downloads = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Export {self.statistic} ({self.created_at:%Y-%m-%d %H:%M})"

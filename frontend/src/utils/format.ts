@@ -12,6 +12,10 @@ export const formatDate = (value: DateInput) =>
 export const formatDateTime = (value: DateInput) =>
   new Date(value).toLocaleString(LOCALE, { dateStyle: 'medium', timeStyle: 'short' });
 
+/** 14:05 */
+export const formatTime = (value: DateInput) =>
+  new Date(value).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });
+
 /** 22/09/26 14:05, for dense lists such as a journal */
 export const formatShortDateTime = (value: DateInput) =>
   new Date(value).toLocaleString(LOCALE, { dateStyle: 'short', timeStyle: 'short' });

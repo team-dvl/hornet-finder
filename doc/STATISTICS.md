@@ -1,6 +1,6 @@
 # Module Statistiques : analyse et proposition
 
-Statut : phases 0, 1 et 2 **implémentées** (`backend/hornet/stats/`, `frontend/src/pages/stats/`), la suite reste une **proposition**. Ce document fixe le périmètre,
+Statut : phases 0 à 3 **implémentées** (`backend/hornet/stats/`, `frontend/src/pages/stats/`) ; le §9 garde les questions ouvertes. Ce document fixe le périmètre,
 les définitions des indicateurs, l'architecture et un découpage en phases.
 
 ## 1. Ce que les données permettent aujourd'hui
@@ -76,9 +76,9 @@ avec filtres, tableau, graphiques et exports.
 | # | Statistique | Lignes du tableau | Filtres propres | Graphiques |
 |---|---|---|---|---|
 | T1 | Captures de frelons asiatiques | une par case de temps : captures, pièges actifs, pièges-jours, relevés, CPUE | granularité | barres (captures) + courbe (CPUE) ; superposition de la même saison de l'année précédente |
-| T2 | Captures par espèce | une par espèce : captures, part du total ; colonnes par case de temps | granularité, espèces | barres empilées 100 % par case de temps |
+| T2 | Captures par espèce | une par espèce : captures (tous les relevés), captures et part ± IC (relevés où toutes les espèces sont comptées, dès 20 insectes) | granularité | barres empilées 100 % par case de temps : frelon asiatique d'abord, puis les 5 espèces les plus comptées au plus, le reste en « Autres espèces » |
 | T3 | Comparaison des types de piège | une par type : pièges, pièges-jours, FA, CPUE ± IC, sélectivité ± IC | — | points avec barres d'erreur (CPUE, sélectivité). Pas de barres pleines : la comparaison repose sur les IC. |
-| T4 | Pièges les plus actifs | une par piège : adresse, type, relevés, FA, CPUE | tri, top N | barres horizontales |
+| T4 | Pièges les plus actifs | une par piège visible : adresse, type, relevés, pièges-jours, FA, CPUE ± IC (dès 7 pièges-jours) | tri : par semaine (défaut) ou par captures | points avec intervalle pour les 15 premiers : le classement se lit avec ses IC |
 | T5 | Couverture du territoire | zone : surface, surface couverte, %, pièges actifs, densité (pièges/km²) | rayon *r*, taille de maille | carte des mailles couvertes / non couvertes (§4) |
 | T6 | Carte de pression | une par maille non vide : pièges-jours, FA, CPUE lissée | taille de maille, lissage | carte de chaleur normalisée par l'effort (§4) |
 
@@ -322,12 +322,22 @@ millions de paires au pire pour 10 000 mailles, soit de l'ordre de la
 centaine de ms à la seconde, à mesurer. Ni vue matérialisée ni cache au départ.
 
 Exports :
-- **XLSX** : `openpyxl` (nouvelle dépendance, pur Python). Une feuille
-  « Données », une feuille « Paramètres » (période, filtres, périmètre, *r*,
-  date d'export), et le graphique en graphique Excel natif (`openpyxl.chart`).
-- **PDF** : `reportlab`, déjà utilisé pour les planches de QR codes. Tableau +
-  graphique via `reportlab.graphics.charts`, ce qui évite `matplotlib`
-  (plusieurs dizaines de Mo dans l'image).
+- **XLSX** : `openpyxl` (pur Python). Une feuille « Données », une feuille
+  « Paramètres » (période, filtres, périmètre, *r*, date de calcul). Pas de
+  graphique Excel natif : le PDF porte les graphiques.
+- **PDF** (tableaux seulement ; une carte a besoin de la carte) : `reportlab`,
+  déjà utilisé pour les planches de QR codes. A4 paysage : titre, paramètres,
+  les graphiques de la page dessinés en vectoriel (`reportlab.graphics.shapes`,
+  mêmes couleurs et échelles que l'écran, `hornet/stats/pdf.py`), puis le
+  tableau, en-têtes répétés à chaque page. Servi `inline` pour s'ouvrir dans
+  le lecteur du navigateur. Dans l'application installée (PWA iOS), un lien
+  `target="_blank"` ouvre une vue sans partage, sans impression ni retour :
+  là, le fichier est récupéré puis passé à la feuille de partage native
+  (`navigator.share`), comme les planches de QR codes. Le fichier étant
+  calculé à la demande, Safari peut juger le partage trop éloigné du tap ;
+  le fichier est alors gardé et un second tap le partage. Rendu mesuré dans le conteneur de dev : 15 à
+  115 ms (500 lignes du classement : ~0,11 s, 12 pages), en plus du calcul.
+  Pas de `matplotlib` (plusieurs dizaines de Mo dans l'image).
 - **CSV** : gratuit, utile pour tout le reste.
 - **Lien par email** : voir ci-dessous.
 
@@ -343,8 +353,9 @@ Déroulement :
 1. `POST /api/stats/<id>/email-link/` `{params}` (JWT). Le serveur résout la
    période en dates absolues (« 30 derniers jours » devient « du 28 août au
    27 septembre ») pour que le lien donne les mêmes bornes qu'à l'écran, crée
-   un `StatExportJob` et envoie l'email. Réponse `202` avec l'échéance et
-   l'adresse masquée (« e•••@gmail.com »), que l'interface affiche.
+   un `StatExportJob` et envoie l'email. Réponse `200` avec l'échéance et
+   l'adresse masquée (« e•••@gmail.com »), que l'interface affiche ; `502` si
+   l'envoi échoue (la demande est alors effacée), `503` sans serveur SMTP.
 2. L'email (expéditeur `DEFAULT_FROM_EMAIL`, en dev capté par Mailpit) nomme
    la statistique, la période, les filtres et l'heure d'échéance, et porte un
    lien `https://<hôte>/export/<token>`.
@@ -356,10 +367,11 @@ Déroulement :
 4. Un bouton par format appelle `GET /api/stats/exports/<token>/<format>/`, qui
    calcule la table et renvoie le fichier.
 
-`StatExportJob` : `id`, `token_hash` (SHA-256 du jeton, le jeton lui-même
-n'est jamais stocké), `user` (FK), `statistic`, `params` (JSON, période
-résolue), `scope` (JSON : rôles et chemins de groupes du JWT au moment de la
-demande), `created_at`, `expires_at`, `downloads`.
+`StatExportJob` : `token_hash` (SHA-256 du jeton, le jeton lui-même n'est
+jamais stocké), `statistic`, `params` (JSON, période glissante figée en
+dates), `scope` (JSON : identifiant, rôles et chemins de groupes du JWT au
+moment de la demande), `summary` (lignes affichées par la page), `requester`
+(`sub` du JWT) et `requester_name`, `created_at`, `expires_at`, `downloads`.
 
 Règles :
 - **Jeton** : 32 octets aléatoires (`secrets.token_urlsafe(32)`, 256 bits),
@@ -373,9 +385,13 @@ Règles :
   voyait : le lien est un secret au porteur, ce que dit l'email.
 - **Adresse** : lue dans le claim `email` du JWT au moment de la demande,
   utilisée pour l'envoi puis oubliée, jamais stockée (l'application ne garde
-  aucune adresse). Sans claim `email`, l'option est masquée.
+  aucune adresse). Sans claim `email` (ou avec `email_verified` faux), la
+  demande est refusée et l'option masquée.
+- **Serveur SMTP** : l'API n'envoie que si `EMAIL_HOST` est réglé (dev :
+  Mailpit ; prod : OVH, note `doc/prod-migrations/0006-group-invitations-email.md`). Le
+  catalogue le dit (`email_link`), et l'option n'est proposée que dans ce cas.
 - **Données** : calculées à l'ouverture du lien, pas à la demande ; la date de
-  calcul figure dans la feuille « Paramètres » et en pied du PDF. Les bornes
+  calcul figure dans la feuille « Paramètres » et les paramètres du PDF. Les bornes
   de période étant figées, seuls des relevés saisis entre-temps peuvent
   changer les chiffres.
 - **Abus** : au plus 5 demandes par personne et par heure (`429` au-delà).
@@ -395,16 +411,26 @@ Règles :
 - Page de détail, en suivant les règles mobiles du projet :
   - filtres dans un `BottomSheet`, filtres actifs résumés en puces sous le
     titre (tap = rouvrir le sheet) ;
-  - bascule segmentée **Tableau / Graphique / Carte** (carte pour T5 et T6) ;
-  - tableau en liste sur téléphone (modèle `ReferentialTable`), pas de défilement
-    horizontal ; pagination au-delà de ~50 lignes ;
+  - bascule segmentée **Tableau / Graphique** (`view=chart` dans l'URL, jamais
+    envoyé à l'API) ; T5 et T6 sont des cartes ;
+  - tableau en liste sur téléphone, pas de défilement horizontal ; 10 lignes,
+    puis « Voir plus » ;
   - un `IconButton` « Exporter » qui ouvre un `BottomSheet` : Excel, PDF, CSV
     (téléchargement immédiat) et « Envoyer un lien par email » ;
   - explication de chaque indicateur (CPUE, sélectivité, couverture, IC) dans
     un `HelpTip`.
-- Graphiques : **Chart.js** (`react-chartjs-2`), importé à la carte. Ordre de
-  grandeur ~ 50-70 kB gzip, contre ~ 100 kB+ pour Recharts et ~ 150-300 kB pour
-  ECharts. Couvre barres, courbes, empilés et barres d'erreur (plugin).
+- Graphiques : **SVG dessiné à la main** (`components/stats/charts/`), sans
+  bibliothèque. Quatre formes suffisent : barres (frelons par case de temps),
+  courbe du taux avec sa bande d'IC à 95 % et l'année précédente en
+  pointillés, barres empilées à 100 % (espèces), points avec intervalle
+  (types de piège, classement). Chart.js aurait ajouté ~ 60 kB gzip et un
+  plugin pour les barres d'erreur ; mesuré, la page de détail passe de 6,0 à
+  11,4 kB gzip avec les graphiques et les pages T2/T4. Une échelle par graphique ; l'axe du taux
+  suit les valeurs (jusqu'à 1,5 × leur maximum) et la bande est rognée, sinon
+  l'intervalle d'une case à 4 pièges ([0,1–23] frelons par semaine) écrase la
+  courbe. Palette catégorielle vérifiée pour les daltonismes courants ; le
+  frelon asiatique garde toujours la première couleur. Un tap sur une case
+  la détaille au-dessus du graphique.
 - Cartes T5/T6 : `GeoJSON` de react-leaflet sur la grille renvoyée par l'API,
   pas de nouvelle dépendance.
 
@@ -416,7 +442,7 @@ Règles :
 | 0 bis | Infestation des ruchers nullable (hors module) | fait |
 | 1 | Backend registre + T1, T3 en JSON, double régime d'accès ; frontend catalogue, page détail, filtres (dont saisons), tableau ; export CSV/XLSX | fait |
 | 2 | Couverture (T5) et pression (T6), en statistique et en couches de la carte | fait |
-| 3 | Graphiques (Chart.js) ; PDF ; T2, T4 ; comparaison à l'année précédente ; envoi d'un lien d'export par email | moyenne |
+| 3 | Graphiques ; PDF ; T2, T4 ; comparaison à l'année précédente ; envoi d'un lien d'export par email | fait |
 | 4 | Restrictions par statistique, stats nids/observations, journalisation des déplacements | à définir |
 
 La couverture passe en phase 2 (avant les graphiques) pour être prête pour la

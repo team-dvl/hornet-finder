@@ -17,6 +17,7 @@ import { visibleModules } from '../../config/modules';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { UserAvatar } from '../common';
 import { useAvatarUrl } from '../../hooks/useAvatarUrl';
+import { APP_VERSION, IS_RELEASE } from '../../utils/version';
 
 const SITE_NAME = `Velutina${import.meta.env.DEV ? ' DEV' : ''}`;
 
@@ -185,6 +186,12 @@ export default function NavbarComponent() {
               </div>
             )}
           </Nav>
+          <small
+            className="navbar-version text-muted"
+            title={IS_RELEASE ? 'Version publiée' : 'Version de travail : après la dernière version publiée'}
+          >
+            v{APP_VERSION}
+          </small>
         </Navbar.Collapse>
       </Container>
 

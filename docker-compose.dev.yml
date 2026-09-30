@@ -61,6 +61,8 @@ services:
       - EMAIL_PORT=1025
     volumes:
       - dev-media:/app/media
+      # Layout and logo of the Keycloak email theme, reused by the API's emails
+      - ./auth/themes/velutina/email:/app/email-theme:ro
     depends_on:
       - hornet-finder-dev-api-db
       - hornet-finder-dev-keycloak
@@ -175,6 +177,8 @@ services:
       # URLs pour le développement - utiliser les vrais services
       - VITE_API_URL=https://dev.velutina.ovh/api/
       - VITE_KEYCLOAK_URL=https://auth.dev.velutina.ovh/
+      # Set by the scripts (lib/version.sh) from the git tag
+      - VITE_APP_VERSION=${APP_VERSION:-dev}
     volumes:
       - ./frontend:/app
       - /app/node_modules

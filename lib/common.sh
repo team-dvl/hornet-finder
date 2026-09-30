@@ -43,6 +43,9 @@ load_env() {
     # shellcheck disable=SC1091
     source "$SCRIPT_DIR/.env"
     set +a
+    # shellcheck disable=SC1091
+    source "$SCRIPT_DIR/lib/version.sh"
+    export_app_version
 }
 
 # get_configured_environment validates the environment declared by the worktree

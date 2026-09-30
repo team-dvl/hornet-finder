@@ -152,6 +152,19 @@ button.module-card {
   padding-left: 0;
 }
 
+/* Version: last line of the phone menu, at the far end of the bar on desktop */
+.navbar-version {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  padding: 0.25rem 0;
+}
+
+@media (min-width: 992px) {
+  .navbar-version {
+    margin-left: 1rem;
+  }
+}
+
 /* Menu opened on a phone: list rows large enough for a finger */
 @media (max-width: 991.98px) {
   .navbar-collapse {
@@ -586,6 +599,50 @@ button.module-card {
   min-width: 2.5rem;
 }
 
+/* The "⋯" menu of a sheet's action bar opens over the dialog it belongs to */
+.offcanvas.bottom-sheet {
+  z-index: 1065;
+}
+
+.offcanvas-backdrop {
+  z-index: 1060;
+}
+
+.sheet-menu {
+  display: flex;
+  flex-direction: column;
+}
+
+.sheet-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  width: 100%;
+  min-height: 3rem;
+  padding: 0 0.5rem;
+  border: 0;
+  background: transparent;
+  color: var(--bs-body-color);
+  font-size: 1rem;
+  text-align: start;
+}
+
+.sheet-menu-item .bi {
+  width: 1.5rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.sheet-menu-item-warning {
+  color: var(--bs-warning-text-emphasis);
+}
+
+.sheet-menu-item-danger {
+  color: var(--bs-danger);
+  border-top: 1px solid var(--bs-border-color);
+  margin-top: 0.25rem;
+}
+
 /* Choice among a few object types: large tiles, two per row */
 .choice-grid {
   display: grid;
@@ -930,6 +987,35 @@ button.module-card {
 
 .stat-number {
   font-variant-numeric: tabular-nums;
+}
+
+/* Charts: drawn to the width of the page, never scrolled sideways */
+.stat-view-toggle .btn {
+  min-height: 2.75rem;
+}
+
+.stat-chart {
+  width: 100%;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.stat-chart svg {
+  display: block;
+}
+
+.stat-chart-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin: 0.75rem 0 0.125rem;
+}
+
+.stat-chart-legend {
+  font-size: 0.75rem;
+  color: var(--bs-secondary-color);
+  margin-bottom: 0.125rem;
 }
 
 /* Map statistics: the map, its legend and the cell tapped */

@@ -7,7 +7,9 @@ import { fetchStatCatalogue, StatsError, type StatDescription } from '../../util
 /** Icon of each statistic of the catalogue (bootstrap-icons). */
 const STAT_ICONS: Record<string, string> = {
   'traps-catches': 'bi-graph-up',
+  'traps-species': 'bi-pie-chart',
   'trap-types': 'bi-columns-gap',
+  'traps-ranking': 'bi-trophy',
   'traps-coverage': 'bi-grid-3x3',
   'traps-pressure': 'bi-bullseye',
 };

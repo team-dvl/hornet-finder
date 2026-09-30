@@ -1,6 +1,34 @@
 import { HelpTip } from '../common';
 import type { StatResult, StatRow } from '../../utils/statsApi';
+import ForestPlot, { type ForestRow } from './charts/ForestPlot';
 import { formatCount, formatPercent, formatRate } from './statParams';
+
+const num = (value: unknown) => (value === null || value === undefined ? null : Number(value));
+
+/** One point per type with its interval: efficiency, then selectivity. */
+function TrapTypesChart({ rows }: { rows: StatRow[] }) {
+  const forest = (key: string): ForestRow[] => rows.map((row) => ({
+    key: String(row.slug),
+    label: String(row.name),
+    value: num(row[key]),
+    low: num(row[`${key}_low`]),
+    high: num(row[`${key}_high`]),
+  }));
+  return (
+    <>
+      <h3 className="stat-chart-title d-flex align-items-center">
+        Frelons par piège et par semaine
+        <HelpTip id="stat-types-chart-help" title="Lire le graphique">
+          Un point par type de piège ; le trait couvre l&apos;intervalle de confiance à 95 %. Deux
+          types dont les traits se chevauchent largement ne sont pas départagés.
+        </HelpTip>
+      </h3>
+      <ForestPlot rows={forest('rate')} ariaLabel="Frelons par piège et par semaine, par type de piège, avec intervalle de confiance" />
+      <h3 className="stat-chart-title">Sélectivité (part de frelons asiatiques)</h3>
+      <ForestPlot rows={forest('selectivity')} max={1} format={(v) => formatPercent(v)} ariaLabel="Sélectivité par type de piège, avec intervalle de confiance" />
+    </>
+  );
+}
 
 function TypeRow({ row, total = false }: { row: StatRow; total?: boolean }) {
   return (
@@ -36,7 +64,8 @@ function TypeRow({ row, total = false }: { row: StatRow; total?: boolean }) {
 }
 
 /** Trap types compared: catches per trap (efficiency) and share of Asian hornets (selectivity). */
-export default function TrapTypesView({ result }: { result: StatResult }) {
+export default function TrapTypesView({ result, chart = false }: { result: StatResult; chart?: boolean }) {
+  if (chart && result.rows.length > 0) return <TrapTypesChart rows={result.rows} />;
   return (
     <>
       <div className="stat-list-head">

@@ -28,6 +28,18 @@ export default function StatsDoc() {
 
       <section className="mb-4">
         <h5 className="text-primary">
+          <span className="me-2">🐝</span>
+          Captures par espèce
+        </h5>
+        <p className="mb-0">
+          Les frelons asiatiques et les prises accessoires, espèce par espèce. La part de chaque
+          espèce parmi les insectes comptés ne porte que sur les relevés où toutes les espèces ont
+          été comptées : cochez-le au relevé, sinon seules les captures totales sont connues.
+        </p>
+      </section>
+
+      <section className="mb-4">
+        <h5 className="text-primary">
           <span className="me-2">⚖️</span>
           Types de piège
         </h5>
@@ -36,6 +48,31 @@ export default function StatsDoc() {
           <strong>sélectivité</strong> : la part de frelons asiatiques parmi tous les insectes comptés,
           sur les seuls relevés où toutes les espèces ont été comptées. Deux modèles dont les
           intervalles de confiance se chevauchent largement ne sont pas départagés.
+        </p>
+      </section>
+
+      <section className="mb-4">
+        <h5 className="text-primary">
+          <span className="me-2">🏆</span>
+          Pièges les plus actifs
+        </h5>
+        <p className="mb-0">
+          Chaque piège que vous voyez sur la carte, classé par frelons capturés par semaine de
+          présence (ce qui ne favorise pas les pièges posés plus tôt) ou par captures totales. Un
+          piège en place depuis moins de 7 jours n&apos;a pas encore de taux.
+        </p>
+      </section>
+
+      <section className="mb-4">
+        <h5 className="text-primary">
+          <span className="me-2">📊</span>
+          Tableau ou graphique
+        </h5>
+        <p className="mb-0">
+          Chaque tableau existe en graphique. La bande claire autour d&apos;une courbe, ou le trait
+          autour d&apos;un point, est l&apos;intervalle de confiance à 95 % : deux valeurs dont les
+          intervalles se chevauchent largement ne sont pas départagées. Touchez une barre pour la
+          détailler.
         </p>
       </section>
 
@@ -89,9 +126,18 @@ export default function StatsDoc() {
           <span className="me-2">📤</span>
           Exporter
         </h5>
+        <p>
+          Le bouton d&apos;export donne le tableau affiché en Excel, en PDF (avec ses graphiques)
+          ou en CSV, avec la période, les filtres et les pièges comptés. Le lien du fichier reste
+          valable 15 minutes. Les cartes s&apos;exportent en Excel et en CSV. Dans l&apos;application
+          installée sur l&apos;écran d&apos;accueil, le fichier s&apos;ouvre dans la feuille de partage :
+          imprimer, enregistrer dans Fichiers, envoyer. Si elle ne s&apos;ouvre pas du premier coup,
+          touchez « partager » une seconde fois.
+        </p>
         <p className="mb-0">
-          Le bouton d&apos;export donne le tableau affiché en Excel ou en CSV, avec la période, les
-          filtres et les pièges comptés. Le lien du fichier reste valable 15 minutes.
+          <strong>Envoyer un lien par email</strong> : vous recevez un lien vers une page de
+          téléchargement, pour reprendre l&apos;export plus tard sur un ordinateur. Il sert une
+          heure et dix téléchargements, sans connexion, avec vos droits : ne le transférez pas.
         </p>
       </section>
     </>

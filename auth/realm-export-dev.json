@@ -4,7 +4,7 @@
   "displayName": "Velutina DEV",
   "displayNameHtml": "<div class=\"kc-logo-text\"><span>Velutina</span></div>",
   "notBefore": 0,
-  "defaultSignatureAlgorithm": "RS256",
+  "defaultSignatureAlgorithm": "PS256",
   "revokeRefreshToken": false,
   "refreshTokenMaxReuse": 0,
   "accessTokenLifespan": 10800,
@@ -47,6 +47,7 @@
   "quickLoginCheckMilliSeconds": 1000,
   "maxDeltaTimeSeconds": 43200,
   "failureFactor": 30,
+  "maxSecondaryAuthFailures": 0,
   "roles": {
     "realm": [
       {
@@ -68,15 +69,6 @@
         "attributes": {}
       },
       {
-        "name": "group-admin",
-        "description": "Group administrator: administers a group of beekeepers or volunteers (membership, trap delegation)",
-        "composite": false,
-        "clientRole": false,
-        "attributes": {},
-        "id": "341a01f3-1421-4aec-a286-78c363bacc2b",
-        "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049"
-      },
-      {
         "id": "6828d02c-06de-443e-88ac-fd31e6b20c4a",
         "name": "admin",
         "description": "",
@@ -89,6 +81,15 @@
         "id": "1afe8454-5dd5-4fd3-bf0c-2fbbdfedc557",
         "name": "volunteer",
         "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
+        "attributes": {}
+      },
+      {
+        "id": "32d02730-5874-4a5d-8304-7a96ffbbeaa5",
+        "name": "group-admin",
+        "description": "Group administrator: administers a group of beekeepers or volunteers (membership, trap delegation)",
         "composite": false,
         "clientRole": false,
         "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
@@ -134,7 +135,7 @@
         "attributes": {}
       },
       {
-        "id": "6e63e2d7-7bd6-4606-9e8e-a621da391db5",
+        "id": "5e7dbed0-f86e-4f89-8a82-7dca58543ad0",
         "name": "mail-reader",
         "description": "Read the dev catch-all mailbox (Mailpit)",
         "composite": false,
@@ -191,6 +192,22 @@
           "attributes": {}
         },
         {
+          "id": "55b61b48-e625-4a0c-9d56-266b4ef71b8e",
+          "name": "view-organizations",
+          "description": "${role_view-organizations}",
+          "composite": true,
+          "composites": {
+            "client": {
+              "realm-management": [
+                "query-organizations"
+              ]
+            }
+          },
+          "clientRole": true,
+          "containerId": "1c342206-8863-4b24-b438-e3ae63aed15d",
+          "attributes": {}
+        },
+        {
           "id": "09c2cf45-0736-4232-b5ac-c798e3b2ba4a",
           "name": "query-clients",
           "description": "${role_query-clients}",
@@ -203,6 +220,15 @@
           "id": "e7a7ec88-dde7-4912-9e31-126bd2ad850d",
           "name": "create-client",
           "description": "${role_create-client}",
+          "composite": false,
+          "clientRole": true,
+          "containerId": "1c342206-8863-4b24-b438-e3ae63aed15d",
+          "attributes": {}
+        },
+        {
+          "id": "c9d718ab-8f7a-4d05-bd34-5dacb48ca6e2",
+          "name": "manage-organizations",
+          "description": "${role_manage-organizations}",
           "composite": false,
           "clientRole": true,
           "containerId": "1c342206-8863-4b24-b438-e3ae63aed15d",
@@ -305,6 +331,15 @@
           "attributes": {}
         },
         {
+          "id": "f1956d17-3a7e-4f13-af55-d95205c7aa54",
+          "name": "query-organizations",
+          "description": "${role_query-organizations}",
+          "composite": false,
+          "clientRole": true,
+          "containerId": "1c342206-8863-4b24-b438-e3ae63aed15d",
+          "attributes": {}
+        },
+        {
           "id": "5d8e01d8-4948-4795-8d13-3d9953182d15",
           "name": "realm-admin",
           "description": "${role_realm-admin}",
@@ -315,10 +350,12 @@
                 "view-identity-providers",
                 "manage-clients",
                 "manage-users",
+                "view-organizations",
                 "impersonation",
                 "manage-authorization",
                 "query-clients",
                 "create-client",
+                "manage-organizations",
                 "view-clients",
                 "view-realm",
                 "query-groups",
@@ -328,6 +365,7 @@
                 "query-users",
                 "view-events",
                 "view-users",
+                "query-organizations",
                 "manage-events",
                 "query-realms"
               ]
@@ -357,9 +395,11 @@
         }
       ],
       "hornet-api-dev": [],
+      "mail-proxy-dev": [],
       "security-admin-console": [],
       "hornet-app-dev": [],
       "admin-cli": [],
+      "flow-admin": [],
       "account-console": [],
       "broker": [
         {
@@ -372,6 +412,7 @@
           "attributes": {}
         }
       ],
+      "hornet-test-dev": [],
       "account": [
         {
           "id": "e9a88528-54e2-41eb-bd3b-d7184c7ffa7e",
@@ -539,6 +580,29 @@
           },
           "realmRoles": [],
           "clientRoles": {}
+        },
+        {
+          "id": "edfe4aac-7f67-4fc1-85b4-04a49beff021",
+          "name": "bkp-group-c",
+          "description": "Beekeepers group c",
+          "path": "/beekeepers/bkp-group-c",
+          "parentId": "4e65e2da-6219-46df-ac74-ca7fb568d4ad",
+          "subGroups": [
+            {
+              "id": "0e0d5b0e-0af3-4705-bb54-b16347f81d53",
+              "name": "admin",
+              "description": "administrators of the group",
+              "path": "/beekeepers/bkp-group-c/admin",
+              "parentId": "edfe4aac-7f67-4fc1-85b4-04a49beff021",
+              "subGroups": [],
+              "attributes": {},
+              "realmRoles": [],
+              "clientRoles": {}
+            }
+          ],
+          "attributes": {},
+          "realmRoles": [],
+          "clientRoles": {}
         }
       ],
       "attributes": {},
@@ -559,7 +623,7 @@
           "parentId": "c80bc5ca-7840-411c-8754-bf78a85db170",
           "subGroups": [
             {
-              "id": "17f49250-91d4-4834-b877-074982dd87d0",
+              "id": "be83090e-70c6-4709-8119-4581ba8fbcb7",
               "name": "admin",
               "path": "/volunteers/vol-group-a/admin",
               "parentId": "f085ce47-ef5f-491a-acaf-f86cdc89f7bc",
@@ -614,7 +678,7 @@
     "totpAppMicrosoftAuthenticatorName"
   ],
   "localizationTexts": {},
-  "webAuthnPolicyRpEntityName": "keycloak",
+  "webAuthnPolicyRpEntityName": "Velutina DEV",
   "webAuthnPolicySignatureAlgorithms": [
     "ES256",
     "RS256"
@@ -623,12 +687,13 @@
   "webAuthnPolicyAttestationConveyancePreference": "not specified",
   "webAuthnPolicyAuthenticatorAttachment": "not specified",
   "webAuthnPolicyRequireResidentKey": "not specified",
+  "webAuthnPolicyResidentKey": "not specified",
   "webAuthnPolicyUserVerificationRequirement": "not specified",
   "webAuthnPolicyCreateTimeout": 0,
   "webAuthnPolicyAvoidSameAuthenticatorRegister": false,
   "webAuthnPolicyAcceptableAaguids": [],
   "webAuthnPolicyExtraOrigins": [],
-  "webAuthnPolicyPasswordlessRpEntityName": "keycloak",
+  "webAuthnPolicyPasswordlessRpEntityName": "Velutina DEV",
   "webAuthnPolicyPasswordlessSignatureAlgorithms": [
     "ES256",
     "RS256"
@@ -637,18 +702,50 @@
   "webAuthnPolicyPasswordlessAttestationConveyancePreference": "not specified",
   "webAuthnPolicyPasswordlessAuthenticatorAttachment": "not specified",
   "webAuthnPolicyPasswordlessRequireResidentKey": "not specified",
+  "webAuthnPolicyPasswordlessResidentKey": "required",
   "webAuthnPolicyPasswordlessUserVerificationRequirement": "not specified",
   "webAuthnPolicyPasswordlessCreateTimeout": 0,
   "webAuthnPolicyPasswordlessAvoidSameAuthenticatorRegister": false,
   "webAuthnPolicyPasswordlessAcceptableAaguids": [],
   "webAuthnPolicyPasswordlessExtraOrigins": [],
+  "webAuthnPolicyPasswordlessPasskeysEnabled": true,
+  "webAuthnPolicyPasswordlessMediation": "none",
   "users": [
+    {
+      "id": "f2091fbe-faf6-429e-82b7-9b7a7b6d3843",
+      "username": "service-account-flow-admin",
+      "emailVerified": false,
+      "enabled": true,
+      "createdTimestamp": 1790337881796,
+      "totp": false,
+      "serviceAccountClientId": "flow-admin",
+      "disableableCredentialTypes": [],
+      "requiredActions": [],
+      "realmRoles": [
+        "default-roles-hornet-finder"
+      ],
+      "clientRoles": {
+        "realm-management": [
+          "view-identity-providers",
+          "view-clients",
+          "view-realm",
+          "manage-clients",
+          "manage-identity-providers",
+          "manage-realm",
+          "view-users"
+        ]
+      },
+      "notBefore": 0,
+      "groups": [
+        "/volunteers"
+      ]
+    },
     {
       "id": "c7f4a379-1814-4f7a-a5aa-168b3d392396",
       "username": "service-account-hornet-api-dev",
       "emailVerified": false,
-      "createdTimestamp": 1751312449093,
       "enabled": true,
+      "createdTimestamp": 1751312449093,
       "totp": false,
       "serviceAccountClientId": "hornet-api-dev",
       "disableableCredentialTypes": [],
@@ -658,6 +755,7 @@
       ],
       "clientRoles": {
         "realm-management": [
+          "manage-users",
           "view-users"
         ]
       },
@@ -665,10 +763,11 @@
       "groups": []
     },
     {
-      "id": "ff3ac2cc-a797-43d6-b6ea-4c2a4922bd7e",
+      "id": "4a7638ac-b1f2-40be-a13b-ddcfacf98445",
       "username": "service-account-mail-proxy-dev",
       "emailVerified": false,
       "enabled": true,
+      "createdTimestamp": 1790246175887,
       "totp": false,
       "serviceAccountClientId": "mail-proxy-dev",
       "disableableCredentialTypes": [],
@@ -678,7 +777,9 @@
         "mail-reader"
       ],
       "notBefore": 0,
-      "groups": []
+      "groups": [
+        "/volunteers"
+      ]
     }
   ],
   "scopeMappings": [
@@ -706,13 +807,13 @@
       "clientId": "account",
       "name": "${client_account}",
       "rootUrl": "${authBaseUrl}",
-      "baseUrl": "/realms/hornet-finder/account/",
+      "baseUrl": "/realms/hornet-finder-dev/account/",
       "surrogateAuthRequired": false,
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
-        "/realms/hornet-finder/account/*"
+        "/realms/hornet-finder-dev/account/*"
       ],
       "webOrigins": [],
       "notBefore": 0,
@@ -753,13 +854,13 @@
       "clientId": "account-console",
       "name": "${client_account-console}",
       "rootUrl": "${authBaseUrl}",
-      "baseUrl": "/realms/hornet-finder/account/",
+      "baseUrl": "/realms/hornet-finder-dev/account/",
       "surrogateAuthRequired": false,
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
-        "/realms/hornet-finder/account/*"
+        "/realms/hornet-finder-dev/account/*"
       ],
       "webOrigins": [],
       "notBefore": 0,
@@ -894,6 +995,57 @@
       ]
     },
     {
+      "id": "3fc855e6-fa5b-424f-9e5e-6b88fca637db",
+      "clientId": "flow-admin",
+      "name": "flow-admin (Admin API service account)",
+      "description": "Host-only service account for Keycloak Admin API calls from shell scripts. Secret lives only in the host .env.",
+      "surrogateAuthRequired": false,
+      "enabled": true,
+      "alwaysDisplayInConsole": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "**********",
+      "redirectUris": [],
+      "webOrigins": [],
+      "notBefore": 0,
+      "bearerOnly": false,
+      "consentRequired": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "publicClient": false,
+      "frontchannelLogout": false,
+      "protocol": "openid-connect",
+      "attributes": {
+        "realm_client": "false",
+        "oidc.ciba.grant.enabled": "false",
+        "client.secret.creation.time": "1790337881",
+        "backchannel.logout.session.required": "true",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "backchannel.logout.revoke.offline.tokens": "false"
+      },
+      "authenticationFlowBindingOverrides": {},
+      "fullScopeAllowed": true,
+      "nodeReRegistrationTimeout": -1,
+      "defaultClientScopes": [
+        "service_account",
+        "web-origins",
+        "acr",
+        "roles",
+        "profile",
+        "basic",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "organization",
+        "offline_access",
+        "microprofile-jwt",
+        "membership"
+      ]
+    },
+    {
       "id": "cd6e9724-e6b4-4b26-a3f5-c9ec34d18fac",
       "clientId": "hornet-api-dev",
       "name": "hornet-api-dev",
@@ -925,7 +1077,7 @@
       "attributes": {
         "realm_client": "false",
         "oidc.ciba.grant.enabled": "false",
-        "client.secret.creation.time": "1754663659",
+        "client.secret.creation.time": "1789007836",
         "backchannel.logout.session.required": "true",
         "standard.token.exchange.enabled": "false",
         "post.logout.redirect.uris": "+",
@@ -958,7 +1110,7 @@
     {
       "id": "df67e082-88f6-4425-9876-d6c1efb1884a",
       "clientId": "hornet-app-dev",
-      "name": "hornet-app-dev",
+      "name": "Velutina DEV",
       "description": "the client used from the browser / PWA, in DEV mode",
       "rootUrl": "https://dev.velutina.ovh",
       "adminUrl": "",
@@ -984,11 +1136,8 @@
       "frontchannelLogout": true,
       "protocol": "openid-connect",
       "attributes": {
-        "pkce.code.challenge.method": "S256",
         "request.object.signature.alg": "any",
-        "request.object.encryption.alg": "any",
-        "client.introspection.response.allow.jwt.claim.enabled": "false",
-        "standard.token.exchange.enabled": "false",
+        "oauth2.jwt.authorization.grant.enabled": "false",
         "post.logout.redirect.uris": "+",
         "frontchannel.logout.session.required": "true",
         "oauth2.device.authorization.grant.enabled": "false",
@@ -996,21 +1145,46 @@
         "use.refresh.tokens": "true",
         "realm_client": "false",
         "oidc.ciba.grant.enabled": "false",
-        "client.use.lightweight.access.token.enabled": "false",
         "backchannel.logout.session.required": "true",
-        "request.object.required": "not required",
         "client_credentials.use_refresh_token": "false",
+        "require.pushed.authorization.requests": "false",
+        "request.object.encryption.enc": "any",
+        "pkce.code.challenge.method": "S256",
+        "dpop.bound.access.tokens": "false",
+        "logout.confirmation.enabled": "false",
+        "id.token.as.detached.signature": "false",
+        "request.object.encryption.alg": "any",
+        "client.introspection.response.allow.jwt.claim.enabled": "false",
+        "standard.token.exchange.enabled": "false",
+        "client.use.lightweight.access.token.enabled": "false",
+        "request.object.required": "not required",
         "access.token.header.type.rfc9068": "false",
         "tls.client.certificate.bound.access.tokens": "false",
-        "require.pushed.authorization.requests": "false",
         "acr.loa.map": "{}",
         "display.on.consent.screen": "false",
-        "request.object.encryption.enc": "any",
         "token.response.type.bearer.lower-case": "false"
       },
       "authenticationFlowBindingOverrides": {},
       "fullScopeAllowed": true,
       "nodeReRegistrationTimeout": -1,
+      "protocolMappers": [
+        {
+          "id": "f2447663-035f-482b-ba3d-ee8aa93626ca",
+          "name": "social_picture",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "false",
+            "user.attribute": "social_picture",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "social_picture",
+            "jsonType.label": "String"
+          }
+        }
+      ],
       "defaultClientScopes": [
         "web-origins",
         "acr",
@@ -1027,6 +1201,116 @@
         "microprofile-jwt",
         "membership"
       ]
+    },
+    {
+      "id": "4246c6e8-33eb-47bd-86fc-250001ec479e",
+      "clientId": "hornet-test-dev",
+      "name": "hornet-test-dev",
+      "description": "DEV ONLY: password-grant client used to exercise the API from scripts. Never create this in production.",
+      "surrogateAuthRequired": false,
+      "enabled": true,
+      "alwaysDisplayInConsole": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "**********",
+      "redirectUris": [],
+      "webOrigins": [],
+      "notBefore": 0,
+      "bearerOnly": false,
+      "consentRequired": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "publicClient": false,
+      "frontchannelLogout": false,
+      "protocol": "openid-connect",
+      "attributes": {
+        "realm_client": "false",
+        "backchannel.logout.session.required": "true",
+        "backchannel.logout.revoke.offline.tokens": "false"
+      },
+      "authenticationFlowBindingOverrides": {},
+      "fullScopeAllowed": true,
+      "nodeReRegistrationTimeout": -1,
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "roles",
+        "profile",
+        "basic",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "offline_access",
+        "membership"
+      ]
+    },
+    {
+      "id": "bfe12c62-4d84-4d2e-95a9-50e1abe12222",
+      "clientId": "mail-proxy-dev",
+      "name": "mail-proxy-dev",
+      "description": "oauth2-proxy in front of the dev catch-all mailbox; service account for scripts",
+      "rootUrl": "https://dev.velutina.ovh",
+      "adminUrl": "",
+      "baseUrl": "/mail/",
+      "surrogateAuthRequired": false,
+      "enabled": true,
+      "alwaysDisplayInConsole": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "**********",
+      "redirectUris": [
+        "https://dev.velutina.ovh/mail/oauth2/callback"
+      ],
+      "webOrigins": [
+        "+"
+      ],
+      "notBefore": 0,
+      "bearerOnly": false,
+      "consentRequired": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "publicClient": false,
+      "frontchannelLogout": true,
+      "protocol": "openid-connect",
+      "attributes": {
+        "realm_client": "false",
+        "client.secret.creation.time": "1790246175",
+        "backchannel.logout.session.required": "true",
+        "post.logout.redirect.uris": "https://dev.velutina.ovh/mail/*",
+        "pkce.code.challenge.method": "S256",
+        "backchannel.logout.revoke.offline.tokens": "false"
+      },
+      "authenticationFlowBindingOverrides": {},
+      "fullScopeAllowed": true,
+      "nodeReRegistrationTimeout": -1,
+      "protocolMappers": [
+        {
+          "id": "aff873c3-9b70-46f4-9eb8-535f468fb23f",
+          "name": "audience mail-proxy-dev",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "mail-proxy-dev",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ],
+      "defaultClientScopes": [
+        "service_account",
+        "web-origins",
+        "acr",
+        "roles",
+        "profile",
+        "basic",
+        "email"
+      ],
+      "optionalClientScopes": []
     },
     {
       "id": "1c342206-8863-4b24-b438-e3ae63aed15d",
@@ -1139,69 +1423,6 @@
         "offline_access",
         "microprofile-jwt"
       ]
-    },
-    {
-      "id": "509e62d0-64d1-4e04-81bf-b7d64a65e600",
-      "clientId": "mail-proxy-dev",
-      "name": "mail-proxy-dev",
-      "description": "oauth2-proxy in front of the dev catch-all mailbox; service account for scripts",
-      "rootUrl": "https://dev.velutina.ovh",
-      "adminUrl": "",
-      "baseUrl": "/mail/",
-      "surrogateAuthRequired": false,
-      "enabled": true,
-      "alwaysDisplayInConsole": false,
-      "clientAuthenticatorType": "client-secret",
-      "secret": "**********",
-      "redirectUris": [
-        "https://dev.velutina.ovh/mail/oauth2/callback"
-      ],
-      "webOrigins": [
-        "+"
-      ],
-      "notBefore": 0,
-      "bearerOnly": false,
-      "consentRequired": false,
-      "standardFlowEnabled": true,
-      "implicitFlowEnabled": false,
-      "directAccessGrantsEnabled": false,
-      "serviceAccountsEnabled": true,
-      "publicClient": false,
-      "frontchannelLogout": true,
-      "protocol": "openid-connect",
-      "attributes": {
-        "realm_client": "false",
-        "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "https://dev.velutina.ovh/mail/*"
-      },
-      "authenticationFlowBindingOverrides": {},
-      "fullScopeAllowed": true,
-      "nodeReRegistrationTimeout": -1,
-      "protocolMappers": [
-        {
-          "id": "f401b3e4-7aa2-49c8-9e74-b21ff8ba75ff",
-          "name": "audience mail-proxy-dev",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-mapper",
-          "consentRequired": false,
-          "config": {
-            "included.client.audience": "mail-proxy-dev",
-            "id.token.claim": "true",
-            "access.token.claim": "true",
-            "introspection.token.claim": "true"
-          }
-        }
-      ],
-      "defaultClientScopes": [
-        "service_account",
-        "web-origins",
-        "acr",
-        "roles",
-        "profile",
-        "basic",
-        "email"
-      ],
-      "optionalClientScopes": []
     }
   ],
   "clientScopes": [
@@ -1890,6 +2111,23 @@
       ]
     },
     {
+      "id": "018baa3d-848d-451d-bda2-956070ad54d6",
+      "name": "AuthnContextClassRef",
+      "description": "AuthnContextClassRef Level of Authentiation",
+      "protocol": "saml",
+      "attributes": {},
+      "protocolMappers": [
+        {
+          "id": "5afb7a40-0d3c-4c64-8a17-5b2a6519eb57",
+          "name": "AuthnContextClassRef",
+          "protocol": "saml",
+          "protocolMapper": "saml-authn-context-class-ref-mapper",
+          "consentRequired": false,
+          "config": {}
+        }
+      ]
+    },
+    {
       "id": "cb7d96d0-2e44-47e5-946a-61ae5e31fed0",
       "name": "address",
       "description": "OpenID Connect built-in scope: address",
@@ -1930,7 +2168,8 @@
     "roles",
     "web-origins",
     "acr",
-    "basic"
+    "basic",
+    "AuthnContextClassRef"
   ],
   "defaultOptionalClientScopes": [
     "offline_access",
@@ -1954,14 +2193,13 @@
     "replyToDisplayName": "",
     "starttls": "false",
     "auth": "false",
-    "envelopeFrom": "",
-    "ssl": "false",
     "port": "1025",
     "host": "hornet-finder-dev-mailpit",
     "replyTo": "",
     "from": "contact@velutina.ovh",
     "fromDisplayName": "Velutina DEV administrator",
-    "authType": "basic"
+    "envelopeFrom": "",
+    "ssl": "false"
   },
   "loginTheme": "velutina",
   "accountTheme": "velutina",
@@ -2074,7 +2312,6 @@
       "internalId": "0afa5020-abbd-4b5f-9459-0372299ba91d",
       "providerId": "facebook",
       "enabled": true,
-      "updateProfileFirstLoginMode": "on",
       "trustEmail": true,
       "storeToken": false,
       "addReadTokenRoleOnCreate": false,
@@ -2090,17 +2327,18 @@
         "syncMode": "LEGACY",
         "clientSecret": "**********",
         "caseSensitiveOriginalUsername": "false",
+        "fetchedFields": "picture.width(256).height(256)",
         "guiOrder": "1",
         "defaultScope": "openid email public_profile"
-      }
+      },
+      "types": []
     },
     {
       "alias": "google",
-      "displayName": "",
+      "displayName": "Google",
       "internalId": "4959666a-dbc1-46b4-8696-04d96b67d675",
       "providerId": "google",
       "enabled": true,
-      "updateProfileFirstLoginMode": "on",
       "trustEmail": true,
       "storeToken": false,
       "addReadTokenRoleOnCreate": false,
@@ -2109,14 +2347,15 @@
       "hideOnLogin": false,
       "config": {
         "acceptsPromptNoneForwardFromClient": "false",
-        "clientId": "220472679472-tiju69vthjgmsibpd3f1lgsnp8cnhqro.apps.googleusercontent.com",
+        "clientId": "1056257131315-anbaqopr0hpkesovskvumf20on39hldh.apps.googleusercontent.com",
         "disableUserInfo": "false",
         "filteredByClaim": "false",
         "syncMode": "LEGACY",
         "clientSecret": "**********",
         "caseSensitiveOriginalUsername": "false",
         "guiOrder": "0"
-      }
+      },
+      "types": []
     }
   ],
   "identityProviderMappers": [
@@ -2148,6 +2387,28 @@
       "config": {
         "syncMode": "INHERIT",
         "userAttribute": "email"
+      }
+    },
+    {
+      "id": "385cfde3-5df1-4105-85e9-ac43c00a22bc",
+      "name": "picture",
+      "identityProviderAlias": "google",
+      "identityProviderMapper": "google-user-attribute-mapper",
+      "config": {
+        "syncMode": "FORCE",
+        "userAttribute": "social_picture",
+        "jsonField": "picture"
+      }
+    },
+    {
+      "id": "a65ed8d0-63cd-4b83-b4d4-011d74216ac3",
+      "name": "picture",
+      "identityProviderAlias": "facebook",
+      "identityProviderMapper": "facebook-user-attribute-mapper",
+      "config": {
+        "syncMode": "FORCE",
+        "userAttribute": "social_picture",
+        "jsonField": "picture.data.url"
       }
     }
   ],
@@ -2259,6 +2520,18 @@
         }
       }
     ],
+    "org.keycloak.userprofile.UserProfileProvider": [
+      {
+        "id": "01404404-68d1-4f98-8fa2-302a0d45a649",
+        "providerId": "declarative-user-profile",
+        "subComponents": {},
+        "config": {
+          "kc.user.profile.config": [
+            "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"picture\",\"displayName\":\"Photo\",\"validations\":{\"uri\":{},\"length\":{\"max\":1024}},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"social_picture\",\"displayName\":\"Photo (compte social)\",\"validations\":{\"uri\":{},\"length\":{\"max\":1024}},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false}],\"groups\":[{\"name\":\"user-metadata\",\"displayHeader\":\"User metadata\",\"displayDescription\":\"Attributes, which refer to user metadata\"}]}"
+          ]
+        }
+      }
+    ],
     "org.keycloak.keys.KeyProvider": [
       {
         "id": "b1aac691-fd81-421a-ae40-e87f82537587",
@@ -2307,6 +2580,29 @@
         "config": {
           "priority": [
             "100"
+          ]
+        }
+      },
+      {
+        "id": "3f3a72e6-7d44-42f0-b3e5-36e07782a443",
+        "name": "rsapss-generated",
+        "providerId": "rsa-generated",
+        "subComponents": {},
+        "config": {
+          "keySize": [
+            "2048"
+          ],
+          "active": [
+            "true"
+          ],
+          "priority": [
+            "200"
+          ],
+          "enabled": [
+            "true"
+          ],
+          "algorithm": [
+            "PS256"
           ]
         }
       }
@@ -2395,6 +2691,67 @@
           "requirement": "ALTERNATIVE",
           "priority": 20,
           "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "id": "18a9547f-cbd0-4c66-8337-d87430a46abb",
+      "alias": "Conditional OTP",
+      "description": "OTP only if user has one configured",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorConfig": "skip-otp-if-passkey-used",
+          "authenticator": "conditional-credential",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 0,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "conditional-user-configured",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 0,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "auth-otp-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 0,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "id": "9e667d6e-c68c-4691-a6af-3132c7032bb9",
+      "alias": "Credential",
+      "description": "Passkey or Password+OTP",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "webauthn-authenticator-passwordless",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 0,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "ALTERNATIVE",
+          "priority": 0,
+          "autheticatorFlow": true,
+          "flowAlias": "Password and OTP",
           "userSetupAllowed": false
         }
       ]
@@ -2516,6 +2873,32 @@
           "priority": 10,
           "autheticatorFlow": true,
           "flowAlias": "Browser - Conditional Organization",
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "id": "f8205229-e1e4-4511-b04e-9bb3853c03d9",
+      "alias": "Password and OTP",
+      "description": "Password then conditional OTP",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "auth-password-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 0,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 0,
+          "autheticatorFlow": true,
+          "flowAlias": "Conditional OTP",
           "userSetupAllowed": false
         }
       ]
@@ -2645,6 +3028,125 @@
           "priority": 30,
           "autheticatorFlow": true,
           "flowAlias": "forms",
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "id": "c89946c1-855f-431b-bdcd-0a3f3565b45a",
+      "alias": "browser-passkey",
+      "description": "Browser based authentication",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "auth-cookie",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 10,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "auth-spnego",
+          "authenticatorFlow": false,
+          "requirement": "DISABLED",
+          "priority": 20,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "identity-provider-redirector",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 25,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "ALTERNATIVE",
+          "priority": 26,
+          "autheticatorFlow": true,
+          "flowAlias": "browser-passkey Organization",
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "ALTERNATIVE",
+          "priority": 30,
+          "autheticatorFlow": true,
+          "flowAlias": "browser-passkey forms",
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "id": "c932665a-496e-4e19-afe3-3cea679b0ba5",
+      "alias": "browser-passkey Browser - Conditional Organization",
+      "description": "Flow to determine if the organization identity-first login is to be used",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-user-configured",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "organization",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 20,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "id": "c247ecc1-7d74-4aad-9826-c5f92fe0a37b",
+      "alias": "browser-passkey Organization",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 10,
+          "autheticatorFlow": true,
+          "flowAlias": "browser-passkey Browser - Conditional Organization",
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "id": "fd637707-bb32-4bf6-8c22-b57574fc873e",
+      "alias": "browser-passkey forms",
+      "description": "Username, password, otp and other auth forms.",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "auth-username-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 0,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "REQUIRED",
+          "priority": 0,
+          "autheticatorFlow": true,
+          "flowAlias": "Credential",
           "userSetupAllowed": false
         }
       ]
@@ -2940,18 +3442,17 @@
       "config": {
         "update.profile.on.first.login": "missing"
       }
+    },
+    {
+      "id": "8fbb98cf-809a-432f-b462-4cf3a56fbec9",
+      "alias": "skip-otp-if-passkey-used",
+      "config": {
+        "credentials": "webauthn-passwordless",
+        "included": "false"
+      }
     }
   ],
   "requiredActions": [
-    {
-      "alias": "CONFIGURE_TOTP",
-      "name": "Configure OTP",
-      "providerId": "CONFIGURE_TOTP",
-      "enabled": true,
-      "defaultAction": false,
-      "priority": 10,
-      "config": {}
-    },
     {
       "alias": "TERMS_AND_CONDITIONS",
       "name": "Terms and Conditions",
@@ -2959,15 +3460,6 @@
       "enabled": false,
       "defaultAction": false,
       "priority": 20,
-      "config": {}
-    },
-    {
-      "alias": "UPDATE_PASSWORD",
-      "name": "Update Password",
-      "providerId": "UPDATE_PASSWORD",
-      "enabled": true,
-      "defaultAction": false,
-      "priority": 30,
       "config": {}
     },
     {
@@ -2986,6 +3478,24 @@
       "enabled": true,
       "defaultAction": false,
       "priority": 50,
+      "config": {}
+    },
+    {
+      "alias": "CONFIGURE_TOTP",
+      "name": "Configure OTP",
+      "providerId": "CONFIGURE_TOTP",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 54,
+      "config": {}
+    },
+    {
+      "alias": "UPDATE_PASSWORD",
+      "name": "Update Password",
+      "providerId": "UPDATE_PASSWORD",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 57,
       "config": {}
     },
     {
@@ -3034,6 +3544,15 @@
       "config": {}
     },
     {
+      "alias": "idp_link",
+      "name": "Linking Identity Provider",
+      "providerId": "idp_link",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 120,
+      "config": {}
+    },
+    {
       "alias": "update_user_locale",
       "name": "Update User Locale",
       "providerId": "update_user_locale",
@@ -3043,7 +3562,7 @@
       "config": {}
     }
   ],
-  "browserFlow": "browser",
+  "browserFlow": "browser-passkey",
   "registrationFlow": "registration",
   "directGrantFlow": "direct grant",
   "resetCredentialsFlow": "reset credentials",
@@ -3068,17 +3587,19 @@
     "parRequestUriLifespan": "60",
     "clientSessionMaxLifespan": "0",
     "frontendUrl": "",
+    "scimApiEnabled": "false",
     "acr.loa.map": "{}",
     "adminEventsExpiration": "604800",
     "shortVerificationUri": "",
     "actionTokenGeneratedByUserLifespan.reset-credentials": "",
     "darkMode": "false"
   },
-  "keycloakVersion": "26.2.5",
+  "keycloakVersion": "26.7.4",
   "userManagedAccessAllowed": true,
   "organizationsEnabled": false,
   "verifiableCredentialsEnabled": false,
   "adminPermissionsEnabled": false,
+  "scimApiEnabled": false,
   "clientProfiles": {
     "profiles": []
   },

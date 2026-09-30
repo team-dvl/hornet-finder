@@ -1,16 +1,22 @@
 import io
 import math
+from pathlib import Path
 from datetime import date, datetime, time
 from unittest.mock import patch
 
+from django.conf import settings
+from django.core import mail
+from django.test import override_settings
+from django.utils import timezone
 from rest_framework.test import force_authenticate
 
-from ..models import Trap, TrapEvent, TrapType
+from ..models import StatExportJob, Trap, TrapEvent, TrapType
 from ..tests import FakeTrapUser, TrapTestCase
 from .confidence import poisson_interval, wilson_interval
 from .exposure import load_readings, tally
 from .periods import LOCAL, PeriodError, buckets, resolve_period
-from .views import StatDetailView, StatExportLinkView, StatsCatalogueView
+from .periods import freeze_period
+from .views import StatDetailView, StatEmailLinkView, StatExportLinkView, StatsCatalogueView
 
 
 def at(day: date, hour: int = 0):
@@ -307,7 +313,8 @@ class CatalogueTests(TrapTestCase):
     def test_every_role_gets_the_catalogue(self):
         for user in (self.owner_user, self.member_user, self.admin_user):
             ids = [entry['id'] for entry in self.catalogue(user).data]
-            self.assertEqual(ids, ['traps-catches', 'trap-types', 'traps-coverage', 'traps-pressure'])
+            self.assertEqual(ids, ['traps-catches', 'traps-species', 'trap-types', 'traps-ranking',
+                                   'traps-coverage', 'traps-pressure'])
 
     def test_anonymous_and_roleless_users_are_refused(self):
         self.assertIn(self.catalogue().status_code, (401, 403))
@@ -362,13 +369,140 @@ class ExportTests(ThreeTrapsTestCase):
         total = self.download(url).content.decode('utf-8').strip().split('\r\n')[-1]
         self.assertIn(';14,0;', total)
 
+    def test_pdf_of_every_table(self):
+        self.reading(self.trap, date(2025, 3, 8), 7, others=14, bycatch=True)
+        for stat_id in ('traps-catches', 'traps-species', 'trap-types', 'traps-ranking'):
+            for granularity in ('day', 'week'):
+                request = self.factory.post(f'/stats/{stat_id}/export/', {
+                    'format': 'pdf', 'params': {**self.MARCH, 'granularity': granularity}}, format='json')
+                force_authenticate(request, user=self.admin_user)
+                link = StatExportLinkView.as_view()(request, stat_id=stat_id)
+                self.assertEqual(link.status_code, 200, link.data)
+                self.assertTrue(link.data['filename'].endswith('.pdf'))
+                file = self.download(link.data['url'])
+                self.assertEqual(file.status_code, 200)
+                self.assertEqual(file['Content-Type'], 'application/pdf')
+                # Opened by the browser's viewer rather than saved
+                self.assertTrue(file['Content-Disposition'].startswith('inline;'))
+                self.assertTrue(file.content.startswith(b'%PDF-'), stat_id)
+
+    def test_pdf_without_any_reading(self):
+        response = self.link('pdf', {'period': 'custom', 'from': '2024-03-01', 'to': '2024-03-31'})
+        self.assertEqual(self.download(response.data['url']).status_code, 200)
+
     def test_refusals(self):
-        self.assertEqual(self.link('pdf', self.MARCH).status_code, 400)
+        self.assertEqual(self.link('docx', self.MARCH).status_code, 400)
+        # A map has no PDF: its cells need the map
+        request = self.factory.post('/stats/traps-coverage/export/', {
+            'format': 'pdf', 'params': {**self.MARCH, 'bbox': '4.4,50.4,4.6,50.6'}}, format='json')
+        force_authenticate(request, user=self.admin_user)
+        self.assertEqual(StatExportLinkView.as_view()(request, stat_id='traps-coverage').status_code, 400)
         self.assertEqual(self.link('csv', {'period': 'nope'}).status_code, 400)
         self.assertEqual(self.download('/api/stats/export/forged:token/').status_code, 404)
         url = self.link('csv', self.MARCH).data['url']
         with patch('hornet.stats.views.EXPORT_LINK_SECONDS', -1):
             self.assertEqual(self.download(url).status_code, 410)
+
+
+@override_settings(EMAIL_CONFIGURED=True)
+class EmailLinkTests(ThreeTrapsTestCase):
+    """An export sent by email: a page and its files, one hour, ten downloads."""
+
+    def ask(self, params, user=None, email='jeanne.dupont@example.org', stat_id='traps-catches'):
+        user = user or self.admin_user
+        user.token_info = {**user.token_info, 'email': email, 'name': 'Jeanne Dupont'}
+        request = self.factory.post(f'/stats/{stat_id}/email-link/', {'params': params}, format='json')
+        force_authenticate(request, user=user)
+        return StatEmailLinkView.as_view()(request, stat_id=stat_id)
+
+    def token(self):
+        body = mail.outbox[-1].body
+        return body.split('/export/')[1].split()[0]
+
+    def test_sends_a_link_and_keeps_neither_token_nor_address(self):
+        response = self.ask({**self.MARCH, 'compare': 'false'})
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['sent_to'], 'j•••@example.org')
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.to, ['jeanne.dupont@example.org'])
+        self.assertIn('Captures de frelons asiatiques', message.subject)
+        token = self.token()
+        self.assertGreaterEqual(len(token), 40)
+        job = StatExportJob.objects.get()
+        self.assertNotEqual(job.token_hash, token)
+        self.assertNotIn('example.org', str(job.__dict__))
+        self.assertEqual(job.requester_name, 'Jeanne Dupont')
+        # In the layout of the Keycloak emails, when the theme is readable
+        theme = Path(settings.BASE_DIR).parent / 'auth/themes/velutina/email'
+        if (theme / 'html/template.ftl').exists():
+            with override_settings(EMAIL_THEME_DIR=str(theme)):
+                self.ask(self.MARCH)
+            html = mail.outbox[-1].alternatives[0].content
+            self.assertIn('cid:vsab-logo@velutina', html)
+            self.assertIn("Ouvrir l'export</a>", html)
+            # Free dates are named once; no filter line when there is none
+            self.assertIn('<strong>Captures de frelons asiatiques</strong><br>1–31 mars 2025<br>Par semaine</p>', html)
+
+        page = self.client.get(f'/api/stats/exports/{token}/')
+        self.assertEqual(page.status_code, 200)
+        data = page.json()
+        self.assertEqual(data['statistic']['id'], 'traps-catches')
+        self.assertEqual([f['format'] for f in data['formats']], ['xlsx', 'pdf', 'csv'])
+        self.assertEqual(data['downloads_left'], 10)
+        csv_url = next(f['url'] for f in data['formats'] if f['format'] == 'csv')
+        file = self.client.get(csv_url)
+        self.assertEqual(file.status_code, 200)
+        self.assertIn(';98,0;', file.content.decode('utf-8').strip().split('\r\n')[-1])
+        self.assertEqual(self.client.get(f'/api/stats/exports/{token}/').json()['downloads_left'], 9)
+
+    def test_the_file_keeps_the_rights_of_the_requester(self):
+        self.ask({**self.zone, 'compare': 'false'}, user=self.stranger_user)
+        file = self.client.get(f'/api/stats/exports/{self.token()}/csv/')
+        self.assertIn(';14,0;', file.content.decode('utf-8').strip().split('\r\n')[-1])
+
+    def test_ten_downloads_then_one_hour(self):
+        self.ask(self.MARCH)
+        token = self.token()
+        for _ in range(10):
+            self.assertEqual(self.client.get(f'/api/stats/exports/{token}/csv/').status_code, 200)
+        self.assertEqual(self.client.get(f'/api/stats/exports/{token}/csv/').status_code, 410)
+        self.assertEqual(self.client.get(f'/api/stats/exports/{token}/').status_code, 410)
+
+        self.ask(self.MARCH)
+        token = self.token()
+        self.assertEqual(self.client.get(f'/api/stats/exports/{token}/docx/').status_code, 404)
+        StatExportJob.objects.update(expires_at=timezone.now())
+        self.assertEqual(self.client.get(f'/api/stats/exports/{token}/').status_code, 410)
+        self.assertEqual(self.client.get('/api/stats/exports/unknown-token/').status_code, 404)
+
+    def test_refusals(self):
+        self.assertEqual(self.ask(self.MARCH, email='').status_code, 400)
+        self.assertEqual(self.ask({'period': 'nope'}).status_code, 400)
+        self.assertEqual(len(mail.outbox), 0)
+        for _ in range(5):
+            self.assertEqual(self.ask(self.MARCH).status_code, 200)
+        self.assertEqual(self.ask(self.MARCH).status_code, 429)
+        # Expired jobs are purged and no longer count
+        StatExportJob.objects.update(expires_at=timezone.now())
+        self.assertEqual(self.ask(self.MARCH).status_code, 200)
+        self.assertEqual(StatExportJob.objects.count(), 1)
+
+    def test_not_offered_without_smtp_server(self):
+        def offered():
+            request = self.factory.get('/stats/')
+            force_authenticate(request, user=self.admin_user)
+            return StatsCatalogueView.as_view()(request).data[0]['email_link']
+        self.assertTrue(offered())
+        with override_settings(EMAIL_CONFIGURED=False):
+            self.assertFalse(offered())
+            self.assertEqual(self.ask(self.MARCH).status_code, 503)
+
+    def test_sliding_periods_are_frozen(self):
+        frozen = freeze_period({'period': 'd7', 'granularity': 'day'}, date(2026, 5, 20))
+        self.assertEqual(frozen, {'period': 'custom', 'from': '2026-05-14', 'to': '2026-05-20',
+                                  'granularity': 'day'})
+        self.assertEqual(freeze_period({'period': 'year', 'year': '2025'}), {'period': 'year', 'year': '2025'})
 
 
 class CoverageTests(StatsTestCase):
@@ -464,3 +598,69 @@ class PressureTests(StatsTestCase):
         self.assertEqual(link.status_code, 200, link.data)
         text = self.client.get(link.data['url']).content.decode('utf-8')
         self.assertTrue(text.startswith('﻿Latitude (centre);'))
+
+
+class SpeciesTests(StatsTestCase):
+    def test_catches_and_shares_per_species(self):
+        self.reading(self.trap, date(2025, 3, 8), 7, others=14, bycatch=True)
+        # Not complete: counted in the catches, not in the shares
+        self.reading(self.trap, date(2025, 3, 15), 5, others=0, bycatch=False)
+        data = self.stat('traps-species', {**self.MARCH, 'granularity': 'week'}).data
+        rows = {row['slug']: row for row in data['rows']}
+        self.assertEqual(data['rows'][0]['slug'], 'vespa-velutina')
+        self.assertAlmostEqual(rows['vespa-velutina']['catches'], 12)
+        self.assertAlmostEqual(rows['vespa-velutina']['counted'], 7)
+        self.assertAlmostEqual(rows['vespa-velutina']['share'], 7 / 21, places=4)
+        self.assertAlmostEqual(rows['apis-mellifera']['share'], 14 / 21, places=4)
+        self.assertLess(rows['apis-mellifera']['share_low'], 14 / 21)
+        self.assertEqual(data['totals']['readings'], 2)
+        self.assertEqual(data['totals']['complete_readings'], 1)
+        # The Asian hornet first, though fewer were counted: it keeps the first colour
+        self.assertEqual([s['slug'] for s in data['series']['species']],
+                         ['vespa-velutina', 'apis-mellifera'])
+        # 1-7 March carries the whole complete reading: shares of that week
+        s10 = next(b for b in data['series']['buckets'] if b['bucket'] == 'S10')
+        self.assertAlmostEqual(s10['shares']['vespa-velutina'], 7 / 21, places=3)
+
+    def test_warns_when_few_readings_are_complete(self):
+        self.reading(self.trap, date(2025, 3, 8), 7, bycatch=False)
+        self.reading(self.trap, date(2025, 3, 15), 7, bycatch=False)
+        data = self.stat('traps-species', self.MARCH).data
+        self.assertTrue(any('toutes les espèces' in w for w in data['warnings']))
+        self.assertIsNone(data['rows'][0]['share'])
+
+
+class RankingTests(ThreeTrapsTestCase):
+    def test_ranks_visible_traps_by_rate(self):
+        busy = self.make_trap(latitude=50.51, longitude=4.51, address='Rue du Rucher 3')
+        self.reading(busy, date(2025, 3, 15), 140)
+        rows = self.stat('traps-ranking', self.MARCH, user=self.stranger_user).data['rows']
+        # The stranger sees the public traps only: not the group's, not the harp
+        self.assertEqual([row['id'] for row in rows], [busy.id, self.trap.id])
+        self.assertEqual(rows[0]['address'], 'Rue du Rucher 3')
+        self.assertAlmostEqual(rows[0]['rate'], 70, places=1)
+        owner_rows = self.stat('traps-ranking', self.MARCH, user=self.owner_user).data['rows']
+        self.assertEqual(len(owner_rows), 4)
+
+    def test_order_by_catches_and_too_little_effort(self):
+        short = self.make_trap(latitude=50.51, longitude=4.51)
+        self.install(short, date(2025, 3, 12))
+        short.events.filter(performed_at=at(date(2025, 3, 1))).delete()
+        self.reading(short, date(2025, 3, 14), 30)  # two days: no rate
+        rows = self.stat('traps-ranking', {**self.MARCH, 'order': 'hornets'}).data['rows']
+        self.assertEqual(rows[0]['id'], self.harp.id)
+        by_rate = self.stat('traps-ranking', self.MARCH).data['rows']
+        self.assertEqual(by_rate[-1]['id'], short.id)
+        self.assertIsNone(by_rate[-1]['rate'])
+        self.assertEqual(self.stat('traps-ranking', {**self.MARCH, 'order': 'x'}).status_code, 400)
+
+    def test_the_export_keeps_the_order(self):
+        request = self.factory.post('/stats/traps-ranking/export/',
+                                    {'format': 'csv', 'params': {**self.MARCH, 'order': 'hornets'}},
+                                    format='json')
+        force_authenticate(request, user=self.admin_user)
+        link = StatExportLinkView.as_view()(request, stat_id='traps-ranking')
+        self.assertEqual(link.status_code, 200, link.data)
+        lines = self.client.get(link.data['url']).content.decode('utf-8').strip().split('\r\n')
+        # The harp caught the most: first once sorted by catches
+        self.assertTrue(lines[1].startswith(f'{self.harp.id};'), lines[1])

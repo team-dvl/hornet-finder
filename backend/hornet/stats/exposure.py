@@ -40,6 +40,8 @@ class Reading:
     hornets: int = 0
     insects: int = 0
     bycatch_counted: bool | None = None
+    # {species slug: quantity}, loaded only when asked for (by_species)
+    species: dict | None = None
 
     def __post_init__(self):
         # Timestamps, for the arithmetic of `tally`
@@ -47,10 +49,30 @@ class Reading:
         self.end_ts = self.end.timestamp()
 
 
-def load_readings(trap_types: dict, window_start: datetime, window_end: datetime) -> list:
+def _species_rows(span):
+    """One row per reading with the quantity of each species, in `species`."""
+    rows = (TrapEvent.objects.filter(kind=TrapEvent.KIND_CATCH, **span)
+            .order_by()
+            .values('trap_id', 'performed_at', 'batch', 'species__slug')
+            .annotate(quantity=Sum('quantity'), bycatch=BoolOr('bycatch_counted'))
+            .values_list('trap_id', 'performed_at', 'batch', 'species__slug', 'quantity', 'bycatch'))
+    readings = {}
+    for tid, at, batch, slug, quantity, bycatch in rows:
+        entry = readings.setdefault((tid, at, batch), {'species': {}, 'bycatch': None})
+        entry['species'][slug] = entry['species'].get(slug, 0) + quantity
+        if bycatch is not None:
+            entry['bycatch'] = bool(entry['bycatch']) or bycatch
+    for (tid, at, _), entry in readings.items():
+        species = entry['species']
+        yield tid, at, sum(species.values()), species.get(HORNET_SPECIES_SLUG, 0), entry['bycatch'], species
+
+
+def load_readings(trap_types: dict, window_start: datetime, window_end: datetime,
+                  by_species: bool = False) -> list:
     """
     Readings of the traps in `trap_types` ({trap id: trap type id}) whose
-    exposure may touch [window_start, window_end).
+    exposure may touch [window_start, window_end). With `by_species`, each
+    reading also carries the quantity of every species.
     """
     if not trap_types:
         return []
@@ -59,20 +81,24 @@ def load_readings(trap_types: dict, window_start: datetime, window_end: datetime
             'performed_at__lt': window_end + LOOK_AROUND}
     # One row per reading, summed by the database. Lone catch events (no
     # batch) of a trap at the same instant make one reading, as they should.
-    catches = (TrapEvent.objects.filter(kind=TrapEvent.KIND_CATCH, **span)
-               .order_by()
-               .values('trap_id', 'performed_at', 'batch')
-               .annotate(insects=Sum('quantity'),
-                         hornets=Coalesce(Sum('quantity',
-                                              filter=Q(species__slug=HORNET_SPECIES_SLUG)), 0),
-                         bycatch=BoolOr('bycatch_counted'))
-               .values_list('trap_id', 'performed_at', 'insects', 'hornets', 'bycatch'))
+    if by_species:
+        catches = _species_rows(span)
+    else:
+        catches = ((*row, None) for row in (
+            TrapEvent.objects.filter(kind=TrapEvent.KIND_CATCH, **span)
+            .order_by()
+            .values('trap_id', 'performed_at', 'batch')
+            .annotate(insects=Sum('quantity'),
+                      hornets=Coalesce(Sum('quantity',
+                                           filter=Q(species__slug=HORNET_SPECIES_SLUG)), 0),
+                      bycatch=BoolOr('bycatch_counted'))
+            .values_list('trap_id', 'performed_at', 'insects', 'hornets', 'bycatch')))
     markers = (TrapEvent.objects
                .filter(kind__in=[TrapEvent.KIND_INSTALLATION, TrapEvent.KIND_REMOVAL], **span)
                .order_by().values_list('trap_id', 'performed_at', 'kind'))
     # At the same instant, the reading comes first: counted, then removed
-    entries = [(tid, at, 0, (insects, hornets, bycatch))
-               for tid, at, insects, hornets, bycatch in catches]
+    entries = [(tid, at, 0, (insects, hornets, bycatch, species))
+               for tid, at, insects, hornets, bycatch, species in catches]
     entries += [(tid, at, 1, kind) for tid, at, kind in markers]
     entries.sort(key=lambda entry: entry[:3])
 
@@ -82,8 +108,9 @@ def load_readings(trap_types: dict, window_start: datetime, window_end: datetime
         if tid != trap_id:
             trap_id, start = tid, None
         if rank == 0:
-            insects, hornets, bycatch = data
-            readings.append(Reading(tid, trap_types[tid], start, at, hornets, insects, bycatch))
+            insects, hornets, bycatch, species = data
+            readings.append(Reading(tid, trap_types[tid], start, at, hornets, insects, bycatch,
+                                    species))
             start = at
         else:
             start = at if data == TrapEvent.KIND_INSTALLATION else None
@@ -101,6 +128,9 @@ class Tally:
     seconds: float = 0.0
     readings: int = 0
     traps: set = field(default_factory=set)
+    # Per species, when the readings carry them: all, and on complete readings
+    species: dict = field(default_factory=dict)
+    counted_species: dict = field(default_factory=dict)
 
     @property
     def trap_days(self) -> float:
@@ -112,6 +142,10 @@ class Tally:
         if reading.bycatch_counted:
             self.counted_hornets += reading.hornets * share
             self.counted_insects += reading.insects * share
+        for slug, quantity in (reading.species or {}).items():
+            self.species[slug] = self.species.get(slug, 0.0) + quantity * share
+            if reading.bycatch_counted:
+                self.counted_species[slug] = self.counted_species.get(slug, 0.0) + quantity * share
         self.seconds += seconds
         if seconds > 0 or share > 0:
             self.traps.add(reading.trap_id)
