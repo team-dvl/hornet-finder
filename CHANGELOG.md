@@ -10,6 +10,8 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-09-30
+
 ### Added
 - Version of the application shown in the menu, derived from the git tag.
 - `release.sh` to cut a release (changelog + annotated tag `vX.Y.Z`).
@@ -60,3 +62,6 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   GHSA-9v7f-9g4p-ffgj). Token validation only accepts RS256/PS256, so the
   algorithm-confusion flaws were not reachable; `PyJWKClient` redirect handling
   is fixed.
+
+[Unreleased]: https://github.com/team-dvl/hornet-finder/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/team-dvl/hornet-finder/releases/tag/v1.0.0
