@@ -27,6 +27,9 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   Facebook account confirms its address by email, and one that matches an
   existing account must prove it owns that account before being linked. Google
   addresses are still trusted.
+- A passkey used alone, without a password, must verify the user on the device
+  (Face ID, fingerprint or device code); a security key without a PIN is
+  refused. Sign-in with a password, Google or Facebook is unchanged.
 
 ## [1.0.0] - 2026-09-30
 
