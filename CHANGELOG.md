@@ -54,3 +54,9 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 - The dev PWA added to an iPhone home screen got the prod icon: Safari also
   fetches `/apple-touch-icon.png` on its own, which the dev server now answers
   with the dev icon.
+
+### Security
+- PyJWT updated from 2.13.0 to 2.15.1 (GHSA-r6x4-923q-g947, GHSA-w2cx-738m-mc7w,
+  GHSA-9v7f-9g4p-ffgj). Token validation only accepts RS256/PS256, so the
+  algorithm-confusion flaws were not reachable; `PyJWKClient` redirect handling
+  is fixed.
