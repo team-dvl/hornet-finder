@@ -31,11 +31,15 @@ Ce qui **ne change pas** : le flux de connexion, le backend, le frontend, nginx,
 1. `git merge --ff-only devel`
 2. **Keycloak (écriture, à confirmer avec l'utilisateur)**. Jeton `$T` et `$K=https://$KC_HOSTNAME/admin/realms/hornet-finder` comme dans la note 0011 :
    ```sh
+   # Etat actuel (lecture)
    curl -s -H "Authorization: Bearer $T" $K | python3 -c 'import sys,json;r=json.load(sys.stdin);print({k:v for k,v in r.items() if k.startswith("webAuthn") and ("UserVerification" in k or "RpId" in k)})'
-   curl -s -o /dev/null -w '%{http_code}\n' -X PUT -H "Authorization: Bearer $T" -H 'Content-Type: application/json' \
-     -d '{"webAuthnPolicyPasswordlessUserVerificationRequirement":"required","webAuthnPolicyUserVerificationRequirement":"preferred"}' $K
+   # Ecriture : il faut renvoyer tout le bloc webAuthnPolicy*
+   curl -s -H "Authorization: Bearer $T" $K | python3 -c 'import sys,json;r=json.load(sys.stdin);p={k:v for k,v in r.items() if k.startswith("webAuthnPolicy")};p["webAuthnPolicyPasswordlessUserVerificationRequirement"]="required";p["webAuthnPolicyUserVerificationRequirement"]="preferred";print(json.dumps(p))' \
+     | curl -s -o /dev/null -w '%{http_code}\n' -X PUT -H "Authorization: Bearer $T" -H 'Content-Type: application/json' -d @- $K
    ```
-   Le `PUT` doit répondre `204`. Équivalent console : Authentication → Policies → WebAuthn Passwordless Policy → User verification requirement = Required ; WebAuthn Policy → Preferred.
+   Le `PUT` doit répondre `204`. **Un `PUT` partiel (seulement ces deux champs) répond aussi `204` mais ne change rien : toujours relire après.** Équivalent console : Authentication → Policies → WebAuthn Passwordless Policy → User verification requirement = Required ; WebAuthn Policy → Preferred.
+
+   En dev (realm `hornet-finder-dev`), ajouter `;p["webAuthnPolicyRpId"]=p["webAuthnPolicyPasswordlessRpId"]="dev.velutina.ovh"` juste avant `;print` : les passkeys déjà enregistrées avec l'ancien `RpId` sont à réenregistrer.
 
 ## Vérification
 - Relecture : `GET $K` → les deux valeurs ci-dessus.
@@ -44,6 +48,6 @@ Ce qui **ne change pas** : le flux de connexion, le backend, le frontend, nginx,
 
 ## Retour arrière
 ```sh
-curl -X PUT -H "Authorization: Bearer $T" -H 'Content-Type: application/json' \
-  -d '{"webAuthnPolicyPasswordlessUserVerificationRequirement":"not specified","webAuthnPolicyUserVerificationRequirement":"not specified"}' $K
+curl -s -H "Authorization: Bearer $T" $K | python3 -c 'import sys,json;r=json.load(sys.stdin);p={k:v for k,v in r.items() if k.startswith("webAuthnPolicy")};p["webAuthnPolicyPasswordlessUserVerificationRequirement"]=p["webAuthnPolicyUserVerificationRequirement"]="not specified";print(json.dumps(p))' \
+  | curl -s -o /dev/null -w '%{http_code}\n' -X PUT -H "Authorization: Bearer $T" -H 'Content-Type: application/json' -d @- $K
 ```
