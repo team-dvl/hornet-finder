@@ -73,14 +73,14 @@
         "name": "admin",
         "description": "",
         "composite": true,
-        "clientRole": false,
-        "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
-        "attributes": {},
         "composites": {
           "realm": [
             "mfa-required"
           ]
-        }
+        },
+        "clientRole": false,
+        "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
+        "attributes": {}
       },
       {
         "id": "1afe8454-5dd5-4fd3-bf0c-2fbbdfedc557",
@@ -149,12 +149,13 @@
         "attributes": {}
       },
       {
-        "id": "2a6cfff8-c1aa-4c56-b47e-546d1b80d688",
+        "id": "4a245911-3ea8-44c5-a37b-fdeff3b090cf",
         "name": "mfa-required",
         "description": "Users holding this role must use a second factor (OTP) to sign in with a password",
         "composite": false,
         "clientRole": false,
-        "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049"
+        "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
+        "attributes": {}
       }
     ],
     "client": {
@@ -678,6 +679,7 @@
   "requiredCredentials": [
     "password"
   ],
+  "passwordPolicy": "length(12) and notUsername and notEmail",
   "otpPolicyType": "totp",
   "otpPolicyAlgorithm": "HmacSHA1",
   "otpPolicyInitialCounter": 0,
@@ -2711,44 +2713,44 @@
     {
       "id": "18a9547f-cbd0-4c66-8337-d87430a46abb",
       "alias": "Conditional OTP",
-      "description": "OTP if the user has one configured and does not hold the mfa-required role",
+      "description": "OTP only if user has one configured",
       "providerId": "basic-flow",
       "topLevel": false,
       "builtIn": false,
       "authenticationExecutions": [
         {
-          "authenticator": "conditional-user-configured",
+          "authenticatorConfig": "skip-otp-if-passkey-used",
+          "authenticator": "conditional-credential",
           "authenticatorFlow": false,
           "requirement": "REQUIRED",
-          "priority": 10,
+          "priority": 0,
           "autheticatorFlow": false,
           "userSetupAllowed": false
         },
         {
-          "authenticator": "conditional-user-role",
+          "authenticator": "conditional-user-configured",
           "authenticatorFlow": false,
           "requirement": "REQUIRED",
-          "priority": 20,
+          "priority": 0,
           "autheticatorFlow": false,
-          "userSetupAllowed": false,
-          "authenticatorConfig": "mfa-role-not-required"
+          "userSetupAllowed": false
         },
         {
           "authenticator": "auth-otp-form",
           "authenticatorFlow": false,
           "requirement": "REQUIRED",
-          "priority": 30,
+          "priority": 0,
           "autheticatorFlow": false,
           "userSetupAllowed": false
         },
         {
-          "authenticator": "conditional-credential",
+          "authenticatorConfig": "mfa-role-not-required",
+          "authenticator": "conditional-user-role",
           "authenticatorFlow": false,
           "requirement": "REQUIRED",
-          "priority": 40,
+          "priority": 1,
           "autheticatorFlow": false,
-          "userSetupAllowed": false,
-          "authenticatorConfig": "skip-otp-if-passkey-used"
+          "userSetupAllowed": false
         }
       ]
     },
@@ -2883,6 +2885,33 @@
       ]
     },
     {
+      "id": "79e3860d-a8e8-47cf-9884-b7a9667f77c3",
+      "alias": "Mandatory OTP",
+      "description": "OTP for users holding the mfa-required role, configured at sign-in when missing",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorConfig": "mfa-role-required",
+          "authenticator": "conditional-user-role",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 0,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "auth-otp-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 1,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
       "id": "0c9caa02-ac47-4f2d-ae0f-f349b4c49270",
       "alias": "Organization",
       "providerId": "basic-flow",
@@ -2911,14 +2940,14 @@
           "authenticator": "auth-password-form",
           "authenticatorFlow": false,
           "requirement": "REQUIRED",
-          "priority": 10,
+          "priority": 0,
           "autheticatorFlow": false,
           "userSetupAllowed": false
         },
         {
           "authenticatorFlow": true,
           "requirement": "CONDITIONAL",
-          "priority": 20,
+          "priority": 0,
           "autheticatorFlow": true,
           "flowAlias": "Conditional OTP",
           "userSetupAllowed": false
@@ -2926,7 +2955,7 @@
         {
           "authenticatorFlow": true,
           "requirement": "CONDITIONAL",
-          "priority": 30,
+          "priority": 1,
           "autheticatorFlow": true,
           "flowAlias": "Mandatory OTP",
           "userSetupAllowed": false
@@ -3456,33 +3485,6 @@
           "userSetupAllowed": false
         }
       ]
-    },
-    {
-      "id": "90eb24f5-9779-4d12-8b52-7a8976a4605c",
-      "alias": "Mandatory OTP",
-      "description": "OTP for users holding the mfa-required role, configured at sign-in when missing",
-      "providerId": "basic-flow",
-      "topLevel": false,
-      "builtIn": false,
-      "authenticationExecutions": [
-        {
-          "authenticator": "conditional-user-role",
-          "authenticatorFlow": false,
-          "requirement": "REQUIRED",
-          "priority": 10,
-          "autheticatorFlow": false,
-          "userSetupAllowed": false,
-          "authenticatorConfig": "mfa-role-required"
-        },
-        {
-          "authenticator": "auth-otp-form",
-          "authenticatorFlow": false,
-          "requirement": "REQUIRED",
-          "priority": 20,
-          "autheticatorFlow": false,
-          "userSetupAllowed": false
-        }
-      ]
     }
   ],
   "authenticatorConfig": [
@@ -3491,6 +3493,22 @@
       "alias": "create unique user config",
       "config": {
         "require.password.update.after.registration": "false"
+      }
+    },
+    {
+      "id": "b4fffea0-adde-4227-b4b2-6c3ac81ecd2d",
+      "alias": "mfa-role-not-required",
+      "config": {
+        "condUserRole": "mfa-required",
+        "negate": "true"
+      }
+    },
+    {
+      "id": "65306016-6b33-4610-8d72-4959115f2f2b",
+      "alias": "mfa-role-required",
+      "config": {
+        "condUserRole": "mfa-required",
+        "negate": "false"
       }
     },
     {
@@ -3506,22 +3524,6 @@
       "config": {
         "credentials": "webauthn-passwordless",
         "included": "false"
-      }
-    },
-    {
-      "id": "267913ad-7e8a-42db-86ec-230529f457b1",
-      "alias": "mfa-role-required",
-      "config": {
-        "condUserRole": "mfa-required",
-        "negate": "false"
-      }
-    },
-    {
-      "id": "1a34079f-d15a-49b6-986e-33d3b78fac85",
-      "alias": "mfa-role-not-required",
-      "config": {
-        "condUserRole": "mfa-required",
-        "negate": "true"
       }
     }
   ],
@@ -3678,6 +3680,5 @@
   },
   "clientPolicies": {
     "policies": []
-  },
-  "passwordPolicy": "length(12) and notUsername and notEmail"
+  }
 }
