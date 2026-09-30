@@ -1114,7 +1114,7 @@
       "description": "the client used from the browser / PWA, in DEV mode",
       "rootUrl": "https://dev.velutina.ovh",
       "adminUrl": "",
-      "baseUrl": "",
+      "baseUrl": "/",
       "surrogateAuthRequired": false,
       "enabled": true,
       "alwaysDisplayInConsole": false,
