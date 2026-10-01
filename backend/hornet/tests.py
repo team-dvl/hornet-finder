@@ -1,4 +1,5 @@
-from datetime import datetime, timezone as dt_timezone
+from datetime import date, datetime, timezone as dt_timezone
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.utils import timezone
@@ -112,6 +113,85 @@ class HornetArchiveActionPermissionTests(TestCase):
         self.assertFalse(other_year_hornet.archived)
 
 
+def _make_hornet_on(day, archived=False):
+    hornet = Hornet.objects.create(latitude=50.5, longitude=4.5, direction=0)
+    Hornet.objects.filter(pk=hornet.pk).update(created_at=day, archived=archived)
+    return hornet
+
+
+class ArchiveBySeasonTests(TestCase):
+    """Archiving with the granularity of the statistics' seasons; today is 2026-10-15."""
+
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        patcher = patch('hornet.stats.periods.local_today', return_value=date(2026, 10, 15))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        utc = dt_timezone.utc
+        self.in_spring = _make_hornet_on(datetime(2026, 3, 10, 12, tzinfo=utc))
+        self.in_summer = _make_hornet_on(datetime(2026, 7, 10, 12, tzinfo=utc))
+        self.in_january = _make_hornet_on(datetime(2026, 1, 10, 12, tzinfo=utc))
+        self.in_december = _make_hornet_on(datetime(2026, 12, 10, 12, tzinfo=utc))
+        self.spring_archived = _make_hornet_on(datetime(2026, 4, 10, 12, tzinfo=utc), archived=True)
+
+    def _call(self, method, action_name, query, roles=('admin',)):
+        request = getattr(self.factory, method)(f'/hornets/{action_name}/?{query}')
+        force_authenticate(request, user=FakeUser(roles=list(roles)))
+        return HornetViewSet.as_view({method: action_name})(request)
+
+    def test_candidates_count_the_season_not_yet_archived(self):
+        response = self._call('get', 'archive_candidates', 'period=season&season=spring&year=2026')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['count'], 1)  # the archived one is left out
+        self.assertEqual(response.data['period']['start'], '2026-02-01')
+        self.assertEqual(response.data['period']['end'], '2026-06-15')
+
+    def test_candidates_of_a_season_do_not_archive_anything(self):
+        self._call('get', 'archive_candidates', 'period=season&season=spring&year=2026')
+        self.in_spring.refresh_from_db()
+        self.assertFalse(self.in_spring.archived)
+
+    def test_bulk_archive_season_archives_that_season_only(self):
+        response = self._call('post', 'bulk_archive', 'period=season&season=spring&year=2026')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['archived_count'], 1)
+        for hornet, expected in [(self.in_spring, True), (self.in_summer, False),
+                                 (self.in_january, False), (self.in_december, False)]:
+            hornet.refresh_from_db()
+            self.assertEqual(hornet.archived, expected)
+
+    def test_late_season_covers_summer_and_after(self):
+        response = self._call('get', 'archive_candidates', 'period=season&season=late&year=2026')
+        # Still running (ends 31 Dec): refused
+        self.assertEqual(response.status_code, 400)
+        with patch('hornet.stats.periods.local_today', return_value=date(2027, 1, 5)):
+            response = self._call('get', 'archive_candidates', 'period=season&season=late&year=2026')
+        self.assertEqual(response.data['count'], 2)  # July and December
+
+    def test_year_without_period_is_the_whole_year(self):
+        with patch('hornet.stats.periods.local_today', return_value=date(2027, 1, 5)):
+            response = self._call('get', 'archive_candidates', 'year=2026')
+        self.assertEqual(response.data['count'], 4)
+
+    def test_running_period_is_refused(self):
+        response = self._call('post', 'bulk_archive', 'year=2026')
+        self.assertEqual(response.status_code, 400)
+        self.in_spring.refresh_from_db()
+        self.assertFalse(self.in_spring.archived)
+
+    def test_year_before_the_project_is_refused(self):
+        response = self._call('get', 'archive_candidates', 'year=2024')
+        self.assertEqual(response.status_code, 400)
+
+    def test_unknown_season_is_refused(self):
+        response = self._call('get', 'archive_candidates', 'period=season&season=winter&year=2026')
+        self.assertEqual(response.status_code, 400)
+
+    def test_candidates_forbidden_for_non_admin(self):
+        response = self._call('get', 'archive_candidates', 'year=2025', roles=('beekeeper',))
+        self.assertEqual(response.status_code, 403)
+
+
 class NestArchiveFilterTests(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
@@ -143,6 +223,7 @@ import io
 import json
 import time
 import uuid as uuid_module
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -152,6 +233,7 @@ from PIL import Image
 from .models import BeekeeperGroup, Species, Trap, TrapEvent, TrapPhoto, TrapType, User
 from .trap_views import SpeciesViewSet, TrapEventViewSet, TrapTypeViewSet, TrapViewSet
 from .media_views import media_view
+from .serializers import TrapSerializer
 
 
 class FakeTrapUser:
@@ -1263,6 +1345,140 @@ class TrapCatchTests(TrapTestCase):
     def test_unknown_batch_is_404(self):
         self.assertEqual(self._delete_batch(str(uuid_module.uuid4())).status_code, 404)
 
+    def test_a_trap_that_does_not_accumulate_is_always_emptied(self):
+        self._post_catches([{'species_slug': 'vespa-velutina', 'quantity': 4}], emptied='false')
+        event = TrapEvent.objects.get(trap=self.trap)
+        self.assertEqual((event.observed_quantity, event.quantity, event.emptied), (4, 4, True))
+        self.trap.refresh_from_db()
+        self.assertIsNone(self.trap.contents)
+
+
+class TrapAccumulationTests(TrapTestCase):
+    """Readings of a trap whose catches pile up between emptyings."""
+
+    def setUp(self):
+        super().setUp()
+        self.trap.trap_type = TrapType.objects.create(slug='harp-test', name='Harpe test',
+                                                      accumulates=True)
+        self.trap.save()
+        self.day = timezone.now() - timedelta(days=30)
+
+    def _read(self, day, emptied, hornets, bees=None, **extra):
+        items = [{'species_slug': 'vespa-velutina', 'quantity': hornets}]
+        if bees is not None:
+            items.append({'species_slug': 'apis-mellifera', 'quantity': bees})
+        data = {'performed_at': (self.day + timedelta(days=day)).isoformat(),
+                'items': json.dumps(items), **extra}
+        if emptied is not None:
+            data['emptied'] = 'true' if emptied else 'false'
+        request = self.factory.post(f'/traps/{self.trap.id}/catches/', data, format='multipart')
+        force_authenticate(request, user=self.owner_user)
+        return TrapViewSet.as_view({'post': 'catches'})(request, pk=self.trap.id)
+
+    def _caught(self, slug='vespa-velutina'):
+        """Derived catches of each reading of a species, oldest first."""
+        return list(TrapEvent.objects.filter(trap=self.trap, species__slug=slug)
+                    .order_by('performed_at').values_list('quantity', flat=True))
+
+    def test_the_trap_must_say_whether_it_was_emptied(self):
+        response = self._read(0, None, 3)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('emptied', response.data)
+
+    def test_catches_are_what_was_seen_beyond_what_was_left(self):
+        response = self._read(0, False, 5)
+        self.assertEqual(response.data[0]['quantity'], 5)
+        self.trap.refresh_from_db()
+        self.assertEqual(self.trap.contents['items'],
+                         [{'species_slug': 'vespa-velutina', 'quantity': 5}])
+
+        response = self._read(7, True, 8)
+        self.assertEqual((response.data[0]['quantity'], response.data[0]['observed_quantity']),
+                         (3, 8))
+        self.trap.refresh_from_db()
+        self.assertIsNone(self.trap.contents)
+        self.assertEqual(self.trap.hornet_catch_count, 8)
+
+        # Emptied: the next reading starts from zero again
+        self._read(14, False, 2)
+        self.assertEqual(self._caught(), [5, 3, 2])
+
+    def test_fewer_insects_than_left_is_no_catch_not_a_negative_one(self):
+        self._read(0, False, 5)
+        self._read(7, False, 3)
+        self._read(14, False, 6)
+        self.assertEqual(self._caught(), [5, 0, 3])
+
+    def test_a_reading_recorded_late_shifts_the_following_ones(self):
+        self._read(0, False, 5)
+        self._read(14, False, 9)
+        self.assertEqual(self._caught(), [5, 4])
+        # Forgotten reading of day 7, where the trap was emptied
+        self._read(7, True, 7)
+        self.assertEqual(self._caught(), [5, 2, 9])
+        self.trap.refresh_from_db()
+        self.assertEqual(self.trap.hornet_catch_count, 16)
+
+    def test_deleting_a_reading_shifts_the_following_ones(self):
+        first = self._read(0, False, 5)
+        self._read(7, True, 8)
+        request = self.factory.delete(f'/traps/{self.trap.id}/catches/{first.data[0]["batch"]}/')
+        force_authenticate(request, user=self.owner_user)
+        TrapViewSet.as_view({'delete': 'delete_catches'})(
+            request, pk=self.trap.id, batch=first.data[0]['batch'])
+        self.assertEqual(self._caught(), [8])
+
+    def test_correcting_a_count_shifts_the_following_readings(self):
+        first = self._read(0, False, 5)
+        self._read(7, True, 8)
+        request = self.factory.patch(f'/trap-events/{first.data[0]["id"]}/', {'quantity': 6},
+                                     format='json')
+        force_authenticate(request, user=self.owner_user)
+        response = TrapEventViewSet.as_view({'patch': 'partial_update'})(
+            request, pk=first.data[0]['id'])
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['observed_quantity'], 6)
+        self.assertEqual(self._caught(), [6, 2])
+
+    def test_other_species_left_in_place_are_not_caught_twice(self):
+        self._read(0, False, 2, bees=3)
+        # Still three bees, no new one: recorded all the same, as what is there
+        response = self._read(7, False, 2, bees=3)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(self._caught('apis-mellifera'), [3, 0])
+        self._read(14, True, 4, bees=5)
+        self.assertEqual(self._caught('apis-mellifera'), [3, 0, 2])
+        self.assertEqual(set(TrapEvent.objects.values_list('bycatch_counted', flat=True)), {True})
+
+    def test_other_species_left_uncounted_keep_the_next_reading_out_of_selectivity(self):
+        self._read(0, False, 2, bycatch_counted='false')
+        self.trap.refresh_from_db()
+        self.assertFalse(self.trap.contents['others_counted'])
+        # The bees were there already, how many is unknown: not a selectivity reading
+        self._read(7, True, 3, bees=4)
+        reading = TrapEvent.objects.filter(trap=self.trap).order_by('-performed_at')
+        self.assertEqual({event.bycatch_counted for event in reading[:2]}, {False})
+        self.assertEqual(self._caught(), [2, 1])
+        # Emptied since: the next reading is complete again
+        self._read(14, True, 1, bees=1)
+        self.assertTrue(TrapEvent.objects.filter(trap=self.trap).order_by('-performed_at')
+                        .first().bycatch_counted)
+
+    def test_an_installation_puts_the_trap_in_service_empty(self):
+        self._read(0, False, 5)
+        TrapEvent.objects.create(trap=self.trap, kind=TrapEvent.KIND_INSTALLATION,
+                                 performed_at=self.day + timedelta(days=3))
+        self.trap.recompute_catches()
+        self._read(7, False, 2)
+        self.assertEqual(self._caught(), [5, 2])
+
+    def test_the_trap_exposes_its_type_and_contents(self):
+        self._read(0, False, 5)
+        data = TrapSerializer(Trap.objects.get(pk=self.trap.pk)).data
+        self.assertTrue(data['trap_type']['accumulates'])
+        self.assertEqual(data['contents']['items'],
+                         [{'species_slug': 'vespa-velutina', 'quantity': 5}])
+
 
 class SpeciesAdminTests(TrapTestCase):
     def test_admin_uploads_a_photo_served_publicly(self):
@@ -1294,6 +1510,31 @@ class SpeciesAdminTests(TrapTestCase):
         response = SpeciesViewSet.as_view({'post': 'create'})(request)
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['slug'], 'vespa-orientalis')
+        # A new species goes to the end of the list
+        self.assertEqual(response.data['sort_order'], Species.objects.count() - 1)
+
+    def _reorder(self, user, ids):
+        request = self.factory.post('/species/reorder/', {'ids': ids}, format='json')
+        force_authenticate(request, user=user)
+        return SpeciesViewSet.as_view({'post': 'reorder'})(request)
+
+    def test_admin_reorders_the_species(self):
+        ids = list(Species.objects.values_list('id', flat=True))[::-1]
+        self.assertEqual(self._reorder(self.admin_user, ids).status_code, 204)
+        self.assertEqual(list(Species.objects.values_list('id', flat=True)), ids)
+        self.assertEqual(list(Species.objects.values_list('sort_order', flat=True)),
+                         list(range(len(ids))))
+
+    def test_reordering_needs_every_species_exactly_once(self):
+        ids = list(Species.objects.values_list('id', flat=True))
+        before = list(Species.objects.values_list('sort_order', flat=True))
+        for bad in (ids[:-1], ids + [ids[0]], ids + [max(ids) + 1], 'x', None):
+            self.assertEqual(self._reorder(self.admin_user, bad).status_code, 400)
+        self.assertEqual(list(Species.objects.values_list('sort_order', flat=True)), before)
+
+    def test_only_admins_reorder_the_species(self):
+        ids = list(Species.objects.values_list('id', flat=True))
+        self.assertEqual(self._reorder(self.owner_user, ids).status_code, 403)
 
     def test_the_listing_counts_the_events(self):
         TrapEvent.objects.create(trap=self.trap, kind=TrapEvent.KIND_CATCH,
@@ -2012,6 +2253,8 @@ class _FakeKeycloak:
         self.down = False
         self.lookups = 0
         self.added = []
+        self.members = {}       # group id -> list of user representations
+        self.removed = []
 
     def _check(self):
         if self.down:
@@ -2036,6 +2279,17 @@ class _FakeKeycloak:
     def add_user_to_group(self, guid, group_id):
         self._check()
         self.added.append((guid, group_id))
+        if guid not in {m['id'] for m in self.members.get(group_id, [])}:
+            self.members.setdefault(group_id, []).append({'id': guid})
+
+    def get_group_members(self, group_id, limit=1000):
+        self._check()
+        return list(self.members.get(group_id, []))
+
+    def remove_user_from_group(self, guid, group_id):
+        self._check()
+        self.removed.append((guid, group_id))
+        self.members[group_id] = [m for m in self.members.get(group_id, []) if m['id'] != guid]
 
     def get_user_display_name(self, guid, allow_email=True):
         assert not allow_email, 'invitations must never show an email address'
@@ -2067,7 +2321,7 @@ class GroupInvitationTestCase(TestCase):
         self.kc = _FakeKeycloak()
         for name in ('find_active_user_by_email', 'get_group_by_path', 'get_child_groups',
                      'get_user_group_paths', 'add_user_to_group', 'get_user_display_name',
-                     'get_active_user_email'):
+                     'get_active_user_email', 'get_group_members', 'remove_user_from_group'):
             patcher = patch(f'hornet_finder_api.utils.{name}', side_effect=getattr(self.kc, name))
             patcher.start()
             self.addCleanup(patcher.stop)
@@ -2571,3 +2825,115 @@ class KeycloakInvitationHelperTests(TestCase):
             add_user_to_group('guid', 'gid')
         admin.get_group_children.assert_called_once_with('root', {'briefRepresentation': 'false'})
         admin.group_user_add.assert_called_once_with('guid', 'gid')
+
+
+from .group_views import GroupViewSet
+
+_ENA_ADMIN = f'{_ENA}/admin'
+
+
+class GroupMembersTests(GroupInvitationTestCase):
+    """Members of a group: listing, removal, and naming or dismissing administrators."""
+
+    def setUp(self):
+        super().setUp()
+        self.kc.groups[_ENA_ADMIN] = {'id': 'gid-ena-admin', 'path': _ENA_ADMIN, 'name': 'admin',
+                                      'attributes': {}}
+        # `aga` administers ena and is listed in its admin subgroup only; `member` and `bee` are
+        # direct members; `second` is a direct member and a second administrator
+        self.bee = self._user(['beekeeper'], [_ENA])
+        self.second = self._user(['beekeeper'], [_ENA, _ENA_ADMIN])
+        self.kc.members['gid-ena'] = [
+            {'id': self.member.guid, 'firstName': 'Anne', 'lastName': 'Bastin'},
+            {'id': self.bee.guid, 'firstName': '', 'lastName': ''},
+            {'id': self.second.guid, 'firstName': 'Zoé', 'lastName': 'Zimmer'},
+        ]
+        self.kc.members['gid-ena-admin'] = [
+            {'id': self.aga.guid, 'firstName': 'Jean', 'lastName': 'Lambert'},
+            {'id': self.second.guid, 'firstName': 'Zoé', 'lastName': 'Zimmer'},
+        ]
+
+    def _members(self, user, group=_ENA):
+        return self._call(GroupViewSet, 'get', f'/api/groups/members/?group_path={group}',
+                          {'get': 'members'}, user)
+
+    def _remove(self, target, user, group=_ENA):
+        return self._call(GroupViewSet, 'delete', f'/api/groups/members/{target.guid}/?group_path={group}',
+                          {'delete': 'member'}, user, guid=target.guid)
+
+    def _name(self, target, user, group=_ENA):
+        return self._call(GroupViewSet, 'put', f'/api/groups/members/{target.guid}/admin/?group_path={group}',
+                          {'put': 'member_admin', 'delete': 'dismiss_admin'}, user, guid=target.guid)
+
+    def _dismiss(self, target, user, group=_ENA):
+        return self._call(GroupViewSet, 'delete', f'/api/groups/members/{target.guid}/admin/?group_path={group}',
+                          {'put': 'member_admin', 'delete': 'dismiss_admin'}, user, guid=target.guid)
+
+    def test_the_roster_unites_both_groups_with_administrators_first(self):
+        response = self._members(self.aga)
+        self.assertEqual(response.status_code, 200)
+        rows = response.data['members']
+        self.assertEqual([r['name'] for r in rows], ['Jean Lambert', 'Zoé Zimmer', 'Anne Bastin', None])
+        self.assertEqual([r['is_admin'] for r in rows], [True, True, False, False])
+        self.assertEqual([r['is_self'] for r in rows], [True, False, False, False])
+        self.assertTrue(response.data['has_admin_group'])
+        self.assertNotIn('email', str(response.data))
+
+    def test_only_administrators_of_the_group_read_its_members(self):
+        self.assertEqual(self._members(self.member).status_code, 403)
+        self.assertEqual(self._members(self.aga, _VSAB).status_code, 403)
+        self.assertEqual(self._members(self.admin).status_code, 200)
+
+    def test_a_group_admin_removes_a_member(self):
+        self.assertEqual(self._remove(self.member, self.aga).status_code, 204)
+        self.assertEqual(self.kc.removed, [(str(self.member.guid), 'gid-ena')])
+
+    def test_a_group_admin_cannot_remove_an_administrator_or_themselves(self):
+        refused = self._remove(self.second, self.aga)
+        self.assertEqual((refused.status_code, refused.data['code']), (403, 'admin_member'))
+        own = self._remove(self.aga, self.aga)
+        self.assertEqual((own.status_code, own.data['code']), (409, 'self'))
+        self.assertEqual(self.kc.removed, [])
+
+    def test_a_platform_admin_removes_an_administrator_from_both_groups(self):
+        self.assertEqual(self._remove(self.second, self.admin).status_code, 204)
+        self.assertEqual(set(self.kc.removed),
+                         {(str(self.second.guid), 'gid-ena-admin'), (str(self.second.guid), 'gid-ena')})
+
+    def test_the_last_administrator_cannot_be_removed(self):
+        self.kc.members['gid-ena-admin'] = [{'id': self.second.guid}]
+        response = self._remove(self.second, self.admin)
+        self.assertEqual((response.status_code, response.data['code']), (409, 'last_admin'))
+
+    def test_removing_a_stranger_is_not_found(self):
+        self.assertEqual(self._remove(self.volunteer_admin, self.aga).status_code, 404)
+
+    def test_naming_an_administrator_is_for_platform_admins(self):
+        self.assertEqual(self._name(self.member, self.aga).status_code, 403)
+        response = self._name(self.member, self.admin)
+        self.assertEqual((response.status_code, response.data['is_admin']), (200, True))
+        self.assertEqual(self.kc.added, [(str(self.member.guid), 'gid-ena-admin')])
+        again = self._name(self.second, self.admin)
+        self.assertEqual((again.status_code, again.data['code']), (409, 'already_admin'))
+
+    def test_naming_needs_an_admin_subgroup(self):
+        del self.kc.groups[_ENA_ADMIN]
+        response = self._name(self.member, self.admin)
+        self.assertEqual((response.status_code, response.data['code']), (409, 'no_admin_group'))
+
+    def test_dismissing_is_for_platform_admins_and_keeps_one_administrator(self):
+        self.assertEqual(self._dismiss(self.second, self.aga).status_code, 403)
+        self.assertEqual(self._dismiss(self.second, self.admin).status_code, 200)
+        self.assertEqual(self.kc.removed, [(str(self.second.guid), 'gid-ena-admin')])
+        last = self._dismiss(self.aga, self.admin)
+        self.assertEqual((last.status_code, last.data['code']), (409, 'last_admin'))
+
+    def test_dismissing_an_administrator_listed_only_in_admin_keeps_the_membership(self):
+        self._name(self.member, self.admin)
+        response = self._dismiss(self.aga, self.admin)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn((str(self.aga.guid), 'gid-ena'), self.kc.added)
+
+    def test_a_keycloak_failure_is_a_503(self):
+        self.kc.down = True
+        self.assertEqual(self._members(self.admin).status_code, 503)

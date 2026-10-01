@@ -7,7 +7,7 @@
   "defaultSignatureAlgorithm": "PS256",
   "revokeRefreshToken": false,
   "refreshTokenMaxReuse": 0,
-  "accessTokenLifespan": 10800,
+  "accessTokenLifespan": 3600,
   "accessTokenLifespanForImplicitFlow": 900,
   "ssoSessionIdleTimeout": 259200,
   "ssoSessionMaxLifespan": 604800,
@@ -37,7 +37,7 @@
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
   "editUsernameAllowed": true,
-  "bruteForceProtected": false,
+  "bruteForceProtected": true,
   "permanentLockout": false,
   "maxTemporaryLockouts": 0,
   "bruteForceStrategy": "MULTIPLE",
@@ -46,7 +46,7 @@
   "waitIncrementSeconds": 60,
   "quickLoginCheckMilliSeconds": 1000,
   "maxDeltaTimeSeconds": 43200,
-  "failureFactor": 30,
+  "failureFactor": 10,
   "maxSecondaryAuthFailures": 0,
   "roles": {
     "realm": [
@@ -72,7 +72,12 @@
         "id": "6828d02c-06de-443e-88ac-fd31e6b20c4a",
         "name": "admin",
         "description": "",
-        "composite": false,
+        "composite": true,
+        "composites": {
+          "realm": [
+            "mfa-required"
+          ]
+        },
         "clientRole": false,
         "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
         "attributes": {}
@@ -138,6 +143,15 @@
         "id": "5e7dbed0-f86e-4f89-8a82-7dca58543ad0",
         "name": "mail-reader",
         "description": "Read the dev catch-all mailbox (Mailpit)",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
+        "attributes": {}
+      },
+      {
+        "id": "4a245911-3ea8-44c5-a37b-fdeff3b090cf",
+        "name": "mfa-required",
+        "description": "Users holding this role must use a second factor (OTP) to sign in with a password",
         "composite": false,
         "clientRole": false,
         "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
@@ -665,6 +679,7 @@
   "requiredCredentials": [
     "password"
   ],
+  "passwordPolicy": "length(12) and notUsername and notEmail",
   "otpPolicyType": "totp",
   "otpPolicyAlgorithm": "HmacSHA1",
   "otpPolicyInitialCounter": 0,
@@ -683,12 +698,12 @@
     "ES256",
     "RS256"
   ],
-  "webAuthnPolicyRpId": "",
+  "webAuthnPolicyRpId": "dev.velutina.ovh",
   "webAuthnPolicyAttestationConveyancePreference": "not specified",
   "webAuthnPolicyAuthenticatorAttachment": "not specified",
   "webAuthnPolicyRequireResidentKey": "not specified",
   "webAuthnPolicyResidentKey": "not specified",
-  "webAuthnPolicyUserVerificationRequirement": "not specified",
+  "webAuthnPolicyUserVerificationRequirement": "preferred",
   "webAuthnPolicyCreateTimeout": 0,
   "webAuthnPolicyAvoidSameAuthenticatorRegister": false,
   "webAuthnPolicyAcceptableAaguids": [],
@@ -698,12 +713,12 @@
     "ES256",
     "RS256"
   ],
-  "webAuthnPolicyPasswordlessRpId": "",
+  "webAuthnPolicyPasswordlessRpId": "dev.velutina.ovh",
   "webAuthnPolicyPasswordlessAttestationConveyancePreference": "not specified",
   "webAuthnPolicyPasswordlessAuthenticatorAttachment": "not specified",
   "webAuthnPolicyPasswordlessRequireResidentKey": "not specified",
   "webAuthnPolicyPasswordlessResidentKey": "required",
-  "webAuthnPolicyPasswordlessUserVerificationRequirement": "not specified",
+  "webAuthnPolicyPasswordlessUserVerificationRequirement": "required",
   "webAuthnPolicyPasswordlessCreateTimeout": 0,
   "webAuthnPolicyPasswordlessAvoidSameAuthenticatorRegister": false,
   "webAuthnPolicyPasswordlessAcceptableAaguids": [],
@@ -1114,7 +1129,7 @@
       "description": "the client used from the browser / PWA, in DEV mode",
       "rootUrl": "https://dev.velutina.ovh",
       "adminUrl": "",
-      "baseUrl": "",
+      "baseUrl": "/",
       "surrogateAuthRequired": false,
       "enabled": true,
       "alwaysDisplayInConsole": false,
@@ -2312,7 +2327,7 @@
       "internalId": "0afa5020-abbd-4b5f-9459-0372299ba91d",
       "providerId": "facebook",
       "enabled": true,
-      "trustEmail": true,
+      "trustEmail": false,
       "storeToken": false,
       "addReadTokenRoleOnCreate": false,
       "authenticateByDefault": false,
@@ -2727,6 +2742,15 @@
           "priority": 0,
           "autheticatorFlow": false,
           "userSetupAllowed": false
+        },
+        {
+          "authenticatorConfig": "mfa-role-not-required",
+          "authenticator": "conditional-user-role",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 1,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
         }
       ]
     },
@@ -2861,6 +2885,33 @@
       ]
     },
     {
+      "id": "79e3860d-a8e8-47cf-9884-b7a9667f77c3",
+      "alias": "Mandatory OTP",
+      "description": "OTP for users holding the mfa-required role, configured at sign-in when missing",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorConfig": "mfa-role-required",
+          "authenticator": "conditional-user-role",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 0,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "auth-otp-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 1,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
       "id": "0c9caa02-ac47-4f2d-ae0f-f349b4c49270",
       "alias": "Organization",
       "providerId": "basic-flow",
@@ -2899,6 +2950,14 @@
           "priority": 0,
           "autheticatorFlow": true,
           "flowAlias": "Conditional OTP",
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 1,
+          "autheticatorFlow": true,
+          "flowAlias": "Mandatory OTP",
           "userSetupAllowed": false
         }
       ]
@@ -3434,6 +3493,22 @@
       "alias": "create unique user config",
       "config": {
         "require.password.update.after.registration": "false"
+      }
+    },
+    {
+      "id": "b4fffea0-adde-4227-b4b2-6c3ac81ecd2d",
+      "alias": "mfa-role-not-required",
+      "config": {
+        "condUserRole": "mfa-required",
+        "negate": "true"
+      }
+    },
+    {
+      "id": "65306016-6b33-4610-8d72-4959115f2f2b",
+      "alias": "mfa-role-required",
+      "config": {
+        "condUserRole": "mfa-required",
+        "negate": "false"
       }
     },
     {

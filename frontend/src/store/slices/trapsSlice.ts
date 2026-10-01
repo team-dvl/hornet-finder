@@ -23,6 +23,8 @@ export interface TrapType {
   sort_order: number;
   /** Only set up in front of hives: its traps are never public, they would reveal an apiary */
   apiary_bound: boolean;
+  /** Catches pile up between emptyings: a reading counts what the trap holds and says if it was emptied */
+  accumulates: boolean;
   photo_url: string | null;
   photo_thumbnail_url: string | null;
   /** Number of traps using this type; only returned to admins listing the referential */
@@ -73,7 +75,12 @@ export interface TrapEvent {
     wikipedia_url: string;
     photo_thumbnail_url: string | null;
   } | null;
+  /** On a catch: the new catches since the previous reading, derived from `observed_quantity` */
   quantity: number | null;
+  /** On a catch: what the trap held at the reading, before it was emptied (if it was) */
+  observed_quantity: number | null;
+  /** On a catch: whether the trap was emptied after the reading, null when unknown */
+  emptied: boolean | null;
   /** Shared by the events recorded together during one visit (catches and actions) */
   batch: string | null;
   /** On a catch: whether the other species were counted too, null when unknown */
@@ -81,6 +88,15 @@ export interface TrapEvent {
   comments: string;
   photos: TrapPhoto[];
   created_at: string;
+}
+
+/** What the last reading left in a trap that accumulates its catches */
+export interface TrapContents {
+  /** Date of that reading */
+  at: string;
+  items: { species_slug: string; quantity: number }[];
+  /** Whether the other species were counted then: otherwise only the Asian hornet is known */
+  others_counted: boolean;
 }
 
 export interface Trap {
@@ -93,9 +109,11 @@ export interface Trap {
   photo_url: string | null;
   photo_thumbnail_url: string | null;
   trap_type: {
-    id?: number; slug: string; name: string; apiary_bound?: boolean;
+    id?: number; slug: string; name: string; apiary_bound?: boolean; accumulates?: boolean;
     photo_thumbnail_url?: string | null;
   };
+  /** Left in the trap by the last reading; null once emptied. Absent from the public representation */
+  contents?: TrapContents | null;
   // Absent from the public (anonymous) representation
   address?: string;
   visibility?: 'public' | 'group';
@@ -359,6 +377,7 @@ export const addTrapEvent = createAsyncThunk(
 /** One species found during a visit, with its optional photo. */
 export interface CatchItem {
   species_slug: string;
+  /** What the trap holds: for a trap emptied at every visit, what is taken out */
   quantity: number;
   photo?: File | null;
 }
@@ -369,13 +388,15 @@ export interface CatchItem {
  */
 export const addTrapCatch = createAsyncThunk(
   'traps/addTrapCatch',
-  async ({ trapId, performed_at, comments, items, bycatch_counted = null, actions = [] }: {
+  async ({ trapId, performed_at, comments, items, bycatch_counted = null, emptied = null, actions = [] }: {
     trapId: number;
     performed_at: string;
     comments?: string;
     items: CatchItem[];
     /** Whether the other species were counted, null when not asked */
     bycatch_counted?: boolean | null;
+    /** Whether the trap was emptied; required when its type accumulates, ignored otherwise */
+    emptied?: boolean | null;
     /** Maintenance done during the same visit */
     actions?: TrapEventKind[];
   }, { rejectWithValue, dispatch }) => {
@@ -387,6 +408,7 @@ export const addTrapCatch = createAsyncThunk(
         items.map(({ species_slug, quantity }) => ({ species_slug, quantity })),
       ));
       if (bycatch_counted !== null) form.append('bycatch_counted', String(bycatch_counted));
+      if (emptied !== null) form.append('emptied', String(emptied));
       if (actions.length > 0) form.append('actions', JSON.stringify(actions));
       // A photo is matched to its item by position
       items.forEach((item, index) => {
@@ -517,6 +539,7 @@ export interface TrapTypeFormValues {
   description?: string;
   sort_order?: number;
   apiary_bound?: boolean;
+  accumulates?: boolean;
   photo?: File | null;
 }
 
@@ -608,6 +631,19 @@ export const deleteSpecies = createAsyncThunk(
       return id;
     } catch (error: unknown) {
       // A species still named by the journal comes back as a 409
+      return rejectWithValue(getAxiosErrorMessage(error));
+    }
+  }
+);
+
+/** Persists a new display order: `ids` lists every species, first = top. */
+export const reorderSpecies = createAsyncThunk(
+  'traps/reorderSpecies',
+  async (ids: number[], { rejectWithValue }) => {
+    try {
+      await api.post('/species/reorder/', { ids });
+      return ids;
+    } catch (error: unknown) {
       return rejectWithValue(getAxiosErrorMessage(error));
     }
   }
@@ -746,6 +782,11 @@ const trapsSlice = createSlice({
       .addCase(updateSpecies.fulfilled, (state, action) => {
         const index = state.species.findIndex((s) => s.id === action.payload.id);
         if (index >= 0) state.species[index] = action.payload;
+      })
+      // Optimistic: the list moves at once, a failure restores the server order
+      .addCase(reorderSpecies.pending, (state, action) => {
+        const position = new Map(action.meta.arg.map((id, index) => [id, index]));
+        state.species.sort((a, b) => (position.get(a.id) ?? 0) - (position.get(b.id) ?? 0));
       })
       .addCase(deleteSpecies.fulfilled, (state, action) => {
         state.species = state.species.filter((s) => s.id !== action.payload);

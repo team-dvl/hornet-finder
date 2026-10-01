@@ -43,7 +43,7 @@ function viewBox(map: L.Map): string {
 type Loaded = { key: string; result?: MapStatResult; error?: string; status?: number };
 
 /**
- * The 250 m grid of a map statistic, inside a react-leaflet map. Without a
+ * The grid of a map statistic (squares or hexagons), inside a react-leaflet map. Without a
  * zone it follows the view: each move asks for the cells of the new view.
  * Drawn on a canvas, which keeps a few thousand cells fluid on a phone.
  */

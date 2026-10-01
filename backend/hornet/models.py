@@ -209,6 +209,10 @@ class TrapType(models.Model):
     # Only ever set up in front of hives (electric harp, muzzle...): showing such
     # a trap would reveal an apiary, so it stays private whatever its visibility
     apiary_bound = models.BooleanField(default=False)
+    # The catches pile up between emptyings (electric harp, muzzle, fatal
+    # trap...): a reading counts what the trap holds and says whether it was
+    # emptied. Otherwise (butterfly net...) every reading takes everything out.
+    accumulates = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['sort_order', 'name']
@@ -267,6 +271,10 @@ class Trap(GeolocatedModel):
     comments = models.TextField(blank=True, default='')
     # Denormalised count of Vespa velutina caught, recomputed on every change
     hornet_catch_count = models.PositiveIntegerField(default=0)
+    # What the last reading left in the trap, recomputed with the catches:
+    # {'at': ISO date of the reading, 'items': [{'species_slug', 'quantity'}],
+    # 'others_counted': whether the other species are known}; null once emptied
+    contents = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -281,15 +289,75 @@ class Trap(GeolocatedModel):
         if self.visibility == self.VISIBILITY_GROUP and self.group_id is None:
             raise ValidationError({'group': "A group is required when visibility is 'group'."})
 
-    def recompute_hornet_catch_count(self, save=True):
-        """Refresh the denormalised counter from the catch events."""
-        total = self.events.filter(
-            kind=TrapEvent.KIND_CATCH, species__slug=HORNET_SPECIES_SLUG
-        ).aggregate(total=models.Sum('quantity'))['total'] or 0
-        self.hornet_catch_count = total
+    def recompute_catches(self, save=True):
+        """
+        Derive the catches of every reading from what was seen in the trap.
+
+        A reading records what the trap holds (`observed_quantity`) and whether
+        it was emptied afterwards. What it left in place is the baseline of the
+        next reading, whose catches (`quantity`) are what it saw beyond that
+        baseline, never below zero (escaped or decayed insects). An emptied
+        trap, or one put in service (installation), starts again from zero.
+
+        The Asian hornet is counted at every reading, so its baseline is always
+        known. The other species are only known while every reading since the
+        last emptying counted them: otherwise their catches cannot be told from
+        what was already there, and the reading is marked as not counting them
+        (`bycatch_counted` False), which keeps it out of the selectivity.
+
+        Recomputed whole on every change of the journal: a reading inserted,
+        edited or removed shifts the baseline of the following ones.
+        """
+        events = list(self.events.filter(kind__in=TrapEvent.BASELINE_KINDS)
+                      .select_related('species').order_by('performed_at', 'id'))
+        # One step per installation or reading (the catch events of one batch)
+        steps = {}
+        for event in events:
+            key = event.batch if event.kind == TrapEvent.KIND_CATCH and event.batch else event.pk
+            steps.setdefault(key, []).append(event)
+
+        stock, others_known, left_at = {}, True, None
+        changed, hornets = [], 0
+        for step in steps.values():
+            first = step[0]
+            if first.kind == TrapEvent.KIND_INSTALLATION:
+                stock, others_known, left_at = {}, True, None
+                continue
+            downgrade = not others_known and first.bycatch_counted
+            observed = {}
+            for event in step:
+                slug = event.species.slug
+                seen = event.observed_quantity if event.observed_quantity is not None else event.quantity
+                observed[slug] = seen
+                baseline = stock.get(slug, 0) if slug == HORNET_SPECIES_SLUG or others_known else 0
+                caught = max(0, seen - baseline)
+                if event.quantity != caught or downgrade:
+                    event.quantity = caught
+                    if downgrade:
+                        event.bycatch_counted = False
+                    changed.append(event)
+                if slug == HORNET_SPECIES_SLUG:
+                    hornets += caught
+            # Readings recorded before the question are taken as emptied, as they were
+            if first.emptied is False:
+                others_known = bool(first.bycatch_counted)
+                stock = observed if others_known else {HORNET_SPECIES_SLUG: observed.get(HORNET_SPECIES_SLUG, 0)}
+                left_at = first.performed_at
+            else:
+                stock, others_known, left_at = {}, True, None
+
+        if changed:
+            TrapEvent.objects.bulk_update(changed, ['quantity', 'bycatch_counted'])
+        self.hornet_catch_count = hornets
+        self.contents = None if left_at is None else {
+            'at': left_at.isoformat(),
+            'items': [{'species_slug': slug, 'quantity': quantity}
+                      for slug, quantity in stock.items() if quantity > 0],
+            'others_counted': others_known,
+        }
         if save:
-            self.save(update_fields=['hornet_catch_count', 'updated_at'])
-        return total
+            self.save(update_fields=['hornet_catch_count', 'contents', 'updated_at'])
+        return hornets
 
     def apply_event_side_effects(self, event, save=True):
         """Reflect a newly recorded event on the trap itself."""
@@ -297,13 +365,15 @@ class Trap(GeolocatedModel):
         if event.kind == TrapEvent.KIND_INSTALLATION:
             self.active = True
             self.installed_at = timezone.localtime(event.performed_at).date()
-            fields += ['active', 'installed_at']
+            # A trap is put in service empty: the baseline of its catches restarts
+            self.recompute_catches(save=False)
+            fields += ['active', 'installed_at', 'hornet_catch_count', 'contents']
         elif event.kind == TrapEvent.KIND_REMOVAL:
             self.active = False
             fields += ['active']
         elif event.kind == TrapEvent.KIND_CATCH:
-            self.recompute_hornet_catch_count(save=False)
-            fields += ['hornet_catch_count']
+            self.recompute_catches(save=False)
+            fields += ['hornet_catch_count', 'contents']
         if fields and save:
             self.save(update_fields=fields + ['updated_at'])
         return fields
@@ -320,10 +390,12 @@ class TrapEvent(models.Model):
     One visit usually finds several species: each gets its own catch event,
     and the events recorded together share a `batch` and a `performed_at`.
     Such a visit is a reading ("relevé"): what the capture zone holds is counted
-    and removed. The Asian hornet is always recorded, at zero if need be, so a
-    reading without any catch still shows in the journal and in the statistics.
-    The maintenance actions done during the same visit (cleaning, refill,
-    repair) join its batch.
+    (`observed_quantity`), then removed, or left in place in a trap whose type
+    accumulates (`emptied`). The catches of the reading (`quantity`) are derived
+    from it, see `Trap.recompute_catches`. The Asian hornet is always recorded,
+    at zero if need be, so a reading without any catch still shows in the
+    journal and in the statistics. The maintenance actions done during the same
+    visit (cleaning, refill, repair) join its batch.
     """
 
     KIND_INSTALLATION = 'installation'
@@ -344,6 +416,8 @@ class TrapEvent(models.Model):
     ]
     # Actions that can be recorded along with a reading, in the same visit
     VISIT_ACTION_KINDS = (KIND_CLEANING, KIND_REFILL, KIND_REPAIR)
+    # Events the catches of the following readings depend on
+    BASELINE_KINDS = (KIND_CATCH, KIND_INSTALLATION)
 
     id = models.AutoField(primary_key=True)
     trap = models.ForeignKey(Trap, on_delete=models.CASCADE, related_name='events')
@@ -353,7 +427,13 @@ class TrapEvent(models.Model):
                                      related_name='trap_events')
     species = models.ForeignKey(Species, null=True, blank=True, on_delete=models.PROTECT,
                                 related_name='trap_events')
+    # New catches since the previous reading, derived (see Trap.recompute_catches)
     quantity = models.PositiveIntegerField(null=True, blank=True)
+    # What the trap held at the reading, before it was emptied (if it was)
+    observed_quantity = models.PositiveIntegerField(null=True, blank=True)
+    # Whether the trap was emptied after this reading, the same on every catch
+    # event of a batch; always true for a type that does not accumulate
+    emptied = models.BooleanField(null=True, blank=True)
     # Groups the events of one visit (catches and actions); NULL for a lone event
     batch = models.UUIDField(null=True, blank=True, db_index=True)
     # Whether the other species were counted too during this reading, the same
@@ -371,6 +451,8 @@ class TrapEvent(models.Model):
                     models.Q(kind='catch', species__isnull=False, quantity__gte=0)
                     | (~models.Q(kind='catch') & models.Q(species__isnull=True,
                                                           quantity__isnull=True,
+                                                          observed_quantity__isnull=True,
+                                                          emptied__isnull=True,
                                                           bycatch_counted__isnull=True))
                 ),
                 name='trapevent_catch_fields',
@@ -387,12 +469,16 @@ class TrapEvent(models.Model):
                 raise ValidationError({'species': "A catch requires a species."})
             if self.quantity is None:
                 raise ValidationError({'quantity': "A catch requires a quantity."})
-            if self.quantity == 0 and self.species.slug != HORNET_SPECIES_SLUG:
+            # What was seen, not the derived catches: a species still in the
+            # trap from the previous reading has no new catch, yet is present
+            seen = self.observed_quantity if self.observed_quantity is not None else self.quantity
+            if seen == 0 and self.species.slug != HORNET_SPECIES_SLUG:
                 raise ValidationError(
                     {'quantity': "Only the Asian hornet can be recorded at zero."}
                 )
         else:
             if (self.species_id is not None or self.quantity is not None
+                    or self.observed_quantity is not None or self.emptied is not None
                     or self.bycatch_counted is not None):
                 raise ValidationError(
                     "Only a catch can carry a species, a quantity and a bycatch count."

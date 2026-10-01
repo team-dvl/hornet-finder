@@ -4,7 +4,7 @@ import { Container, Alert, Spinner } from 'react-bootstrap'
 import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from 'react-oidc-context';
-import { Home, MapPage, Nests, Traps, Apiaries, DocsIndex, DocPage, AdminIndex, TrapTypesAdmin, SpeciesAdmin, TagsAdmin, ArchivingAdmin, InvitationsAdmin, PrivacyPolicy, DataDeletion, Invitations } from './pages';
+import { Home, MapPage, Nests, Traps, Apiaries, DocsIndex, DocPage, AdminIndex, TrapTypesAdmin, SpeciesAdmin, TagsAdmin, ArchivingAdmin, GroupAdmin, PrivacyPolicy, DataDeletion, Invitations } from './pages';
 import { RequireRole } from './components/common';
 import { initIOSViewportFix } from './utils/iosViewportFix';
 import { useUrlCleaner } from './utils/urlCleaner';
@@ -154,9 +154,11 @@ function App() {
         element={<RequireRole roles={['admin']}><ArchivingAdmin /></RequireRole>}
       />
       <Route
-        path="/admin/invitations"
-        element={<RequireRole roles={['beekeeper', 'admin']}><InvitationsAdmin /></RequireRole>}
+        path="/admin/group"
+        element={<RequireRole roles={['beekeeper', 'admin']}><GroupAdmin /></RequireRole>}
       />
+      {/* Former address of the invitations page */}
+      <Route path="/admin/invitations" element={<Navigate to="/admin/group" replace />} />
       <Route
         path="/admin/tags"
         element={<RequireRole roles={['volunteer', 'beekeeper', 'admin']}><TagsAdmin /></RequireRole>}

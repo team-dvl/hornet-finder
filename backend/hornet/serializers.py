@@ -1,5 +1,6 @@
 import json
 from typing import Optional
+from django.db.models import Max
 
 from rest_framework import serializers
 from . import apiary_permissions as apiary_perms
@@ -197,7 +198,7 @@ class TrapTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrapType
         fields = ['id', 'slug', 'name', 'description', 'sort_order', 'apiary_bound',
-                  'photo_url', 'photo_thumbnail_url', 'trap_count']
+                  'accumulates', 'photo_url', 'photo_thumbnail_url', 'trap_count']
         # The slug is internal identity, derived from the name on creation and
         # frozen afterwards: an administrator names a trap type, they do not
         # invent an identifier for it.
@@ -237,6 +238,9 @@ class SpeciesSerializer(serializers.ModelSerializer):
         validated_data['slug'] = unique_slug(
             Species, validated_data.get('scientific_name') or validated_data['name'],
         )
+        # A new species goes to the end of the list, the admin moves it from there
+        last = Species.objects.aggregate(last=Max('sort_order'))['last']
+        validated_data.setdefault('sort_order', 0 if last is None else last + 1)
         return super().create(validated_data)
 
 
@@ -266,10 +270,12 @@ class TrapEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrapEvent
         fields = ['id', 'trap', 'kind', 'performed_at', 'performed_by', 'species',
-                  'species_slug', 'quantity', 'batch', 'bycatch_counted', 'comments', 'photos',
-                  'created_at']
-        read_only_fields = ['id', 'trap', 'performed_by', 'species', 'batch', 'bycatch_counted',
-                            'created_at']
+                  'species_slug', 'quantity', 'observed_quantity', 'emptied', 'batch',
+                  'bycatch_counted', 'comments', 'photos', 'created_at']
+        # On a catch, `quantity` is written as what the trap held and read back
+        # as the catches derived from it (see Trap.recompute_catches)
+        read_only_fields = ['id', 'trap', 'performed_by', 'species', 'observed_quantity',
+                            'emptied', 'batch', 'bycatch_counted', 'created_at']
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -309,6 +315,11 @@ class TrapEventSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {'quantity': "Only the Asian hornet can be recorded at zero."}
                 )
+            if 'quantity' in attrs:
+                attrs['observed_quantity'] = quantity
+            if self.instance is None:
+                # A lone catch takes everything out, as readings used to
+                attrs['emptied'] = True
         elif species is not None or quantity is not None:
             raise serializers.ValidationError(
                 "Only a catch can carry a species and a quantity."
@@ -320,7 +331,7 @@ class CatchItemSerializer(serializers.Serializer):
     species_slug = serializers.SlugRelatedField(
         source='species', slug_field='slug', queryset=Species.objects.all(),
     )
-    # Zero is only meaningful for the Asian hornet (see CatchSerializer)
+    # What the trap holds; zero is only meaningful for the Asian hornet
     quantity = serializers.IntegerField(min_value=0)
 
 
@@ -330,16 +341,24 @@ class CatchSerializer(serializers.Serializer):
     maintenance actions done at the same time, one event each. Write-only, the
     response is the list of created events.
 
+    Each item gives what the trap holds of a species, the catches are derived
+    from it (see `Trap.recompute_catches`). For a trap emptied at every visit,
+    that is simply what was taken out. A trap whose type accumulates must say
+    whether it was `emptied`; any other trap always is.
+
     The Asian hornet may be recorded at zero, which is how a reading without
     any catch is kept; another species at zero is refused. `bycatch_counted`
     says whether the other species were counted: it is forced to true as soon
     as one of them is recorded.
+
+    Expects the trap in the context (`trap`).
     """
 
     performed_at = serializers.DateTimeField()
     comments = serializers.CharField(required=False, allow_blank=True, default='')
     items = CatchItemSerializer(many=True, allow_empty=False)
     bycatch_counted = serializers.BooleanField(required=False, allow_null=True, default=None)
+    emptied = serializers.BooleanField(required=False, allow_null=True, default=None)
     actions = serializers.ListField(
         child=serializers.ChoiceField(choices=TrapEvent.VISIT_ACTION_KINDS),
         required=False, default=list,
@@ -377,6 +396,11 @@ class CatchSerializer(serializers.Serializer):
     def validate(self, attrs):
         if any(item['species'].slug != HORNET_SPECIES_SLUG for item in attrs['items']):
             attrs['bycatch_counted'] = True
+        if self.context['trap'].trap_type.accumulates:
+            if attrs['emptied'] is None:
+                raise serializers.ValidationError({'emptied': "Say whether the trap was emptied."})
+        else:
+            attrs['emptied'] = True
         return attrs
 
 
@@ -398,14 +422,14 @@ class TrapSerializer(GPSValidationMixin, serializers.ModelSerializer):
         fields = ['id', 'latitude', 'longitude', 'address', 'active', 'visibility',
                   'publicly_visible',
                   'trap_type', 'trap_type_slug', 'photo_url', 'photo_thumbnail_url',
-                  'installed_at', 'comments', 'hornet_catch_count', 'owner', 'group',
+                  'installed_at', 'comments', 'hornet_catch_count', 'contents', 'owner', 'group',
                   'last_event_at', 'tag_short', 'created_at', 'updated_at']
         # `active` is driven by the installation and removal events, never sent
         # by a form: DRF reads an absent boolean in form-data as False (the
         # unchecked-checkbox convention), which would store every new trap as
         # already put away.
         read_only_fields = ['id', 'owner', 'group', 'trap_type', 'active',
-                            'hornet_catch_count', 'created_at', 'updated_at']
+                            'hornet_catch_count', 'contents', 'created_at', 'updated_at']
 
     def get_photo_url(self, instance) -> Optional[str]:
         return instance.photo.url if instance.photo else None
@@ -450,6 +474,7 @@ class TrapSerializer(GPSValidationMixin, serializers.ModelSerializer):
                 'slug': instance.trap_type.slug,
                 'name': instance.trap_type.name,
                 'apiary_bound': instance.trap_type.apiary_bound,
+                'accumulates': instance.trap_type.accumulates,
                 'photo_thumbnail_url': (
                     instance.trap_type.photo_thumbnail.url
                     if instance.trap_type.photo_thumbnail else None

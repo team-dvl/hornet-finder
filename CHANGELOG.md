@@ -10,6 +10,60 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-01
+
+### Added
+- Group administration (Administration → Mon groupe, "Groupes" for platform admins):
+  the members of a beekeeper group, listed by name, and the invitations, now in a
+  second tab. An administrator of the group removes a member; naming or dismissing
+  an administrator, and removing one, is for platform admins, and a group always
+  keeps at least one administrator. A removal reaches the person's connection
+  within the hour at most.
+- Traps that keep their catches between emptyings (electric harp, muzzle, fatal
+  trap...): an administrator ticks "Accumule les captures" on the trap type.
+  Their reading counts everything the trap holds, starting from what the last
+  reading left, and asks whether the trap was emptied or left in place; the new
+  catches are deduced from it, for the total and the statistics. The journal
+  shows "Vidé" / "Laissé en place" and what the trap held; the trap sheet shows
+  what it held at the last reading, under the catch total. Prod: note 0017.
+- The coverage and pressure maps can be drawn on hexagons instead of 250 m
+  squares ("Maille" selector under the map, `grid=hex` in the API): cells of the
+  same area (6.25 ha), six neighbours at the same distance, same totals.
+- Species can be reordered by an administrator (Administration → Espèces, "Ordre"
+  button): move up / move down on each row. New species are added at the end.
+
+### Changed
+- The invitations page moved to Administration → Mon groupe (`/admin/group`); the
+  old `/admin/invitations` address redirects there.
+
+### Removed
+- The "display order" number of the species form, replaced by the move buttons.
+
+### Security
+- Passwords need at least 12 characters and may not contain the username or the
+  email address; they are checked when an account is created or a password is
+  changed, existing passwords stay valid until then.
+- After 10 failed sign-ins an account is locked for a minute, the wait doubling
+  up to 15 minutes; a successful sign-in or the end of the wait unlocks it.
+- An email address given by Facebook is no longer trusted as verified: a new
+  Facebook account confirms its address by email, and one that matches an
+  existing account must prove it owns that account before being linked. Google
+  addresses are still trusted.
+- A passkey used alone, without a password, must verify the user on the device
+  (Face ID, fingerprint or device code); a security key without a PIN is
+  refused. Sign-in with a password, Google or Facebook is unchanged.
+- Sign-in requests of the application must carry a PKCE `S256` challenge in
+  production too, as they already did in development.
+- Platform administrators must enter a one-time code when they sign in with a
+  password, and are asked to set up an authenticator app at their first
+  sign-in. The "My account" page follows the same sign-in flow as the
+  application, so it no longer offers a way around the code. Group
+  administrators and sign-in with Google or Facebook are not affected.
+- Access tokens last 60 minutes instead of 3 hours, so a disabled account or a
+  removed role stops working on the API within 60 minutes; the session itself
+  lasts as long as before.
+
+
 ## [1.0.0] - 2026-09-30
 
 ### Added
@@ -63,5 +117,6 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   algorithm-confusion flaws were not reachable; `PyJWKClient` redirect handling
   is fixed.
 
-[Unreleased]: https://github.com/team-dvl/hornet-finder/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/team-dvl/hornet-finder/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/team-dvl/hornet-finder/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/team-dvl/hornet-finder/releases/tag/v1.0.0

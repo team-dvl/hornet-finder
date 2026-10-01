@@ -194,6 +194,27 @@ class SpeciesViewSet(ReferentialViewSet):
             instance.save(update_fields=['photo_credit', 'photo_source_url'])
         super()._attach_photo(instance)
 
+    @extend_schema(
+        request={'application/json': {'type': 'object', 'properties': {
+            'ids': {'type': 'array', 'items': {'type': 'integer'}}}, 'required': ['ids']}},
+        responses={204: OpenApiResponse(description='Reordered'),
+                   400: OpenApiResponse(description='ids is not the list of every species')},
+    )
+    @action(detail=False, methods=['post'])
+    def reorder(self, request):
+        """Set the display order to the given list of species ids (first = top)."""
+        ids = request.data.get('ids')
+        current = set(Species.objects.values_list('id', flat=True))
+        if (not isinstance(ids, list) or len(ids) != len(set(ids))
+                or not all(isinstance(pk, int) and not isinstance(pk, bool) for pk in ids)
+                or set(ids) != current):
+            raise DRFValidationError({'ids': 'Must list every species exactly once.'})
+        # Renumber everything: existing sort_order values are often all equal
+        with transaction.atomic():
+            for position, pk in enumerate(ids):
+                Species.objects.filter(pk=pk).update(sort_order=position)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     @extend_schema(responses={204: OpenApiResponse(description='Deleted'),
                               409: OpenApiResponse(description='Species still in use')})
     def destroy(self, request, *args, **kwargs):
@@ -499,6 +520,8 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
             photo.save()
 
         trap.apply_event_side_effects(event)
+        # A catch gets its quantity derived by the side effects
+        event.refresh_from_db()
         return Response(TrapEventSerializer(event).data, status=status.HTTP_201_CREATED)
 
     @extend_schema(
@@ -508,9 +531,13 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
                 'performed_at': {'type': 'string', 'format': 'date-time'},
                 'comments': {'type': 'string'},
                 'items': {'type': 'string',
-                          'description': 'JSON list of {"species_slug", "quantity"}'},
+                          'description': 'JSON list of {"species_slug", "quantity"}, '
+                                         'quantity being what the trap holds'},
                 'bycatch_counted': {'type': 'boolean',
                                     'description': 'Whether the other species were counted'},
+                'emptied': {'type': 'boolean',
+                            'description': 'Whether the trap was emptied, required when '
+                                           'its type accumulates'},
                 'actions': {'type': 'string',
                             'description': 'JSON list of actions done during the visit: '
                                            '"cleaning", "refill", "repair"'},
@@ -523,13 +550,14 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], url_path='catches')
     def catches(self, request, pk=None):
         """Record one visit: one catch event per species, then one event per
-        action done at the same time, all sharing a batch."""
+        action done at the same time, all sharing a batch. The catches of the
+        reading are derived from what the trap held (`Trap.recompute_catches`)."""
         trap = self.get_object()
         if not perms.can_act_on_trap(request, trap):
             raise PermissionDenied(
                 "Only the owner and the members of the group in charge can record an event."
             )
-        serializer = CatchSerializer(data=request.data)
+        serializer = CatchSerializer(data=request.data, context={'trap': trap})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         performed_by = perms.local_user(request)
@@ -542,7 +570,9 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
                     event = TrapEvent.objects.create(
                         trap=trap, kind=TrapEvent.KIND_CATCH, performed_at=data['performed_at'],
                         performed_by=performed_by, species=item['species'],
-                        quantity=item['quantity'], batch=batch,
+                        # Derived below, once the reading is in the journal
+                        quantity=item['quantity'], observed_quantity=item['quantity'],
+                        emptied=data['emptied'], batch=batch,
                         bycatch_counted=data['bycatch_counted'],
                         # Said once for the whole visit, not repeated per species
                         comments=data['comments'] if index == 0 else '',
@@ -560,13 +590,15 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
                         performed_by=performed_by, batch=batch,
                     )
                     events.append(event)
-                trap.recompute_hornet_catch_count()
+                trap.recompute_catches()
         except Exception:
             # The rows are rolled back, the files written so far are not
             for photo in stored:
                 _delete_files(photo.image, photo.thumbnail)
             raise
 
+        # Read back with their derived quantities, in the order they were created
+        events = TrapEvent.objects.filter(pk__in=[event.pk for event in events]).order_by('id')
         return Response(TrapEventSerializer(events, many=True).data,
                         status=status.HTTP_201_CREATED)
 
@@ -585,7 +617,7 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         photos = list(TrapPhoto.objects.filter(event__in=events))
         with transaction.atomic():
             TrapEvent.objects.filter(pk__in=[event.pk for event in events]).delete()
-            trap.recompute_hornet_catch_count()
+            trap.recompute_catches()
         for photo in photos:
             _delete_files(photo.image, photo.thumbnail)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -696,20 +728,22 @@ class TrapEventViewSet(viewsets.GenericViewSet):
         serializer = TrapEventSerializer(event, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
         event = serializer.save()
-        if event.kind == TrapEvent.KIND_CATCH:
-            event.trap.recompute_hornet_catch_count()
+        # A reading or an installation moved or changed shifts the catches after it
+        if event.kind in TrapEvent.BASELINE_KINDS:
+            event.trap.recompute_catches()
+            event.refresh_from_db()
         return Response(TrapEventSerializer(event).data)
 
     def destroy(self, request, *args, **kwargs):
         event = self.get_object()
         if not perms.can_delete_event(request, event):
             raise PermissionDenied("You do not have permission to delete this event.")
-        trap, was_catch = event.trap, event.kind == TrapEvent.KIND_CATCH
+        trap, shifts = event.trap, event.kind in TrapEvent.BASELINE_KINDS
         for photo in event.photos.all():
             _delete_files(photo.image, photo.thumbnail)
         event.delete()
-        if was_catch:
-            trap.recompute_hornet_catch_count()
+        if shifts:
+            trap.recompute_catches()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

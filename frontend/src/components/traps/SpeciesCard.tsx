@@ -25,6 +25,8 @@ interface SpeciesCardProps {
   /** Shown while the referential is still loading */
   fallbackName: string;
   quantity: number;
+  /** In a trap that accumulates, what the previous reading left: the card shows the new catches */
+  baseline?: number;
   /** Photo of this catch, which replaces the species picture */
   photo: File | null;
   onQuantityChange: (quantity: number) => void;
@@ -39,7 +41,7 @@ interface SpeciesCardProps {
  * in the field; the badge opens a number field for large counts.
  */
 export default function SpeciesCard({
-  species, fallbackName, quantity, photo, onQuantityChange, onPhotoChange, onRemove, disabled,
+  species, fallbackName, quantity, baseline, photo, onQuantityChange, onPhotoChange, onRemove, disabled,
 }: SpeciesCardProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   // Preview of the photo, created and revoked by the handlers like PhotoInput does
@@ -133,6 +135,13 @@ export default function SpeciesCard({
       <div className="px-1 pt-1 small text-center text-truncate" title={species?.scientific_name || name}>
         {name}
       </div>
+      {baseline !== undefined && (
+        <div className="px-1 small text-center text-truncate text-muted">
+          {quantity >= baseline
+            ? `+${quantity - baseline} nouveau${quantity - baseline > 1 ? 'x' : ''}`
+            : `${quantity - baseline} depuis le relevé`}
+        </div>
+      )}
 
       <div className="d-flex">
         <Button

@@ -9,7 +9,7 @@ const LOCALE = 'fr-BE';
 /** Keys the URL may carry; the same names as the API's */
 export const PARAM_KEYS = [
   'period', 'season', 'year', 'from', 'to', 'granularity', 'compare',
-  'trap_type', 'group', 'mine', 'lat', 'lon', 'radius', 'reach', 'bandwidth', 'order',
+  'trap_type', 'group', 'mine', 'lat', 'lon', 'radius', 'reach', 'bandwidth', 'grid', 'order',
 ] as const;
 
 export const PERIOD_OPTIONS = [
@@ -52,6 +52,13 @@ export function currentSeason(today = new Date()): string | null {
   if (day >= 616 && day <= 930) return 'summer';
   if (day >= 1001) return 'late';
   return null;
+}
+
+/** Last day of a season (or of the year for `year`) */
+export function periodEnd(period: string, year: number): Date {
+  if (period === 'spring') return new Date(year, 5, 15);
+  if (period === 'summer') return new Date(year, 8, 30);
+  return new Date(year, 11, 31);
 }
 
 /** The parameters of the page: the URL's, completed with the defaults. */

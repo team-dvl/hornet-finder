@@ -6,11 +6,13 @@ import {
 } from '../../store/store';
 import { HelpTip } from '../common';
 import { AppModal } from '../ui';
+import { formatShortDateTime } from '../../utils/format';
 import PhotoInput from './PhotoInput';
 import SpeciesCard from './SpeciesCard';
 import { SPECIES_GRID_STYLE } from './speciesGrid';
 import SpeciesPicker from './SpeciesPicker';
 import BycatchQuestionSheet from './BycatchQuestionSheet';
+import EmptiedQuestionSheet from './EmptiedQuestionSheet';
 import { EVENT_KINDS, VISIT_ACTION_KINDS, eventKindInfo } from './eventKinds';
 
 /** Local datetime string accepted by <input type="datetime-local"> */
@@ -32,8 +34,25 @@ const ACTION_KINDS = EVENT_KINDS.filter((entry) => entry.value !== 'catch');
 /** One card of the reading being recorded */
 interface CatchLine {
   slug: string;
+  /** What the trap holds: for a trap emptied at every visit, what is taken out */
   quantity: number;
   photo: File | null;
+}
+
+/**
+ * Cards the reading starts from. A trap that accumulates and was left in place
+ * starts from what it held then, so counting on adds the new catches; any other
+ * trap starts empty.
+ */
+function initialLines(trap: Trap | null): CatchLine[] {
+  const left = trap?.trap_type.accumulates ? trap.contents?.items ?? [] : [];
+  const hornets = left.find((item) => item.species_slug === DEFAULT_SPECIES)?.quantity ?? 0;
+  return [
+    { slug: DEFAULT_SPECIES, quantity: hornets, photo: null },
+    ...left
+      .filter((item) => item.species_slug !== DEFAULT_SPECIES)
+      .map((item) => ({ slug: item.species_slug, quantity: item.quantity, photo: null })),
+  ];
 }
 
 interface TrapEventModalProps {
@@ -54,9 +73,13 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
 
   const [kind, setKind] = useState<TrapEventKind>(initialKind);
   const [performedAt, setPerformedAt] = useState(nowLocal);
-  const [lines, setLines] = useState<CatchLine[]>([{ slug: DEFAULT_SPECIES, quantity: 0, photo: null }]);
+  const [lines, setLines] = useState<CatchLine[]>(() => initialLines(trap));
   const [visitActions, setVisitActions] = useState<TrapEventKind[]>([]);
-  const [askingBycatch, setAskingBycatch] = useState(false);
+  // Questions asked on saving a reading, one sheet at a time in place of the form:
+  // the other insects (only the Asian hornet recorded), then the emptying (a
+  // trap that accumulates), last, as it is what the visit ends with
+  const [question, setQuestion] = useState<'bycatch' | 'emptied' | null>(null);
+  const [bycatchCounted, setBycatchCounted] = useState(true);
   const [picking, setPicking] = useState(false);
   const [comments, setComments] = useState('');
   const [photos, setPhotos] = useState<File[]>([]);
@@ -64,6 +87,15 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
   const [error, setError] = useState<string | null>(null);
 
   const isCatch = initialKind === 'catch';
+  const accumulates = Boolean(trap?.trap_type.accumulates);
+  const contents = accumulates ? trap?.contents ?? null : null;
+  // What each species was left at: its new catches are counted beyond that. The
+  // other species are unknown when they were not counted then.
+  const baseline = (slug: string) => {
+    if (!accumulates) return undefined;
+    if (slug !== DEFAULT_SPECIES && contents && !contents.others_counted) return undefined;
+    return contents?.items.find((item) => item.species_slug === slug)?.quantity ?? 0;
+  };
 
   useEffect(() => {
     if (species.length === 0) {
@@ -89,9 +121,9 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
       ? current.filter((item) => item !== action)
       : [...current, action]));
 
-  const save = async (bycatchCounted: boolean) => {
+  const save = async (bycatch: boolean, emptied: boolean | null) => {
     if (!trap) return;
-    setAskingBycatch(false);
+    setQuestion(null);
     setSaving(true);
     setError(null);
     // The input has no timezone, the browser's one applies
@@ -103,7 +135,8 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
           performed_at,
           comments,
           items: counted.map(({ slug, quantity, photo }) => ({ species_slug: slug, quantity, photo })),
-          bycatch_counted: bycatchCounted,
+          bycatch_counted: bycatch,
+          emptied,
           actions: visitActions,
         })).unwrap();
       } else {
@@ -126,16 +159,26 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
     }
     // Only the Asian hornet: ask whether the other insects were counted
     if (kind === 'catch' && !hasBycatch) {
-      setAskingBycatch(true);
+      setQuestion('bycatch');
       return;
     }
-    save(true);
+    afterBycatch(true);
+  };
+
+  /** Next step once the other insects are settled: the emptying, or saving */
+  const afterBycatch = (bycatch: boolean) => {
+    if (kind === 'catch' && accumulates) {
+      setBycatchCounted(bycatch);
+      setQuestion('emptied');
+      return;
+    }
+    save(bycatch, null);
   };
 
   return (
     <>
       <AppModal
-        show={!askingBycatch}
+        show={question === null}
         onHide={onHide}
         locked
         icon={eventKindInfo(kind).icon}
@@ -194,14 +237,29 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
         {kind === 'catch' && (
           <Form.Group className="mb-3">
             <Form.Label className="d-flex align-items-center">
-              Captures
-              <HelpTip id="catch-help" title="Compter les captures">
-                Comptez ce que vous retirez de la zone de capture : un insecte laissé dans le piège
-                serait compté une seconde fois au relevé suivant. Touchez l'image d'une espèce pour
-                ajouter un individu, le nombre rouge pour saisir un total. Un relevé sans frelon
-                s'enregistre à zéro : il compte autant qu'une capture pour suivre la pression.
-              </HelpTip>
+              {accumulates ? 'Contenu du piège' : 'Captures'}
+              {accumulates ? (
+                <HelpTip id="catch-help" title="Compter le contenu du piège">
+                  Comptez tout ce que contient le piège, y compris ce qui y était déjà : les compteurs
+                  partent du contenu laissé au dernier relevé, l'application en déduit les nouvelles
+                  prises. Touchez l'image d'une espèce pour ajouter un individu, le nombre rouge pour
+                  saisir un total. Un piège sans frelon s'enregistre à zéro : il compte autant qu'une
+                  capture pour suivre la pression.
+                </HelpTip>
+              ) : (
+                <HelpTip id="catch-help" title="Compter les captures">
+                  Comptez ce que vous retirez de la zone de capture : un insecte laissé dans le piège
+                  serait compté une seconde fois au relevé suivant. Touchez l'image d'une espèce pour
+                  ajouter un individu, le nombre rouge pour saisir un total. Un relevé sans frelon
+                  s'enregistre à zéro : il compte autant qu'une capture pour suivre la pression.
+                </HelpTip>
+              )}
             </Form.Label>
+            {contents && !picking && (
+              <div className="small text-muted mb-2">
+                Laissé en place le {formatShortDateTime(contents.at)}
+              </div>
+            )}
             {picking ? (
               <SpeciesPicker
                 species={species}
@@ -217,6 +275,7 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
                     species={species.find((item) => item.slug === line.slug)}
                     fallbackName={line.slug}
                     quantity={line.quantity}
+                    baseline={baseline(line.slug)}
                     photo={line.photo}
                     onQuantityChange={(quantity) => updateLine(line.slug, { quantity })}
                     onPhotoChange={(photo) => updateLine(line.slug, { photo })}
@@ -282,13 +341,19 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
       </AppModal>
 
       <BycatchQuestionSheet
-        show={askingBycatch}
-        onHide={() => setAskingBycatch(false)}
-        onAnswer={save}
+        show={question === 'bycatch'}
+        onHide={() => setQuestion(null)}
+        onAnswer={afterBycatch}
         onCount={() => {
-          setAskingBycatch(false);
+          setQuestion(null);
           setPicking(true);
         }}
+      />
+
+      <EmptiedQuestionSheet
+        show={question === 'emptied'}
+        onHide={() => setQuestion(null)}
+        onAnswer={(emptied) => save(bycatchCounted, emptied)}
       />
     </>
   );

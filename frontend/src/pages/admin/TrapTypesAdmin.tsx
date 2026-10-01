@@ -35,6 +35,9 @@ const columns: ReferentialColumn<TrapType>[] = [
         {type.apiary_bound && (
           <i className="bi bi-lock-fill ms-2 text-muted" title="Lié à un rucher : pièges privés" aria-label="Lié à un rucher" />
         )}
+        {type.accumulates && (
+          <i className="bi bi-stack ms-2 text-muted" title="Accumule les captures" aria-label="Accumule les captures" />
+        )}
       </>
     ),
   },

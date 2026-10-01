@@ -1,8 +1,9 @@
 """
-Map statistics on a 250 m grid: the coverage of a territory by the traps
-(`traps-coverage`) and the pressure of the Asian hornet (`traps-pressure`).
+Map statistics on a grid of 6.25 ha cells: the coverage of a territory by the
+traps (`traps-coverage`) and the pressure of the Asian hornet (`traps-pressure`).
 
-The grid lives in Belgian Lambert 2008 (EPSG:3812, metres), anchored on its
+The grid is made of 250 m squares or, with `grid=hex`, of hexagons of the same
+area. It lives in Belgian Lambert 2008 (EPSG:3812, metres), anchored on its
 origin: a cell stays the same cell whatever the part of the map asked for.
 The area studied is the zone filter (a circle), else the map view (`bbox`);
 cells are clipped to it. Both statistics locate traps, so they only ever count
@@ -23,7 +24,11 @@ from .periods import PeriodError, resolve_period
 from .traps import _warnings
 
 SRID = 3812
-CELL = 250  # metres
+CELL = 250  # metres, side of a square cell
+# Side (and circumradius) of a hexagonal cell of the same area as the square:
+# 3 * sqrt(3) / 2 * a^2 = CELL^2, a = 155.1 m, 268.6 m between neighbouring centres
+HEX_SIZE = math.sqrt(2 * CELL * CELL / (3 * math.sqrt(3)))
+CELL_SHAPES = ('square', 'hex')
 MAX_CELLS = 10000
 REACHES = (100, 250, 500)
 BANDWIDTHS = (100, 250, 500)
@@ -83,9 +88,43 @@ def _choice(params, name, allowed, default):
     return value
 
 
+def _cell_shape(params) -> str:
+    shape = params.get('grid') or 'square'
+    if shape not in CELL_SHAPES:
+        raise StatError("grid : square ou hex.")
+    return shape
+
+
+def _grid_sql(shape: str) -> str:
+    """Set-returning SQL of the grid over `area.g`: rows (i, j, geom)."""
+    if shape == 'hex':
+        return f"ST_HexagonGrid({HEX_SIZE!r}, area.g)"
+    return f"ST_SquareGrid({CELL}, area.g)"
+
+
+def _grid_steps(shape: str) -> tuple[float, float, int]:
+    """
+    Spacing of the grid indices (metres per i, per j) and the extra margin, in
+    cells, to reach from a point to every cell near it. The index of a point is
+    floor(x / step_x), floor(y / step_y): exact for squares; for hexagons
+    (columns 1.5 a apart, rows sqrt(3) a apart, every other column shifted by
+    half a row) it is off by at most one, hence the margin. The distance test
+    that follows keeps the pairing exact.
+    """
+    if shape == 'hex':
+        return 1.5 * HEX_SIZE, math.sqrt(3) * HEX_SIZE, 1
+    return CELL, CELL, 0
+
+
+def _cell_label(shape: str) -> str:
+    if shape == 'hex':
+        return f'hexagones de {HEX_SIZE:.1f} m de côté (6,25 ha), Lambert belge 2008 (EPSG:{SRID})'
+    return f'carrés de {CELL} m (6,25 ha), Lambert belge 2008 (EPSG:{SRID})'
+
+
 class MapStatistic(Statistic):
     """Common part of the grid statistics."""
-    filters = ('period', 'trap_type', 'group', 'mine', 'zone')
+    filters = ('period', 'trap_type', 'group', 'mine', 'zone', 'grid')
     kind = 'map'
     exports = ('xlsx', 'csv')
 
@@ -105,6 +144,7 @@ class MapStatistic(Statistic):
         with connection.cursor() as cursor:
             cursor.execute(f"SELECT ST_Area({area_sql})", area_args)
             area = cursor.fetchone()[0] or 0.0
+        # Both shapes have the area of a CELL square
         if area / (CELL * CELL) > MAX_CELLS:
             limit = MAX_CELLS * CELL * CELL / 1e6
             raise StatError(f"Zone trop grande : zoomez ({limit:.0f} km² au plus).", status=422)
@@ -133,7 +173,7 @@ class MapStatistic(Statistic):
                     for row in cursor.fetchall()}
 
     @staticmethod
-    def _cells(area_sql, area_args):
+    def _cells(area_sql, area_args, shape):
         """Cells of the grid over the area, clipped to it: GeoJSON, centre, area."""
         with connection.cursor() as cursor:
             cursor.execute(
@@ -141,7 +181,7 @@ class MapStatistic(Statistic):
                 WITH area AS (SELECT {area_sql} AS g),
                 cells AS (
                     SELECT c.i, c.j, ST_Intersection(c.geom, area.g) AS g
-                    FROM area, ST_SquareGrid({CELL}, area.g) AS c
+                    FROM area, {_grid_sql(shape)} AS c
                     WHERE ST_Intersects(c.geom, area.g)
                 )
                 SELECT cells.i, cells.j,
@@ -207,16 +247,18 @@ class TrapsCoverage(MapStatistic):
     ]
 
     @staticmethod
-    def _covered_cells(area_sql, area_args, ids, reach):
+    def _covered_cells(area_sql, area_args, ids, reach, shape):
         """
         Covered cells only, with the area the discs of the traps cover in each.
-        A trap is paired with the cells around its own (grid indices are
-        floor(x / CELL), floor(y / CELL)), so each cell meets only the discs
+        A trap is paired with the cells around its own (see _grid_steps for
+        the grid indices), so each cell meets only the discs
         within reach, and each disc is cut to the cell before the union:
         testing every cell against every trap took minutes on a town,
         intersecting each cell with a union of whole discs several seconds.
         """
-        span = math.ceil(reach / CELL)
+        step_x, step_y, margin = _grid_steps(shape)
+        span_i = math.ceil(reach / step_x) + margin
+        span_j = math.ceil(reach / step_y) + margin
         with connection.cursor() as cursor:
             cursor.execute(
                 f"""
@@ -227,7 +269,7 @@ class TrapsCoverage(MapStatistic):
                 ),
                 cells AS MATERIALIZED (
                     SELECT c.i, c.j, ST_Intersection(c.geom, area.g) AS g
-                    FROM area, ST_SquareGrid({CELL}, area.g) AS c
+                    FROM area, {_grid_sql(shape)} AS c
                     WHERE ST_Intersects(c.geom, area.g)
                 ),
                 pairs AS (
@@ -236,8 +278,8 @@ class TrapsCoverage(MapStatistic):
                     FROM traps
                     CROSS JOIN generate_series(-%s, %s) AS dx
                     CROSS JOIN generate_series(-%s, %s) AS dy
-                    JOIN cells ON cells.i = floor(ST_X(traps.g) / {CELL})::int + dx
-                              AND cells.j = floor(ST_Y(traps.g) / {CELL})::int + dy
+                    JOIN cells ON cells.i = floor(ST_X(traps.g) / {step_x!r})::int + dx
+                              AND cells.j = floor(ST_Y(traps.g) / {step_y!r})::int + dy
                     WHERE ST_DWithin(traps.g, cells.g, %s)
                 ),
                 covered AS (
@@ -253,15 +295,16 @@ class TrapsCoverage(MapStatistic):
                        ST_Area(g), area
                 FROM covered
                 WHERE ST_Area(g) > 0
-                """, area_args + [ids, reach, span, span, span, span, reach])
+                """, area_args + [ids, reach, span_i, span_i, span_j, span_j, reach])
             return cursor.fetchall()
 
     def compute(self, params, scope, today=None) -> dict:
         reach = _choice(params, 'reach', REACHES, 250)
+        shape = _cell_shape(params)
         (period, selection, area_sql, area_args, area_kind, area,
          near, in_service) = self._prepare(params, scope, today, reach)
         ids = sorted(in_service)
-        rows = self._covered_cells(area_sql, area_args, ids, reach) if ids else []
+        rows = self._covered_cells(area_sql, area_args, ids, reach, shape) if ids else []
 
         buckets = _bucket([(near[t]['x'], near[t]['y']) for t in ids], reach)
         features, table = [], []
@@ -289,14 +332,14 @@ class TrapsCoverage(MapStatistic):
         }
         return {
             **self._base(period, selection, area_kind, area, near, in_service),
-            'parameters': {'reach': reach, 'cell': CELL},
+            'parameters': {'reach': reach, 'cell': CELL, 'grid': shape},
             'summary': summary,
             'cells': {'type': 'FeatureCollection', 'features': features},
             'columns': self.COLUMNS,
             'rows': table,
             'totals': {'lat': None, 'lon': None, 'covered': summary['coverage'], 'traps': inside},
             'notes': [("Rayon d'action supposé", f"{reach} m (hypothèse de travail, pas une mesure)"),
-                      ('Maille', f'{CELL} m, Lambert belge 2008 (EPSG:{SRID})'),
+                      ('Maille', _cell_label(shape)),
                       ('Surface étudiée', f'{area_km2:.2f} km²')],
             'warnings': [],
         }
@@ -320,6 +363,7 @@ class TrapsPressure(MapStatistic):
 
     def compute(self, params, scope, today=None) -> dict:
         bandwidth = _choice(params, 'bandwidth', BANDWIDTHS, 250)
+        shape = _cell_shape(params)
         reach = 3 * bandwidth
         (period, selection, area_sql, area_args, area_kind, area,
          near, in_service) = self._prepare(params, scope, today, reach)
@@ -334,7 +378,7 @@ class TrapsPressure(MapStatistic):
         two_h2 = 2 * bandwidth * bandwidth
 
         features, table = [], []
-        for i, j, geometry, x, y, lat, lon, _ in (self._cells(area_sql, area_args) if sources else []):
+        for i, j, geometry, x, y, lat, lon, _ in (self._cells(area_sql, area_args, shape) if sources else []):
             effort = weighted = 0.0
             for sx, sy, hornets, days in _close(buckets, x, y, reach):
                 d2 = (sx - x) ** 2 + (sy - y) ** 2
@@ -370,7 +414,8 @@ class TrapsPressure(MapStatistic):
         }
         return {
             **self._base(period, selection, area_kind, area, near, in_service),
-            'parameters': {'bandwidth': bandwidth, 'cell': CELL, 'min_effort_days': MIN_EFFORT_DAYS},
+            'parameters': {'bandwidth': bandwidth, 'cell': CELL, 'grid': shape,
+                           'min_effort_days': MIN_EFFORT_DAYS},
             'summary': summary,
             'bins': PRESSURE_BINS,
             'cells': {'type': 'FeatureCollection', 'features': features},
@@ -380,7 +425,7 @@ class TrapsPressure(MapStatistic):
                        'effort': summary['trap_days'], 'hornets': summary['hornets']},
             'notes': [('Lissage', f'noyau gaussien de {bandwidth} m'),
                       ('Effort minimal', f'{MIN_EFFORT_DAYS} pièges-jours pondérés autour d\'une maille'),
-                      ('Maille', f'{CELL} m, Lambert belge 2008 (EPSG:{SRID})'),
+                      ('Maille', _cell_label(shape)),
                       ('Surface étudiée', f'{area / 1e6:.2f} km²')],
             'warnings': _warnings(period, readings),
         }

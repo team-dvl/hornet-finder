@@ -23,6 +23,8 @@ Les rôles applicatifs à définir dans le realm sont :
 | `volunteer` | Peut créer des observations de frelons et des nids. Peut lire les ruchers auxquels un groupe lui donne `can_read`. Ne peut pas modifier les frelons ou les nids, qui sont réservés à `admin`. |
 | `beekeeper-group-admin` | Rôle prévu pour identifier l'administrateur d'un groupe d'apiculteurs. Il est attribué aux sous-groupes `admin` des groupes d'apiculteurs. À ce jour, le backend ne l'utilise pas directement pour autoriser une opération : sa présence dans Keycloak ne remplace donc pas une permission Django. |
 
+Le rôle technique `mfa-required` n'ouvre aucune permission applicative : il impose un second facteur (OTP) à la connexion par mot de passe, à configurer à la première connexion s'il manque. Il est porté par `admin` comme rôle composite, donc par les membres de `/admins`. Les administrateurs de groupes (`beekeeper-group-admin`, `group-admin`) n'y sont pas soumis. Pour l'imposer à un autre groupe ou à une autre personne, lui attribuer ce rôle. Une connexion par passkey (vérification de l'utilisateur exigée) ou par Google ou Facebook n'est pas soumise à cette exigence. Le rôle apparaît dans `realm_access.roles` du token.
+
 Les rôles `offline_access`, `uma_authorization` et les rôles techniques des clients Keycloak sont des rôles de fonctionnement Keycloak, pas des entitlements métier Hornet Finder.
 
 ### Point important sur l'héritage
@@ -169,6 +171,18 @@ Le nom du groupe montré dans l'application et dans les emails est sa **descript
 Keycloak (Groups → le groupe → *Description*, par exemple « Vedrin s'abeille ») ; sans
 description, c'est son nom technique (`vsab`).
 Les groupes de bénévoles ne sont pas concernés.
+
+Depuis *Administration → Mon groupe* (*Groupes* pour un administrateur de la plateforme),
+un administrateur de groupe voit la liste des membres, par leur nom (jamais leur
+adresse email), et peut en **retirer** un : le backend le retire du groupe Keycloak et
+de son sous-groupe `admin`, avec le même compte de service (`manage-users`). Nommer ou
+destituer un administrateur de groupe, et retirer un administrateur, est réservé aux
+administrateurs de la plateforme (le sous-groupe `<groupe>/admin` doit exister). Un
+groupe garde toujours au moins un administrateur, et personne ne se retire lui-même.
+Un retrait ou un changement de rôle atteint le jeton de la personne à son prochain
+renouvellement : au plus 60 minutes (durée du jeton d'accès). Renommer un groupe
+(sa description Keycloak) reste à la console Keycloak, en attendant un module
+d'administration de la plateforme.
 
 L'import de realm ne s'applique qu'à un realm neuf : sur un environnement existant, créez
 le sous-groupe `admin` à la main dans la console Keycloak et attribuez-lui `group-admin`.

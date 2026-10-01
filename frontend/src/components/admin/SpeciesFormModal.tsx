@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Alert, Button, Form, Spinner } from 'react-bootstrap';
-import { HelpTip } from '../common';
 import { AppModal } from '../ui';
 import { useAppDispatch } from '../../store/hooks';
 import { createSpecies, updateSpecies, type Species } from '../../store/store';
@@ -20,7 +19,6 @@ export default function SpeciesFormModal({ onHide, species = null }: SpeciesForm
   const [name, setName] = useState(species?.name ?? '');
   const [scientificName, setScientificName] = useState(species?.scientific_name ?? '');
   const [wikipediaUrl, setWikipediaUrl] = useState(species?.wikipedia_url ?? '');
-  const [sortOrder, setSortOrder] = useState(species?.sort_order ?? 0);
   const [photo, setPhoto] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +32,6 @@ export default function SpeciesFormModal({ onHide, species = null }: SpeciesForm
         name,
         scientific_name: scientificName,
         wikipedia_url: wikipediaUrl,
-        sort_order: sortOrder,
         photo,
       };
       if (species) {
@@ -95,18 +92,6 @@ export default function SpeciesFormModal({ onHide, species = null }: SpeciesForm
           placeholder="https://fr.wikipedia.org/wiki/…"
           value={wikipediaUrl}
           onChange={(event) => setWikipediaUrl(event.target.value)}
-        />
-      </Form.Group>
-
-      <Form.Group className="mb-3">
-        <Form.Label className="d-flex align-items-center">
-          Ordre d'affichage
-          <HelpTip id="sort-order-help" title="Ordre d'affichage">Les valeurs les plus basses apparaissent en premier.</HelpTip>
-        </Form.Label>
-        <Form.Control
-          type="number"
-          value={sortOrder}
-          onChange={(event) => setSortOrder(Number(event.target.value))}
         />
       </Form.Group>
 

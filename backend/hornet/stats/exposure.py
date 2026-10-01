@@ -1,9 +1,10 @@
 """
 Readings of the traps and the trapping effort behind them.
 
-A reading is a visit where the capture zone was counted and emptied: the catch
-events of one batch (a lone catch event on its own). Its catches accumulated
-over its exposure interval, which runs from the previous reading or
+A reading is a visit where the capture zone was counted: the catch events of
+one batch (a lone catch event on its own). Its catches are the new ones since
+the previous reading (what a trap that accumulates still held then is deducted,
+see `Trap.recompute_catches`); they accumulated over its exposure interval, which runs from the previous reading or
 installation of the trap to the reading itself; a removal ends the exposure.
 A reading with no known start (the first one after a removal, or more than
 `LOOK_AROUND` after the previous one: a forgotten trap) is kept as a point:

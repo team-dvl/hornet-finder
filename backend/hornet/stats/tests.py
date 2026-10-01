@@ -536,6 +536,34 @@ class CoverageTests(StatsTestCase):
         self.assertAlmostEqual(wide['coverage'], (0.5 / 2) ** 2, delta=0.0005)
         self.assertEqual(self.stat('traps-coverage', {**self.zone, 'reach': '300'}).status_code, 400)
 
+    def test_hexagons_cover_the_same_disc(self):
+        square = self.map('traps-coverage', self.zone)
+        hexagon = self.map('traps-coverage', {**self.zone, 'grid': 'hex'})
+        self.assertEqual(hexagon['parameters']['grid'], 'hex')
+        self.assertEqual(square['parameters']['grid'], 'square')
+        # The share of the zone covered does not depend on the shape of the cells
+        self.assertAlmostEqual(hexagon['summary']['coverage'], square['summary']['coverage'], delta=0.0002)
+        features = hexagon['cells']['features']
+        # A 500 m disc meets its own hexagon and the six around it, not more than the next ring
+        self.assertTrue(7 <= len(features) <= 19, len(features))
+        self.assertTrue(all(0 < f['properties']['covered'] <= 1 for f in features))
+        # Cells are hexagons: a closed ring of 7 points
+        self.assertTrue(all(len(f['geometry']['coordinates'][0]) == 7 for f in features))
+        self.assertIn('hexagones', dict(hexagon['notes'])['Maille'])
+
+    def test_every_hexagon_near_a_trap_is_found(self):
+        # Traps spread over the zone: the pairing by grid indices must meet
+        # every cell the discs reach, whatever the column parity
+        for k in range(12):
+            self.make_trap(latitude=50.5 + (k % 4 - 1.5) * 0.004, longitude=4.5 + (k // 4 - 1) * 0.006)
+        for reach in ('100', '250', '500'):
+            square = self.map('traps-coverage', {**self.zone, 'reach': reach})['summary']
+            hexagon = self.map('traps-coverage', {**self.zone, 'reach': reach, 'grid': 'hex'})['summary']
+            self.assertAlmostEqual(hexagon['covered_km2'], square['covered_km2'], delta=0.001)
+
+    def test_unknown_grid(self):
+        self.assertEqual(self.stat('traps-coverage', {**self.zone, 'grid': 'round'}).status_code, 400)
+
     def test_a_trap_outside_the_zone_covers_its_edge(self):
         # 2.1 km north of the centre: 150 m of its disc reach into the zone
         self.make_trap(latitude=50.5 + 2.1 / 111.2, longitude=4.5)
@@ -584,6 +612,16 @@ class PressureTests(StatsTestCase):
         efforts = [f['properties']['effort'] for f in data['cells']['features']]
         self.assertGreaterEqual(min(efforts), 7)
         self.assertLessEqual(max(efforts), 14.01)
+
+    def test_pressure_on_hexagons(self):
+        self.reading(self.trap, date(2025, 3, 15), 14)
+        data = self.stat('traps-pressure', {**self.zone, 'grid': 'hex'}).data
+        self.assertEqual(data['parameters']['grid'], 'hex')
+        self.assertAlmostEqual(data['summary']['rate'], 7, places=2)
+        features = data['cells']['features']
+        self.assertTrue(features)
+        self.assertTrue(all(abs(f['properties']['rate'] - 7) < 1e-6 for f in features))
+        self.assertTrue(all(len(f['geometry']['coordinates'][0]) == 7 for f in features))
 
     def test_no_effort_no_colour(self):
         data = self.stat('traps-pressure', self.zone).data

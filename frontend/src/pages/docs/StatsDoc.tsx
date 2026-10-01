@@ -82,7 +82,8 @@ export default function StatsDoc() {
           Couverture et pression
         </h5>
         <p>
-          Deux cartes en mailles de 250 m, sur la carte affichée ou sur une zone autour de vous.
+          Deux cartes en mailles de 6,25 ha, carrés de 250 m ou hexagones de même surface, sur la
+          carte affichée ou sur une zone autour de vous.
           La <strong>couverture</strong> donne la part du territoire à portée d&apos;un piège en
           service pendant la période : chaque piège couvre un disque de 100, 250 ou 500 m. Cette
           portée est une hypothèse de travail, pas une mesure. La <strong>pression</strong> lisse

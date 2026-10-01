@@ -137,11 +137,14 @@ function isReading(entry: TrapEvent[]): boolean {
 }
 
 /**
- * One visit: a small card per species found, with its count, then the actions
- * done at the same time. A reading without any catch says so in its title.
+ * One visit: a small card per species found, with its new catches, then the
+ * actions done at the same time. A reading without any catch says so in its
+ * title. In a trap that accumulates, a card also tells what the trap held when
+ * that differs from the new catches, and the entry whether it was emptied.
  */
-function VisitRow({ events, canDelete, onDelete, onPreview }: {
+function VisitRow({ events, accumulates, canDelete, onDelete, onPreview }: {
   events: TrapEvent[];
+  accumulates: boolean;
   canDelete: boolean;
   onDelete: (events: TrapEvent[]) => void;
   onPreview: (url: string) => void;
@@ -163,8 +166,9 @@ function VisitRow({ events, canDelete, onDelete, onPreview }: {
         onDelete={canDelete ? () => onDelete(events) : undefined}
       />
       <div className="journal-detail d-flex flex-wrap gap-2 mt-1">
-        {catches.filter((event) => (event.quantity ?? 0) > 0).map((event) => {
+        {catches.filter((event) => (event.quantity ?? 0) > 0 || (event.observed_quantity ?? 0) > 0).map((event) => {
           const photo = event.photos[0];
+          const held = event.observed_quantity ?? event.quantity;
           const thumbnail = photo?.thumbnail_url ?? event.species?.photo_thumbnail_url ?? null;
           const name = event.species?.name ?? '';
           return (
@@ -201,12 +205,23 @@ function VisitRow({ events, canDelete, onDelete, onPreview }: {
                 </Badge>
               </div>
               <div className="text-truncate" style={{ fontSize: '0.7rem' }} title={name}>{name}</div>
+              {held !== event.quantity && (
+                <div className="text-truncate text-muted" style={{ fontSize: '0.7rem' }}>
+                  {held} présent{(held ?? 0) > 1 ? 's' : ''}
+                </div>
+              )}
             </div>
           );
         })}
       </div>
-      {(actions.length > 0 || first.bycatch_counted === false) && (
+      {(actions.length > 0 || first.bycatch_counted === false || accumulates || first.emptied === false) && (
         <div className="journal-detail small text-muted d-flex flex-wrap column-gap-3 mt-1">
+          {(accumulates || first.emptied === false) && first.emptied !== null && (
+            <span>
+              <i className={`bi bi-${first.emptied ? 'arrow-counterclockwise' : 'stack'} me-1`} aria-hidden="true" />
+              {first.emptied ? 'Vidé' : 'Laissé en place'}
+            </span>
+          )}
           {actions.map((action) => {
             const actionInfo = eventKindInfo(action.kind);
             return (
@@ -222,6 +237,24 @@ function VisitRow({ events, canDelete, onDelete, onPreview }: {
       {comments.map((text) => <div key={text} className="journal-detail small mt-1">{text}</div>)}
     </div>
   );
+}
+
+/**
+ * What a trap that accumulates held at its last reading: what it was left
+ * with, or nothing once emptied, and when. Null when unknown (no reading yet,
+ * or the journal not loaded): the row is then left out.
+ */
+function lastContents(trap: Trap): { value: string; note?: string; at: string } | null {
+  const { contents } = trap;
+  if (contents) {
+    const total = contents.items.reduce((sum, item) => sum + item.quantity, 0);
+    const plural = total > 1 ? 's' : '';
+    return contents.others_counted
+      ? { value: `${total} insecte${plural}`, at: contents.at }
+      : { value: `${total} frelon${plural} asiatique${plural}`, note: 'autres non comptés', at: contents.at };
+  }
+  const lastReading = trap.events?.find((event) => event.kind === 'catch');
+  return lastReading ? { value: '0, vidé', at: lastReading.performed_at } : null;
 }
 
 /** Dialog shown in place of the sheet (one dialog at a time) */
@@ -261,6 +294,7 @@ export default function TrapInfoPopup({
   const entries = journalEntries(events);
   const mayEdit = canEditTrap(current);
   const mayAct = canActOnTrap(current);
+  const held = current.trap_type.accumulates ? lastContents(current) : null;
   const closeSub = () => setSub(null);
 
   const handleDelete = async () => {
@@ -336,6 +370,15 @@ export default function TrapInfoPopup({
 
         <div className="mb-2">
           <FieldRow label="Frelons asiatiques capturés"><strong>{current.hornet_catch_count}</strong></FieldRow>
+          {held && (
+            <FieldRow label="Dans le piège">
+              {held.value}
+              <span className="d-block small text-muted">
+                {held.note && `${held.note}, `}
+                <span className="text-nowrap">{formatDate(held.at)}</span>
+              </span>
+            </FieldRow>
+          )}
           <FieldRow label="Installé le">{formatDate(current.installed_at)}</FieldRow>
           {current.owner && <FieldRow label="Propriétaire">{current.owner.display_name}</FieldRow>}
           {current.tag_short && <FieldRow label="QR Code"><code>{current.tag_short}</code></FieldRow>}
@@ -413,6 +456,7 @@ export default function TrapInfoPopup({
                   <VisitRow
                     key={entry[0].id}
                     events={entry}
+                    accumulates={Boolean(current.trap_type.accumulates)}
                     canDelete={entry.every(canDeleteEvent)}
                     onDelete={(items) => setSub({ kind: 'delete-entry', entry: items })}
                     onPreview={preview}
