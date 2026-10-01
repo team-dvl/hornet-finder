@@ -74,7 +74,7 @@
 <body>
 <header class="doc">
   <h1>Administration de groupe – maquette (phone d'abord, 390 px)</h1>
-  <p>Maquette statique, aucune donnée réelle. Les noms sont fictifs. Écrans : aperçu des membres, fiche d'un membre, confirmation de retrait, invitations, journal.</p>
+  <p>Maquette statique, aucune donnée réelle. Les noms sont fictifs. Écrans : membres, fiche d'un membre, confirmation de retrait, invitations (phase 1) ; journal (phase 2). Nommer ou destituer un admin de groupe est réservé à l'admin de la plateforme.</p>
 </header>
 
 <div class="board">
@@ -86,12 +86,7 @@
       <div class="nav"><a class="back">‹ Administration</a><span class="cur">Vedrin s'abeille</span><span class="menu">☰</span></div>
       <div class="body">
         <p class="desc">Gérez les membres et les invitations de votre association.</p>
-        <div class="stats">
-          <div><b>14</b><span>membres</span></div>
-          <div><b>2</b><span>administrateurs</span></div>
-          <div><b>3</b><span>invitations</span></div>
-        </div>
-        <div class="seg"><span class="on">Membres</span><span>Invitations <small>3</small></span><span>Journal</span></div>
+        <div class="seg"><span class="on">Membres</span><span>Invitations <small>3</small></span><span>Journal <small>phase 2</small></span></div>
         <div class="row"><div class="av">MD</div><div class="grow"><div class="name">Marie Dupont</div><div class="sub">vous</div></div><span class="badge adm">Admin</span></div>
         <div class="row"><div class="av">JL</div><div class="grow"><div class="name">Jean Lambert</div></div><span class="badge adm">Admin</span><button class="ib" aria-label="Actions">⋯</button></div>
         <div class="row"><div class="av">AB</div><div class="grow"><div class="name">Anne Bastin</div></div><button class="ib" aria-label="Actions">⋯</button></div>
@@ -109,7 +104,7 @@
     <div class="phone">
       <div class="nav"><a class="back">‹ Administration</a><span class="cur">Vedrin s'abeille</span><span class="menu">☰</span></div>
       <div class="body">
-        <div class="seg"><span class="on">Membres</span><span>Invitations <small>3</small></span><span>Journal</span></div>
+        <div class="seg"><span class="on">Membres</span><span>Invitations <small>3</small></span><span>Journal <small>phase 2</small></span></div>
         <div class="row"><div class="av">MD</div><div class="grow"><div class="name">Marie Dupont</div></div><span class="badge adm">Admin</span></div>
         <div class="row"><div class="av">JL</div><div class="grow"><div class="name">Jean Lambert</div></div><span class="badge adm">Admin</span></div>
         <div class="row"><div class="av">AB</div><div class="grow"><div class="name">Anne Bastin</div></div></div>
@@ -120,7 +115,7 @@
           <div class="av">AB</div>
           <div class="grow"><h2>Anne Bastin</h2><div class="sub">Membre · a accepté l'invitation le 12 mars 2026</div></div>
         </div>
-        <button class="btn">Nommer administratrice<span class="help">?</span></button>
+        <button class="btn">Nommer administratrice <span class="badge">admin plateforme seulement</span></button>
         <button class="btn danger">Retirer du groupe</button>
       </div>
     </div>
@@ -132,7 +127,7 @@
     <div class="phone">
       <div class="nav"><a class="back">‹ Administration</a><span class="cur">Vedrin s'abeille</span><span class="menu">☰</span></div>
       <div class="body">
-        <div class="seg"><span class="on">Membres</span><span>Invitations <small>3</small></span><span>Journal</span></div>
+        <div class="seg"><span class="on">Membres</span><span>Invitations <small>3</small></span><span>Journal <small>phase 2</small></span></div>
         <div class="row"><div class="av">AB</div><div class="grow"><div class="name">Anne Bastin</div></div></div>
       </div>
       <div class="veil"></div>
@@ -152,7 +147,7 @@
     <div class="phone">
       <div class="nav"><a class="back">‹ Administration</a><span class="cur">Vedrin s'abeille</span><span class="menu">☰</span></div>
       <div class="body">
-        <div class="seg"><span>Membres</span><span class="on">Invitations <small>3</small></span><span>Journal</span></div>
+        <div class="seg"><span>Membres</span><span class="on">Invitations <small>3</small></span><span>Journal <small>phase 2</small></span></div>
         <input type="email" inputmode="email" placeholder="Adresse email complète" aria-label="Email">
         <button class="btn pri">Inviter</button>
         <div class="chips" style="margin-top:12px">
@@ -171,7 +166,7 @@
     <div class="phone">
       <div class="nav"><a class="back">‹ Administration</a><span class="cur">Vedrin s'abeille</span><span class="menu">☰</span></div>
       <div class="body log">
-        <div class="seg"><span>Membres</span><span>Invitations <small>3</small></span><span class="on">Journal</span></div>
+        <div class="seg"><span>Membres</span><span>Invitations <small>3</small></span><span class="on">Journal <small>phase 2</small></span></div>
         <div class="row"><div class="grow"><div class="name">Anne Bastin nommée admin</div><div class="sub">par Marie Dupont · 29 sept. 2026, 18:42</div></div></div>
         <div class="row"><div class="grow"><div class="name">Luc Martin invité</div><div class="sub">par Jean Lambert · 28 sept. 2026, 09:10</div></div></div>
         <div class="row"><div class="grow"><div class="name">Thomas Henry retiré</div><div class="sub">par Marie Dupont · 14 sept. 2026, 20:03</div></div></div>

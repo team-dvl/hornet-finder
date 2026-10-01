@@ -172,6 +172,18 @@ Keycloak (Groups → le groupe → *Description*, par exemple « Vedrin s'abeill
 description, c'est son nom technique (`vsab`).
 Les groupes de bénévoles ne sont pas concernés.
 
+Depuis *Administration → Mon groupe* (*Groupes* pour un administrateur de la plateforme),
+un administrateur de groupe voit la liste des membres, par leur nom (jamais leur
+adresse email), et peut en **retirer** un : le backend le retire du groupe Keycloak et
+de son sous-groupe `admin`, avec le même compte de service (`manage-users`). Nommer ou
+destituer un administrateur de groupe, et retirer un administrateur, est réservé aux
+administrateurs de la plateforme (le sous-groupe `<groupe>/admin` doit exister). Un
+groupe garde toujours au moins un administrateur, et personne ne se retire lui-même.
+Un retrait ou un changement de rôle atteint le jeton de la personne à son prochain
+renouvellement : au plus 60 minutes (durée du jeton d'accès). Renommer un groupe
+(sa description Keycloak) reste à la console Keycloak, en attendant un module
+d'administration de la plateforme.
+
 L'import de realm ne s'applique qu'à un realm neuf : sur un environnement existant, créez
 le sous-groupe `admin` à la main dans la console Keycloak et attribuez-lui `group-admin`.
 

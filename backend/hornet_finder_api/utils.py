@@ -237,6 +237,38 @@ def add_user_to_group(guid: str, group_id: str) -> None:
     _get_keycloak_admin().group_user_add(guid, group_id)
 
 
+def get_group_members(group_id: str, limit: int = 1000) -> list:
+    """
+    The direct members of a Keycloak group (not those of its subgroups).
+
+    Keycloak pages the answer; groups here hold a few dozen people, so `limit`
+    is only a ceiling against a runaway loop.
+
+    :return: User representations (`id`, `firstName`, `lastName`, ...).
+    :raises Exception: Any Keycloak failure, left to the caller.
+    """
+    keycloak_admin = _get_keycloak_admin()
+    members = []
+    page = 100
+    while len(members) < limit:
+        batch = keycloak_admin.get_group_members(
+            group_id, {'first': len(members), 'max': page, 'briefRepresentation': 'true'})
+        members.extend(batch)
+        if len(batch) < page:
+            break
+    return members
+
+
+def remove_user_from_group(guid: str, group_id: str) -> None:
+    """
+    Remove a user from a Keycloak group (idempotent).
+    Requires the `manage-users` role on the backend service account.
+
+    :raises Exception: Any Keycloak failure, left to the caller.
+    """
+    _get_keycloak_admin().group_user_remove(guid, group_id)
+
+
 def set_user_picture(guid: str, url: Optional[str]) -> None:
     """
     Set (or remove, with `url=None`) the `picture` attribute of a Keycloak user.

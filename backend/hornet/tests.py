@@ -2117,6 +2117,8 @@ class _FakeKeycloak:
         self.down = False
         self.lookups = 0
         self.added = []
+        self.members = {}       # group id -> list of user representations
+        self.removed = []
 
     def _check(self):
         if self.down:
@@ -2141,6 +2143,17 @@ class _FakeKeycloak:
     def add_user_to_group(self, guid, group_id):
         self._check()
         self.added.append((guid, group_id))
+        if guid not in {m['id'] for m in self.members.get(group_id, [])}:
+            self.members.setdefault(group_id, []).append({'id': guid})
+
+    def get_group_members(self, group_id, limit=1000):
+        self._check()
+        return list(self.members.get(group_id, []))
+
+    def remove_user_from_group(self, guid, group_id):
+        self._check()
+        self.removed.append((guid, group_id))
+        self.members[group_id] = [m for m in self.members.get(group_id, []) if m['id'] != guid]
 
     def get_user_display_name(self, guid, allow_email=True):
         assert not allow_email, 'invitations must never show an email address'
@@ -2172,7 +2185,7 @@ class GroupInvitationTestCase(TestCase):
         self.kc = _FakeKeycloak()
         for name in ('find_active_user_by_email', 'get_group_by_path', 'get_child_groups',
                      'get_user_group_paths', 'add_user_to_group', 'get_user_display_name',
-                     'get_active_user_email'):
+                     'get_active_user_email', 'get_group_members', 'remove_user_from_group'):
             patcher = patch(f'hornet_finder_api.utils.{name}', side_effect=getattr(self.kc, name))
             patcher.start()
             self.addCleanup(patcher.stop)
@@ -2676,3 +2689,115 @@ class KeycloakInvitationHelperTests(TestCase):
             add_user_to_group('guid', 'gid')
         admin.get_group_children.assert_called_once_with('root', {'briefRepresentation': 'false'})
         admin.group_user_add.assert_called_once_with('guid', 'gid')
+
+
+from .group_views import GroupViewSet
+
+_ENA_ADMIN = f'{_ENA}/admin'
+
+
+class GroupMembersTests(GroupInvitationTestCase):
+    """Members of a group: listing, removal, and naming or dismissing administrators."""
+
+    def setUp(self):
+        super().setUp()
+        self.kc.groups[_ENA_ADMIN] = {'id': 'gid-ena-admin', 'path': _ENA_ADMIN, 'name': 'admin',
+                                      'attributes': {}}
+        # `aga` administers ena and is listed in its admin subgroup only; `member` and `bee` are
+        # direct members; `second` is a direct member and a second administrator
+        self.bee = self._user(['beekeeper'], [_ENA])
+        self.second = self._user(['beekeeper'], [_ENA, _ENA_ADMIN])
+        self.kc.members['gid-ena'] = [
+            {'id': self.member.guid, 'firstName': 'Anne', 'lastName': 'Bastin'},
+            {'id': self.bee.guid, 'firstName': '', 'lastName': ''},
+            {'id': self.second.guid, 'firstName': 'Zoé', 'lastName': 'Zimmer'},
+        ]
+        self.kc.members['gid-ena-admin'] = [
+            {'id': self.aga.guid, 'firstName': 'Jean', 'lastName': 'Lambert'},
+            {'id': self.second.guid, 'firstName': 'Zoé', 'lastName': 'Zimmer'},
+        ]
+
+    def _members(self, user, group=_ENA):
+        return self._call(GroupViewSet, 'get', f'/api/groups/members/?group_path={group}',
+                          {'get': 'members'}, user)
+
+    def _remove(self, target, user, group=_ENA):
+        return self._call(GroupViewSet, 'delete', f'/api/groups/members/{target.guid}/?group_path={group}',
+                          {'delete': 'member'}, user, guid=target.guid)
+
+    def _name(self, target, user, group=_ENA):
+        return self._call(GroupViewSet, 'put', f'/api/groups/members/{target.guid}/admin/?group_path={group}',
+                          {'put': 'member_admin', 'delete': 'dismiss_admin'}, user, guid=target.guid)
+
+    def _dismiss(self, target, user, group=_ENA):
+        return self._call(GroupViewSet, 'delete', f'/api/groups/members/{target.guid}/admin/?group_path={group}',
+                          {'put': 'member_admin', 'delete': 'dismiss_admin'}, user, guid=target.guid)
+
+    def test_the_roster_unites_both_groups_with_administrators_first(self):
+        response = self._members(self.aga)
+        self.assertEqual(response.status_code, 200)
+        rows = response.data['members']
+        self.assertEqual([r['name'] for r in rows], ['Jean Lambert', 'Zoé Zimmer', 'Anne Bastin', None])
+        self.assertEqual([r['is_admin'] for r in rows], [True, True, False, False])
+        self.assertEqual([r['is_self'] for r in rows], [True, False, False, False])
+        self.assertTrue(response.data['has_admin_group'])
+        self.assertNotIn('email', str(response.data))
+
+    def test_only_administrators_of_the_group_read_its_members(self):
+        self.assertEqual(self._members(self.member).status_code, 403)
+        self.assertEqual(self._members(self.aga, _VSAB).status_code, 403)
+        self.assertEqual(self._members(self.admin).status_code, 200)
+
+    def test_a_group_admin_removes_a_member(self):
+        self.assertEqual(self._remove(self.member, self.aga).status_code, 204)
+        self.assertEqual(self.kc.removed, [(str(self.member.guid), 'gid-ena')])
+
+    def test_a_group_admin_cannot_remove_an_administrator_or_themselves(self):
+        refused = self._remove(self.second, self.aga)
+        self.assertEqual((refused.status_code, refused.data['code']), (403, 'admin_member'))
+        own = self._remove(self.aga, self.aga)
+        self.assertEqual((own.status_code, own.data['code']), (409, 'self'))
+        self.assertEqual(self.kc.removed, [])
+
+    def test_a_platform_admin_removes_an_administrator_from_both_groups(self):
+        self.assertEqual(self._remove(self.second, self.admin).status_code, 204)
+        self.assertEqual(set(self.kc.removed),
+                         {(str(self.second.guid), 'gid-ena-admin'), (str(self.second.guid), 'gid-ena')})
+
+    def test_the_last_administrator_cannot_be_removed(self):
+        self.kc.members['gid-ena-admin'] = [{'id': self.second.guid}]
+        response = self._remove(self.second, self.admin)
+        self.assertEqual((response.status_code, response.data['code']), (409, 'last_admin'))
+
+    def test_removing_a_stranger_is_not_found(self):
+        self.assertEqual(self._remove(self.volunteer_admin, self.aga).status_code, 404)
+
+    def test_naming_an_administrator_is_for_platform_admins(self):
+        self.assertEqual(self._name(self.member, self.aga).status_code, 403)
+        response = self._name(self.member, self.admin)
+        self.assertEqual((response.status_code, response.data['is_admin']), (200, True))
+        self.assertEqual(self.kc.added, [(str(self.member.guid), 'gid-ena-admin')])
+        again = self._name(self.second, self.admin)
+        self.assertEqual((again.status_code, again.data['code']), (409, 'already_admin'))
+
+    def test_naming_needs_an_admin_subgroup(self):
+        del self.kc.groups[_ENA_ADMIN]
+        response = self._name(self.member, self.admin)
+        self.assertEqual((response.status_code, response.data['code']), (409, 'no_admin_group'))
+
+    def test_dismissing_is_for_platform_admins_and_keeps_one_administrator(self):
+        self.assertEqual(self._dismiss(self.second, self.aga).status_code, 403)
+        self.assertEqual(self._dismiss(self.second, self.admin).status_code, 200)
+        self.assertEqual(self.kc.removed, [(str(self.second.guid), 'gid-ena-admin')])
+        last = self._dismiss(self.aga, self.admin)
+        self.assertEqual((last.status_code, last.data['code']), (409, 'last_admin'))
+
+    def test_dismissing_an_administrator_listed_only_in_admin_keeps_the_membership(self):
+        self._name(self.member, self.admin)
+        response = self._dismiss(self.aga, self.admin)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn((str(self.aga.guid), 'gid-ena'), self.kc.added)
+
+    def test_a_keycloak_failure_is_a_503(self):
+        self.kc.down = True
+        self.assertEqual(self._members(self.admin).status_code, 503)

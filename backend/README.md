@@ -91,6 +91,10 @@ An administrator of a beekeeper group (member of `/beekeepers/<id>/admin`) or a 
 - `DELETE /api/group-invitations/{id}/` - Withdraw a pending invitation (any administrator of its group)
 
 The emails use the layout of the Keycloak email theme (`auth/themes/velutina/email/html/template.ftl`), read at sending time from `EMAIL_THEME_DIR` (the theme folder, mounted read-only by both compose files): no copy of the HTML, the logo travels inline (`cid:`). `hornet/emails.py` resolves the four FreeMarker expressions the layout uses and refuses any other, which the tests catch; without the theme, the email goes as plain text.
+- `GET /api/groups/` - The beekeeper groups the caller administers (`path`, `name`), every one for a platform admin
+- `GET /api/groups/members/?group_path=` - Members of a group, administrators first: `guid`, `name` (first and last name, `null` without one, never an email), `is_admin`, `is_self`; `has_admin_group` tells whether the group has its `admin` subgroup in Keycloak
+- `DELETE /api/groups/members/{guid}/?group_path=` - Remove a member from the group and its `admin` subgroup. Errors carry a `code`: `self` (409), `admin_member` (403, only a platform admin removes an administrator), `last_admin` (409). The change reaches the member's token at its next refresh (access tokens last 60 minutes)
+- `PUT|DELETE /api/groups/members/{guid}/admin/?group_path=` - Name or dismiss a group administrator (platform admins only, 403 otherwise). Errors carry a `code`: `already_admin`, `not_admin`, `no_admin_group`, `last_admin` (409). A dismissed administrator listed only in `admin` stays a member
 - `GET /api/me/group-invitations/` - Pending invitations of the caller
 - `POST /api/me/group-invitations/{id}/accept/`, `POST /api/me/group-invitations/{id}/decline/` - Answer one; the new membership shows in the next token
 

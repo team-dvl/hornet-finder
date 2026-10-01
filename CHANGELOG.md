@@ -11,11 +11,21 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ## [Unreleased]
 
 ### Added
+- Group administration (Administration → Mon groupe, "Groupes" for platform admins):
+  the members of a beekeeper group, listed by name, and the invitations, now in a
+  second tab. An administrator of the group removes a member; naming or dismissing
+  an administrator, and removing one, is for platform admins, and a group always
+  keeps at least one administrator. A removal reaches the person's connection
+  within the hour at most.
 - The coverage and pressure maps can be drawn on hexagons instead of 250 m
   squares ("Maille" selector under the map, `grid=hex` in the API): cells of the
   same area (6.25 ha), six neighbours at the same distance, same totals.
 - Species can be reordered by an administrator (Administration → Espèces, "Ordre"
   button): move up / move down on each row. New species are added at the end.
+
+### Changed
+- The invitations page moved to Administration → Mon groupe (`/admin/group`); the
+  old `/admin/invitations` address redirects there.
 
 ### Removed
 - The "display order" number of the species form, replaced by the move buttons.

@@ -39,11 +39,18 @@ const SECTIONS: AdminSection[] = [
     roles: ['admin'],
   },
   {
-    title: 'Invitations',
-    description: 'Invitez des apiculteurs à rejoindre une association.',
-    icon: 'bi-person-plus',
-    to: '/admin/invitations',
-    roles: ['admin', 'beekeeper'],
+    title: 'Groupes',
+    description: "Gérez les membres et les invitations des associations d'apiculteurs.",
+    icon: 'bi-people',
+    to: '/admin/group',
+    roles: ['admin'],
+  },
+  {
+    title: 'Mon groupe',
+    description: 'Gérez les membres et les invitations de votre association.',
+    icon: 'bi-people',
+    to: '/admin/group',
+    roles: ['beekeeper'],
     beekeeperGroupAdmins: true,
   },
   {
