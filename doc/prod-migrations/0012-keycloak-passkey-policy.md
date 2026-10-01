@@ -1,4 +1,4 @@
-status: pending
+status: applied (2026-10-01)
 
 # Politique passkey : vérification de l'utilisateur (`devel`)
 

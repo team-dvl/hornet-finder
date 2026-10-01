@@ -1,4 +1,4 @@
-status: pending
+status: applied (2026-10-01)
 
 # Politique de mot de passe, protection contre la force brute et e-mail Facebook (`devel`)
 

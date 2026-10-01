@@ -1,4 +1,4 @@
-status: pending
+status: applied (2026-10-01)
 
 # PKCE `S256` imposé sur le client de l'application (`devel`)
 

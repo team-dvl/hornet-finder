@@ -1,4 +1,4 @@
-status: pending
+status: applied (2026-10-01)
 
 # Keycloak: "Back to application" link on the info pages (`devel`)
 

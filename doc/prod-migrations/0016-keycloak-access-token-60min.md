@@ -1,4 +1,4 @@
-status: pending
+status: applied (2026-10-01)
 
 # Jeton d'accès de 60 minutes au lieu de 3 heures (`devel`)
 

@@ -1,4 +1,4 @@
-status: pending
+status: applied (2026-10-01)
 
 # Second facteur obligatoire pour les administrateurs (`devel`)
 
