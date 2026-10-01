@@ -10,7 +10,7 @@ Hornet Finder provides a complete solution for hornet detection and tracking wit
 - **Nest Management**: Track nest locations, destruction status, and related information
 - **Apiary Monitoring**: Monitor beehive infestation levels with geographic data
 - **Geospatial Analysis**: PostGIS-powered spatial queries and proximity analysis
-- **Role-based Access**: Multi-tier user system (admin, beekeeper, volunteer)
+- **Role-based Access**: One role per trade (admin, beekeeper, nest hunter, trapper)
 - **Google Authentication**: Secure OAuth-based user authentication
 - **Real-time Updates**: Live data synchronization across users
 - **Mobile-friendly**: Responsive design for field data collection
@@ -138,8 +138,11 @@ hornet-finder/
 ### User Roles
 
 1. **Admin**: Full system administration and user management
-2. **Beekeeper**: Professional beekeepers with enhanced data access
-3. **Volunteer**: Community members with basic reporting capabilities
+2. **Beekeeper**: Apiaries, their traps, hornet sightings at the hives
+3. **Hunter**: Nest hunters: hornet sightings and releases, every nest
+4. **Trapper**: Trap campaign participants (default role of a new account): traps, nest reports
+
+See `doc/KEYCLOAK_USERS_GROUPS.md`.
 
 ## Installation
 

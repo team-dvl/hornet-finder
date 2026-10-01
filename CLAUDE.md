@@ -28,7 +28,7 @@
 ## Project-Specific Conventions
 - **No Local Registration**: Users ONLY authenticate via Keycloak (auth.velutina.ovh for prod, auth.dev.velutina.ovh for dev). No passwords/emails stored in app
 - **Geospatial First**: All location data uses PostGIS `PointField` (EPSG:4326). Base pattern: `GeolocatedModel` abstract class auto-generates `point` field from `latitude`/`longitude`
-- **Role-Based Access**: 3 roles (`admin`, `beekeeper`, `volunteer`) + group-based permissions. See `auth/realm-export.json` and `backend/hornet/models.py` (`BeekeeperGroup`, `ApiaryGroupPermission`)
+- **Role-Based Access**: 4 roles, one per trade (`admin`, `beekeeper`, `hunter` = nest hunters, `trapper` = trap campaign, default role), names in `backend/hornet_finder_api/roles.py` and `frontend/src/utils/roles.ts`, + group-based permissions. Traps are only delegated to beekeeper associations (`/beekeepers/<id>`). See `doc/KEYCLOAK_USERS_GROUPS.md`, `auth/realm-export.json` and `backend/hornet/models.py` (`BeekeeperGroup`, `ApiaryGroupPermission`)
 - **JWT Auth Pattern**: Custom `JWTBearerAuthentication` validates Keycloak tokens. API endpoints use `HasAnyRole` permission class
 - **PWA Auth**: Service worker (`frontend/src/sw-auth-extension.js`) manages token lifecycle, auto-refresh, offline state
 - **Environment Variables**: one `.env` per worktree, from `.env.example` (dev profile active, prod profile commented). Besides secrets it holds `COMPOSE_FILE`, the volume names (`API_DB_VOLUME`, `KEYCLOAK_DB_VOLUME`, `FRONTEND_DIST_VOLUME`: single source of truth for the compose overlay AND the scripts) and `ZFS_PARENT`

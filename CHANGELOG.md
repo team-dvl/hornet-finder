@@ -10,6 +10,27 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 
 ## [Unreleased]
 
+### Changed
+- One role per trade. `volunteer` is split: nest hunters (`hunter`, the former
+  role renamed) record hornet sightings and releases and see every nest;
+  trappers (`trapper`, new, the role of every new account) own traps and print
+  their QR Codes, report nests and see the destroyed ones plus their own.
+  Beekeepers keep sightings, traps and every nest. Statistics are open to all
+  four roles. Tokens still carrying `volunteer` count as both trades until the
+  next release. Prod: note 0018.
+- A trap can only be delegated to a beekeeper association (`/beekeepers/<id>`),
+  platform admins included: a trapper outside any association has no
+  delegation, and the "Délégués" scope is only offered to association members.
+
+### Added
+- `GET /api/nests/my/`: the nests the requester reported.
+- Coordinators of the trappers (`/trappers/admin`): Administration → Piégeurs
+  lists every trapper by name; removing a trapper, who loses the role, is left
+  to platform admins.
+
+### Fixed
+- The delegation endpoint accepted any group path from a platform admin.
+
 ## [1.1.0] - 2026-10-01
 
 ### Added

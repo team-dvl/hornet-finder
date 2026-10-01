@@ -26,6 +26,9 @@ if [[ -z "${KC_TEST_CLIENT_ID:-}" || -z "${KC_TEST_CLIENT_SECRET:-}" ]]; then
     exit 1
 fi
 BASE="https://${HOST}/api"
+# Beekeeper association of t-owner, t-member and t-groupadmin (admin subgroup):
+# the only kind of group a trap can be delegated to
+GROUP="/beekeepers/bkp-group-c"
 AUTH="https://${KC_HOSTNAME}/realms/hornet-finder-dev/protocol/openid-connect/token"
 PASS=0; FAIL=0
 OUT="$(mktemp)"; trap 'rm -f "$OUT"' EXIT
@@ -94,8 +97,9 @@ echo "== Avant délégation"
 call 403 "t-member ne peut pas agir (pas encore délégué)" POST "/traps/$TRAP/events/" "${H_MEMBER[@]}" -F "kind=inspection" -F "performed_at=$(date -Is)"
 
 echo "== Délégation"
-call 403 "t-member ne peut pas déléguer"                PUT "/traps/$TRAP/delegation/" "${H_MEMBER[@]}" -H "Content-Type: application/json" -d '{"group_path":"/volunteers/vol-group-a"}'
-call 200 "t-owner délègue à son groupe"                 PUT "/traps/$TRAP/delegation/" "${H_OWNER[@]}" -H "Content-Type: application/json" -d '{"group_path":"/volunteers/vol-group-a"}'
+call 403 "t-member ne peut pas déléguer"                PUT "/traps/$TRAP/delegation/" "${H_MEMBER[@]}" -H "Content-Type: application/json" -d "{\"group_path\":\"$GROUP\"}"
+call 200 "t-owner délègue à son groupe"                 PUT "/traps/$TRAP/delegation/" "${H_OWNER[@]}" -H "Content-Type: application/json" -d "{\"group_path\":\"$GROUP\"}"
+call 403 "t-owner ne délègue pas à /trappers"          PUT "/traps/$TRAP/delegation/" "${H_OWNER[@]}" -H "Content-Type: application/json" -d '{"group_path":"/trappers"}'
 call 403 "t-owner ne peut pas déléguer hors de ses groupes" PUT "/traps/$TRAP/delegation/" "${H_OWNER[@]}" -H "Content-Type: application/json" -d '{"group_path":"/beekeepers/bkp-group-a"}'
 call 201 "t-member agit une fois délégué"               POST "/traps/$TRAP/events/" "${H_MEMBER[@]}" -F "kind=cleaning" -F "performed_at=$(date -Is)"
 call 403 "t-member ne peut pas modifier le piège"       PATCH "/traps/$TRAP/" "${H_MEMBER[@]}" -H "Content-Type: application/json" -d '{"comments":"non"}'
@@ -103,7 +107,7 @@ call 200 "t-groupadmin retire la délégation"            DELETE "/traps/$TRAP/d
 call 403 "t-member ne peut plus agir"                   POST "/traps/$TRAP/events/" "${H_MEMBER[@]}" -F "kind=inspection" -F "performed_at=$(date -Is)"
 
 echo "== Visibilité de groupe"
-call 200 "t-owner re-délègue en visibilité groupe"      PUT "/traps/$TRAP/delegation/" "${H_OWNER[@]}" -H "Content-Type: application/json" -d '{"group_path":"/volunteers/vol-group-a","visibility":"group"}'
+call 200 "t-owner re-délègue en visibilité groupe"      PUT "/traps/$TRAP/delegation/" "${H_OWNER[@]}" -H "Content-Type: application/json" -d "{\"group_path\":\"$GROUP\",\"visibility\":\"group\"}"
 ANON=$(curl -sk "$BASE/traps/?lat=50.47&lon=4.87&radius=1" | python3 -c "import sys,json;print(len(json.load(sys.stdin)))")
 if [ "$ANON" = "0" ]; then PASS=$((PASS+1)); echo "  ok   invisible pour un visiteur anonyme"; else FAIL=$((FAIL+1)); echo "  FAIL visible anonymement ($ANON résultat(s))"; fi
 SEEN=$(curl -sk "$BASE/traps/?lat=50.47&lon=4.87&radius=1" "${H_MEMBER[@]}" | python3 -c "import sys,json;print(len(json.load(sys.stdin)))")

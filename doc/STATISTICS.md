@@ -295,7 +295,7 @@ vide quand on ne peut plus compter de façon fiable. Ces pièges ne sont pas vid
 ## 6. Accès et confidentialité
 
 - Le module est réservé aux personnes connectées :
-  `requiredRoles: ['admin', 'volunteer', 'beekeeper']` dans `config/modules.ts`
+  `requiredRoles: APP_ROLES` dans `config/modules.ts`
   (comme l'administration) ; l'API exige `HasAnyRole` sur ces trois rôles.
 - Un piège est souvent posé au rucher : sa position révèle celle du rucher, que
   le module ruchers réserve aux apiculteurs. D'où deux régimes, selon que le
@@ -332,7 +332,7 @@ Nouvelle app Django `stats` (ou paquet `hornet/stats/`), organisée en registre 
 class Statistic:
     id = 'traps-catches'
     title = 'Captures de frelons asiatiques'
-    required_roles = ('admin', 'volunteer', 'beekeeper')
+    required_roles = APP_ROLES  # hornet_finder_api/roles.py
     localized = False  # True: only traps readable by the requester (see §6)
     filters = ('period', 'granularity', 'trap_type', 'group', 'mine', 'zone')
     charts = ({'type': 'bar+line', 'x': 'bucket', 'y': ['catches', 'cpue_week']},)

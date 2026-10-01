@@ -7,7 +7,7 @@ This directory contains the Keycloak authentication server configuration for the
 The authentication service is built on Keycloak 26.7 and provides:
 
 - **User Authentication**: Secure login/logout functionality with JWT tokens
-- **Role-based Access Control**: Multi-tier user roles (admin, beekeeper, volunteer)
+- **Role-based Access Control**: One role per trade (admin, beekeeper, hunter, trapper)
 - **OAuth 2.0/OpenID Connect**: Standard protocol support for secure API access
 - **Google Authentication Provider**: Google is configured as the primary authentication provider
 - **External Identity Provider**: No local user registration or password-based authentication
@@ -23,11 +23,12 @@ The authentication service is built on Keycloak 26.7 and provides:
 
 ### User Roles
 
-The system defines three main user roles:
+The system defines four user roles, one per trade (see `doc/KEYCLOAK_USERS_GROUPS.md`):
 
 1. **Admin**: Full system administration privileges
 2. **Beekeeper**: Beekeepers with enhanced permissions
-3. **Volunteer**: Community volunteers with basic reporting permissions
+3. **Hunter**: Nest hunters (hornet sightings and releases, every nest)
+4. **Trapper**: Trap campaign participants, default role of a new account (`/trappers` is the default group)
 
 ## Files Description
 
