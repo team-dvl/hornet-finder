@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Badge, Button, Spinner } from 'react-bootstrap';
+import { Accordion, Alert, Badge, Button, Spinner } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
@@ -242,19 +242,19 @@ function VisitRow({ events, accumulates, canDelete, onDelete, onPreview }: {
 /**
  * What a trap that accumulates held at its last reading: what it was left
  * with, or nothing once emptied, and when. Null when unknown (no reading yet,
- * or the journal not loaded): the row is then left out.
+ * or the journal not loaded): the tile is then left out.
  */
-function lastContents(trap: Trap): { value: string; note?: string; at: string } | null {
+function lastContents(trap: Trap): { count: number; unit: string; note?: string; at: string } | null {
   const { contents } = trap;
   if (contents) {
     const total = contents.items.reduce((sum, item) => sum + item.quantity, 0);
     const plural = total > 1 ? 's' : '';
     return contents.others_counted
-      ? { value: `${total} insecte${plural}`, at: contents.at }
-      : { value: `${total} frelon${plural} asiatique${plural}`, note: 'autres non comptés', at: contents.at };
+      ? { count: total, unit: `insecte${plural}`, at: contents.at }
+      : { count: total, unit: `frelon${plural} asiatique${plural}`, note: 'autres non comptés', at: contents.at };
   }
   const lastReading = trap.events?.find((event) => event.kind === 'catch');
-  return lastReading ? { value: '0, vidé', at: lastReading.performed_at } : null;
+  return lastReading ? { count: 0, unit: 'vidé', at: lastReading.performed_at } : null;
 }
 
 /** Dialog shown in place of the sheet (one dialog at a time) */
@@ -278,6 +278,7 @@ export default function TrapInfoPopup({
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [journalLength, setJournalLength] = useState(JOURNAL_PAGE);
+  const [moreButton, setMoreButton] = useState<HTMLButtonElement | null>(null);
 
   // The list only carries a summary; the journal comes with the detail
   useEffect(() => {
@@ -286,12 +287,28 @@ export default function TrapInfoPopup({
     }
   }, [show, trap, auth.isAuthenticated, dispatch]);
 
-  if (!trap) return null;
-
   // Prefer the detailed copy once it has arrived
-  const current = detailed?.id === trap.id ? detailed : trap;
-  const events = current.events ?? [];
+  const current = detailed && detailed.id === trap?.id ? detailed : trap;
+  const events = current?.events ?? [];
   const entries = journalEntries(events);
+  const showMore = () => setJournalLength((length) => length + JOURNAL_PAGE);
+  const hasMore = entries.length > journalLength;
+
+  // The journal grows as its foot comes into view (the dialog body is the only
+  // scrolling box); the button stays as the manual way. A new observer fires at
+  // once, so a foot still in view after a batch loads the next one.
+  useEffect(() => {
+    if (!moreButton || !hasMore) return undefined;
+    const observer = new IntersectionObserver(
+      (observed) => { if (observed.some((item) => item.isIntersecting)) setJournalLength((length) => length + JOURNAL_PAGE); },
+      { rootMargin: '200px' },
+    );
+    observer.observe(moreButton);
+    return () => observer.disconnect();
+  }, [moreButton, hasMore, journalLength]);
+
+  if (!trap || !current) return null;
+
   const mayEdit = canEditTrap(current);
   const mayAct = canActOnTrap(current);
   const held = current.trap_type.accumulates ? lastContents(current) : null;
@@ -357,129 +374,150 @@ export default function TrapInfoPopup({
       >
         {error && <Alert variant="danger">{error}</Alert>}
 
-        {current.photo_url && (
-          <img
-            src={current.photo_url}
-            alt="Photo du piège"
-            role="button"
-            onClick={() => preview(current.photo_url!)}
-            className="w-100 mb-2 rounded"
-            style={{ maxHeight: 160, objectFit: 'cover' }}
-          />
-        )}
-
-        <div className="mb-2">
-          <FieldRow label="Frelons asiatiques capturés"><strong>{current.hornet_catch_count}</strong></FieldRow>
-          {held && (
-            <FieldRow label="Dans le piège">
-              {held.value}
-              <span className="d-block small text-muted">
-                {held.note && `${held.note}, `}
-                <span className="text-nowrap">{formatDate(held.at)}</span>
-              </span>
-            </FieldRow>
+        <div className="trap-kpis mb-2">
+          {current.photo_url && (
+            <img
+              src={current.photo_url}
+              alt="Photo du piège"
+              role="button"
+              onClick={() => preview(current.photo_url!)}
+              className="trap-thumb"
+            />
           )}
-          <FieldRow label="Installé le">{formatDate(current.installed_at)}</FieldRow>
-          {current.owner && <FieldRow label="Propriétaire">{current.owner.display_name}</FieldRow>}
-          {current.tag_short && <FieldRow label="QR Code"><code>{current.tag_short}</code></FieldRow>}
-          {current.address && (
-            <div className="text-muted small mt-1 d-flex gap-1">
-              <i className="bi bi-geo-alt flex-shrink-0" aria-hidden="true" />
-              <ClampedText id={`trap-${current.id}-address`} text={current.address} lines={2} />
+          {held && (
+            <div className="trap-kpi trap-kpi-hot">
+              <div className="trap-kpi-value">{held.count}</div>
+              <div className="trap-kpi-label">Dans le piège</div>
+              <div className="trap-kpi-note">
+                {held.unit}
+                {held.note && `, ${held.note}`}
+                {' · '}
+                <span className="text-nowrap">{formatDate(held.at)}</span>
+              </div>
             </div>
           )}
-          {current.comments && <p className="small mt-1 mb-0">{current.comments}</p>}
+          <div className={`trap-kpi${held ? '' : ' trap-kpi-hot'}`}>
+            <div className="trap-kpi-value">{current.hornet_catch_count}</div>
+            <div className="trap-kpi-label">
+              <span className="me-1" aria-hidden="true">🐝</span>
+              Frelons capturés
+            </div>
+          </div>
         </div>
 
+        {auth.isAuthenticated && (mayAct || mayEdit || canAddHere || onLocate) && (
+          <SheetActions
+            className="mb-2"
+            more={[
+              mayEdit && { icon: ACTION_ICONS.move, label: 'Déplacer', onClick: handleMove },
+              mayEdit && { icon: ACTION_ICONS.edit, label: 'Modifier', onClick: () => setSub({ kind: 'edit' }) },
+              canAddHere && {
+                icon: ACTION_ICONS.addHere,
+                label: 'Ajouter à cette position',
+                onClick: () => onAddAtLocation(current.latitude, current.longitude),
+              },
+              mayEdit && { icon: ACTION_ICONS.delete, label: 'Supprimer', tone: 'danger', onClick: () => setSub({ kind: 'delete' }) },
+            ]}
+          >
+            {mayAct && (
+              <>
+                <Button
+                  variant="primary"
+                  onClick={() => setSub({ kind: 'event', eventKind: 'catch' })}
+                  aria-label="Enregistrer un relevé"
+                >
+                  <span className="me-2" aria-hidden="true">🐝</span>
+                  Relevé
+                </Button>
+                <IconButton
+                  variant="outline-primary"
+                  icon={ACTION_ICONS.action}
+                  label="Ajouter une action"
+                  onClick={() => setSub({ kind: 'event', eventKind: 'inspection' })}
+                />
+              </>
+            )}
+            {onLocate && (
+              <IconButton
+                variant="outline-secondary"
+                icon={ACTION_ICONS.showOnMap}
+                label="Voir sur la carte"
+                onClick={() => onLocate(current)}
+              />
+            )}
+          </SheetActions>
+        )}
+
+        {auth.isAuthenticated && <TrapDelegationPanel trap={current} />}
+
+        <Accordion className="mt-2">
+          <Accordion.Item eventKey="details">
+            <Accordion.Header>
+              <i className="bi bi-info-circle me-2" aria-hidden="true" />
+              Détails
+            </Accordion.Header>
+            <Accordion.Body>
+              <FieldRow label="Installé le">{formatDate(current.installed_at)}</FieldRow>
+              {current.owner && <FieldRow label="Propriétaire">{current.owner.display_name}</FieldRow>}
+              {current.tag_short && <FieldRow label="QR Code"><code>{current.tag_short}</code></FieldRow>}
+              {current.address && (
+                <div className="text-muted small mt-1 d-flex gap-1">
+                  <i className="bi bi-geo-alt flex-shrink-0" aria-hidden="true" />
+                  <ClampedText id={`trap-${current.id}-address`} text={current.address} lines={2} />
+                </div>
+              )}
+              {current.comments && <p className="small mt-1 mb-0">{current.comments}</p>}
+            </Accordion.Body>
+          </Accordion.Item>
+        </Accordion>
+
         {!auth.isAuthenticated && (
-          <Alert variant="light" className="small mb-0">
+          <Alert variant="light" className="small mt-2 mb-0">
             Connectez-vous pour consulter le journal de ce piège.
           </Alert>
         )}
 
         {auth.isAuthenticated && (
-          <>
-            {(mayAct || mayEdit || canAddHere || onLocate) && (
-              <SheetActions
-                className="mb-3"
-                more={[
-                  mayEdit && { icon: ACTION_ICONS.move, label: 'Déplacer', onClick: handleMove },
-                  mayEdit && { icon: ACTION_ICONS.edit, label: 'Modifier', onClick: () => setSub({ kind: 'edit' }) },
-                  canAddHere && {
-                    icon: ACTION_ICONS.addHere,
-                    label: 'Ajouter à cette position',
-                    onClick: () => onAddAtLocation(current.latitude, current.longitude),
-                  },
-                  mayEdit && { icon: ACTION_ICONS.delete, label: 'Supprimer', tone: 'danger', onClick: () => setSub({ kind: 'delete' }) },
-                ]}
-              >
-                {mayAct && (
-                  <>
-                    <Button
-                      variant="primary"
-                      onClick={() => setSub({ kind: 'event', eventKind: 'catch' })}
-                      aria-label="Enregistrer un relevé"
-                    >
-                      <span className="me-2" aria-hidden="true">🐝</span>
-                      Relevé
-                    </Button>
-                    <IconButton
-                      variant="outline-primary"
-                      icon={ACTION_ICONS.action}
-                      label="Ajouter une action"
-                      onClick={() => setSub({ kind: 'event', eventKind: 'inspection' })}
-                    />
-                  </>
-                )}
-                {onLocate && (
-                  <IconButton
-                    variant="outline-secondary"
-                    icon={ACTION_ICONS.showOnMap}
-                    label="Voir sur la carte"
-                    onClick={() => onLocate(current)}
-                  />
-                )}
-              </SheetActions>
-            )}
-
-            <h6 className="mb-1">
-              Journal
-              {entries.length > 0 && <Badge bg="light" text="dark" className="ms-2">{entries.length}</Badge>}
-            </h6>
+          <section className="trap-journal" aria-label="Journal">
+            <div className="trap-journal-head">
+              <i className="bi bi-journal-text" aria-hidden="true" />
+              <strong className="flex-grow-1">Journal</strong>
+              {entries.length > 0 && <Badge bg="secondary" pill>{entries.length}</Badge>}
+            </div>
             {events.length === 0 ? (
-              <p className="text-muted small">
+              <p className="text-muted small m-0 p-3">
                 {current.events ? 'Aucune intervention enregistrée.' : <Spinner animation="border" size="sm" />}
               </p>
             ) : (
-              <div className="trap-journal mb-2">
-                {entries.slice(0, journalLength).map((entry) => (isReading(entry) ? (
-                  <VisitRow
-                    key={entry[0].id}
-                    events={entry}
-                    accumulates={Boolean(current.trap_type.accumulates)}
-                    canDelete={entry.every(canDeleteEvent)}
-                    onDelete={(items) => setSub({ kind: 'delete-entry', entry: items })}
-                    onPreview={preview}
-                  />
-                ) : (
-                  <EventRow
-                    key={entry[0].id}
-                    event={entry[0]}
-                    canDelete={canDeleteEvent(entry[0])}
-                    onDelete={(event) => setSub({ kind: 'delete-entry', entry: [event] })}
-                    onPreview={preview}
-                  />
-                )))}
-                {entries.length > journalLength && (
-                  <Button variant="link" className="w-100" onClick={() => setJournalLength((length) => length + JOURNAL_PAGE)}>
+              <>
+                <div className="trap-journal-body">
+                  {entries.slice(0, journalLength).map((entry) => (isReading(entry) ? (
+                    <VisitRow
+                      key={entry[0].id}
+                      events={entry}
+                      accumulates={Boolean(current.trap_type.accumulates)}
+                      canDelete={entry.every(canDeleteEvent)}
+                      onDelete={(items) => setSub({ kind: 'delete-entry', entry: items })}
+                      onPreview={preview}
+                    />
+                  ) : (
+                    <EventRow
+                      key={entry[0].id}
+                      event={entry[0]}
+                      canDelete={canDeleteEvent(entry[0])}
+                      onDelete={(event) => setSub({ kind: 'delete-entry', entry: [event] })}
+                      onPreview={preview}
+                    />
+                  )))}
+                </div>
+                {hasMore && (
+                  <Button ref={setMoreButton} variant="link" className="w-100 trap-journal-more" onClick={showMore}>
                     Voir plus ({entries.length - journalLength})
                   </Button>
                 )}
-              </div>
+              </>
             )}
-
-            <TrapDelegationPanel trap={current} />
-          </>
+          </section>
         )}
       </AppModal>
 

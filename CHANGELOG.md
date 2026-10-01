@@ -21,6 +21,11 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 - A trap can only be delegated to a beekeeper association (`/beekeepers/<id>`),
   platform admins included: a trapper outside any association has no
   delegation, and the "Délégués" scope is only offered to association members.
+- Trap sheet, lighter: the photo becomes a thumbnail, what the trap holds and the
+  hornet count are shown as two tiles ("Frelons capturés" in the sheet and in the
+  list), the delegation comes up under the actions, and the installation date,
+  owner, QR code, address and comment sit in a collapsed "Détails" section. The
+  journal is a panel set into the sheet and grows as it is scrolled.
 
 ### Added
 - `GET /api/nests/my/`: the nests the requester reported.
