@@ -5,6 +5,7 @@ from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import BasePermission
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
+from hornet_finder_api.roles import normalize as normalize_roles
 from hornet_finder_api.utils import get_realm_jwks_url, get_user_display_name
 import requests
 import os
@@ -27,7 +28,7 @@ class JWTUser:
     def __init__(self, token_info):
         self.token_info = token_info
         self.guid = token_info.get('sub')
-        self.roles = token_info.get('realm_access', {}).get('roles', [])
+        self.roles = normalize_roles(token_info.get('realm_access', {}).get('roles', []))
 
     @property
     def is_authenticated(self):

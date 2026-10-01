@@ -15,6 +15,7 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
 
 from hornet_finder_api.authentication import HasAnyRole
+from hornet_finder_api.roles import ADMIN, BEEKEEPER, TRAPPER
 
 from . import trap_permissions as perms
 from .models import Tag, Trap
@@ -130,7 +131,8 @@ class TagViewSet(viewsets.ViewSet):
     lookup_value_regex = '[^/]+'
 
     def get_permissions(self):
-        return [HasAnyRole(['volunteer', 'beekeeper', 'admin'])]
+        # Tags label traps: their owners, and the admins who manage them
+        return [HasAnyRole([TRAPPER, BEEKEEPER, ADMIN])]
 
     def handle_exception(self, exc):
         if isinstance(exc, TagConfigurationError):

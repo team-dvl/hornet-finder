@@ -21,10 +21,12 @@ from django.conf import settings
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
 
+from hornet_finder_api.roles import APP_ROLES, normalize as normalize_roles
+
 from .. import trap_permissions as perms
 from ..models import BeekeeperGroup, Trap, TrapType
 
-ROLES = ('admin', 'volunteer', 'beekeeper')
+ROLES = APP_ROLES
 MAX_RADIUS_KM = 50
 
 
@@ -52,7 +54,9 @@ class Scope:
 
     @classmethod
     def from_dict(cls, data: dict) -> 'Scope':
-        return cls(data.get('guid', ''), list(data.get('roles', [])), list(data.get('membership', [])))
+        # A link made before a role was renamed keeps working with the new name
+        return cls(data.get('guid', ''), normalize_roles(data.get('roles', [])),
+                   list(data.get('membership', [])))
 
     def as_dict(self) -> dict:
         return {'guid': self.guid, 'roles': self.roles, 'membership': self.membership}

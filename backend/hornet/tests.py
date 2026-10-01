@@ -77,7 +77,7 @@ class HornetArchiveActionPermissionTests(TestCase):
 
     def test_archive_forbidden_for_non_admin(self):
         request = self.factory.post(f'/hornets/{self.hornet.id}/archive/')
-        force_authenticate(request, user=FakeUser(roles=['volunteer']))
+        force_authenticate(request, user=FakeUser(roles=['hunter']))
         view = HornetViewSet.as_view({'post': 'archive'})
         response = view(request, pk=self.hornet.id)
         self.assertEqual(response.status_code, 403)
@@ -201,7 +201,7 @@ class NestArchiveFilterTests(TestCase):
 
     def test_default_list_requires_auth_and_shows_current_year_only(self):
         request = self.factory.get('/nests/?lat=50.5&lon=4.5&radius=5')
-        force_authenticate(request, user=FakeUser(roles=['volunteer']))
+        force_authenticate(request, user=FakeUser(roles=['hunter']))
         view = NestViewSet.as_view({'get': 'list'})
         response = view(request)
         ids = {item['id'] for item in response.data}
@@ -209,7 +209,7 @@ class NestArchiveFilterTests(TestCase):
 
     def test_bulk_archive_forbidden_for_non_admin(self):
         request = self.factory.post('/nests/bulk_archive/?year=2024')
-        force_authenticate(request, user=FakeUser(roles=['volunteer']))
+        force_authenticate(request, user=FakeUser(roles=['hunter']))
         view = NestViewSet.as_view({'post': 'bulk_archive'})
         response = view(request)
         self.assertEqual(response.status_code, 403)
@@ -275,7 +275,7 @@ class TrapTestCase(TestCase):
 
         self.owner_guid = uuid_module.uuid4()
         self.owner = User.objects.create(guid=self.owner_guid, group_paths=[self.group_path])
-        self.owner_user = FakeTrapUser(['volunteer'], self.owner_guid, [self.group_path])
+        self.owner_user = FakeTrapUser(['trapper'], self.owner_guid, [self.group_path])
 
         self.member_guid = uuid_module.uuid4()
         self.member = User.objects.create(guid=self.member_guid, group_paths=[self.group_path])
@@ -290,7 +290,7 @@ class TrapTestCase(TestCase):
 
         self.stranger_guid = uuid_module.uuid4()
         User.objects.create(guid=self.stranger_guid, group_paths=['/beekeepers/other'])
-        self.stranger_user = FakeTrapUser(['volunteer'], self.stranger_guid,
+        self.stranger_user = FakeTrapUser(['trapper'], self.stranger_guid,
                                           ['/beekeepers/other'])
 
         self.admin_guid = uuid_module.uuid4()
@@ -432,10 +432,14 @@ class TrapCreationTests(TrapTestCase):
         force_authenticate(request, user=user)
         return TrapViewSet.as_view({'post': 'create'})(request)
 
-    def test_volunteer_can_create(self):
+    def test_trapper_can_create(self):
         response = self._create(self.owner_user)
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['owner']['guid'], str(self.owner_guid))
+
+    def test_a_hunter_cannot_create_a_trap(self):
+        self.owner_user.roles = ['hunter']
+        self.assertEqual(self._create(self.owner_user).status_code, 403)
 
     def test_a_new_trap_is_in_service(self):
         # The form posts multipart, where DRF reads an absent boolean as False:
@@ -619,7 +623,7 @@ class TrapDelegationTests(TrapTestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_group_admin_cannot_touch_a_trap_of_an_unrelated_owner(self):
-        self.owner.group_paths = ['/volunteers/elsewhere']
+        self.owner.group_paths = ['/beekeepers/elsewhere']
         self.owner.save()
         self.assertEqual(self._put(self.group_admin_user, self.group_path).status_code, 403)
 
@@ -628,6 +632,26 @@ class TrapDelegationTests(TrapTestCase):
 
     def test_platform_admin_can_delegate_to_any_group(self):
         self.assertEqual(self._put(self.admin_user, '/beekeepers/whatever').status_code, 200)
+
+    def test_only_beekeeper_associations_receive_a_delegation(self):
+        self.owner.group_paths = [self.group_path, '/trappers', '/hunters', '/beekeepers']
+        self.owner.save()
+        for path in ('/trappers', '/hunters', '/beekeepers', '/beekeepers/admin',
+                     f'{self.group_path}/admin', '/volunteers/vsa'):
+            with self.subTest(path=path):
+                self.assertEqual(self._put(self.owner_user, path).status_code, 403)
+                self.assertEqual(self._put(self.admin_user, path).status_code, 403)
+
+    def test_a_trapper_outside_any_association_cannot_delegate(self):
+        self.owner.group_paths = ['/trappers']
+        self.owner.save()
+        self.owner_user.token_info = {'membership': ['/trappers']}
+        request = self.factory.get(f'/traps/{self.trap.id}/delegation/')
+        force_authenticate(request, user=self.owner_user)
+        response = TrapViewSet.as_view({'get': 'delegation'})(request, pk=self.trap.id)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.data['can_set_delegation'])
+        self.assertEqual(response.data['allowed_groups'], [])
 
     def test_withdrawal_resets_group_and_visibility(self):
         self._put(self.owner_user, self.group_path, visibility=Trap.VISIBILITY_GROUP)
@@ -1632,7 +1656,7 @@ class AvatarTests(TestCase):
         self.factory = APIRequestFactory()
         self.guid = uuid_module.uuid4()
         self.user = User.objects.create(guid=self.guid)
-        self.jwt_user = FakeTrapUser(['volunteer'], self.guid)
+        self.jwt_user = FakeTrapUser(['trapper'], self.guid)
         patcher = patch('hornet.profile_views.set_user_picture')
         self.set_picture = patcher.start()
         self.addCleanup(patcher.stop)
@@ -1811,8 +1835,8 @@ class ApiaryVisibilityTests(ApiaryTestCase):
         self.assertEqual(self._ids(self.member_user), {self.apiary.id, own.id})
         self.assertEqual(self._ids(self.member_user, '&mine=true'), {own.id})
 
-    def test_volunteers_have_no_access(self):
-        self.member_user.roles = ['volunteer']
+    def test_trappers_and_hunters_have_no_access(self):
+        self.member_user.roles = ['trapper', 'hunter']
         response = self._api('get', '/apiaries/?lat=50.5&lon=4.5', {'get': 'list'},
                              self.member_user)
         self.assertEqual(response.status_code, 403)
@@ -2164,8 +2188,8 @@ class ApiaryManagerTests(ApiaryTestCase):
         self.assertEqual(self._managed(self.owner_user, 'ordering=distance').status_code, 400)
         self.assertEqual(self._managed(self.owner_user, 'infestation_level=x').status_code, 400)
 
-    def test_volunteers_have_no_access(self):
-        self.owner_user.roles = ['volunteer']
+    def test_trappers_and_hunters_have_no_access(self):
+        self.owner_user.roles = ['trapper', 'hunter']
         self.assertEqual(self._managed(self.owner_user).status_code, 403)
 
     def test_search_by_address_afsca_and_number(self):
@@ -2332,14 +2356,14 @@ class GroupInvitationTestCase(TestCase):
 
         self.aga = self._user(['beekeeper'], [f'{_ENA}/admin'])
         self.member = self._user(['beekeeper'], [_ENA])
-        self.volunteer_admin = self._user(['volunteer'], ['/volunteers/vsa/admin'])
+        self.trappers_admin = self._user(['trapper'], ['/trappers/admin'])
         self.admin = self._user(['admin'], ['/admins'])
 
         self.invitee_guid = str(uuid_module.uuid4())
         self.kc.accounts['pi@example.org'] = {
             'id': self.invitee_guid, 'email': 'pi@example.org', 'enabled': True, 'emailVerified': True,
         }
-        self.invitee = FakeTrapUser(['volunteer'], self.invitee_guid, ['/volunteers'])
+        self.invitee = FakeTrapUser(['trapper'], self.invitee_guid, ['/trappers'])
 
     def _user(self, roles, membership):
         guid = uuid_module.uuid4()
@@ -2419,12 +2443,12 @@ class GroupInvitationRightsTests(GroupInvitationTestCase):
         self.assertEqual(self._invite(group=_VSAB).status_code, 403)
 
     def test_only_beekeeper_associations_are_invitable(self):
-        for path in (f'{_ENA}/admin', '/beekeepers', '/admins', '/volunteers/vsa'):
+        for path in (f'{_ENA}/admin', '/beekeepers', '/beekeepers/admin', '/admins', '/trappers', '/hunters'):
             with self.subTest(path=path):
                 self.assertEqual(self._invite(user=self.admin, group=path).status_code, 403)
 
-    def test_an_administrator_of_a_volunteer_group_cannot_invite(self):
-        self.assertEqual(self._invite(user=self.volunteer_admin, group='/volunteers/vsa').status_code, 403)
+    def test_the_administrator_of_the_trappers_cannot_invite(self):
+        self.assertEqual(self._invite(user=self.trappers_admin, group='/trappers').status_code, 403)
 
     def test_a_platform_admin_invites_to_any_beekeeper_group(self):
         self.assertEqual(self._invite(user=self.admin, group=_VSAB).status_code, 201)
@@ -2906,7 +2930,7 @@ class GroupMembersTests(GroupInvitationTestCase):
         self.assertEqual((response.status_code, response.data['code']), (409, 'last_admin'))
 
     def test_removing_a_stranger_is_not_found(self):
-        self.assertEqual(self._remove(self.volunteer_admin, self.aga).status_code, 404)
+        self.assertEqual(self._remove(self.trappers_admin, self.aga).status_code, 404)
 
     def test_naming_an_administrator_is_for_platform_admins(self):
         self.assertEqual(self._name(self.member, self.aga).status_code, 403)
@@ -2937,3 +2961,124 @@ class GroupMembersTests(GroupInvitationTestCase):
     def test_a_keycloak_failure_is_a_503(self):
         self.kc.down = True
         self.assertEqual(self._members(self.admin).status_code, 503)
+
+
+# ---------------------------------------------------------------------------
+# Roles: one trade each (hunter, trapper, beekeeper, admin)
+# ---------------------------------------------------------------------------
+
+from hornet_finder_api.authentication import JWTUser
+from hornet_finder_api.roles import normalize as normalize_roles
+
+
+class RoleNormalizationTests(TestCase):
+    def test_the_legacy_volunteer_role_held_both_trades(self):
+        self.assertEqual(normalize_roles(['volunteer']), ['hunter', 'trapper'])
+
+    def test_current_roles_are_kept_once_and_in_order(self):
+        self.assertEqual(normalize_roles(['trapper', 'volunteer', 'admin']), ['trapper', 'hunter', 'admin'])
+        self.assertEqual(normalize_roles(None), [])
+
+    def test_a_token_issued_before_the_rename_keeps_its_rights(self):
+        user = JWTUser({'sub': 'x', 'realm_access': {'roles': ['volunteer', 'offline_access']}})
+        self.assertEqual(user.roles, ['hunter', 'trapper', 'offline_access'])
+
+
+class TradeSeparationTests(TestCase):
+    """Sightings and every nest for hunters; a trapper reports nests and sees their own."""
+
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        patcher = patch('hornet.serializers.get_user_display_name', return_value='Tester')
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.trapper_guid = uuid_module.uuid4()
+        self.trapper = User.objects.create(guid=self.trapper_guid)
+        self.trapper_user = FakeTrapUser(['trapper'], self.trapper_guid)
+        self.hunter_user = FakeTrapUser(['hunter'], uuid_module.uuid4())
+        self.own_nest = _make_nest(timezone.now().year)
+        self.own_nest.created_by = self.trapper
+        self.own_nest.save()
+        self.other_nest = _make_nest(timezone.now().year)
+
+    def _nests(self, user, action):
+        request = self.factory.get(f'/nests/{action + "/" if action != "list" else ""}?lat=50.5&lon=4.5&radius=5')
+        force_authenticate(request, user=user)
+        return NestViewSet.as_view({'get': action})(request)
+
+    def test_a_trapper_cannot_record_a_hornet(self):
+        request = self.factory.post('/hornets/', {'latitude': 50.5, 'longitude': 4.5, 'direction': 90})
+        force_authenticate(request, user=self.trapper_user)
+        self.assertEqual(HornetViewSet.as_view({'post': 'create'})(request).status_code, 403)
+
+    def test_a_hunter_records_a_hornet(self):
+        request = self.factory.post('/hornets/', {'latitude': 50.5, 'longitude': 4.5, 'direction': 90})
+        force_authenticate(request, user=self.hunter_user)
+        self.assertEqual(HornetViewSet.as_view({'post': 'create'})(request).status_code, 201)
+
+    def test_a_trapper_reports_a_nest(self):
+        request = self.factory.post('/nests/', {'latitude': 50.5, 'longitude': 4.5})
+        force_authenticate(request, user=self.trapper_user)
+        self.assertEqual(NestViewSet.as_view({'post': 'create'})(request).status_code, 201)
+
+    def test_a_trapper_sees_only_their_own_nests(self):
+        self.assertEqual(self._nests(self.trapper_user, 'list').status_code, 403)
+        response = self._nests(self.trapper_user, 'my')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual({n['id'] for n in response.data}, {self.own_nest.id})
+
+    def test_a_hunter_sees_every_nest(self):
+        response = self._nests(self.hunter_user, 'list')
+        self.assertEqual({n['id'] for n in response.data}, {self.own_nest.id, self.other_nest.id})
+
+
+_TRAPPERS_ADMIN = '/trappers/admin'
+
+
+class TrapperRosterTests(GroupInvitationTestCase):
+    """`/trappers/admin` lists every trapper; only platform admins remove one."""
+
+    def setUp(self):
+        super().setUp()
+        self.kc.groups['/trappers'] = {'id': 'gid-trappers', 'path': '/trappers', 'name': 'trappers',
+                                       'description': 'Piégeurs', 'attributes': {}}
+        self.kc.groups[_TRAPPERS_ADMIN] = {'id': 'gid-trappers-admin', 'path': _TRAPPERS_ADMIN,
+                                           'name': 'admin', 'attributes': {}}
+        self.coordinator = self._user(['trapper'], [_TRAPPERS_ADMIN])
+        self.trapper = self._user(['trapper'], ['/trappers'])
+        self.kc.members['gid-trappers'] = [{'id': self.trapper.guid, 'firstName': 'Paul', 'lastName': 'Piret'}]
+        self.kc.members['gid-trappers-admin'] = [{'id': self.coordinator.guid, 'firstName': 'Cléo', 'lastName': 'Collin'}]
+
+    def _list(self, user):
+        return self._call(GroupViewSet, 'get', '/api/groups/', {'get': 'list'}, user)
+
+    def _members(self, user, group='/trappers'):
+        return self._call(GroupViewSet, 'get', f'/api/groups/members/?group_path={group}',
+                          {'get': 'members'}, user)
+
+    def _remove(self, target, user):
+        return self._call(GroupViewSet, 'delete', f'/api/groups/members/{target.guid}/?group_path=/trappers',
+                          {'delete': 'member'}, user, guid=target.guid)
+
+    def test_the_coordinator_administers_the_trappers_only(self):
+        self.assertEqual([g['path'] for g in self._list(self.coordinator).data], ['/trappers'])
+        self.assertEqual(self._members(self.coordinator, _ENA).status_code, 403)
+
+    def test_the_coordinator_lists_every_trapper(self):
+        response = self._members(self.coordinator)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual({m['guid'] for m in response.data['members']},
+                         {self.trapper.guid, self.coordinator.guid})
+
+    def test_a_beekeeper_group_admin_does_not_see_the_trappers(self):
+        self.assertEqual(self._members(self.aga).status_code, 403)
+        self.assertNotIn('/trappers', [g['path'] for g in self._list(self.aga).data])
+
+    def test_the_platform_admin_sees_the_trappers_among_the_groups(self):
+        self.assertIn('/trappers', [g['path'] for g in self._list(self.admin).data])
+
+    def test_only_a_platform_admin_removes_a_trapper(self):
+        response = self._remove(self.trapper, self.coordinator)
+        self.assertEqual((response.status_code, response.data['code']), (403, 'platform_only'))
+        self.assertEqual(self._remove(self.trapper, self.admin).status_code, 204)
+        self.assertIn((str(self.trapper.guid), 'gid-trappers'), self.kc.removed)

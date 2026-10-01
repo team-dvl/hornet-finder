@@ -34,6 +34,7 @@ from drf_spectacular.utils import extend_schema, inline_serializer
 
 from hornet_finder_api import utils as keycloak
 from hornet_finder_api.authentication import HasAnyRole, JWTBearerAuthentication
+from hornet_finder_api.roles import APP_ROLES
 
 from . import trap_permissions as perms
 from .emails import BrandedEmail
@@ -41,7 +42,9 @@ from .models import GroupInvitation, InvitationThrottle, User
 
 logger = logging.getLogger(__name__)
 
-BEEKEEPERS_ROOT = '/beekeepers'
+# Shared with the traps' delegation, which allows the same groups
+BEEKEEPERS_ROOT = perms.BEEKEEPERS_ROOT
+is_beekeeper_group = perms.is_beekeeper_group
 
 
 class KeycloakUnavailable(APIException):
@@ -60,10 +63,10 @@ def _keycloak(call, *args):
         raise KeycloakUnavailable() from exc
 
 
-def is_beekeeper_group(path: str) -> bool:
-    """True for an association of beekeepers, `/beekeepers/<id>`."""
-    segments = (path or '').strip('/').split('/')
-    return len(segments) == 2 and f'/{segments[0]}' == BEEKEEPERS_ROOT and bool(segments[1])
+def beekeeper_groups() -> list:
+    """Every beekeeper association in Keycloak, as group representations."""
+    return [g for g in _keycloak(keycloak.get_child_groups, BEEKEEPERS_ROOT)
+            if is_beekeeper_group(g.get('path'))]
 
 
 def invitable_groups(request):
@@ -230,7 +233,7 @@ class GroupInvitationViewSet(viewsets.GenericViewSet):
         """The groups the caller may invite to, and their remaining lookups."""
         allowed = invitable_groups(request)
         if allowed is None:
-            groups = _keycloak(keycloak.get_child_groups, BEEKEEPERS_ROOT)
+            groups = beekeeper_groups()
         else:
             groups = [g for g in (_keycloak(keycloak.get_group_by_path, p) for p in sorted(allowed)) if g]
         throttle = InvitationThrottle.objects.filter(user__guid=request.user.guid).first()
@@ -415,7 +418,7 @@ class MyGroupInvitationViewSet(viewsets.GenericViewSet):
         return [JWTBearerAuthentication()]
 
     def get_permissions(self):
-        return [HasAnyRole(['volunteer', 'beekeeper', 'admin'])]
+        return [HasAnyRole(list(APP_ROLES))]
 
     def _mine(self, request):
         return self.get_queryset().filter(invitee__guid=request.user.guid)

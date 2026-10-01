@@ -21,6 +21,7 @@ from drf_spectacular.types import OpenApiTypes
 
 from hornet_finder_api import utils as keycloak
 from hornet_finder_api.authentication import HasAnyRole, JWTBearerAuthentication
+from hornet_finder_api.roles import APP_ROLES, BEEKEEPER, TRAPPER
 
 from . import trap_permissions as perms
 from .invitation_views import BEEKEEPERS_ROOT, _sort_key
@@ -79,10 +80,12 @@ def _group_choices(paths, extra=()):
     if paths is None:
         try:
             groups = [{'path': g['path'], 'name': keycloak.group_display_name(g)}
-                      for g in keycloak.get_child_groups(BEEKEEPERS_ROOT)]
+                      for g in keycloak.get_child_groups(BEEKEEPERS_ROOT)
+                      if perms.is_beekeeper_group(g.get('path'))]
         except Exception as exc:
             logger.warning("Could not list Keycloak groups: %s", exc)
-            groups = [{'path': g.path, 'name': g.name} for g in BeekeeperGroup.objects.all()]
+            groups = [{'path': g.path, 'name': g.name} for g in BeekeeperGroup.objects.all()
+                      if perms.is_beekeeper_group(g.path)]
         known = {g['path'] for g in groups}
         paths = [p for p in extra if p and p not in known]
     else:
@@ -137,7 +140,7 @@ class ReferentialViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if getattr(self, 'action', None) in ('list', 'retrieve'):
-            return [HasAnyRole(['volunteer', 'beekeeper', 'admin'])]
+            return [HasAnyRole(list(APP_ROLES))]
         return [HasAnyRole(['admin'])]
 
     def perform_create(self, serializer):
@@ -258,9 +261,10 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         action_name = getattr(self, 'action', None)
         if action_name in ('list', 'retrieve'):
             return []
+        # Traps belong to trappers and beekeepers; the rest is decided per trap
         if action_name in ('create', 'my'):
-            return [HasAnyRole(['volunteer', 'beekeeper'])]
-        return [HasAnyRole(['volunteer', 'beekeeper', 'admin'])]
+            return [HasAnyRole([TRAPPER, BEEKEEPER])]
+        return [HasAnyRole(list(APP_ROLES))]
 
     # -- querysets -----------------------------------------------------------
 
@@ -663,8 +667,8 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         group_path = request.data.get('group_path')
         if not group_path:
             raise DRFValidationError({'group_path': "This field is required."})
-        allowed = perms.allowed_delegation_groups(request, trap)
-        if allowed is not None and group_path not in allowed:
+        # Beekeeper associations only, platform admins included
+        if not perms.can_delegate_to(request, trap, group_path):
             raise PermissionDenied(f"You cannot delegate this trap to {group_path}.")
 
         trap.group = _group_for_path(group_path)
@@ -710,7 +714,7 @@ class TrapEventViewSet(viewsets.GenericViewSet):
         return [JWTBearerAuthentication()]
 
     def get_permissions(self):
-        return [HasAnyRole(['volunteer', 'beekeeper', 'admin'])]
+        return [HasAnyRole(list(APP_ROLES))]
 
     def retrieve(self, request, *args, **kwargs):
         event = self.get_object()
@@ -757,7 +761,7 @@ class TrapPhotoViewSet(viewsets.GenericViewSet):
         return [JWTBearerAuthentication()]
 
     def get_permissions(self):
-        return [HasAnyRole(['volunteer', 'beekeeper', 'admin'])]
+        return [HasAnyRole(list(APP_ROLES))]
 
     def destroy(self, request, *args, **kwargs):
         photo = self.get_object()
