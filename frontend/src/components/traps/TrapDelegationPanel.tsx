@@ -73,7 +73,7 @@ export default function TrapDelegationPanel({ trap }: TrapDelegationPanelProps) 
   // groups the user may pick are only known after a round trip to the server,
   // and the panel used to appear under the journal once the answer came back.
   return (
-    <Accordion className="mt-3">
+    <Accordion className="mt-2">
       <Accordion.Item eventKey="delegation">
         <Accordion.Header>
           <span className="me-2">🤝</span>

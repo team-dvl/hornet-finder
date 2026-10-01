@@ -10,6 +10,13 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 
 ## [Unreleased]
 
+### Changed
+- Trap sheet, lighter: the photo becomes a thumbnail, what the trap holds and the
+  hornet count are shown as two tiles ("Frelons capturés" in the sheet and in the
+  list), the delegation comes up under the actions, and the installation date,
+  owner, QR code, address and comment sit in a collapsed "Détails" section. The
+  journal is a panel set into the sheet and grows as it is scrolled.
+
 ## [1.1.0] - 2026-10-01
 
 ### Added
