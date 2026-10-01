@@ -1,4 +1,4 @@
-status: pending
+status: applied (2026-09-30)
 
 # Invitations aux groupes d'apiculteurs, emails de l'API (`main` → `devel`)
 

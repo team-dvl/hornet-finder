@@ -1,4 +1,4 @@
-status: pending
+status: applied (2026-09-30)
 
 # Version affichée dans l'application (`main` → `devel`)
 

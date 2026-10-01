@@ -1,4 +1,4 @@
-status: pending
+status: applied (2026-09-30)
 
 # Statistiques phase 3 : graphiques, PDF, lien d'export par email (`main` → `devel`)
 

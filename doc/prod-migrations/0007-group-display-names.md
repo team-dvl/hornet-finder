@@ -1,4 +1,4 @@
-status: pending
+status: applied (2026-09-30)
 
 # Noms réels des groupes dans la délégation et le partage (`main` → `devel`)
 

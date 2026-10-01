@@ -1,4 +1,4 @@
-status: pending
+status: applied (2026-09-30)
 
 # Keycloak 26.7.3 → 26.7.4 (`devel`)
 
