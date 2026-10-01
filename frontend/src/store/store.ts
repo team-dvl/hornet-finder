@@ -34,7 +34,7 @@ export {
   selectTrapsError, selectManagedTraps,
 } from './slices/trapsSlice';
 export type {
-  Trap, TrapEvent, TrapEventKind, TrapPhoto, TrapType, Species, DelegationInfo,
+  Trap, TrapContents, TrapEvent, TrapEventKind, TrapPhoto, TrapType, Species, DelegationInfo,
   TrapFormValues, TrapTypeFormValues, SpeciesFormValues, CatchItem, UserSummary, GroupSummary,
   TrapScope, TrapOrdering, ManagedTrapsQuery,
 } from './slices/trapsSlice';

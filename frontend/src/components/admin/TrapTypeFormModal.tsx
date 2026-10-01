@@ -21,6 +21,7 @@ export default function TrapTypeFormModal({ onHide, trapType = null }: TrapTypeF
   const [description, setDescription] = useState(trapType?.description ?? '');
   const [sortOrder, setSortOrder] = useState(trapType?.sort_order ?? 0);
   const [apiaryBound, setApiaryBound] = useState(trapType?.apiary_bound ?? false);
+  const [accumulates, setAccumulates] = useState(trapType?.accumulates ?? false);
   const [photo, setPhoto] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +31,9 @@ export default function TrapTypeFormModal({ onHide, trapType = null }: TrapTypeF
     setSaving(true);
     setError(null);
     try {
-      const values = { name, description, sort_order: sortOrder, apiary_bound: apiaryBound, photo };
+      const values = {
+        name, description, sort_order: sortOrder, apiary_bound: apiaryBound, accumulates, photo,
+      };
       if (trapType) {
         await dispatch(updateTrapType({ id: trapType.id, values })).unwrap();
       } else {
@@ -105,6 +108,21 @@ export default function TrapTypeFormModal({ onHide, trapType = null }: TrapTypeF
         <HelpTip id="apiary-bound-help" title="Lié à un rucher">
           Ces pièges ne s'installent que devant des ruches : les montrer révélerait un rucher.
           Ils ne sont visibles que de leur propriétaire, du groupe à qui l'entretien est délégué et des admins.
+        </HelpTip>
+      </Form.Group>
+
+      <Form.Group className="mb-3 d-flex align-items-center">
+        <Form.Check
+          type="switch"
+          id="trap-type-accumulates"
+          label="Accumule les captures"
+          checked={accumulates}
+          onChange={(event) => setAccumulates(event.target.checked)}
+        />
+        <HelpTip id="accumulates-help" title="Accumule les captures">
+          Les prises restent dans le piège d'un relevé à l'autre (harpe, nasse, piège létal...) :
+          on compte ce qu'il contient et l'on indique s'il a été vidé, l'application en déduit les
+          nouvelles prises. Sinon (filet...), chaque relevé retire tout ce qui a été pris.
         </HelpTip>
       </Form.Group>
 

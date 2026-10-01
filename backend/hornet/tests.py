@@ -223,6 +223,7 @@ import io
 import json
 import time
 import uuid as uuid_module
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -232,6 +233,7 @@ from PIL import Image
 from .models import BeekeeperGroup, Species, Trap, TrapEvent, TrapPhoto, TrapType, User
 from .trap_views import SpeciesViewSet, TrapEventViewSet, TrapTypeViewSet, TrapViewSet
 from .media_views import media_view
+from .serializers import TrapSerializer
 
 
 class FakeTrapUser:
@@ -1342,6 +1344,140 @@ class TrapCatchTests(TrapTestCase):
 
     def test_unknown_batch_is_404(self):
         self.assertEqual(self._delete_batch(str(uuid_module.uuid4())).status_code, 404)
+
+    def test_a_trap_that_does_not_accumulate_is_always_emptied(self):
+        self._post_catches([{'species_slug': 'vespa-velutina', 'quantity': 4}], emptied='false')
+        event = TrapEvent.objects.get(trap=self.trap)
+        self.assertEqual((event.observed_quantity, event.quantity, event.emptied), (4, 4, True))
+        self.trap.refresh_from_db()
+        self.assertIsNone(self.trap.contents)
+
+
+class TrapAccumulationTests(TrapTestCase):
+    """Readings of a trap whose catches pile up between emptyings."""
+
+    def setUp(self):
+        super().setUp()
+        self.trap.trap_type = TrapType.objects.create(slug='harp-test', name='Harpe test',
+                                                      accumulates=True)
+        self.trap.save()
+        self.day = timezone.now() - timedelta(days=30)
+
+    def _read(self, day, emptied, hornets, bees=None, **extra):
+        items = [{'species_slug': 'vespa-velutina', 'quantity': hornets}]
+        if bees is not None:
+            items.append({'species_slug': 'apis-mellifera', 'quantity': bees})
+        data = {'performed_at': (self.day + timedelta(days=day)).isoformat(),
+                'items': json.dumps(items), **extra}
+        if emptied is not None:
+            data['emptied'] = 'true' if emptied else 'false'
+        request = self.factory.post(f'/traps/{self.trap.id}/catches/', data, format='multipart')
+        force_authenticate(request, user=self.owner_user)
+        return TrapViewSet.as_view({'post': 'catches'})(request, pk=self.trap.id)
+
+    def _caught(self, slug='vespa-velutina'):
+        """Derived catches of each reading of a species, oldest first."""
+        return list(TrapEvent.objects.filter(trap=self.trap, species__slug=slug)
+                    .order_by('performed_at').values_list('quantity', flat=True))
+
+    def test_the_trap_must_say_whether_it_was_emptied(self):
+        response = self._read(0, None, 3)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('emptied', response.data)
+
+    def test_catches_are_what_was_seen_beyond_what_was_left(self):
+        response = self._read(0, False, 5)
+        self.assertEqual(response.data[0]['quantity'], 5)
+        self.trap.refresh_from_db()
+        self.assertEqual(self.trap.contents['items'],
+                         [{'species_slug': 'vespa-velutina', 'quantity': 5}])
+
+        response = self._read(7, True, 8)
+        self.assertEqual((response.data[0]['quantity'], response.data[0]['observed_quantity']),
+                         (3, 8))
+        self.trap.refresh_from_db()
+        self.assertIsNone(self.trap.contents)
+        self.assertEqual(self.trap.hornet_catch_count, 8)
+
+        # Emptied: the next reading starts from zero again
+        self._read(14, False, 2)
+        self.assertEqual(self._caught(), [5, 3, 2])
+
+    def test_fewer_insects_than_left_is_no_catch_not_a_negative_one(self):
+        self._read(0, False, 5)
+        self._read(7, False, 3)
+        self._read(14, False, 6)
+        self.assertEqual(self._caught(), [5, 0, 3])
+
+    def test_a_reading_recorded_late_shifts_the_following_ones(self):
+        self._read(0, False, 5)
+        self._read(14, False, 9)
+        self.assertEqual(self._caught(), [5, 4])
+        # Forgotten reading of day 7, where the trap was emptied
+        self._read(7, True, 7)
+        self.assertEqual(self._caught(), [5, 2, 9])
+        self.trap.refresh_from_db()
+        self.assertEqual(self.trap.hornet_catch_count, 16)
+
+    def test_deleting_a_reading_shifts_the_following_ones(self):
+        first = self._read(0, False, 5)
+        self._read(7, True, 8)
+        request = self.factory.delete(f'/traps/{self.trap.id}/catches/{first.data[0]["batch"]}/')
+        force_authenticate(request, user=self.owner_user)
+        TrapViewSet.as_view({'delete': 'delete_catches'})(
+            request, pk=self.trap.id, batch=first.data[0]['batch'])
+        self.assertEqual(self._caught(), [8])
+
+    def test_correcting_a_count_shifts_the_following_readings(self):
+        first = self._read(0, False, 5)
+        self._read(7, True, 8)
+        request = self.factory.patch(f'/trap-events/{first.data[0]["id"]}/', {'quantity': 6},
+                                     format='json')
+        force_authenticate(request, user=self.owner_user)
+        response = TrapEventViewSet.as_view({'patch': 'partial_update'})(
+            request, pk=first.data[0]['id'])
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['observed_quantity'], 6)
+        self.assertEqual(self._caught(), [6, 2])
+
+    def test_other_species_left_in_place_are_not_caught_twice(self):
+        self._read(0, False, 2, bees=3)
+        # Still three bees, no new one: recorded all the same, as what is there
+        response = self._read(7, False, 2, bees=3)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(self._caught('apis-mellifera'), [3, 0])
+        self._read(14, True, 4, bees=5)
+        self.assertEqual(self._caught('apis-mellifera'), [3, 0, 2])
+        self.assertEqual(set(TrapEvent.objects.values_list('bycatch_counted', flat=True)), {True})
+
+    def test_other_species_left_uncounted_keep_the_next_reading_out_of_selectivity(self):
+        self._read(0, False, 2, bycatch_counted='false')
+        self.trap.refresh_from_db()
+        self.assertFalse(self.trap.contents['others_counted'])
+        # The bees were there already, how many is unknown: not a selectivity reading
+        self._read(7, True, 3, bees=4)
+        reading = TrapEvent.objects.filter(trap=self.trap).order_by('-performed_at')
+        self.assertEqual({event.bycatch_counted for event in reading[:2]}, {False})
+        self.assertEqual(self._caught(), [2, 1])
+        # Emptied since: the next reading is complete again
+        self._read(14, True, 1, bees=1)
+        self.assertTrue(TrapEvent.objects.filter(trap=self.trap).order_by('-performed_at')
+                        .first().bycatch_counted)
+
+    def test_an_installation_puts_the_trap_in_service_empty(self):
+        self._read(0, False, 5)
+        TrapEvent.objects.create(trap=self.trap, kind=TrapEvent.KIND_INSTALLATION,
+                                 performed_at=self.day + timedelta(days=3))
+        self.trap.recompute_catches()
+        self._read(7, False, 2)
+        self.assertEqual(self._caught(), [5, 2])
+
+    def test_the_trap_exposes_its_type_and_contents(self):
+        self._read(0, False, 5)
+        data = TrapSerializer(Trap.objects.get(pk=self.trap.pk)).data
+        self.assertTrue(data['trap_type']['accumulates'])
+        self.assertEqual(data['contents']['items'],
+                         [{'species_slug': 'vespa-velutina', 'quantity': 5}])
 
 
 class SpeciesAdminTests(TrapTestCase):

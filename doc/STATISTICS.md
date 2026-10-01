@@ -22,11 +22,13 @@ doit être rapporté à l'effort.
 
 ### 2.1 Relevé et exposition
 
-- **Relevé** : une visite où le contenu de la zone de capture est compté **et
-  retiré**, c'est-à-dire les événements `catch` d'un même lot (`batch`), y
-  compris un relevé **à zéro** (§5.1). Compter sans retirer ferait compter les
-  mêmes insectes au relevé suivant : c'est une consigne, rappelée dans le
-  dialogue.
+- **Relevé** : une visite où le contenu de la zone de capture est compté,
+  c'est-à-dire les événements `catch` d'un même lot (`batch`), y compris un
+  relevé **à zéro** (§5.1). Ses **captures** (`quantity`) sont les nouvelles
+  prises depuis le relevé précédent (§5.5) : ce qui est compté
+  (`observed_quantity`) moins ce que le relevé précédent a laissé dans le piège,
+  jamais en dessous de zéro. Un piège dont le type n'accumule pas est vidé à
+  chaque relevé : ses captures sont ce qui est compté.
 - Les autres actions d'une visite (nettoyage, recharge, réparation) sont
   enregistrées dans le même lot que le relevé (§5.1), mais ne délimitent rien :
   un nettoyage ne vide pas forcément la zone de capture (p. ex. le bac inférieur
@@ -258,6 +260,37 @@ Aucune statistique dessus.
 ### 5.4 Plus tard
 
 Journalisation des déplacements de pièges (§4.3).
+
+### 5.5 Pièges à accumulation
+
+Une nasse ne s'ouvre pas sans laisser s'échapper un frelon ; un piège létal se
+vide quand on ne peut plus compter de façon fiable. Ces pièges ne sont pas vidés
+à chaque relevé.
+
+- Le type de piège porte `accumulates`. Pour un tel piège, le relevé compte
+  **tout ce que contient le piège** (compteurs préremplis avec ce que le relevé
+  précédent a laissé, `Trap.contents`) et demande, sans valeur par défaut,
+  **« Vidé » ou « Laissé en place »** (`TrapEvent.emptied`). Pour un autre type,
+  `emptied` vaut toujours `true` : rien ne change.
+- Les captures d'un relevé sont déduites (`Trap.recompute_catches`) :
+  `quantity = max(0, observed_quantity − laissé au relevé précédent)`. Un
+  vidage ou une installation remet le contenu à zéro ; un retrait ne le fait
+  pas. Le calcul est refait en entier à chaque modification du journal (relevé
+  ajouté, saisi après coup, corrigé ou supprimé).
+- Un compte en baisse (évasions à l'ouverture, insectes décomposés) donne 0
+  capture, pas un nombre négatif : ces pertes biaisent la CPUE vers le bas.
+- Incertitude : la différence de deux comptages cumule leurs erreurs,
+  σ = √(σ₁² + σ₂²). Avec une erreur supposée de 10 % sur chaque comptage
+  (hypothèse, non mesurée), 40 puis 55 frelons donnent 15 ± 6 captures, soit
+  ~40 %. Le vidage, qui ramène le contenu à exactement 0, supprime ce cumul.
+- Autres espèces : leur contenu n'est connu que si chaque relevé depuis le
+  dernier vidage les a comptées. Sinon, le relevé suivant ne peut pas séparer
+  les nouvelles prises de ce qui était déjà là : il est marqué
+  `bycatch_counted = false` et sort de la sélectivité (§5.2). Cette marque n'est
+  jamais levée par un recalcul ultérieur : l'erreur possible est de perdre un
+  relevé pour la sélectivité, jamais de la fausser.
+- Données antérieures : `observed_quantity = quantity` et `emptied = true`
+  (migration `0021`), ce qui était leur règle ; rien ne change pour elles.
 
 ## 6. Accès et confidentialité
 

@@ -17,6 +17,12 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   an administrator, and removing one, is for platform admins, and a group always
   keeps at least one administrator. A removal reaches the person's connection
   within the hour at most.
+- Traps that keep their catches between emptyings (electric harp, muzzle, fatal
+  trap...): an administrator ticks "Accumule les captures" on the trap type.
+  Their reading counts everything the trap holds, starting from what the last
+  reading left, and asks whether the trap was emptied or left in place; the new
+  catches are deduced from it, for the total and the statistics. The journal
+  shows "Vidé" / "Laissé en place" and what the trap held. Prod: note 0017.
 - The coverage and pressure maps can be drawn on hexagons instead of 250 m
   squares ("Maille" selector under the map, `grid=hex` in the API): cells of the
   same area (6.25 ha), six neighbours at the same distance, same totals.

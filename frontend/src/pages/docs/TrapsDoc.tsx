@@ -114,6 +114,11 @@ export default function TrapsDoc() {
             d'autres insectes étaient présents. Les actions faites pendant la même visite
             (nettoyage, recharge, réparation) se cochent dans le relevé et forment avec lui une
             seule entrée du journal</li>
+          <li><strong>Relevé d'un piège à accumulation</strong> (harpe, nasse, piège létal... selon le
+            type) : les prises restent dans le piège d'un relevé à l'autre. On compte alors tout ce
+            qu'il contient, en partant des compteurs laissés au relevé précédent, puis l'on indique
+            s'il a été <em>vidé</em> ou <em>laissé en place</em> ; l'application en déduit les
+            nouvelles prises, seules comptées dans le total et les statistiques</li>
           <li><strong>Inspection, nettoyage, recharge, réparation</strong> : l'entretien courant, seul</li>
           <li><strong>Installation</strong> : remet le piège en service, à la date indiquée</li>
           <li><strong>Retrait</strong> : marque le piège comme remisé — il reste sur la carte, en gris</li>

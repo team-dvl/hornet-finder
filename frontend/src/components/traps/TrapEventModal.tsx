@@ -6,6 +6,7 @@ import {
 } from '../../store/store';
 import { HelpTip } from '../common';
 import { AppModal } from '../ui';
+import { formatShortDateTime } from '../../utils/format';
 import PhotoInput from './PhotoInput';
 import SpeciesCard from './SpeciesCard';
 import { SPECIES_GRID_STYLE } from './speciesGrid';
@@ -32,8 +33,25 @@ const ACTION_KINDS = EVENT_KINDS.filter((entry) => entry.value !== 'catch');
 /** One card of the reading being recorded */
 interface CatchLine {
   slug: string;
+  /** What the trap holds: for a trap emptied at every visit, what is taken out */
   quantity: number;
   photo: File | null;
+}
+
+/**
+ * Cards the reading starts from. A trap that accumulates and was left in place
+ * starts from what it held then, so counting on adds the new catches; any other
+ * trap starts empty.
+ */
+function initialLines(trap: Trap | null): CatchLine[] {
+  const left = trap?.trap_type.accumulates ? trap.contents?.items ?? [] : [];
+  const hornets = left.find((item) => item.species_slug === DEFAULT_SPECIES)?.quantity ?? 0;
+  return [
+    { slug: DEFAULT_SPECIES, quantity: hornets, photo: null },
+    ...left
+      .filter((item) => item.species_slug !== DEFAULT_SPECIES)
+      .map((item) => ({ slug: item.species_slug, quantity: item.quantity, photo: null })),
+  ];
 }
 
 interface TrapEventModalProps {
@@ -54,7 +72,9 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
 
   const [kind, setKind] = useState<TrapEventKind>(initialKind);
   const [performedAt, setPerformedAt] = useState(nowLocal);
-  const [lines, setLines] = useState<CatchLine[]>([{ slug: DEFAULT_SPECIES, quantity: 0, photo: null }]);
+  const [lines, setLines] = useState<CatchLine[]>(() => initialLines(trap));
+  // Asked of a trap that accumulates, never assumed: null until answered
+  const [emptied, setEmptied] = useState<boolean | null>(null);
   const [visitActions, setVisitActions] = useState<TrapEventKind[]>([]);
   const [askingBycatch, setAskingBycatch] = useState(false);
   const [picking, setPicking] = useState(false);
@@ -64,6 +84,15 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
   const [error, setError] = useState<string | null>(null);
 
   const isCatch = initialKind === 'catch';
+  const accumulates = Boolean(trap?.trap_type.accumulates);
+  const contents = accumulates ? trap?.contents ?? null : null;
+  // What each species was left at: its new catches are counted beyond that. The
+  // other species are unknown when they were not counted then.
+  const baseline = (slug: string) => {
+    if (!accumulates) return undefined;
+    if (slug !== DEFAULT_SPECIES && contents && !contents.others_counted) return undefined;
+    return contents?.items.find((item) => item.species_slug === slug)?.quantity ?? 0;
+  };
 
   useEffect(() => {
     if (species.length === 0) {
@@ -104,6 +133,7 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
           comments,
           items: counted.map(({ slug, quantity, photo }) => ({ species_slug: slug, quantity, photo })),
           bycatch_counted: bycatchCounted,
+          emptied,
           actions: visitActions,
         })).unwrap();
       } else {
@@ -122,6 +152,10 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
     if (!trap) return;
     if (kind === 'catch' && counted.length === 0) {
       setError('Indiquez au moins une espèce.');
+      return;
+    }
+    if (kind === 'catch' && accumulates && emptied === null) {
+      setError('Indiquez si le piège a été vidé.');
       return;
     }
     // Only the Asian hornet: ask whether the other insects were counted
@@ -194,14 +228,29 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
         {kind === 'catch' && (
           <Form.Group className="mb-3">
             <Form.Label className="d-flex align-items-center">
-              Captures
-              <HelpTip id="catch-help" title="Compter les captures">
-                Comptez ce que vous retirez de la zone de capture : un insecte laissé dans le piège
-                serait compté une seconde fois au relevé suivant. Touchez l'image d'une espèce pour
-                ajouter un individu, le nombre rouge pour saisir un total. Un relevé sans frelon
-                s'enregistre à zéro : il compte autant qu'une capture pour suivre la pression.
-              </HelpTip>
+              {accumulates ? 'Contenu du piège' : 'Captures'}
+              {accumulates ? (
+                <HelpTip id="catch-help" title="Compter le contenu du piège">
+                  Comptez tout ce que contient le piège, y compris ce qui y était déjà : les compteurs
+                  partent du contenu laissé au dernier relevé, l'application en déduit les nouvelles
+                  prises. Touchez l'image d'une espèce pour ajouter un individu, le nombre rouge pour
+                  saisir un total. Un piège sans frelon s'enregistre à zéro : il compte autant qu'une
+                  capture pour suivre la pression.
+                </HelpTip>
+              ) : (
+                <HelpTip id="catch-help" title="Compter les captures">
+                  Comptez ce que vous retirez de la zone de capture : un insecte laissé dans le piège
+                  serait compté une seconde fois au relevé suivant. Touchez l'image d'une espèce pour
+                  ajouter un individu, le nombre rouge pour saisir un total. Un relevé sans frelon
+                  s'enregistre à zéro : il compte autant qu'une capture pour suivre la pression.
+                </HelpTip>
+              )}
             </Form.Label>
+            {contents && !picking && (
+              <div className="small text-muted mb-2">
+                Laissé en place le {formatShortDateTime(contents.at)}
+              </div>
+            )}
             {picking ? (
               <SpeciesPicker
                 species={species}
@@ -217,6 +266,7 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
                     species={species.find((item) => item.slug === line.slug)}
                     fallbackName={line.slug}
                     quantity={line.quantity}
+                    baseline={baseline(line.slug)}
                     photo={line.photo}
                     onQuantityChange={(quantity) => updateLine(line.slug, { quantity })}
                     onPhotoChange={(photo) => updateLine(line.slug, { photo })}
@@ -236,6 +286,34 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
                 </button>
               </div>
             )}
+          </Form.Group>
+        )}
+
+        {kind === 'catch' && accumulates && !picking && (
+          <Form.Group className="mb-3">
+            <Form.Label>Après le comptage</Form.Label>
+            <div className="d-flex flex-wrap gap-2" role="radiogroup" aria-label="Après le comptage">
+              {[
+                { value: true, icon: 'arrow-counterclockwise', label: 'Vidé' },
+                { value: false, icon: 'stack', label: 'Laissé en place' },
+              ].map((choice) => (
+                <ToggleButton
+                  key={String(choice.value)}
+                  id={`reading-emptied-${choice.value}`}
+                  type="radio"
+                  name="reading-emptied"
+                  variant="outline-primary"
+                  value={String(choice.value)}
+                  checked={emptied === choice.value}
+                  onChange={() => setEmptied(choice.value)}
+                  className="rounded-pill"
+                  disabled={saving}
+                >
+                  <i className={`bi bi-${choice.icon} me-1`} aria-hidden="true" />
+                  {choice.label}
+                </ToggleButton>
+              ))}
+            </div>
           </Form.Group>
         )}
 
