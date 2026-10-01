@@ -12,6 +12,7 @@ import SpeciesCard from './SpeciesCard';
 import { SPECIES_GRID_STYLE } from './speciesGrid';
 import SpeciesPicker from './SpeciesPicker';
 import BycatchQuestionSheet from './BycatchQuestionSheet';
+import EmptiedQuestionSheet from './EmptiedQuestionSheet';
 import { EVENT_KINDS, VISIT_ACTION_KINDS, eventKindInfo } from './eventKinds';
 
 /** Local datetime string accepted by <input type="datetime-local"> */
@@ -73,10 +74,12 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
   const [kind, setKind] = useState<TrapEventKind>(initialKind);
   const [performedAt, setPerformedAt] = useState(nowLocal);
   const [lines, setLines] = useState<CatchLine[]>(() => initialLines(trap));
-  // Asked of a trap that accumulates, never assumed: null until answered
-  const [emptied, setEmptied] = useState<boolean | null>(null);
   const [visitActions, setVisitActions] = useState<TrapEventKind[]>([]);
-  const [askingBycatch, setAskingBycatch] = useState(false);
+  // Questions asked on saving a reading, one sheet at a time in place of the form:
+  // the other insects (only the Asian hornet recorded), then the emptying (a
+  // trap that accumulates), last, as it is what the visit ends with
+  const [question, setQuestion] = useState<'bycatch' | 'emptied' | null>(null);
+  const [bycatchCounted, setBycatchCounted] = useState(true);
   const [picking, setPicking] = useState(false);
   const [comments, setComments] = useState('');
   const [photos, setPhotos] = useState<File[]>([]);
@@ -118,9 +121,9 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
       ? current.filter((item) => item !== action)
       : [...current, action]));
 
-  const save = async (bycatchCounted: boolean) => {
+  const save = async (bycatch: boolean, emptied: boolean | null) => {
     if (!trap) return;
-    setAskingBycatch(false);
+    setQuestion(null);
     setSaving(true);
     setError(null);
     // The input has no timezone, the browser's one applies
@@ -132,7 +135,7 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
           performed_at,
           comments,
           items: counted.map(({ slug, quantity, photo }) => ({ species_slug: slug, quantity, photo })),
-          bycatch_counted: bycatchCounted,
+          bycatch_counted: bycatch,
           emptied,
           actions: visitActions,
         })).unwrap();
@@ -154,22 +157,28 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
       setError('Indiquez au moins une espèce.');
       return;
     }
-    if (kind === 'catch' && accumulates && emptied === null) {
-      setError('Indiquez si le piège a été vidé.');
-      return;
-    }
     // Only the Asian hornet: ask whether the other insects were counted
     if (kind === 'catch' && !hasBycatch) {
-      setAskingBycatch(true);
+      setQuestion('bycatch');
       return;
     }
-    save(true);
+    afterBycatch(true);
+  };
+
+  /** Next step once the other insects are settled: the emptying, or saving */
+  const afterBycatch = (bycatch: boolean) => {
+    if (kind === 'catch' && accumulates) {
+      setBycatchCounted(bycatch);
+      setQuestion('emptied');
+      return;
+    }
+    save(bycatch, null);
   };
 
   return (
     <>
       <AppModal
-        show={!askingBycatch}
+        show={question === null}
         onHide={onHide}
         locked
         icon={eventKindInfo(kind).icon}
@@ -289,34 +298,6 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
           </Form.Group>
         )}
 
-        {kind === 'catch' && accumulates && !picking && (
-          <Form.Group className="mb-3">
-            <Form.Label>Après le comptage</Form.Label>
-            <div className="d-flex flex-wrap gap-2" role="radiogroup" aria-label="Après le comptage">
-              {[
-                { value: true, icon: 'arrow-counterclockwise', label: 'Vidé' },
-                { value: false, icon: 'stack', label: 'Laissé en place' },
-              ].map((choice) => (
-                <ToggleButton
-                  key={String(choice.value)}
-                  id={`reading-emptied-${choice.value}`}
-                  type="radio"
-                  name="reading-emptied"
-                  variant="outline-primary"
-                  value={String(choice.value)}
-                  checked={emptied === choice.value}
-                  onChange={() => setEmptied(choice.value)}
-                  className="rounded-pill"
-                  disabled={saving}
-                >
-                  <i className={`bi bi-${choice.icon} me-1`} aria-hidden="true" />
-                  {choice.label}
-                </ToggleButton>
-              ))}
-            </div>
-          </Form.Group>
-        )}
-
         {kind === 'catch' && !picking && (
           <Form.Group className="mb-3">
             <Form.Label>Aussi fait pendant la visite</Form.Label>
@@ -360,13 +341,19 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
       </AppModal>
 
       <BycatchQuestionSheet
-        show={askingBycatch}
-        onHide={() => setAskingBycatch(false)}
-        onAnswer={save}
+        show={question === 'bycatch'}
+        onHide={() => setQuestion(null)}
+        onAnswer={afterBycatch}
         onCount={() => {
-          setAskingBycatch(false);
+          setQuestion(null);
           setPicking(true);
         }}
+      />
+
+      <EmptiedQuestionSheet
+        show={question === 'emptied'}
+        onHide={() => setQuestion(null)}
+        onAnswer={(emptied) => save(bycatchCounted, emptied)}
       />
     </>
   );
