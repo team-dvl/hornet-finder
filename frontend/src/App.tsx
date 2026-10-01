@@ -11,6 +11,7 @@ import { useUrlCleaner } from './utils/urlCleaner';
 import { setupPWAAuthMonitoring, setupTokenMonitoring, syncAuthStateWithServiceWorker } from './utils/pwaAuth';
 import { useMobileSessionPersistence } from './hooks/useMobileSessionPersistence';
 import { setApiAccessToken } from './utils/api';
+import { ADMIN, APP_ROLES, BEEKEEPER, TRAPPER } from './utils/roles';
 
 // The statistics are loaded on demand: they stay out of the first load of the PWA
 const StatsIndex = lazy(() => import('./pages/stats/StatsIndex'));
@@ -127,11 +128,11 @@ function App() {
       </Route>
       <Route
         path="/stats"
-        element={<RequireRole roles={['volunteer', 'beekeeper', 'admin']}><Suspense fallback={pageFallback}><StatsIndex /></Suspense></RequireRole>}
+        element={<RequireRole roles={APP_ROLES}><Suspense fallback={pageFallback}><StatsIndex /></Suspense></RequireRole>}
       />
       <Route
         path="/stats/:statId"
-        element={<RequireRole roles={['volunteer', 'beekeeper', 'admin']}><Suspense fallback={pageFallback}><StatDetail /></Suspense></RequireRole>}
+        element={<RequireRole roles={APP_ROLES}><Suspense fallback={pageFallback}><StatDetail /></Suspense></RequireRole>}
       />
       {/* Former printing page, now a tab of the QR Codes administration */}
       <Route path="/traps/tags" element={<Navigate to="/admin/tags?tab=print" replace />} />
@@ -139,7 +140,7 @@ function App() {
       <Route path="/docs/:moduleId" element={<DocPage />} />
       <Route
         path="/admin"
-        element={<RequireRole roles={['volunteer', 'beekeeper', 'admin']}><AdminIndex /></RequireRole>}
+        element={<RequireRole roles={APP_ROLES}><AdminIndex /></RequireRole>}
       />
       <Route
         path="/admin/trap-types"
@@ -155,13 +156,13 @@ function App() {
       />
       <Route
         path="/admin/group"
-        element={<RequireRole roles={['beekeeper', 'admin']}><GroupAdmin /></RequireRole>}
+        element={<RequireRole roles={[BEEKEEPER, TRAPPER, ADMIN]}><GroupAdmin /></RequireRole>}
       />
       {/* Former address of the invitations page */}
       <Route path="/admin/invitations" element={<Navigate to="/admin/group" replace />} />
       <Route
         path="/admin/tags"
-        element={<RequireRole roles={['volunteer', 'beekeeper', 'admin']}><TagsAdmin /></RequireRole>}
+        element={<RequireRole roles={[TRAPPER, BEEKEEPER, ADMIN]}><TagsAdmin /></RequireRole>}
       />
       {/* Link of the invitation emails: signs in first, then lists the invitations */}
       <Route path="/invitations" element={<Invitations />} />

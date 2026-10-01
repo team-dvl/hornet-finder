@@ -7,6 +7,7 @@ import { AppModal, FieldRow, IconButton } from '../ui';
 import TokenStatusBadge from '../debug/TokenStatusBadge';
 import { formatDateTime } from '../../utils/format';
 import { accountConsoleUrl } from '../../utils/authRedirect';
+import { ROLE_LABELS, appRoles } from '../../utils/roles';
 import { useAvatarUrl } from '../../hooks/useAvatarUrl';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
@@ -66,12 +67,8 @@ export default function UserInfoModal({ show, onHide }: UserInfoModalProps) {
   const realmAccess = decodedToken?.realm_access;
   const realmRoles = realmAccess?.roles || [];
 
-  // Filter relevant roles  
-  const roles = realmRoles.filter((role: string) => 
-    role === 'volunteer' || 
-    role === 'beekeeper' || 
-    role === 'admin'
-  );
+  // Application roles only, legacy names mapped
+  const roles = appRoles(realmRoles);
   
   const tokenExpiry = decodedToken?.exp;
   const accountUrl = accountConsoleUrl(auth.settings.authority, auth.settings.client_id);
@@ -132,7 +129,7 @@ export default function UserInfoModal({ show, onHide }: UserInfoModalProps) {
       <FieldRow label="Rôles">
         <span className="d-inline-flex flex-wrap gap-1 justify-content-end">
           {roles.length > 0
-            ? roles.map((role) => <Badge key={role} bg="primary" pill>{role}</Badge>)
+            ? roles.map((role) => <Badge key={role} bg="primary" pill>{ROLE_LABELS[role]}</Badge>)
             : <span className="text-muted">aucun</span>}
         </span>
       </FieldRow>

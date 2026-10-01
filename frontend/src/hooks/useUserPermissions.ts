@@ -4,6 +4,8 @@ import { useMemo, useCallback } from 'react';
 import { Hornet } from '../store/store';
 import { Nest } from '../store/slices/nestsSlice';
 import { Trap } from '../store/slices/trapsSlice';
+import { ADMIN, BEEKEEPER, HUNTER, TRAPPER, appRoles } from '../utils/roles';
+import { TRAPPERS_ROOT, isBeekeeperGroup, memberGroups } from '../utils/groups';
 
 // Interface pour les claims JWT
 interface JWTClaims {
@@ -43,16 +45,10 @@ export const useUserPermissions = () => {
   }, [accessToken]);
   
   const realmRoles = useMemo(() => decodedToken?.realm_access?.roles || [], [decodedToken]);
-  const roles = useMemo(() => 
-    realmRoles.filter((role: string) => 
-      role === 'volunteer' || 
-      role === 'beekeeper' || 
-      role === 'admin'
-    ) as string[],
-    [realmRoles]
-  );
+  // Application roles only, legacy names mapped (see utils/roles.ts)
+  const roles = useMemo(() => appRoles(realmRoles) as string[], [realmRoles]);
 
-  const isAdmin = useMemo(() => roles.includes('admin'), [roles]);
+  const isAdmin = useMemo(() => roles.includes(ADMIN), [roles]);
   const userEmail = profile?.email;
   const userGuid = profile?.sub;
 
@@ -90,12 +86,20 @@ export const useUserPermissions = () => {
   const canArchiveHornet = useCallback(() => isAdmin, [isAdmin]);
   const canArchiveNest = useCallback(() => isAdmin, [isAdmin]);
 
-  // Mémoriser si l'utilisateur peut ajouter des frelons
-  const canAddHornet = useMemo(() => {
-    if (!isSignedIn) return false;
-    // Seuls les utilisateurs avec les rôles volunteer, beekeeper ou admin peuvent ajouter des frelons
-    return roles.includes('volunteer') || roles.includes('beekeeper') || roles.includes('admin');
-  }, [roles, isSignedIn]);
+  // Observations et lâchers de frelons : chasseurs de nids, apiculteurs (au rucher), admins
+  const canAddHornet = useMemo(
+    () => isSignedIn && [HUNTER, BEEKEEPER, ADMIN].some((role) => roles.includes(role)),
+    [roles, isSignedIn]
+  );
+
+  // Tout rôle peut signaler un nid
+  const canAddNest = useMemo(() => isSignedIn && roles.length > 0, [roles, isSignedIn]);
+
+  // Tous les nids, avec leur auteur ; un piégeur ne voit que les nids détruits et les siens
+  const canSeeAllNests = useMemo(
+    () => isSignedIn && [HUNTER, BEEKEEPER, ADMIN].some((role) => roles.includes(role)),
+    [roles, isSignedIn]
+  );
 
   // Chemins complets des groupes Keycloak de l'utilisateur (claim `membership`)
   const groups = useMemo(() => decodedToken?.membership || [], [decodedToken]);
@@ -121,12 +125,15 @@ export const useUserPermissions = () => {
     return groups.some((path: string) => path === groupPath || path.startsWith(`${groupPath}/`));
   }, [groups]);
 
-  // Seuls les volontaires et apiculteurs possèdent des pièges : l'administrateur
+  // Seuls les piégeurs et apiculteurs possèdent des pièges : l'administrateur
   // administre, il ne fait pas de terrain.
   const canAddTrap = useMemo(
-    () => isSignedIn && (roles.includes('volunteer') || roles.includes('beekeeper')),
+    () => isSignedIn && (roles.includes(TRAPPER) || roles.includes(BEEKEEPER)),
     [roles, isSignedIn]
   );
+
+  // Coordinateur des piégeurs (membre de `/trappers/admin`)
+  const administersTrappers = administeredGroups.includes(TRAPPERS_ROOT);
 
   const isTrapOwner = useCallback(
     (trap: Trap) => Boolean(trap?.owner && userGuid && trap.owner.guid === userGuid),
@@ -145,13 +152,15 @@ export const useUserPermissions = () => {
     return isTrapOwner(trap) || isMemberOfGroup(trap.group?.path);
   }, [isTrapOwner, isMemberOfGroup, isSignedIn]);
 
-  // Désigner ou retirer le groupe délégataire. La liste exacte des groupes
-  // autorisés est calculée par le backend (GET /traps/{id}/delegation/).
+  // Désigner ou retirer le groupe délégataire : seulement vers une association
+  // d'apiculteurs. La liste exacte des groupes autorisés est calculée par le
+  // backend (GET /traps/{id}/delegation/).
   const canSetTrapDelegation = useCallback((trap: Trap) => {
     if (!trap || !isSignedIn) return false;
-    if (isAdmin || isTrapOwner(trap)) return true;
-    return administeredGroups.length > 0;
-  }, [isAdmin, isTrapOwner, administeredGroups, isSignedIn]);
+    if (isAdmin) return true;
+    if (isTrapOwner(trap)) return memberGroups(groups).some(isBeekeeperGroup);
+    return administeredGroups.some(isBeekeeperGroup);
+  }, [isAdmin, isTrapOwner, groups, administeredGroups, isSignedIn]);
 
   const canChangeTrapOwner = isAdmin;
 
@@ -159,7 +168,7 @@ export const useUserPermissions = () => {
   const canAddApiary = useMemo(() => {
     if (!isSignedIn) return false;
     // Seuls les apiculteurs peuvent ajouter des ruchers
-    return roles.includes('beekeeper');
+    return roles.includes(BEEKEEPER);
   }, [roles, isSignedIn]);
 
   if (!isSignedIn) {
@@ -175,9 +184,12 @@ export const useUserPermissions = () => {
       canArchiveHornet: () => false,
       canArchiveNest: () => false,
       canAddHornet: false,
+      canAddNest: false,
+      canSeeAllNests: false,
       canAddApiary: false,
       groups: [] as string[],
       administeredGroups: [] as string[],
+      administersTrappers: false,
       canAddTrap: false,
       canEditTrap: () => false,
       canActOnTrap: () => false,
@@ -198,9 +210,12 @@ export const useUserPermissions = () => {
     canArchiveHornet,
     canArchiveNest,
     canAddHornet,
+    canAddNest,
+    canSeeAllNests,
     canAddApiary,
     groups,
     administeredGroups,
+    administersTrappers,
     canAddTrap,
     canEditTrap,
     canActOnTrap,

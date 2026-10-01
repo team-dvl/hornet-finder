@@ -49,13 +49,15 @@ const initialState: NestsState = {
   showArchived: false, // Par défaut, ne montrer que l'année en cours (non archivé)
 };
 
-// Thunk async pour récupérer les nids (authentifié)
+// Thunk async pour récupérer les nids (authentifié). `ownAndDestroyed` : sans
+// accès à tous les nids (piégeur), ses propres signalements plus les nids détruits.
 export const fetchNests = createAsyncThunk(
   'nests/fetchNests',
-  async ({ accessToken, geolocation, archiveFilters }: { 
+  async ({ accessToken, geolocation, archiveFilters, ownAndDestroyed }: { 
     accessToken: string; 
     geolocation: GeolocationParams;
     archiveFilters?: ArchiveFilterParams;
+    ownAndDestroyed?: boolean;
   }, { rejectWithValue }) => {
     try {
       const params = new URLSearchParams({
@@ -66,11 +68,19 @@ export const fetchNests = createAsyncThunk(
         ...(archiveFilters?.archived !== undefined && { archived: archiveFilters.archived }),
       });
 
-      const response = await api.get(`/nests?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      });
+      const headers = { 'Authorization': `Bearer ${accessToken}` };
+      if (ownAndDestroyed) {
+        const [own, destroyed] = await Promise.all([
+          api.get(`/nests/my/?${params}`, { headers }),
+          api.get(`/nests/destroyed?${params}`),
+        ]);
+        // One's own destroyed nest comes back from both
+        const byId = new Map<number | undefined, Nest>();
+        [...(destroyed.data as Nest[]), ...(own.data as Nest[])].forEach((nest) => byId.set(nest.id, nest));
+        return Array.from(byId.values());
+      }
+
+      const response = await api.get(`/nests?${params}`, { headers });
 
       return response.data as Nest[];
     } catch (error: unknown) {

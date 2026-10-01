@@ -25,16 +25,13 @@ export default function AddItemSelector({
   onSelectNest,
   onSelectTrap
 }: AddItemSelectorProps) {
-  const { canAddHornet, canAddApiary, canAddTrap, roles, isAdmin } = useUserPermissions();
+  const { canAddHornet, canAddApiary, canAddTrap, canAddNest, isAdmin } = useUserPermissions();
   
   // État local pour les coordonnées éditables (pour les admins). Mounted
   // anew for each position (keyed by it on the map), so no resync is needed.
   const [editableLat, setEditableLat] = useState(latitude);
   const [editableLng, setEditableLng] = useState(longitude);
   
-  // Vérifier si l'utilisateur peut ajouter des nids (pour l'instant, tous les utilisateurs authentifiés)
-  const canAddNest = roles.length > 0;
-
 
   // Fonctions pour gérer les sélections avec les coordonnées modifiées
   const handleSelectHornet = () => {

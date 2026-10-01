@@ -39,7 +39,8 @@ export default function NestsDoc() {
           Qui peut utiliser ce module ?
         </h5>
         <ul className="mb-0">
-          <li><strong>Bénévoles :</strong> Signalement d'observations de frelons</li>
+          <li><strong>Chasseurs de nids :</strong> observations et lâchers de frelons, tous les nids</li>
+          <li><strong>Piégeurs :</strong> signalement de nids ; ils voient les nids détruits et les leurs</li>
           <li><strong>Apiculteurs :</strong> Gestion des ruchers et signalements</li>
           <li><strong>Administrateurs :</strong> Vue d'ensemble et coordination</li>
         </ul>

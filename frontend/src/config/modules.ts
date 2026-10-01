@@ -1,3 +1,5 @@
+import { APP_ROLES, BEEKEEPER, ADMIN } from '../utils/roles';
+
 /**
  * Modules offered on the landing page.
  *
@@ -53,7 +55,7 @@ export const MODULES: ModuleDefinition[] = [
     description: 'Gérez vos ruchers et ceux que vos associations partagent avec vous.',
     icon: 'bi-hexagon-fill',
     path: '/apiaries',
-    requiredRoles: ['beekeeper', 'admin'],
+    requiredRoles: [BEEKEEPER, ADMIN],
   },
   {
     id: 'stats',
@@ -62,7 +64,7 @@ export const MODULES: ModuleDefinition[] = [
     description: 'Captures, efficacité des pièges et couverture du territoire.',
     icon: 'bi-bar-chart-line',
     path: '/stats',
-    requiredRoles: ['admin', 'volunteer', 'beekeeper'],
+    requiredRoles: APP_ROLES,
   },
   {
     id: 'docs',
@@ -79,8 +81,8 @@ export const MODULES: ModuleDefinition[] = [
     description: 'Référentiels et outils de la plateforme.',
     icon: 'bi-sliders',
     path: '/admin',
-    // Every role gets in for the QR Codes printing; each section filters further
-    requiredRoles: ['admin', 'volunteer', 'beekeeper'],
+    // Every role gets in (QR Codes, group rosters); each section filters further
+    requiredRoles: APP_ROLES,
   },
   {
     id: 'account',

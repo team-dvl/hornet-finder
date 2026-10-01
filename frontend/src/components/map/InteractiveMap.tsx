@@ -113,7 +113,7 @@ export default function InteractiveMap({
   const viewMode = MAP_VIEW_MODES[preset];
   const dispatch = useAppDispatch();
   const auth = useAuth();
-  const { isAdmin, canAddApiary, canAddHornet, canAddTrap, userGuid, roles } = useUserPermissions();
+  const { isAdmin, canAddApiary, canAddHornet, canAddTrap, canAddNest, userGuid, roles } = useUserPermissions();
   
   // Redux state
   const mapCenter = useAppSelector(selectMapCenter);
@@ -388,8 +388,7 @@ export default function InteractiveMap({
       return;
     }
 
-    // Vérifier si l'utilisateur peut ajouter quelque chose (y compris les nids pour les utilisateurs authentifiés)
-    const canAddNest = auth.isAuthenticated; // Tous les utilisateurs authentifiés peuvent ajouter des nids
+    // Vérifier si l'utilisateur peut ajouter quelque chose
     const canAddSomething = canAddHornet || canAddApiary || canAddNest || canAddTrap;
 
     if (canAddSomething) {

@@ -5,6 +5,7 @@ import { BottomSheet, ConfirmDialog, IconButton } from '../ui';
 import {
   fetchMembers, groupErrorOf, removeMember, setMemberAdmin, type GroupMember,
 } from '../../utils/groupsApi';
+import { TRAPPERS_ROOT } from '../../utils/groups';
 
 const PAGE_SIZE = 10;
 
@@ -17,15 +18,21 @@ interface MembersPanelProps {
   isPlatformAdmin: boolean;
 }
 
-/** Whether the viewer may act on this member: never on themselves, and on an administrator only as a platform admin. */
-function canManage(member: GroupMember, isPlatformAdmin: boolean): boolean {
+/**
+ * Whether the viewer may act on this member: never on themselves, on an
+ * administrator only as a platform admin, and on a trapper only as a platform
+ * admin (leaving `/trappers` withdraws the role).
+ */
+function canManage(member: GroupMember, isPlatformAdmin: boolean, trappers: boolean): boolean {
+  if (trappers && !isPlatformAdmin) return false;
   return !member.is_self && (!member.is_admin || isPlatformAdmin);
 }
 
 /**
  * Members of a beekeeper group, for its administrators and the platform
- * admins. A member is removed from here; naming or dismissing an
- * administrator is for platform admins only.
+ * admins, or every trapper (`/trappers`), for their coordinators. A member is
+ * removed from here; naming or dismissing an administrator, and removing a
+ * trapper, is for platform admins only.
  */
 export default function MembersPanel({ groupPath, groupName, isPlatformAdmin }: MembersPanelProps) {
   const [members, setMembers] = useState<GroupMember[]>([]);
@@ -39,6 +46,7 @@ export default function MembersPanel({ groupPath, groupName, isPlatformAdmin }: 
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const trappers = groupPath === TRAPPERS_ROOT;
 
   const load = useCallback(async () => {
     const roster = await fetchMembers(groupPath);
@@ -97,14 +105,18 @@ export default function MembersPanel({ groupPath, groupName, isPlatformAdmin }: 
   const confirmation = pending && {
     remove: {
       title: `Retirer ${label(pending.member)} ?`,
-      message: `La personne perd l'accès à ce qui est partagé avec ${groupName}, au plus tard dans l'heure (renouvellement de sa connexion). Ses propres données ne sont pas supprimées.`,
+      message: trappers
+        ? "La personne n'est plus piégeur : elle perd l'accès à ses pièges au plus tard dans l'heure (renouvellement de sa connexion). Ses pièges ne sont pas supprimés."
+        : `La personne perd l'accès à ce qui est partagé avec ${groupName}, au plus tard dans l'heure (renouvellement de sa connexion). Ses propres données ne sont pas supprimées.`,
       confirmLabel: 'Retirer',
       confirmIcon: 'person-dash',
       variant: 'danger' as const,
     },
     name: {
       title: `Nommer ${label(pending.member)} administrateur ?`,
-      message: `La personne pourra inviter et retirer des membres de ${groupName}.`,
+      message: trappers
+        ? 'La personne pourra consulter la liste des piégeurs.'
+        : `La personne pourra inviter et retirer des membres de ${groupName}.`,
       confirmLabel: 'Nommer',
       confirmIcon: 'shield-plus',
       variant: 'primary' as const,
@@ -125,11 +137,18 @@ export default function MembersPanel({ groupPath, groupName, isPlatformAdmin }: 
     <section>
       <h2 className="h5 d-flex align-items-center mb-3">
         Membres ({members.length})
-        <HelpTip id="members-help" title="Membres du groupe">
-          Les administrateurs du groupe voient les membres par leur nom, jamais leur adresse email.
-          Retirer un membre prend effet au plus tard dans l'heure, au renouvellement de sa connexion.
-          Seul un administrateur de la plateforme nomme ou retire un administrateur du groupe, et un groupe en garde toujours au moins un.
-        </HelpTip>
+        {trappers ? (
+          <HelpTip id="members-help" title="Piégeurs">
+            Toute personne inscrite est piégeur. Les coordinateurs voient les piégeurs par leur nom, jamais leur adresse email.
+            Seul un administrateur de la plateforme retire un piégeur ou nomme un coordinateur.
+          </HelpTip>
+        ) : (
+          <HelpTip id="members-help" title="Membres du groupe">
+            Les administrateurs du groupe voient les membres par leur nom, jamais leur adresse email.
+            Retirer un membre prend effet au plus tard dans l'heure, au renouvellement de sa connexion.
+            Seul un administrateur de la plateforme nomme ou retire un administrateur du groupe, et un groupe en garde toujours au moins un.
+          </HelpTip>
+        )}
       </h2>
 
       {notice && <Alert variant="success" dismissible onClose={() => setNotice(null)}>{notice}</Alert>}
@@ -148,7 +167,7 @@ export default function MembersPanel({ groupPath, groupName, isPlatformAdmin }: 
               {member.is_self && <div className="small text-muted">vous</div>}
             </div>
             {member.is_admin && <Badge bg="primary" className="flex-shrink-0">Admin</Badge>}
-            {canManage(member, isPlatformAdmin) && (
+            {canManage(member, isPlatformAdmin, trappers) && (
               <IconButton
                 variant="outline-secondary"
                 icon="three-dots"

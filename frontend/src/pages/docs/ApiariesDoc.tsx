@@ -82,7 +82,7 @@ export default function ApiariesDoc() {
           Visibilité et partage
         </h5>
         <p>
-          Un rucher est <strong>privé</strong> : ni les visiteurs, ni les bénévoles, ni les autres
+          Un rucher est <strong>privé</strong> : ni les visiteurs, ni les piégeurs, ni les chasseurs de nids, ni les autres
           apiculteurs ne le voient. Depuis sa fiche, section <em>Partage</em>, vous pouvez le
           montrer à une association dont vous êtes membre ; avec « Peut modifier », ses membres
           peuvent aussi le mettre à jour.

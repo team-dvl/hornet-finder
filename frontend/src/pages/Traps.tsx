@@ -20,7 +20,7 @@ import {
 } from '../store/store';
 import { signInFromCurrentPage } from '../utils/authRedirect';
 import { ACTION_ICONS } from '../utils/icons';
-import { memberGroups } from '../utils/groups';
+import { isBeekeeperGroup, memberGroups } from '../utils/groups';
 import { currentPosition } from '../utils/position';
 import type { TagResolution } from '../utils/tagsApi';
 
@@ -54,7 +54,7 @@ export default function Traps() {
   const navigate = useNavigate();
   const location = useLocation();
   const {
-    isAdmin, roles, groups, userGuid, canAddTrap, canActOnTrap, canEditTrap,
+    isAdmin, groups, userGuid, canAddTrap, canActOnTrap, canEditTrap,
   } = useUserPermissions();
 
   const managed = useAppSelector(selectManagedTraps);
@@ -80,11 +80,12 @@ export default function Traps() {
 
   const scopes = useMemo<TrapScope[]>(() => {
     const available: TrapScope[] = [];
-    if (roles.includes('volunteer') || roles.includes('beekeeper')) available.push('mine');
-    available.push('delegated');
+    if (canAddTrap) available.push('mine');
+    // Delegation only goes to beekeeper associations: a trapper outside any has nothing there
+    if (memberGroups(groups).some(isBeekeeperGroup) || available.length === 0) available.push('delegated');
     if (isAdmin) available.push('all');
     return available;
-  }, [roles, isAdmin]);
+  }, [canAddTrap, groups, isAdmin]);
   // A platform admin cannot own traps: they start on every trap
   const defaultScope: TrapScope = scopes.includes('mine') ? 'mine' : isAdmin ? 'all' : 'delegated';
 
