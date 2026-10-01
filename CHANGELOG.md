@@ -10,6 +10,8 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-01
+
 ### Added
 - Group administration (Administration → Mon groupe, "Groupes" for platform admins):
   the members of a beekeeper group, listed by name, and the invitations, now in a
@@ -115,5 +117,6 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   algorithm-confusion flaws were not reachable; `PyJWKClient` redirect handling
   is fixed.
 
-[Unreleased]: https://github.com/team-dvl/hornet-finder/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/team-dvl/hornet-finder/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/team-dvl/hornet-finder/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/team-dvl/hornet-finder/releases/tag/v1.0.0
