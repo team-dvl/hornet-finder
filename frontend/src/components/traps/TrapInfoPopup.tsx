@@ -239,6 +239,24 @@ function VisitRow({ events, accumulates, canDelete, onDelete, onPreview }: {
   );
 }
 
+/**
+ * What a trap that accumulates held at its last reading: what it was left
+ * with, or nothing once emptied, and when. Null when unknown (no reading yet,
+ * or the journal not loaded): the row is then left out.
+ */
+function lastContents(trap: Trap): { value: string; note?: string; at: string } | null {
+  const { contents } = trap;
+  if (contents) {
+    const total = contents.items.reduce((sum, item) => sum + item.quantity, 0);
+    const plural = total > 1 ? 's' : '';
+    return contents.others_counted
+      ? { value: `${total} insecte${plural}`, at: contents.at }
+      : { value: `${total} frelon${plural} asiatique${plural}`, note: 'autres non comptés', at: contents.at };
+  }
+  const lastReading = trap.events?.find((event) => event.kind === 'catch');
+  return lastReading ? { value: '0, vidé', at: lastReading.performed_at } : null;
+}
+
 /** Dialog shown in place of the sheet (one dialog at a time) */
 type SubDialog =
   | { kind: 'event'; eventKind: TrapEventKind }
@@ -276,6 +294,7 @@ export default function TrapInfoPopup({
   const entries = journalEntries(events);
   const mayEdit = canEditTrap(current);
   const mayAct = canActOnTrap(current);
+  const held = current.trap_type.accumulates ? lastContents(current) : null;
   const closeSub = () => setSub(null);
 
   const handleDelete = async () => {
@@ -351,6 +370,15 @@ export default function TrapInfoPopup({
 
         <div className="mb-2">
           <FieldRow label="Frelons asiatiques capturés"><strong>{current.hornet_catch_count}</strong></FieldRow>
+          {held && (
+            <FieldRow label="Dans le piège">
+              {held.value}
+              <span className="d-block small text-muted">
+                {held.note && `${held.note}, `}
+                <span className="text-nowrap">{formatDate(held.at)}</span>
+              </span>
+            </FieldRow>
+          )}
           <FieldRow label="Installé le">{formatDate(current.installed_at)}</FieldRow>
           {current.owner && <FieldRow label="Propriétaire">{current.owner.display_name}</FieldRow>}
           {current.tag_short && <FieldRow label="QR Code"><code>{current.tag_short}</code></FieldRow>}
