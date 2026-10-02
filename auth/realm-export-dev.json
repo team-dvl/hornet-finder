@@ -92,15 +92,6 @@
         "attributes": {}
       },
       {
-        "id": "5b0e8f8c-3f0a-4c55-9d8e-7a51f2c6e102",
-        "name": "trapper",
-        "description": "Trapper: owns traps and prints their QR Codes; default role of a new account",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
-        "attributes": {}
-      },
-      {
         "id": "32d02730-5874-4a5d-8304-7a96ffbbeaa5",
         "name": "group-admin",
         "description": "Group administrator: administers a beekeeper group (membership, trap delegation) or coordinates the trappers",
@@ -161,6 +152,15 @@
         "id": "4a245911-3ea8-44c5-a37b-fdeff3b090cf",
         "name": "mfa-required",
         "description": "Users holding this role must use a second factor (OTP) to sign in with a password",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
+        "attributes": {}
+      },
+      {
+        "id": "e6fc2226-f3cc-42f3-8094-39d31325852c",
+        "name": "trapper",
+        "description": "Trapper: owns traps and prints their QR Codes; default role of a new account",
         "composite": false,
         "clientRole": false,
         "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
@@ -619,7 +619,9 @@
               "parentId": "edfe4aac-7f67-4fc1-85b4-04a49beff021",
               "subGroups": [],
               "attributes": {},
-              "realmRoles": [],
+              "realmRoles": [
+                "group-admin"
+              ],
               "clientRoles": {}
             }
           ],
@@ -637,27 +639,27 @@
     {
       "id": "c80bc5ca-7840-411c-8754-bf78a85db170",
       "name": "hunters",
+      "description": "Chasseurs de nids",
       "path": "/hunters",
       "subGroups": [],
       "attributes": {},
       "realmRoles": [
         "hunter"
       ],
-      "clientRoles": {},
-      "description": "Chasseurs de nids"
+      "clientRoles": {}
     },
     {
-      "id": "6d2a1c3e-8b7f-4e19-a0c4-2f9d5e7b3a21",
+      "id": "96fd2ad2-6a3a-4ee5-8d7b-92b015dc23db",
       "name": "trappers",
       "description": "Piégeurs",
       "path": "/trappers",
       "subGroups": [
         {
-          "id": "6d2a1c3e-8b7f-4e19-a0c4-2f9d5e7b3a22",
+          "id": "972d02f9-7c7e-4b71-a4f9-09e8e83ba958",
           "name": "admin",
           "description": "Coordinateurs des piégeurs",
           "path": "/trappers/admin",
-          "parentId": "6d2a1c3e-8b7f-4e19-a0c4-2f9d5e7b3a21",
+          "parentId": "96fd2ad2-6a3a-4ee5-8d7b-92b015dc23db",
           "subGroups": [],
           "attributes": {},
           "realmRoles": [

@@ -46,6 +46,8 @@ Mêmes étapes 3 à 6 sur le realm `hornet-finder-dev`, depuis le worktree dev (
 
 Vérifier avec `./smoke-traps.sh` (tout `ok`) et `./ui-shots.sh` avant de passer en prod.
 
+Fait en dev le 2026-10-02 : rôles et groupes par l'API (`flow-admin`, avec `manage-users` le temps de l'opération), comptes de test `t-trapper`, `t-hunter` et `t-coordinator` ajoutés, `./smoke-traps.sh` à 65 ok / 0 échec, `auth/realm-export-dev.json` rafraîchi. Piège rencontré : le renommage de `/volunteers` entraîne ses sous-groupes (`/hunters/vol-group-a`), à supprimer ensuite ; et un compte créé reçoit le groupe par défaut `/trappers`.
+
 ## Étapes
 1. **Comptages en lecture seule.**
    ```sh
@@ -69,8 +71,11 @@ Vérifier avec `./smoke-traps.sh` (tout `ok`) et `./ui-shots.sh` avant de passer
    # Nouveau rôle trapper
    curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "Authorization: Bearer $T" -H 'Content-Type: application/json' \
      -d '{"name":"trapper","description":"Trapper: owns traps and prints their QR Codes; default role of a new account"}' "$K/roles"
+   # Description de group-admin (ne mentionne plus les bénévoles)
+   curl -s -o /dev/null -w '%{http_code}\n' -X PUT -H "Authorization: Bearer $T" -H 'Content-Type: application/json' \
+     -d '{"name":"group-admin","description":"Group administrator: administers a beekeeper group (membership, trap delegation) or coordinates the trappers"}' "$K/roles/group-admin"
    ```
-   Codes attendus : `204` puis `201`. Si le renommage était refusé, ne pas improviser : créer `hunter` et l'attribuer à `/volunteers` et à `/admins` à la place de `volunteer`, puis supprimer `volunteer` à l'étape 5.
+   Codes attendus : `204`, `201`, puis `204`. Si le renommage était refusé, ne pas improviser : créer `hunter` et l'attribuer à `/volunteers` et à `/admins` à la place de `volunteer`, puis supprimer `volunteer` à l'étape 5.
 4. **Groupes (console).**
    1. Groups → Create group `trappers`, description « Piégeurs » ; Role mapping : `trapper`.
    2. Sous `/trappers`, créer le sous-groupe `admin`, description « Coordinateurs des piégeurs » ; Role mapping : `group-admin`.
