@@ -2,32 +2,12 @@ import { useEffect, useState } from 'react';
 import { Alert, Button, Card, Spinner } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
 import { ConfirmDialog, IconButton } from '../ui';
+import { refreshSession } from '../../utils/oidc';
 import {
   answerInvitation, fetchMyInvitations, inviteErrorOf, type GroupInvitation,
 } from '../../utils/invitationsApi';
 
 type Feedback = { variant: 'success' | 'danger'; text: string };
-
-// Renewing the token unmounts the page (App shows its sign-in screen
-// meanwhile): the confirmation waits here for the page to come back.
-const JOINED_KEY = 'hornet-invitation-joined';
-
-function keepJoinedMessage(text: string): void {
-  try { sessionStorage.setItem(JOINED_KEY, text); } catch { /* storage unavailable: no message */ }
-}
-
-function joinedFeedback(): Feedback | null {
-  try {
-    const text = sessionStorage.getItem(JOINED_KEY);
-    return text ? { variant: 'success', text } : null;
-  } catch {
-    return null;
-  }
-}
-
-function forgetJoinedMessage(): void {
-  try { sessionStorage.removeItem(JOINED_KEY); } catch { /* nothing kept */ }
-}
 
 /**
  * Invitations to a beekeeper group waiting for the signed-in user's answer.
@@ -38,11 +18,9 @@ export default function PendingInvitations() {
   const auth = useAuth();
   const [invitations, setInvitations] = useState<GroupInvitation[]>([]);
   const [busyId, setBusyId] = useState<number | null>(null);
-  const [feedback, setFeedback] = useState<Feedback | null>(joinedFeedback);
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [declining, setDeclining] = useState<GroupInvitation | null>(null);
   const [declineError, setDeclineError] = useState<string | null>(null);
-
-  useEffect(forgetJoinedMessage, []);
 
   useEffect(() => {
     if (!auth.isAuthenticated) return;
@@ -62,10 +40,10 @@ export default function PendingInvitations() {
     try {
       await answerInvitation(invitation.id, true);
       remove(invitation.id);
-      keepJoinedMessage(`Vous avez rejoint ${invitation.group_name}.`);
       // A new token carries the group and its role; without it they would
-      // only apply at the next automatic renewal, up to a few hours later
-      await auth.signinSilent().catch(() => undefined);
+      // only apply at the next automatic renewal, up to an hour later
+      await refreshSession();
+      setFeedback({ variant: 'success', text: `Vous avez rejoint ${invitation.group_name}.` });
     } catch (error) {
       setFeedback({ variant: 'danger', text: inviteErrorOf(error).detail });
     } finally {

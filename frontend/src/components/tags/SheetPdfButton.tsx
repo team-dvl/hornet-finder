@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button, type ButtonProps } from 'react-bootstrap';
 import { TagError, type SheetLink } from '../../utils/tagsApi';
-import { detectPWAAuthState } from '../../utils/pwaAuth';
+import { isInstalledPwa } from '../../utils/pwa';
 
 interface SheetPdfButtonProps {
   /** Asks the server for the signed link of the sheet */
@@ -24,7 +24,7 @@ const FILE_NAME = 'qr-codes.pdf';
  * the plain link stays.
  */
 function usesShareSheet(): boolean {
-  if (!detectPWAAuthState().isPWA || typeof navigator.canShare !== 'function') return false;
+  if (!isInstalledPwa() || typeof navigator.canShare !== 'function') return false;
   try {
     return navigator.canShare({ files: [new File([], FILE_NAME, { type: 'application/pdf' })] });
   } catch {
