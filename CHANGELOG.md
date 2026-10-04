@@ -33,7 +33,20 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   lists every trapper by name; removing a trapper, who loses the role, is left
   to platform admins.
 
+### Removed
+- The service worker's token extension (`sw-auth-extension.js`) and its
+  helpers: a service worker cannot read the tokens nor run while the app is
+  closed, so it renewed nothing. The service worker now only caches the app.
+
 ### Fixed
+- The session survives a closed or suspended app: opening the installed app
+  (or a tab) with an expired access token renews it with the refresh token
+  instead of showing the user signed out, and so does coming back to the
+  foreground or back online. An API call renews a token about to expire first
+  and is replayed once after a 401. A renewal that fails for lack of network no
+  longer locks the app behind "Session expirée"; only a session ended in
+  Keycloak signs the user out. The renewal now starts 10 minutes before expiry
+  (the former setting had a wrong name and was ignored: 1 minute).
 - The delegation endpoint accepted any group path from a platform admin.
 
 ## [1.1.0] - 2026-10-01

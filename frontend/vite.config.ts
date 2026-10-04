@@ -104,15 +104,6 @@ export default defineConfig(({ mode }) => {
               handler: 'NetworkOnly', // Les requêtes auth ne doivent pas être cachées
             },
         ],
-        // Ajouter notre extension d'authentification au service worker généré
-        additionalManifestEntries: [
-          {
-            url: '/sw-auth-extension.js',
-            revision: null
-          }
-        ],
-        // Importer notre extension dans le service worker
-        importScripts: ['sw-auth-extension.js']
       },
       manifest: {
         name: 'Velutina',

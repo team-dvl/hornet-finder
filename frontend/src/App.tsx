@@ -8,9 +8,7 @@ import { Home, MapPage, Nests, Traps, Apiaries, DocsIndex, DocPage, AdminIndex, 
 import { RequireRole } from './components/common';
 import { initIOSViewportFix } from './utils/iosViewportFix';
 import { useUrlCleaner } from './utils/urlCleaner';
-import { setupPWAAuthMonitoring, setupTokenMonitoring, syncAuthStateWithServiceWorker } from './utils/pwaAuth';
-import { useMobileSessionPersistence } from './hooks/useMobileSessionPersistence';
-import { setApiAccessToken } from './utils/api';
+import { useSessionGuard } from './hooks/useSessionGuard';
 import { ADMIN, APP_ROLES, BEEKEEPER, TRAPPER } from './utils/roles';
 
 // The statistics are loaded on demand: they stay out of the first load of the PWA
@@ -19,65 +17,29 @@ const StatDetail = lazy(() => import('./pages/stats/StatDetail'));
 const ExportJob = lazy(() => import('./pages/stats/ExportJob'));
 const pageFallback = <div className="text-center py-5"><Spinner animation="border" /></div>;
 
-// Import conditionnel pour les tests en développement
-if (import.meta.env.DEV) {
-  import('./utils/authTester');
-}
-
 function App() {
   const auth = useAuth();
 
-  // Give the API client the token of the current session. Done during render
-  // and not in an effect: a child's mount effect fires its first requests
-  // before the effects of this component would have run, and those calls must
-  // already carry the token. `isAuthenticated` is `!user.expired`, so an
-  // expired session hands over nothing.
-  setApiAccessToken(auth.isAuthenticated && auth.user ? auth.user.access_token ?? null : null);
-
   // Nettoyer automatiquement l'URL après authentification (pour PWA)
   useUrlCleaner(auth.isAuthenticated);
-  
-  // Gestion de la persistance de session mobile
-  useMobileSessionPersistence();
 
-  // Initialisation unique (viewport iOS, monitoring PWA / tokens, service worker)
+  // Renews the session on launch, resume and reconnection
+  const resuming = useSessionGuard();
+
+  // Initialiser la correction iOS pour le viewport
   useEffect(() => {
-    // Initialiser la correction iOS pour le viewport
     initIOSViewportFix();
-    
-    // Initialiser le monitoring PWA pour l'authentification
-    setupPWAAuthMonitoring();
-    
-    // Initialiser le monitoring avancé des tokens
-    setupTokenMonitoring();
-    
-    // Synchroniser l'état avec le service worker
-    syncAuthStateWithServiceWorker();
   }, []);
 
-  // Synchroniser l'état d'authentification avec le service worker
-  useEffect(() => {
-    if (!auth.isLoading) {
-      syncAuthStateWithServiceWorker();
-    }
-  }, [auth.isAuthenticated, auth.user, auth.isLoading]);
-
-  switch (auth.activeNavigator) {
-    case "signinSilent":
-      return (
-        <Container className="d-flex justify-content-center align-items-center vh-100">
-          <Alert variant="info">Connexion en cours…</Alert>
-        </Container>
-      );
-    case "signoutRedirect":
-      return (
-        <Container className="d-flex justify-content-center align-items-center vh-100">
-          <Alert variant="info">Déconnexion en cours…</Alert>
-        </Container>
-      );
+  if (auth.activeNavigator === 'signoutRedirect') {
+    return (
+      <Container className="d-flex justify-content-center align-items-center vh-100">
+        <Alert variant="info">Déconnexion en cours…</Alert>
+      </Container>
+    );
   }
 
-  if (auth.isLoading) {
+  if (auth.isLoading || resuming) {
     return (
       <Container className="d-flex justify-content-center align-items-center vh-100">
         <Alert variant="info">Chargement…</Alert>
@@ -85,7 +47,9 @@ function App() {
     );
   }
 
-  if (auth.error) {
+  // A failed background renewal is not shown: the session is renewed again on
+  // the next resume or API call, or dropped if Keycloak has ended it
+  if (auth.error && auth.error.source !== 'renewSilent') {
     // Si erreur d'authentification (ex: token expiré), nettoyer et rediriger
     console.warn('Erreur d\'authentification:', auth.error);
     
