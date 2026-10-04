@@ -39,6 +39,31 @@ body {
   color: var(--bs-body-color);
 }
 
+/*
+ * Colour of the module icons (landing tiles and navbar menu). The field
+ * modules reuse the colours of the map markers; every tone is at least 4.5:1
+ * on white. A module without a tone keeps the primary blue.
+ */
+:root {
+  --tone-map: #0a6c8a;
+  --tone-nest: #c62f3e;
+  --tone-trap: #157347;
+  --tone-apiary: #a16207;
+  --tone-stats: #6f42c1;
+  --tone-plain: #6c757d;
+}
+
+.module-icon {
+  color: var(--bs-primary);
+}
+
+.module-icon[data-tone='map'] { color: var(--tone-map); }
+.module-icon[data-tone='nest'] { color: var(--tone-nest); }
+.module-icon[data-tone='trap'] { color: var(--tone-trap); }
+.module-icon[data-tone='apiary'] { color: var(--tone-apiary); }
+.module-icon[data-tone='stats'] { color: var(--tone-stats); }
+.module-icon[data-tone='plain'] { color: var(--tone-plain); }
+
 /* Module tiles on the landing page */
 .module-card {
   transition: transform 0.15s ease, box-shadow 0.15s ease;

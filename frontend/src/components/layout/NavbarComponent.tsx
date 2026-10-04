@@ -137,7 +137,7 @@ export default function NavbarComponent() {
           <Nav className="me-auto">
             {modules.map((module) => (
               <Nav.Link key={module.id} as={NavLink} to={module.path!} onClick={close} className="navbar-module-link">
-                <i className={`bi ${module.icon} me-2 d-lg-none`} aria-hidden="true" />
+                <i className={`bi ${module.icon} me-2 d-lg-none module-icon`} data-tone={module.tone} aria-hidden="true" />
                 {module.shortTitle}
               </Nav.Link>
             ))}

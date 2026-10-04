@@ -11,6 +11,10 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ## [Unreleased]
 
 ### Changed
+- Module icons in colour: on the landing page and in the navbar menu, each field
+  module takes the colour of what it manages on the map (nests red, traps green,
+  apiaries gold, map teal, statistics violet); documentation, administration and
+  account stay grey.
 - One role per trade. `volunteer` is split: nest hunters (`hunter`, the former
   role renamed) record hornet sightings and releases and see every nest;
   trappers (`trapper`, new, the role of every new account) own traps and print

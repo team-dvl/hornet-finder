@@ -9,6 +9,13 @@ import { APP_ROLES, BEEKEEPER, ADMIN } from '../utils/roles';
  */
 export type ModuleId = 'map' | 'nests' | 'traps' | 'apiaries' | 'stats' | 'docs' | 'admin' | 'account';
 
+/**
+ * Colour family of a module's icon: the field modules take the colour of what
+ * they manage on the map, the platform ones (documentation, administration,
+ * account) stay grey. See the `--tone-*` tokens in App.css.
+ */
+export type ModuleTone = 'map' | 'nest' | 'trap' | 'apiary' | 'stats' | 'plain';
+
 export interface ModuleDefinition {
   id: ModuleId;
   title: string;
@@ -17,6 +24,7 @@ export interface ModuleDefinition {
   description: string;
   /** bootstrap-icons class name, e.g. `bi-geo-alt-fill` */
   icon: string;
+  tone: ModuleTone;
   /** Internal route. Absent for modules resolved at runtime (account console). */
   path?: string;
   badge?: string;
@@ -30,6 +38,7 @@ export const MODULES: ModuleDefinition[] = [
     shortTitle: 'Carte',
     description: 'Accédez directement à la carte des pièges, des nids et des ruchers.',
     icon: 'bi-map',
+    tone: 'map',
     path: '/map',
   },
   {
@@ -38,6 +47,7 @@ export const MODULES: ModuleDefinition[] = [
     shortTitle: 'Nids',
     description: 'Cartographiez les observations de frelons, les nids et les ruchers.',
     icon: 'bi-geo-alt-fill',
+    tone: 'nest',
     path: '/nests',
   },
   {
@@ -46,6 +56,7 @@ export const MODULES: ModuleDefinition[] = [
     shortTitle: 'Pièges',
     description: 'Gérez vos pièges et suivez les captures.',
     icon: 'bi-bullseye',
+    tone: 'trap',
     path: '/traps',
   },
   {
@@ -54,6 +65,7 @@ export const MODULES: ModuleDefinition[] = [
     shortTitle: 'Ruchers',
     description: 'Gérez vos ruchers et ceux que vos associations partagent avec vous.',
     icon: 'bi-hexagon-fill',
+    tone: 'apiary',
     path: '/apiaries',
     requiredRoles: [BEEKEEPER, ADMIN],
   },
@@ -63,6 +75,7 @@ export const MODULES: ModuleDefinition[] = [
     shortTitle: 'Statistiques',
     description: 'Captures, efficacité des pièges et couverture du territoire.',
     icon: 'bi-bar-chart-line',
+    tone: 'stats',
     path: '/stats',
     requiredRoles: APP_ROLES,
   },
@@ -72,6 +85,7 @@ export const MODULES: ModuleDefinition[] = [
     shortTitle: 'Documentation',
     description: 'Comment utiliser chaque module de la plateforme.',
     icon: 'bi-book',
+    tone: 'plain',
     path: '/docs',
   },
   {
@@ -80,6 +94,7 @@ export const MODULES: ModuleDefinition[] = [
     shortTitle: 'Administration',
     description: 'Référentiels et outils de la plateforme.',
     icon: 'bi-sliders',
+    tone: 'plain',
     path: '/admin',
     // Every role gets in (QR Codes, group rosters); each section filters further
     requiredRoles: APP_ROLES,
@@ -90,6 +105,7 @@ export const MODULES: ModuleDefinition[] = [
     shortTitle: 'Compte',
     description: 'Gérez votre profil et votre mot de passe.',
     icon: 'bi-person-circle',
+    tone: 'plain',
   },
 ];
 
