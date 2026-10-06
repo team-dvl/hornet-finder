@@ -26,13 +26,34 @@ if [[ -z "${KC_TEST_CLIENT_ID:-}" || -z "${KC_TEST_CLIENT_SECRET:-}" ]]; then
     exit 1
 fi
 BASE="https://${HOST}/api"
+# Beekeeper association of t-owner, t-member and t-groupadmin (admin subgroup):
+# the only kind of group a trap can be delegated to
+GROUP="/beekeepers/bkp-group-c"
 AUTH="https://${KC_HOSTNAME}/realms/hornet-finder-dev/protocol/openid-connect/token"
 PASS=0; FAIL=0
 OUT="$(mktemp)"; trap 'rm -f "$OUT"' EXIT
 
+# Current TOTP code of KC_TEST_TOTP_SECRET (base32, HmacSHA1, 6 digits, 30 s:
+# the realm OTP policy), for t-admin whose admin role requires a second factor
+totp() {
+  python3 -c "
+import base64, hashlib, hmac, os, struct, time
+secret = os.environ['KC_TEST_TOTP_SECRET'].replace(' ', '').upper()
+key = base64.b32decode(secret + '=' * (-len(secret) % 8))
+digest = hmac.new(key, struct.pack('>Q', int(time.time()) // 30), hashlib.sha1).digest()
+offset = digest[-1] & 15
+print('%06d' % ((struct.unpack('>I', digest[offset:offset + 4])[0] & 0x7fffffff) % 10**6))"
+}
+
+# token <user> [otp]: access token of <user>@example.invalid; `otp` adds the TOTP code
 token() {
-  curl -sk -X POST "$AUTH" -d "client_id=$KC_TEST_CLIENT_ID" -d "client_secret=$KC_TEST_CLIENT_SECRET" \
-    -d "username=$1@example.invalid" -d "password=$KC_TEST_USER_PASSWORD" \
+  local extra=()
+  if [[ "${2:-}" == "otp" ]]; then
+    [[ -n "${KC_TEST_TOTP_SECRET:-}" ]] || { echo "KC_TEST_TOTP_SECRET is missing from .env: $1 has an OTP." >&2; return 1; }
+    extra=(-d "totp=$(totp)")
+  fi
+  curl -sk -X POST "$AUTH" -d "client_id=$KC_TEST_CLIENT_ID" --data-urlencode "client_secret=$KC_TEST_CLIENT_SECRET" \
+    -d "username=$1@example.invalid" --data-urlencode "password=$KC_TEST_USER_PASSWORD" "${extra[@]}" \
     -d "grant_type=password" -d "scope=openid membership" \
     | python3 -c "import sys,json;print(json.load(sys.stdin)['access_token'])"
 }
@@ -47,7 +68,7 @@ call() {
 }
 
 OWNER=$(token t-owner); MEMBER=$(token t-member)
-GADMIN=$(token t-groupadmin); ADMIN=$(token t-admin); PUREADMIN=$(token t-adminonly)
+GADMIN=$(token t-groupadmin); ADMIN=$(token t-admin otp); PUREADMIN=$(token t-adminonly)
 H_OWNER=(-H "Authorization: Bearer $OWNER"); H_MEMBER=(-H "Authorization: Bearer $MEMBER")
 H_GADMIN=(-H "Authorization: Bearer $GADMIN"); H_ADMIN=(-H "Authorization: Bearer $ADMIN")
 H_PURE=(-H "Authorization: Bearer $PUREADMIN")
@@ -73,7 +94,8 @@ if [ "$COUNT" = "5" ]; then PASS=$((PASS+1)); echo "  ok   compteur de frelons =
 
 echo "== Prise multi-espèces"
 ITEMS='[{"species_slug":"vespa-velutina","quantity":7},{"species_slug":"apis-mellifera","quantity":2}]'
-call 201 "t-owner enregistre une prise à deux espèces"   POST "/traps/$TRAP/catches/" "${H_OWNER[@]}" -F "items=$ITEMS" -F "performed_at=$(date -Is)"
+# `emptied`: required when the trap type accumulates its catches, implied otherwise
+call 201 "t-owner enregistre une prise à deux espèces"   POST "/traps/$TRAP/catches/" "${H_OWNER[@]}" -F "items=$ITEMS" -F "emptied=true" -F "performed_at=$(date -Is)"
 BATCH=$(python3 -c "import sys,json;d=json.load(open(sys.argv[1]));print(d[0]['batch'] if len({e['batch'] for e in d})==1 and len(d)==2 else '')" "$OUT")
 if [ -n "$BATCH" ]; then PASS=$((PASS+1)); echo "  ok   deux événements, un seul lot"; else FAIL=$((FAIL+1)); echo "  FAIL lot incohérent"; fi
 call 400 "espèce en double refusée"                     POST "/traps/$TRAP/catches/" "${H_OWNER[@]}" -F 'items=[{"species_slug":"vespa-velutina","quantity":1},{"species_slug":"vespa-velutina","quantity":1}]' -F "performed_at=$(date -Is)"
@@ -83,7 +105,7 @@ COUNT=$(curl -sk "$BASE/traps/$TRAP/" "${H_OWNER[@]}" | python3 -c "import sys,j
 if [ "$COUNT" = "5" ]; then PASS=$((PASS+1)); echo "  ok   compteur revenu à 5"; else FAIL=$((FAIL+1)); echo "  FAIL compteur = $COUNT, attendu 5"; fi
 
 echo "== Relevé à zéro et visite"
-call 201 "t-owner enregistre un relevé vide, avec nettoyage" POST "/traps/$TRAP/catches/" "${H_OWNER[@]}" -F 'items=[{"species_slug":"vespa-velutina","quantity":0}]' -F "bycatch_counted=true" -F 'actions=["cleaning"]' -F "performed_at=$(date -Is)"
+call 201 "t-owner enregistre un relevé vide, avec nettoyage" POST "/traps/$TRAP/catches/" "${H_OWNER[@]}" -F 'items=[{"species_slug":"vespa-velutina","quantity":0}]' -F "bycatch_counted=true" -F "emptied=true" -F 'actions=["cleaning"]' -F "performed_at=$(date -Is)"
 BATCH=$(python3 -c "import sys,json;d=json.load(open(sys.argv[1]));print(d[0]['batch'] if sorted(e['kind'] for e in d)==['catch','cleaning'] and len({e['batch'] for e in d})==1 else '')" "$OUT")
 if [ -n "$BATCH" ]; then PASS=$((PASS+1)); echo "  ok   relevé et nettoyage dans un seul lot"; else FAIL=$((FAIL+1)); echo "  FAIL visite incohérente"; fi
 call 400 "une autre espèce à zéro refusée"              POST "/traps/$TRAP/catches/" "${H_OWNER[@]}" -F 'items=[{"species_slug":"apis-mellifera","quantity":0}]' -F "performed_at=$(date -Is)"
@@ -94,8 +116,9 @@ echo "== Avant délégation"
 call 403 "t-member ne peut pas agir (pas encore délégué)" POST "/traps/$TRAP/events/" "${H_MEMBER[@]}" -F "kind=inspection" -F "performed_at=$(date -Is)"
 
 echo "== Délégation"
-call 403 "t-member ne peut pas déléguer"                PUT "/traps/$TRAP/delegation/" "${H_MEMBER[@]}" -H "Content-Type: application/json" -d '{"group_path":"/volunteers/vol-group-a"}'
-call 200 "t-owner délègue à son groupe"                 PUT "/traps/$TRAP/delegation/" "${H_OWNER[@]}" -H "Content-Type: application/json" -d '{"group_path":"/volunteers/vol-group-a"}'
+call 403 "t-member ne peut pas déléguer"                PUT "/traps/$TRAP/delegation/" "${H_MEMBER[@]}" -H "Content-Type: application/json" -d "{\"group_path\":\"$GROUP\"}"
+call 200 "t-owner délègue à son groupe"                 PUT "/traps/$TRAP/delegation/" "${H_OWNER[@]}" -H "Content-Type: application/json" -d "{\"group_path\":\"$GROUP\"}"
+call 403 "t-owner ne délègue pas à /trappers"          PUT "/traps/$TRAP/delegation/" "${H_OWNER[@]}" -H "Content-Type: application/json" -d '{"group_path":"/trappers"}'
 call 403 "t-owner ne peut pas déléguer hors de ses groupes" PUT "/traps/$TRAP/delegation/" "${H_OWNER[@]}" -H "Content-Type: application/json" -d '{"group_path":"/beekeepers/bkp-group-a"}'
 call 201 "t-member agit une fois délégué"               POST "/traps/$TRAP/events/" "${H_MEMBER[@]}" -F "kind=cleaning" -F "performed_at=$(date -Is)"
 call 403 "t-member ne peut pas modifier le piège"       PATCH "/traps/$TRAP/" "${H_MEMBER[@]}" -H "Content-Type: application/json" -d '{"comments":"non"}'
@@ -103,7 +126,7 @@ call 200 "t-groupadmin retire la délégation"            DELETE "/traps/$TRAP/d
 call 403 "t-member ne peut plus agir"                   POST "/traps/$TRAP/events/" "${H_MEMBER[@]}" -F "kind=inspection" -F "performed_at=$(date -Is)"
 
 echo "== Visibilité de groupe"
-call 200 "t-owner re-délègue en visibilité groupe"      PUT "/traps/$TRAP/delegation/" "${H_OWNER[@]}" -H "Content-Type: application/json" -d '{"group_path":"/volunteers/vol-group-a","visibility":"group"}'
+call 200 "t-owner re-délègue en visibilité groupe"      PUT "/traps/$TRAP/delegation/" "${H_OWNER[@]}" -H "Content-Type: application/json" -d "{\"group_path\":\"$GROUP\",\"visibility\":\"group\"}"
 ANON=$(curl -sk "$BASE/traps/?lat=50.47&lon=4.87&radius=1" | python3 -c "import sys,json;print(len(json.load(sys.stdin)))")
 if [ "$ANON" = "0" ]; then PASS=$((PASS+1)); echo "  ok   invisible pour un visiteur anonyme"; else FAIL=$((FAIL+1)); echo "  FAIL visible anonymement ($ANON résultat(s))"; fi
 SEEN=$(curl -sk "$BASE/traps/?lat=50.47&lon=4.87&radius=1" "${H_MEMBER[@]}" | python3 -c "import sys,json;print(len(json.load(sys.stdin)))")
@@ -158,6 +181,18 @@ call 410 "l'ancien QR Code A est révoqué"               GET "/tags/$TAG_A/" "$
 call 200 "B ouvre le piège"                             GET "/tags/$TAG_B/" "${H_OWNER[@]}"
 TID_OF_B=$(python3 -c "import json;print(json.load(open('$OUT'))['trap']['id'])")
 if [ "$TID_OF_B" = "$TRAP" ]; then PASS=$((PASS+1)); echo "  ok   B résout vers le piège #$TRAP"; else FAIL=$((FAIL+1)); echo "  FAIL B résout vers $TID_OF_B"; fi
+
+echo "== Métiers"
+TRAPPER=$(token t-trapper); HUNTER=$(token t-hunter)
+H_TRAPPER=(-H "Authorization: Bearer $TRAPPER"); H_HUNTER=(-H "Authorization: Bearer $HUNTER")
+NEAR="lat=50.47&lon=4.87&radius=5"
+call 403 "t-trapper n'enregistre pas de frelon"         POST "/hornets/" "${H_TRAPPER[@]}" -H "Content-Type: application/json" -d '{"latitude":50.47,"longitude":4.87,"direction":90}'
+call 403 "t-trapper ne voit pas tous les nids"          GET "/nests/?$NEAR" "${H_TRAPPER[@]}"
+call 200 "t-trapper voit ses propres nids"              GET "/nests/my/?$NEAR" "${H_TRAPPER[@]}"
+call 200 "t-trapper a « Mes pièges »"                   GET "/traps/my/" "${H_TRAPPER[@]}"
+call 200 "t-hunter voit tous les nids"                  GET "/nests/?$NEAR" "${H_HUNTER[@]}"
+call 403 "t-hunter ne crée pas de piège"                POST "/traps/" "${H_HUNTER[@]}" -F "latitude=50.4" -F "longitude=4.8" -F "trap_type_slug=bottle" -F "installed_at=$(date +%F)"
+call 403 "t-trapper (sans association) ne délègue pas"  PUT "/traps/$TRAP/delegation/" "${H_TRAPPER[@]}" -H "Content-Type: application/json" -d "{\"group_path\":\"$GROUP\"}"
 
 echo "== Ménage"
 call 204 "t-admin supprime le piège d'essai"            DELETE "/traps/$TRAP/" "${H_ADMIN[@]}"

@@ -2,7 +2,7 @@
 
 ## Architecture Overview
 - **Containerized Microservices**: 5 main services: `frontend` (React/Vite/TypeScript), `backend` (Django REST + PostGIS), `auth` (Keycloak), `postgis` (PostgreSQL+PostGIS), and `nginx` (reverse proxy/SSL/static files)
-- **Data Flow**: Frontend (React + PWA) → Nginx → Backend API (Django REST) ↔ PostGIS database. Authentication via Keycloak (OAuth2/JWT with service worker-based token management)
+- **Data Flow**: Frontend (React + PWA) → Nginx → Backend API (Django REST) ↔ PostGIS database. Authentication via Keycloak (OAuth2/JWT, `oidc-client-ts` with refresh tokens)
 - **Environments**: Production (`velutina.ovh` and `auth.velutina.ovh`), development (`dev.velutina.ovh` and `auth.dev.velutina.ovh`). One git worktree per environment, each with its own `.env` (`APP_ENV=dev|prod`)
 - **Key Files**: `docker-compose.{dev,prod}.yml` (two self-contained stacks, there is NO base `docker-compose.yml`), `docker-compose.{dev,prod}.external-volumes.yml` (overlay mapping data volumes to pre-provisioned external volumes). `COMPOSE_FILE` in `.env` selects them: never pass `-f` by hand, always run from the worktree root
 
@@ -28,9 +28,9 @@
 ## Project-Specific Conventions
 - **No Local Registration**: Users ONLY authenticate via Keycloak (auth.velutina.ovh for prod, auth.dev.velutina.ovh for dev). No passwords/emails stored in app
 - **Geospatial First**: All location data uses PostGIS `PointField` (EPSG:4326). Base pattern: `GeolocatedModel` abstract class auto-generates `point` field from `latitude`/`longitude`
-- **Role-Based Access**: 3 roles (`admin`, `beekeeper`, `volunteer`) + group-based permissions. See `auth/realm-export.json` and `backend/hornet/models.py` (`BeekeeperGroup`, `ApiaryGroupPermission`)
+- **Role-Based Access**: 4 roles, one per trade (`admin`, `beekeeper`, `hunter` = nest hunters, `trapper` = trap campaign, default role), names in `backend/hornet_finder_api/roles.py` and `frontend/src/utils/roles.ts`, + group-based permissions. Traps are only delegated to beekeeper associations (`/beekeepers/<id>`). See `doc/KEYCLOAK_USERS_GROUPS.md`, `auth/realm-export.json` and `backend/hornet/models.py` (`BeekeeperGroup`, `ApiaryGroupPermission`)
 - **JWT Auth Pattern**: Custom `JWTBearerAuthentication` validates Keycloak tokens. API endpoints use `HasAnyRole` permission class
-- **PWA Auth**: Service worker (`frontend/src/sw-auth-extension.js`) manages token lifecycle, auto-refresh, offline state
+- **PWA Auth**: the page keeps the session, never the service worker (it cannot read the tokens and does not run while the app is closed). `oidc-client-ts` renews the access token with the refresh token while the app runs; `useSessionGuard` renews it on launch, resume and reconnection; the API client (`utils/api.ts`) renews it before a call and replays a call once after a 401. All of them share one renewal (`refreshSession` in `utils/oidc.ts`); only Keycloak's `invalid_grant` signs the user out, a network failure keeps the session
 - **Environment Variables**: one `.env` per worktree, from `.env.example` (dev profile active, prod profile commented). Besides secrets it holds `COMPOSE_FILE`, the volume names (`API_DB_VOLUME`, `KEYCLOAK_DB_VOLUME`, `FRONTEND_DIST_VOLUME`: single source of truth for the compose overlay AND the scripts) and `ZFS_PARENT`
 - **Storage Invariants**: dataset name == volume name (`<ZFS_PARENT>/<volume>`); never derive a filesystem path from a dataset mountpoint (Docker owns the `_data` layout underneath); existence checks go through `docker volume inspect` / `zfs list` only
 
@@ -43,8 +43,8 @@
 ## Frontend Architecture
 - **Tech Stack**: React 19 + TypeScript + Vite + Bootstrap + Leaflet maps + Redux Toolkit
 - **Development vs Production**: Vite dev server (`:5173`) only used in dev with volume-mounted frontend directory for hot reload. Production serves pre-built static files via Nginx
-- **PWA Features**: Service worker auth extension, offline capability via `vite-plugin-pwa`
-- **Auth Flow**: `react-oidc-context` + custom service worker for token management
+- **PWA Features**: offline app shell and auto-update via `vite-plugin-pwa` (Workbox `generateSW`)
+- **Auth Flow**: `react-oidc-context` over the app's single `UserManager` (`utils/oidc.ts`)
 - **Key Dependencies**: `leaflet`/`react-leaflet` (maps), `jwt-decode`, `axios`, `bootstrap`/`react-bootstrap`
 
 ## Mobile UX Guidelines
@@ -76,7 +76,7 @@ The phone is the primary target: iPhone (Safari/WebKit, reference iPhone 14, 390
 ## Examples & Patterns
 - **Model Example**: `backend/hornet/models.py` - `GeolocatedModel` pattern, PostGIS fields, validation
 - **API Views**: `backend/hornet/views.py` - `GeographicFilterMixin`, authentication, serializers
-- **Frontend Auth**: `frontend/src/sw-auth-extension.js` - service worker token management
+- **Frontend Auth**: `frontend/src/utils/oidc.ts` - OIDC settings, shared session renewal; `frontend/src/hooks/useSessionGuard.ts` - renewal on launch and resume
 - **Deployment Script**: `./deploy.sh -b` from the prod worktree - builds frontend, composes services, loads environment
 - **Shell Libraries**: `lib/common.sh` (env loading, service aliases, UI), `lib/volumes.sh` (Docker volumes, verify-only for deploy), `lib/zfs.sh` (ZFS backend)
 - **Geographic Queries**: `?lat=45.5&lon=2.5&radius=10` for 10km radius searches

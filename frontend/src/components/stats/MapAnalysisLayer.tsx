@@ -18,7 +18,8 @@ export default function MapAnalysisLayer() {
   const analysis = useAppSelector(selectMapAnalysis);
   const { roles } = useUserPermissions();
   const [grid, setGrid] = useState<GridState | null>(null);
-  const allowed = ['admin', 'volunteer', 'beekeeper'].some((role) => roles.includes(role));
+  // Statistics are open to every role
+  const allowed = roles.length > 0;
   if (!analysis.layer || !allowed) return null;
 
   const statId = analysis.layer === 'coverage' ? 'traps-coverage' : 'traps-pressure';

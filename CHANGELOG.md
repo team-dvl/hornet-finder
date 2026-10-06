@@ -10,6 +10,56 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-06
+
+### Security
+- Keycloak 26.7.4 → 26.8.0 (`auth/Dockerfile`, builder and final image). Minor
+  release with three security fixes (including the redirect URI check on
+  fragments, CVE-2026-18209). Prod: note 0019.
+
+### Changed
+- Module icons in colour: on the landing page and in the navbar menu, each field
+  module takes the colour of what it manages on the map (nests red, traps green,
+  apiaries gold, map teal, statistics violet); documentation, administration and
+  account stay grey.
+- One role per trade. `volunteer` is split: nest hunters (`hunter`, the former
+  role renamed) record hornet sightings and releases and see every nest;
+  trappers (`trapper`, new, the role of every new account) own traps and print
+  their QR Codes, report nests and see the destroyed ones plus their own.
+  Beekeepers keep sightings, traps and every nest. Statistics are open to all
+  four roles. Tokens still carrying `volunteer` count as both trades until the
+  next release. Prod: note 0018.
+- A trap can only be delegated to a beekeeper association (`/beekeepers/<id>`),
+  platform admins included: a trapper outside any association has no
+  delegation, and the "Délégués" scope is only offered to association members.
+- Trap sheet, lighter: the photo becomes a thumbnail, what the trap holds and the
+  hornet count are shown as two tiles ("Frelons capturés" in the sheet and in the
+  list), the delegation comes up under the actions, and the installation date,
+  owner, QR code, address and comment sit in a collapsed "Détails" section. The
+  journal is a panel set into the sheet and grows as it is scrolled.
+
+### Added
+- `GET /api/nests/my/`: the nests the requester reported.
+- Coordinators of the trappers (`/trappers/admin`): Administration → Piégeurs
+  lists every trapper by name; removing a trapper, who loses the role, is left
+  to platform admins.
+
+### Removed
+- The service worker's token extension (`sw-auth-extension.js`) and its
+  helpers: a service worker cannot read the tokens nor run while the app is
+  closed, so it renewed nothing. The service worker now only caches the app.
+
+### Fixed
+- The session survives a closed or suspended app: opening the installed app
+  (or a tab) with an expired access token renews it with the refresh token
+  instead of showing the user signed out, and so does coming back to the
+  foreground or back online. An API call renews a token about to expire first
+  and is replayed once after a 401. A renewal that fails for lack of network no
+  longer locks the app behind "Session expirée"; only a session ended in
+  Keycloak signs the user out. The renewal now starts 10 minutes before expiry
+  (the former setting had a wrong name and was ignored: 1 minute).
+- The delegation endpoint accepted any group path from a platform admin.
+
 ## [1.1.0] - 2026-10-01
 
 ### Added
@@ -117,6 +167,7 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   algorithm-confusion flaws were not reachable; `PyJWKClient` redirect handling
   is fixed.
 
-[Unreleased]: https://github.com/team-dvl/hornet-finder/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/team-dvl/hornet-finder/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/team-dvl/hornet-finder/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/team-dvl/hornet-finder/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/team-dvl/hornet-finder/releases/tag/v1.0.0

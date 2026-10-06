@@ -40,7 +40,7 @@ export default function TrapsDoc() {
         <p>
           Le module <em>Pièges</em> s'ouvre sur la liste de vos pièges. Trois portées :
           {' '}<strong>Mes pièges</strong> (ceux dont vous êtes propriétaire),
-          {' '}<strong>Délégués</strong> (ceux qu'un propriétaire a confiés à l'un de vos groupes)
+          {' '}<strong>Délégués</strong> (ceux qu'un propriétaire a confiés à l'une de vos associations d'apiculteurs)
           et, pour les administrateurs, <strong>Tous</strong>. Cherchez par numéro, adresse, QR Code
           ou commentaire, filtrez par état, type, groupe ou présence d'un QR Code, et triez.
         </p>
@@ -136,9 +136,10 @@ export default function TrapsDoc() {
           les utilisateurs connectés, et le propriétaire n'est jamais montré aux visiteurs anonymes.
         </p>
         <p className="mb-0">
-          Vous pouvez déléguer l'entretien à une association dont vous êtes membre, par exemple
-          pendant une absence : ses membres peuvent alors enregistrer captures et interventions. En
-          option, la visibilité du piège se restreint à ce groupe. La délégation se retire à tout
+          Si vous êtes membre d'une association d'apiculteurs, vous pouvez lui déléguer l'entretien,
+          par exemple pendant une absence : ses membres peuvent alors enregistrer captures et
+          interventions. En option, la visibilité du piège se restreint à ce groupe. Un piégeur
+          indépendant n'a pas de délégation : ses pièges restent publics. La délégation se retire à tout
           moment, par vous, par un administrateur de ce groupe ou par un administrateur de la
           plateforme.
         </p>
@@ -147,7 +148,7 @@ export default function TrapsDoc() {
       <section>
         <h5 className="text-primary">Qui peut faire quoi ?</h5>
         <ul className="mb-0">
-          <li><strong>Propriétaire</strong> (bénévole ou apiculteur) : tout sur ses pièges</li>
+          <li><strong>Propriétaire</strong> (piégeur ou apiculteur) : tout sur ses pièges</li>
           <li><strong>Groupe délégataire</strong> : consulter et enregistrer des interventions</li>
           <li>
             <strong>Administrateur d'un groupe</strong> : désigner ou retirer la délégation des

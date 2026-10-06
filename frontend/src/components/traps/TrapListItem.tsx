@@ -63,7 +63,7 @@ export default function TrapListItem({
             <span className="d-block small text-muted text-truncate">{trap.owner.display_name}</span>
           )}
           <span className="small d-flex flex-wrap column-gap-3">
-            <span title="Frelons asiatiques capturés">🐝 {trap.hornet_catch_count}</span>
+            <span title="Frelons capturés">🐝 {trap.hornet_catch_count}</span>
             <span className={overdue ? 'text-warning-emphasis fw-semibold' : 'text-muted'}>
               {lastVisitLabel(days)}
             </span>

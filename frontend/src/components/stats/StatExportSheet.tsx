@@ -4,7 +4,7 @@ import { HelpTip } from '../common';
 import { BottomSheet } from '../ui';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { formatTime } from '../../utils/format';
-import { detectPWAAuthState } from '../../utils/pwaAuth';
+import { isInstalledPwa } from '../../utils/pwa';
 import {
   fetchExportLink, sendExportEmail, StatsError,
   type EmailedLink, type ExportFormat, type ExportLink, type StatParams,
@@ -35,7 +35,7 @@ const FORMATS: { format: ExportFormat; label: string; icon: string; type: string
  * the other apps. A browser tab keeps the plain link.
  */
 function usesShareSheet(type: string): boolean {
-  if (!detectPWAAuthState().isPWA || typeof navigator.canShare !== 'function') return false;
+  if (!isInstalledPwa() || typeof navigator.canShare !== 'function') return false;
   try {
     return navigator.canShare({ files: [new File([], 'export', { type })] });
   } catch {

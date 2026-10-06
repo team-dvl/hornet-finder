@@ -237,12 +237,13 @@ def add_user_to_group(guid: str, group_id: str) -> None:
     _get_keycloak_admin().group_user_add(guid, group_id)
 
 
-def get_group_members(group_id: str, limit: int = 1000) -> list:
+def get_group_members(group_id: str, limit: int = 10000) -> list:
     """
     The direct members of a Keycloak group (not those of its subgroups).
 
-    Keycloak pages the answer; groups here hold a few dozen people, so `limit`
-    is only a ceiling against a runaway loop.
+    Keycloak pages the answer; associations hold a few dozen people and
+    `/trappers` every trapper (hundreds), so `limit` is only a ceiling against
+    a runaway loop.
 
     :return: User representations (`id`, `firstName`, `lastName`, ...).
     :raises Exception: Any Keycloak failure, left to the caller.

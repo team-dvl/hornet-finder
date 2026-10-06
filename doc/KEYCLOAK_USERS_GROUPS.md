@@ -19,11 +19,16 @@ Les rôles applicatifs à définir dans le realm sont :
 | Rôle | Entitlements applicatifs |
 | --- | --- |
 | `admin` | Accès complet aux API. Peut lire, créer, modifier, archiver et supprimer les données. Pour les ruchers, contourne les permissions de groupe et l'appartenance au propriétaire. |
-| `beekeeper` | Peut créer des observations de frelons, des nids et des ruchers. Peut lire et gérer ses propres ruchers. Les droits sur les ruchers d'autres utilisateurs dépendent de `ApiaryGroupPermission`. |
-| `volunteer` | Peut créer des observations de frelons et des nids. Peut lire les ruchers auxquels un groupe lui donne `can_read`. Ne peut pas modifier les frelons ou les nids, qui sont réservés à `admin`. |
+| `beekeeper` | Peut créer des observations de frelons, des nids, des ruchers et des pièges. Voit tous les nids. Peut lire et gérer ses propres ruchers. Les droits sur les ruchers d'autres utilisateurs dépendent de `ApiaryGroupPermission`. |
+| `hunter` | Chasseur de nids. Peut créer des observations de frelons (lâchers, direction de vol) et des nids, et voit tous les nids. N'a pas accès aux ruchers ni aux pièges en tant que propriétaire. Ne peut pas modifier les frelons ou les nids, qui sont réservés à `admin`. |
+| `trapper` | Piégeur, rôle de tout nouveau compte. Possède des pièges et imprime leurs QR Codes. Peut signaler un nid ; il voit les nids détruits et ceux qu'il a signalés (`GET /api/nests/my/`), pas les autres. N'enregistre pas d'observation de frelon. |
 | `beekeeper-group-admin` | Rôle prévu pour identifier l'administrateur d'un groupe d'apiculteurs. Il est attribué aux sous-groupes `admin` des groupes d'apiculteurs. À ce jour, le backend ne l'utilise pas directement pour autoriser une opération : sa présence dans Keycloak ne remplace donc pas une permission Django. |
 
 Le rôle technique `mfa-required` n'ouvre aucune permission applicative : il impose un second facteur (OTP) à la connexion par mot de passe, à configurer à la première connexion s'il manque. Il est porté par `admin` comme rôle composite, donc par les membres de `/admins`. Les administrateurs de groupes (`beekeeper-group-admin`, `group-admin`) n'y sont pas soumis. Pour l'imposer à un autre groupe ou à une autre personne, lui attribuer ce rôle. Une connexion par passkey (vérification de l'utilisateur exigée) ou par Google ou Facebook n'est pas soumise à cette exigence. Le rôle apparaît dans `realm_access.roles` du token.
+
+Chaque rôle correspond à un métier : une personne qui en exerce plusieurs est membre de plusieurs groupes (par exemple `/trappers` et `/hunters`). Les statistiques sont ouvertes aux quatre rôles.
+
+`hunter` s'appelait `volunteer` jusqu'à la v1.1 (renommé dans Keycloak, même identifiant). Un jeton émis avant le renommage porte encore `volunteer` : le backend et le frontend le lisent, pendant une release, comme `hunter` + `trapper` (les deux métiers que `volunteer` réunissait). Voir `doc/prod-migrations/0018-roles-hunter-trapper.md`.
 
 Les rôles `offline_access`, `uma_authorization` et les rôles techniques des clients Keycloak sont des rôles de fonctionnement Keycloak, pas des entitlements métier Hornet Finder.
 
@@ -40,24 +45,29 @@ La hiérarchie attendue est la suivante :
 /beekeepers
 /beekeepers/<identifiant-groupe>
 /beekeepers/<identifiant-groupe>/admin
-/volunteers
-/volunteers/<identifiant-groupe>
+/hunters
+/trappers
+/trappers/admin
 ```
+
+`/hunters` et `/trappers` sont des groupes plats : pas d'organisation sous eux. Seules les associations d'apiculteurs (`/beekeepers/<identifiant-groupe>`) ont des membres invités et reçoivent des délégations de pièges.
 
 Les mappings de rôles des groupes sont les suivants :
 
 | Groupe | Role mapping de realm |
 | --- | --- |
-| `/admins` | `admin`, `beekeeper`, `volunteer`, `beekeeper-group-admin` (en dev : aussi `mail-reader`) |
+| `/admins` | `admin`, `beekeeper`, `hunter`, `beekeeper-group-admin` (en dev : aussi `group-admin`, `mail-reader`) |
 | `/beekeepers` | `beekeeper` |
-| `/beekeepers/<identifiant-groupe>/admin` | `beekeeper-group-admin` |
-| `/volunteers` | `volunteer` |
+| `/beekeepers/<identifiant-groupe>/admin` | `group-admin`, `beekeeper-group-admin` |
+| `/hunters` | `hunter` |
+| `/trappers` | `trapper` |
+| `/trappers/admin` | `group-admin` (hérite `trapper` de `/trappers`) |
 
 En dev seulement, le rôle `mail-reader` donne accès à la boîte catch-all (voir [mail-catcher.md](mail-catcher.md)).
 
 Le rôle placé sur un groupe parent est transmis à ses sous-groupes. Un membre de `/beekeepers/vsab` reçoit donc `beekeeper` et un membre de `/beekeepers/vsab/admin` reçoit en plus `beekeeper-group-admin`.
 
-`/volunteers` est le groupe par défaut dans les exports. Tout nouvel utilisateur est donc ajouté à ce groupe tant que cette configuration reste active. Il faut ensuite déplacer ou ajouter l'utilisateur au groupe métier approprié.
+`/trappers` est le groupe par défaut (*Realm settings → User registration → Default groups*) : tout nouvel inscrit est piégeur. Les autres métiers s'ajoutent : `/hunters` par un administrateur de la plateforme, une association d'apiculteurs par invitation ou par un administrateur de la plateforme.
 
 ## 4. Création et rattachement d'un utilisateur
 
@@ -66,7 +76,9 @@ Dans le realm applicatif (`hornet-finder` ou `hornet-finder-dev`) :
 1. Créer ou laisser créer l'utilisateur via le fournisseur d'identité Google.
 2. Ouvrir **Users**, puis l'utilisateur concerné.
 3. Dans **Groups**, ajouter l'utilisateur au groupe approprié :
-   - `/volunteers/<identifiant-groupe>` pour un bénévole rattaché à une organisation ;
+   - `/trappers` : automatique à l'inscription ;
+   - `/hunters` pour un chasseur de nids ;
+   - `/trappers/admin` pour un coordinateur des piégeurs ;
    - `/beekeepers/<identifiant-groupe>` pour un apiculteur ;
    - `/beekeepers/<identifiant-groupe>/admin` uniquement pour le responsable du groupe ;
    - `/admins` uniquement pour un administrateur de la plateforme.
@@ -138,7 +150,7 @@ Un **administrateur de groupe** est membre du sous-groupe `admin` de son groupe 
 | Groupe | Administrateurs |
 | --- | --- |
 | `/beekeepers/vsab` | `/beekeepers/vsab/admin` |
-| `/volunteers/vsa` | `/volunteers/vsa/admin` |
+| `/trappers` | `/trappers/admin` |
 
 Ces sous-groupes portent le rôle realm `group-admin` (les sous-groupes d'apiculteurs
 conservent aussi `beekeeper-group-admin`, antérieur). Le backend ne se fie pas au rôle
@@ -148,8 +160,12 @@ se fait par préfixe car Keycloak ne liste que les groupes d'appartenance direct
 membre de `/beekeepers/vsab/admin` n'a pas forcément `/beekeepers/vsab` dans son jeton,
 et il est pourtant membre du groupe.
 
-Dans le module *Pièges*, un administrateur de groupe peut désigner ou retirer le groupe
-délégataire des pièges appartenant aux membres de son groupe. Pour connaître les groupes
+Dans le module *Pièges*, un piège ne peut être délégué qu'à une association d'apiculteurs
+(`/beekeepers/<identifiant-groupe>`, jamais une racine ni un sous-groupe `admin`), dont son
+propriétaire est membre ; administrateurs de la plateforme compris. Un piégeur hors de toute
+association n'a donc pas de délégation, et ses pièges restent publics. Un administrateur
+d'association peut désigner ou retirer le groupe délégataire des pièges appartenant aux
+membres de son association. Pour connaître les groupes
 du *propriétaire* d'un piège — que le jeton du demandeur ne porte pas — le backend garde
 une copie locale des chemins de groupe de chaque utilisateur (`User.group_paths`),
 rafraîchie à chaque requête authentifiée.
@@ -170,7 +186,14 @@ un administrateur du groupe peut lui envoyer un rappel au plus une fois par 24 h
 Le nom du groupe montré dans l'application et dans les emails est sa **description**
 Keycloak (Groups → le groupe → *Description*, par exemple « Vedrin s'abeille ») ; sans
 description, c'est son nom technique (`vsab`).
-Les groupes de bénévoles ne sont pas concernés.
+`/trappers` et `/hunters` ne reçoivent pas d'invitation : tout inscrit est piégeur, et
+`/hunters` est attribué par un administrateur de la plateforme.
+
+Le **coordinateur des piégeurs** (membre de `/trappers/admin`) voit la liste de tous les
+piégeurs depuis *Administration → Piégeurs*, par leur nom, sans pouvoir en retirer :
+retirer quelqu'un de `/trappers` lui retire le rôle `trapper`, et donc l'accès à ses pièges,
+ce qui est réservé aux administrateurs de la plateforme. Ceux-ci nomment aussi les
+coordinateurs, depuis la même page.
 
 Depuis *Administration → Mon groupe* (*Groupes* pour un administrateur de la plateforme),
 un administrateur de groupe voit la liste des membres, par leur nom (jamais leur

@@ -84,8 +84,8 @@
       },
       {
         "id": "1afe8454-5dd5-4fd3-bf0c-2fbbdfedc557",
-        "name": "volunteer",
-        "description": "",
+        "name": "hunter",
+        "description": "Nest hunter: hornet sightings and releases, every nest",
         "composite": false,
         "clientRole": false,
         "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
@@ -94,7 +94,7 @@
       {
         "id": "32d02730-5874-4a5d-8304-7a96ffbbeaa5",
         "name": "group-admin",
-        "description": "Group administrator: administers a group of beekeepers or volunteers (membership, trap delegation)",
+        "description": "Group administrator: administers a beekeeper group (membership, trap delegation) or coordinates the trappers",
         "composite": false,
         "clientRole": false,
         "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
@@ -152,6 +152,15 @@
         "id": "4a245911-3ea8-44c5-a37b-fdeff3b090cf",
         "name": "mfa-required",
         "description": "Users holding this role must use a second factor (OTP) to sign in with a password",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
+        "attributes": {}
+      },
+      {
+        "id": "e6fc2226-f3cc-42f3-8094-39d31325852c",
+        "name": "trapper",
+        "description": "Trapper: owns traps and prints their QR Codes; default role of a new account",
         "composite": false,
         "clientRole": false,
         "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
@@ -528,7 +537,7 @@
         "beekeeper",
         "beekeeper-group-admin",
         "admin",
-        "volunteer",
+        "hunter",
         "group-admin",
         "mail-reader"
       ],
@@ -610,7 +619,9 @@
               "parentId": "edfe4aac-7f67-4fc1-85b4-04a49beff021",
               "subGroups": [],
               "attributes": {},
-              "realmRoles": [],
+              "realmRoles": [
+                "group-admin"
+              ],
               "clientRoles": {}
             }
           ],
@@ -627,40 +638,39 @@
     },
     {
       "id": "c80bc5ca-7840-411c-8754-bf78a85db170",
-      "name": "volunteers",
-      "path": "/volunteers",
+      "name": "hunters",
+      "description": "Chasseurs de nids",
+      "path": "/hunters",
+      "subGroups": [],
+      "attributes": {},
+      "realmRoles": [
+        "hunter"
+      ],
+      "clientRoles": {}
+    },
+    {
+      "id": "96fd2ad2-6a3a-4ee5-8d7b-92b015dc23db",
+      "name": "trappers",
+      "description": "Piégeurs",
+      "path": "/trappers",
       "subGroups": [
         {
-          "id": "f085ce47-ef5f-491a-acaf-f86cdc89f7bc",
-          "name": "vol-group-a",
-          "path": "/volunteers/vol-group-a",
-          "parentId": "c80bc5ca-7840-411c-8754-bf78a85db170",
-          "subGroups": [
-            {
-              "id": "be83090e-70c6-4709-8119-4581ba8fbcb7",
-              "name": "admin",
-              "path": "/volunteers/vol-group-a/admin",
-              "parentId": "f085ce47-ef5f-491a-acaf-f86cdc89f7bc",
-              "subGroups": [],
-              "attributes": {},
-              "realmRoles": [
-                "group-admin"
-              ],
-              "clientRoles": {}
-            }
+          "id": "972d02f9-7c7e-4b71-a4f9-09e8e83ba958",
+          "name": "admin",
+          "description": "Coordinateurs des piégeurs",
+          "path": "/trappers/admin",
+          "parentId": "96fd2ad2-6a3a-4ee5-8d7b-92b015dc23db",
+          "subGroups": [],
+          "attributes": {},
+          "realmRoles": [
+            "group-admin"
           ],
-          "attributes": {
-            "fancy_name": [
-              "Vedrin s'anime"
-            ]
-          },
-          "realmRoles": [],
           "clientRoles": {}
         }
       ],
       "attributes": {},
       "realmRoles": [
-        "volunteer"
+        "trapper"
       ],
       "clientRoles": {}
     }
@@ -674,7 +684,7 @@
     "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049"
   },
   "defaultGroups": [
-    "/volunteers"
+    "/trappers"
   ],
   "requiredCredentials": [
     "password"
@@ -751,9 +761,7 @@
         ]
       },
       "notBefore": 0,
-      "groups": [
-        "/volunteers"
-      ]
+      "groups": []
     },
     {
       "id": "c7f4a379-1814-4f7a-a5aa-168b3d392396",
@@ -792,9 +800,7 @@
         "mail-reader"
       ],
       "notBefore": 0,
-      "groups": [
-        "/volunteers"
-      ]
+      "groups": []
     }
   ],
   "scopeMappings": [

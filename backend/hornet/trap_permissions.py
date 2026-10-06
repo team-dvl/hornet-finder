@@ -21,6 +21,8 @@ from .models import User
 logger = logging.getLogger(__name__)
 
 ADMIN_SEGMENT = 'admin'
+BEEKEEPERS_ROOT = '/beekeepers'
+TRAPPERS_ROOT = '/trappers'
 
 
 def membership_paths(request) -> list:
@@ -61,6 +63,17 @@ def administered_groups(paths) -> set:
             if group:
                 groups.add(group)
     return groups
+
+
+def is_beekeeper_group(path: str) -> bool:
+    """
+    True for an association of beekeepers, `/beekeepers/<id>` (never its root
+    nor an `admin` subgroup). The only groups a trap can be delegated to, and
+    the only ones members are invited to.
+    """
+    segments = (path or '').strip('/').split('/')
+    return (len(segments) == 2 and f'/{segments[0]}' == BEEKEEPERS_ROOT
+            and bool(segments[1]) and segments[1] != ADMIN_SEGMENT)
 
 
 def ancestor_paths(path: str):
@@ -171,22 +184,32 @@ def can_change_owner(request) -> bool:
 
 def allowed_delegation_groups(request, trap):
     """
-    Group paths the requester may delegate this trap to.
+    Group paths the requester may delegate this trap to: always beekeeper
+    associations (`is_beekeeper_group`), so a trapper outside any association
+    cannot delegate.
 
-    Returns `None` when any group is allowed (platform admin), which the caller
-    turns into "no restriction".
+    Returns `None` when any beekeeper association is allowed (platform admin),
+    which the caller turns into "every association".
     """
     user = getattr(request, 'user', None)
     if user is None or not getattr(user, 'is_authenticated', False):
         return set()
     if is_platform_admin(user):
         return None
-    owner_groups = set(owner_group_paths(trap.owner))
+    owner_groups = {p for p in owner_group_paths(trap.owner) if is_beekeeper_group(p)}
     if is_owner(user, trap):
         return owner_groups
     # A group administrator may only delegate to a group they administer and
     # the owner belongs to.
     return administered_groups(membership_paths(request)) & owner_groups
+
+
+def can_delegate_to(request, trap, group_path: str) -> bool:
+    """Whether the requester may delegate this trap to `group_path`."""
+    if not is_beekeeper_group(group_path):
+        return False
+    allowed = allowed_delegation_groups(request, trap)
+    return allowed is None or group_path in allowed
 
 
 def can_set_delegation(request, trap) -> bool:

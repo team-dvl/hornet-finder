@@ -244,7 +244,7 @@ class Species(models.Model):
 
 
 class Trap(GeolocatedModel):
-    """A trap owned by a volunteer or a beekeeper, optionally delegated to a group."""
+    """A trap owned by a trapper or a beekeeper, optionally delegated to a beekeeper group."""
 
     VISIBILITY_PUBLIC = 'public'
     VISIBILITY_GROUP = 'group'

@@ -27,7 +27,8 @@ A RESTful API built with Django and Django REST Framework for managing hornet de
 
 - `GET|POST /api/hornets/` - List all hornets or create a new hornet sighting
 - `GET|PUT|PATCH|DELETE /api/hornets/{id}/` - Retrieve, update, or delete a specific hornet
-- `GET|POST /api/nests/` - List all nests or create a new nest record
+- `GET|POST /api/nests/` - List all nests (hunters, beekeepers, admins) or report a new nest (every role)
+- `GET /api/nests/my/` - The nests the requester reported, with the filters of the list (what a trapper sees besides the destroyed ones)
 - `GET|PUT|PATCH|DELETE /api/nests/{id}/` - Retrieve, update, or delete a specific nest
 - `GET|POST /api/apiaries/` - Apiaries around a position (`lat`, `lon`, `radius`, `mine`) the caller may see, or create one (the caller becomes its owner)
 - `GET|PUT|PATCH|DELETE /api/apiaries/{id}/` - Retrieve, update, or delete a specific apiary

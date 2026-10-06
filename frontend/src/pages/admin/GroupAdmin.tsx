@@ -4,6 +4,7 @@ import { PageHeader, PageLayout } from '../../components/layout';
 import { InvitationsPanel, MembersPanel } from '../../components/groups';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { fetchGroups, groupErrorOf, type AdministeredGroup } from '../../utils/groupsApi';
+import { isBeekeeperGroup } from '../../utils/groups';
 
 type Tab = 'members' | 'invitations';
 
@@ -15,6 +16,8 @@ const TABS: { id: Tab; label: string }[] = [
 /**
  * Administration of a beekeeper group: its members, and the invitations to
  * join it. For the administrators of the group and the platform admins.
+ * The coordinators of the trappers get the roster of `/trappers` here, with
+ * no invitations: every new account is a trapper.
  */
 export default function GroupAdmin() {
   const { isAdmin } = useUserPermissions();
@@ -38,19 +41,20 @@ export default function GroupAdmin() {
   }, []);
 
   const group = groups.find((candidate) => candidate.path === groupPath);
+  const invitable = group ? isBeekeeperGroup(group.path) : false;
 
   return (
     <PageLayout>
       <Container className="py-4">
         <PageHeader
           title={isAdmin ? 'Groupes' : 'Mon groupe'}
-          help="Gérez les membres et les invitations d'une association d'apiculteurs."
+          help="Gérez les membres et les invitations d'une association d'apiculteurs, ou consultez la liste des piégeurs."
         />
 
         {loading && <Spinner animation="border" role="status" />}
         {loadError && <Alert variant="danger">{loadError}</Alert>}
         {!loading && !loadError && !group && (
-          <p className="text-muted">Vous n'administrez aucun groupe d'apiculteurs.</p>
+          <p className="text-muted">Vous n'administrez aucun groupe.</p>
         )}
 
         {group && (
@@ -71,22 +75,25 @@ export default function GroupAdmin() {
               </div>
             )}
 
-            <ButtonGroup className="d-flex mb-3" role="tablist" aria-label="Section">
-              {TABS.map(({ id, label }) => (
-                <Button
-                  key={id}
-                  role="tab"
-                  aria-selected={tab === id}
-                  variant={tab === id ? 'primary' : 'outline-primary'}
-                  onClick={() => setTab(id)}
-                >
-                  {label}
-                </Button>
-              ))}
-            </ButtonGroup>
+            {/* `/trappers` takes no invitations: every new account is a trapper */}
+            {invitable && (
+              <ButtonGroup className="d-flex mb-3" role="tablist" aria-label="Section">
+                {TABS.map(({ id, label }) => (
+                  <Button
+                    key={id}
+                    role="tab"
+                    aria-selected={tab === id}
+                    variant={tab === id ? 'primary' : 'outline-primary'}
+                    onClick={() => setTab(id)}
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </ButtonGroup>
+            )}
 
             {/* Keyed by group: switching groups starts each panel afresh */}
-            {tab === 'members'
+            {tab === 'members' || !invitable
               ? <MembersPanel key={group.path} groupPath={group.path} groupName={group.name} isPlatformAdmin={isAdmin} />
               : <InvitationsPanel key={group.path} groupPath={group.path} groupName={group.name} />}
           </>

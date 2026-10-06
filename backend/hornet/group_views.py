@@ -1,9 +1,12 @@
 """
-Membership administration of beekeeper groups (`/beekeepers/<id>`).
+Membership administration of beekeeper groups (`/beekeepers/<id>`), and the
+roster of the trappers (`/trappers`).
 
-The administrators of a group (members of `<group>/admin`, see
+The administrators of a beekeeper group (members of `<group>/admin`, see
 `trap_permissions.py`) and the platform admins list its members and remove
-them; inviting is in `invitation_views.py`. Naming or dismissing a group
+them; inviting is in `invitation_views.py`. The administrators of `/trappers`
+(members of `/trappers/admin`) coordinate every trapper: they list them, but
+removing a trapper, who then loses the role, is left to platform admins. Naming or dismissing a group
 administrator is reserved to platform admins, and a group never loses its last
 administrator. Members are shown by first and last name only, never by email.
 
@@ -23,9 +26,10 @@ from drf_spectacular.utils import extend_schema
 
 from hornet_finder_api import utils as keycloak
 from hornet_finder_api.authentication import HasAnyRole, JWTBearerAuthentication
+from hornet_finder_api.roles import ADMIN, BEEKEEPER, TRAPPER
 
 from . import trap_permissions as perms
-from .invitation_views import _keycloak, _sort_key, can_invite_to, invitable_groups, BEEKEEPERS_ROOT
+from .invitation_views import _keycloak, _sort_key, beekeeper_groups, can_invite_to, invitable_groups
 
 logger = logging.getLogger(__name__)
 
@@ -45,11 +49,39 @@ def _full_name(user: dict):
     return ' '.join(p for p in (user.get('firstName'), user.get('lastName')) if p) or None
 
 
+def viewable_groups(request):
+    """
+    Groups whose members the caller may list: the beekeeper groups they
+    administer, plus `/trappers` for its administrators. `None` means every
+    beekeeper group and `/trappers` (platform admin).
+    """
+    allowed = invitable_groups(request)
+    if allowed is None:
+        return None
+    if perms.is_group_admin_of(perms.membership_paths(request), perms.TRAPPERS_ROOT):
+        allowed.add(perms.TRAPPERS_ROOT)
+    return allowed
+
+
+def can_view_group(request, group_path: str) -> bool:
+    if not (perms.is_beekeeper_group(group_path) or group_path == perms.TRAPPERS_ROOT):
+        return False
+    allowed = viewable_groups(request)
+    return allowed is None or group_path in allowed
+
+
+def can_remove_from(request, group_path: str) -> bool:
+    """Leaving `/trappers` withdraws the trapper role: platform admins only."""
+    if group_path == perms.TRAPPERS_ROOT:
+        return perms.is_platform_admin(request.user)
+    return can_invite_to(request, group_path)
+
+
 def _administered(request, group_path: str) -> dict:
     """The Keycloak group at `group_path`, once the caller is known to administer it."""
     if not group_path:
         raise ValidationError({'group_path': "Ce champ est obligatoire."})
-    if not can_invite_to(request, group_path):
+    if not can_view_group(request, group_path):
         raise PermissionDenied("Vous n'administrez pas ce groupe.")
     group = _keycloak(keycloak.get_group_by_path, group_path)
     if group is None:
@@ -94,21 +126,22 @@ def _guid(value: str) -> str:
 
 
 class GroupViewSet(viewsets.GenericViewSet):
-    """Members of the beekeeper groups the caller administers."""
+    """Members of the groups the caller administers."""
 
     def get_authenticators(self):
         return [JWTBearerAuthentication()]
 
     def get_permissions(self):
-        # Administrators of a beekeeper group inherit `beekeeper` from `/beekeepers`
-        return [HasAnyRole(['beekeeper', 'admin'])]
+        # Group administrators inherit `beekeeper` or `trapper` from the root of their group
+        return [HasAnyRole([BEEKEEPER, TRAPPER, ADMIN])]
 
     @extend_schema(responses={200: None})
     def list(self, request):
         """The groups the caller administers: `path` and `name` (the Keycloak description, else its name)."""
-        allowed = invitable_groups(request)
+        allowed = viewable_groups(request)
         if allowed is None:
-            groups = _keycloak(keycloak.get_child_groups, BEEKEEPERS_ROOT)
+            trappers = _keycloak(keycloak.get_group_by_path, perms.TRAPPERS_ROOT)
+            groups = beekeeper_groups() + ([trappers] if trappers else [])
         else:
             groups = [g for g in (_keycloak(keycloak.get_group_by_path, p) for p in sorted(allowed)) if g]
         return Response(sorted(
@@ -142,6 +175,8 @@ class GroupViewSet(viewsets.GenericViewSet):
             raise NotFound("Cette personne n'est pas membre de ce groupe.")
         if guid == str(request.user.guid):
             return _conflict('self', "Vous ne pouvez pas vous retirer vous-même du groupe.")
+        if not can_remove_from(request, group_path):
+            return _refused('platform_only', "Seul un administrateur de la plateforme peut retirer un piégeur.")
         is_admin = guid in roster.admin_ids
         if is_admin and not perms.is_platform_admin(request.user):
             return _refused('admin_member', "Seul un administrateur de la plateforme peut retirer un administrateur du groupe.")

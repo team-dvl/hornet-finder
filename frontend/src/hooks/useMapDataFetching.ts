@@ -32,7 +32,7 @@ interface GeolocationParams {
 export const useMapDataFetching = () => {
   const dispatch = useAppDispatch();
   const auth = useAuth();
-  const { isAdmin, canAddApiary } = useUserPermissions();
+  const { isAdmin, canAddApiary, canSeeAllNests } = useUserPermissions();
   
   const mapCenter = useAppSelector(selectMapCenter);
   const searchRadius = useAppSelector(selectSearchRadius);
@@ -114,11 +114,12 @@ export const useMapDataFetching = () => {
       ? { year: 'all', archived: 'true' }
       : undefined;
     if (auth.isAuthenticated && auth.user?.access_token) {
-      // Utilisateur authentifié : récupérer tous les nids (détruits et non détruits)
+      // Utilisateur authentifié : tous les nids, ou pour un piégeur les siens et les détruits
       dispatch(fetchNests({ 
         accessToken: auth.user.access_token, 
         geolocation: geolocationParams,
         archiveFilters: nestArchiveFilters,
+        ownAndDestroyed: !canSeeAllNests,
       }));
     } else {
       // Utilisateur non authentifié : récupérer seulement les nids détruits
@@ -173,6 +174,7 @@ export const useMapDataFetching = () => {
     dispatch, 
     isAdmin, 
     canAddApiary,
+    canSeeAllNests,
     lastFetchedArea,
     showArchivedHornets,
     showArchivedNests,

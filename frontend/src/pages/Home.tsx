@@ -41,6 +41,7 @@ export default function Home() {
                   title={module.title}
                   description={module.description}
                   icon={module.icon}
+                  tone={module.tone}
                   href={accountConsoleUrl(auth.settings.authority, auth.settings.client_id)}
                 />
               ) : (
@@ -58,6 +59,7 @@ export default function Home() {
                 title={module.title}
                 description={module.description}
                 icon={module.icon}
+                tone={module.tone}
                 to={module.path}
                 badge={module.badge}
               />

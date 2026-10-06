@@ -18,9 +18,7 @@ export default function AddAtLocationButton({
   latitude, longitude, onAddAtLocation, className = 'me-auto',
 }: AddAtLocationButtonProps) {
   const auth = useAuth();
-  const { canAddHornet, canAddApiary, canAddTrap, roles } = useUserPermissions();
-  // Same rule as the add selector: any signed-in user with a role may report a nest
-  const canAddNest = roles.length > 0;
+  const { canAddHornet, canAddApiary, canAddTrap, canAddNest } = useUserPermissions();
 
   if (!auth.isAuthenticated || !onAddAtLocation) return null;
   if (!canAddHornet && !canAddApiary && !canAddNest && !canAddTrap) return null;

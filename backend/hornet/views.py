@@ -12,6 +12,7 @@ from .models import Hornet, Nest, User
 from .stats.periods import PeriodError, resolve_archive_period
 from .serializers import HornetSerializer, NestSerializer, PublicNestSerializer
 from hornet_finder_api.authentication import JWTBearerAuthentication, HasAnyRole
+from hornet_finder_api.roles import ADMIN, APP_ROLES, BEEKEEPER, HUNTER
 from rest_framework import status
 
 
@@ -189,8 +190,9 @@ class HornetViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelVie
 
     def get_permissions(self): # This method is used here because we can not use the @permission_classes decorator on the herited actions
         # Allow public access to list action (viewing hornets)
+        # Sightings and releases are the work of nest hunters, and of beekeepers at their hives
         if hasattr(self, 'action') and self.action in ('create', 'my'):
-            return [HasAnyRole(['volunteer', 'beekeeper', 'admin'])]
+            return [HasAnyRole([HUNTER, BEEKEEPER, ADMIN])]
         elif hasattr(self, 'action') and self.action in ['retrieve', 'update', 'partial_update', 'destroy', 'archive', 'archive_candidates', 'bulk_archive']:
             return [HasAnyRole(['admin'])]
         return super().get_permissions()
@@ -229,7 +231,20 @@ class NestViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewS
         serializer = PublicNestSerializer(queryset, many=True)
         return Response(serializer.data)
 
-    # Volunteers, beekeepers and admins can create and list nests, but only admins can retrieve, update, partial_update and destroy them
+    @geographic_list_schema()
+    @action(detail=False, methods=['get'])
+    def my(self, request, *args, **kwargs):
+        """The nests the requester reported, with the filters of `list`: what a trapper sees besides the destroyed ones."""
+        queryset, error_response = self.get_geographic_queryset(request)
+        if error_response:
+            return error_response
+        queryset = queryset.filter(created_by__guid=getattr(request.user, 'guid', None))
+        queryset = self.apply_archive_year_filters(queryset, request)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    # Everyone may report a nest and see their own; every nest, with its author, is for
+    # nest hunters, beekeepers and admins; only admins retrieve, update and destroy them
     def get_authenticators(self):
         # Allow public access to destroyed action (viewing destroyed nests)
         if hasattr(self, 'action') and self.action == 'destroyed':
@@ -241,8 +256,10 @@ class NestViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewS
         # Allow public access to destroyed action (viewing destroyed nests)
         if hasattr(self, 'action') and self.action == 'destroyed':
             return super().get_permissions()
-        if hasattr(self, 'action') and self.action in ['list', 'create']:
-            return [HasAnyRole(['volunteer', 'beekeeper', 'admin'])]
+        if hasattr(self, 'action') and self.action in ('create', 'my'):
+            return [HasAnyRole(list(APP_ROLES))]
+        if hasattr(self, 'action') and self.action == 'list':
+            return [HasAnyRole([HUNTER, BEEKEEPER, ADMIN])]
         return [HasAnyRole(['admin'])]
     
     def perform_create(self, serializer):

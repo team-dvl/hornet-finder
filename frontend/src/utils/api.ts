@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getAccessToken, refreshSession, userManager } from './oidc';
 
 // Configuration de base d'Axios
 const api = axios.create({
@@ -9,39 +10,31 @@ const api = axios.create({
   },
 });
 
-// Bearer token of the current session, kept in step by `App` (see
-// `setApiAccessToken`). It is held in memory rather than in localStorage: the
-// session lives in the OIDC context, and a copy on disk would outlive it.
-let accessToken: string | null = null;
-
-/** Token attached to every API call, or `null` when nobody is signed in. */
-export function setApiAccessToken(token: string | null): void {
-  accessToken = token;
-}
-
-// Intercepteur pour ajouter automatiquement le token d'authentification
-api.interceptors.request.use(
-  (config) => {
-    if (accessToken) {
-      config.headers.Authorization = `Bearer ${accessToken}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+// Every call carries the token of the current session, renewed first if it
+// is about to expire (read from the OIDC client: the React state can still
+// hold a token that has expired while the app was in the background)
+api.interceptors.request.use(async (config) => {
+  const token = await getAccessToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-);
+  return config;
+});
 
-// Intercepteur pour gérer les réponses et erreurs
+// Requests already replayed once after a 401
+const replayed = new WeakSet<object>();
+
+// A 401 means the token was refused (expired meanwhile, or revoked): renew
+// the session once and replay the request; a second refusal is final
 api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    // Gestion centralisée des erreurs
-    if (error.response?.status === 401) {
-      // Token expiré ou invalide : le contexte OIDC en fournira un neuf
-      accessToken = null;
+  (response) => response,
+  async (error) => {
+    const config = error.config;
+    if (error.response?.status === 401 && config && !replayed.has(config) && (await userManager.getUser())) {
+      replayed.add(config);
+      if (await refreshSession()) {
+        return api(config);
+      }
     }
     return Promise.reject(error);
   }

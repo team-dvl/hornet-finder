@@ -72,7 +72,8 @@ export default function LayerControlsButton({
   const auth = useAuth();
   const { isAdmin, canAddApiary, roles } = useUserPermissions();
   const analysis = useAppSelector(selectMapAnalysis);
-  const canAnalyse = auth.isAuthenticated && ['admin', 'volunteer', 'beekeeper'].some((role) => roles.includes(role));
+  // Statistics are open to every role
+  const canAnalyse = auth.isAuthenticated && roles.length > 0;
   const thisYear = new Date().getFullYear();
   const analysisLink = analysis.layer
     ? `/stats/traps-${analysis.layer}?${new URLSearchParams(analysisParams(analysis.period, analysis.year))}`
