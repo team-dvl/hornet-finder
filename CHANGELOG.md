@@ -10,6 +10,8 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-06
+
 ### Security
 - Keycloak 26.7.4 → 26.8.0 (`auth/Dockerfile`, builder and final image). Minor
   release with three security fixes (including the redirect URI check on
@@ -165,6 +167,7 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   algorithm-confusion flaws were not reachable; `PyJWKClient` redirect handling
   is fixed.
 
-[Unreleased]: https://github.com/team-dvl/hornet-finder/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/team-dvl/hornet-finder/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/team-dvl/hornet-finder/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/team-dvl/hornet-finder/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/team-dvl/hornet-finder/releases/tag/v1.0.0
