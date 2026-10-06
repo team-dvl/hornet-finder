@@ -10,6 +10,11 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 
 ## [Unreleased]
 
+### Security
+- Keycloak 26.7.4 → 26.8.0 (`auth/Dockerfile`, builder and final image). Minor
+  release with three security fixes (including the redirect URI check on
+  fragments, CVE-2026-18209). Prod: note 0019.
+
 ### Changed
 - Module icons in colour: on the landing page and in the navbar menu, each field
   module takes the colour of what it manages on the map (nests red, traps green,

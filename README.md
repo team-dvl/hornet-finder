@@ -76,7 +76,7 @@ Volume Mounts:
 
 ### Infrastructure
 - **Reverse Proxy**: Nginx with SSL termination
-- **Authentication Server**: Keycloak 26.7 with Google OAuth provider
+- **Authentication Server**: Keycloak 26.8 with Google OAuth provider
 - **SSL Certificates**: Let's Encrypt with automated renewal
 - **Containerization**: Docker Compose for orchestration
 - **Database**: PostGIS-enabled PostgreSQL for geospatial operations
