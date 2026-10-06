@@ -1,4 +1,4 @@
-status: pending
+status: applied (2026-10-06)
 
 # Rôles `hunter` et `trapper`, délégation réservée aux associations d'apiculteurs (`devel`)
 
@@ -120,3 +120,6 @@ Fait en dev le 2026-10-02 : rôles et groupes par l'API (`flow-admin`, avec `man
    - supprimer `trapper` et `/trappers`.
 
    L'ancienne appartenance à `/volunteers/vsa` est perdue. Noter ses membres à l'étape 1 si ce groupe doit pouvoir être reconstitué.
+
+## Appliqué en prod (2026-10-06)
+Fait sans renommage de l'API : `hunter` créé à la place du renommage de `volunteer` (repli de l'étape 3), assigné à `/hunters` (ex-`/volunteers`) et `/admins`, puis `volunteer` supprimé. `/trappers` (rôle `trapper`, groupe par défaut) et `/trappers/admin` (`group-admin`) créés, 13 piégeurs, `/hunters` conservé à 12 membres, `/hunters/vsa` supprimé. Aucun piège hors association. **Étape 7 (export du realm) reportée** : le diff avec `auth/realm-export.json` montre un écart sur le flux 2FA (voir note 0015), à régler à part.
