@@ -50,6 +50,10 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   closed, so it renewed nothing. The service worker now only caches the app.
 
 ### Fixed
+- The trap list showed "Relevé aujourd'hui" for a visit made the evening before:
+  the age was counted in 24 h slices instead of calendar days. It now follows
+  the calendar (yesterday at 19:00 reads "Relevé hier" the next morning), and
+  so does the 7-day "to visit" warning.
 - The session survives a closed or suspended app: opening the installed app
   (or a tab) with an expired access token renews it with the refresh token
   instead of showing the user signed out, and so does coming back to the
