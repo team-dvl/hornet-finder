@@ -17,7 +17,10 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   launch, on return to the foreground, on network events and after an API call
   that got no answer; it never polls while the server answers, and retries with
   a growing delay (5 s to 60 s) while it does not. The login button no longer
-  leaves for Keycloak while the server is unreachable. Prod: note 0020.
+  leaves for Keycloak while the server is unreachable. Its help also shows the
+  device's public IP address (IPv4 and IPv6 when it has both), asked of ipify
+  only when the help is opened, for whoever manages the firewall's allowlist.
+  Prod: note 0020.
 - Error screens instead of a white page when a page fails while rendering (an
   unexpected API answer, a chunk that cannot be fetched): the page's own screen
   keeps the navbar, so the user can go elsewhere; a last one covers the whole

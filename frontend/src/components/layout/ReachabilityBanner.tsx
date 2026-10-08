@@ -1,9 +1,34 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Spinner } from 'react-bootstrap';
 import { HelpTip } from '../common';
 import { IconButton } from '../ui';
 import { useReachability } from '../../hooks/useReachability';
 import { probe } from '../../utils/reachability';
+import { fetchPublicIps, type PublicIps } from '../../utils/publicIp';
+
+/**
+ * The device's public IP address(es), for whoever manages the firewall's
+ * allowlist. Mounted when the help opens, so it is only asked for then.
+ */
+function PublicIpInfo() {
+  const [ips, setIps] = useState<PublicIps | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchPublicIps().then((found) => { if (!cancelled) setIps(found); });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (!ips) return <div className="mt-2 text-secondary">Recherche de votre adresse IP…</div>;
+  if (!ips.v4 && !ips.v6) return <div className="mt-2 text-secondary">Adresse IP indisponible.</div>;
+  return (
+    <div className="mt-2">
+      Votre adresse IP publique&nbsp;:
+      {ips.v4 && <div><code className="user-select-all text-body">{ips.v4}</code></div>}
+      {ips.v6 && <div><code className="user-select-all text-break text-body">{ips.v6}</code></div>}
+    </div>
+  );
+}
 
 /**
  * Strip under the navbar while the server cannot be reached (no coverage, a
@@ -32,6 +57,7 @@ export default function ReachabilityBanner() {
       <HelpTip id="reachability-help" title="Serveur injoignable">
         Le serveur ne répond pas. Vérifiez votre connexion&nbsp;: une zone sans couverture ou un réseau
         non autorisé peut en être la cause. L’application réessaie toute seule.
+        <PublicIpInfo />
       </HelpTip>
       {checking && <Spinner animation="border" size="sm" role="status" aria-label="Vérification en cours" className="ms-auto flex-shrink-0" />}
       <IconButton
