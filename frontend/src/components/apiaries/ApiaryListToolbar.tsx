@@ -5,7 +5,6 @@ import { INFESTATION_LABELS } from './apiaryLevels';
 
 const ORDERINGS: { value: ApiaryOrdering; label: string }[] = [
   { value: '-infestation_level', label: 'Le plus infesté' },
-  { value: 'distance', label: 'Le plus proche' },
   { value: '-created_at', label: 'Créé récemment' },
   { value: 'created_at', label: 'Créé il y a longtemps' },
   { value: 'address', label: 'Adresse (A → Z)' },
@@ -27,12 +26,11 @@ interface ApiaryListToolbarProps {
   groups: string[];
   count: number;
   loading: boolean;
-  locating: boolean;
 }
 
 /** Scope, search, filters and sorting of the apiary manager. */
 export default function ApiaryListToolbar({
-  query, onChange, scopes, groups, count, loading, locating,
+  query, onChange, scopes, groups, count, loading,
 }: ApiaryListToolbarProps) {
   // Typed text is sent once the user pauses, not on every key
   const [search, setSearch] = useState(query.q ?? '');
@@ -126,7 +124,6 @@ export default function ApiaryListToolbar({
           {loading ? <Spinner animation="border" size="sm" /> : `${count} rucher${count > 1 ? 's' : ''}`}
         </span>
         <div className="d-flex align-items-center gap-2">
-          {locating && <Spinner animation="border" size="sm" aria-label="Localisation…" />}
           <Form.Select
             value={query.ordering}
             onChange={(e) => onChange({ ordering: e.target.value as ApiaryOrdering })}

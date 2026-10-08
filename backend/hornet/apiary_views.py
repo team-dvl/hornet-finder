@@ -3,8 +3,6 @@
 import logging
 import re
 
-from django.contrib.gis.db.models.functions import Distance
-from django.contrib.gis.geos import Point
 from django.db.models import F, Prefetch, Q, Value
 from django.db.models.functions import Replace
 
@@ -35,7 +33,6 @@ MANAGED_ORDERINGS = {
     'created_at': 'created_at',
     'address': 'address',
     'id': 'id',
-    'distance': 'distance',
 }
 
 
@@ -106,11 +103,7 @@ class ApiaryViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
                              description=("One of " + ', '.join(sorted(MANAGED_ORDERINGS))
                                           + ", prefixed with '-' for descending order "
                                           "(default '-infestation_level'). "
-                                          "'distance' needs lat and lon")),
-            OpenApiParameter(name='lat', type=OpenApiTypes.FLOAT, location=OpenApiParameter.QUERY,
-                             required=False),
-            OpenApiParameter(name='lon', type=OpenApiTypes.FLOAT, location=OpenApiParameter.QUERY,
-                             required=False),
+                                          "No ordering by distance: it would locate the apiaries")),
             OpenApiParameter(name='page', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY,
                              required=False),
             OpenApiParameter(name='page_size', type=OpenApiTypes.INT,
@@ -169,12 +162,6 @@ class ApiaryViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         field = ordering.lstrip('-')
         if field not in MANAGED_ORDERINGS:
             raise DRFValidationError({'ordering': f"Unknown ordering '{ordering}'."})
-        if field == 'distance':
-            try:
-                center = Point(float(params['lon']), float(params['lat']), srid=4326)
-            except (KeyError, ValueError):
-                raise DRFValidationError({'ordering': "Sorting by distance needs lat and lon."})
-            queryset = queryset.annotate(distance=Distance('point', center))
         expression = F(MANAGED_ORDERINGS[field])
         # Apiaries without an infestation level come last, whatever the direction
         expression = (expression.desc(nulls_last=True) if ordering.startswith('-')

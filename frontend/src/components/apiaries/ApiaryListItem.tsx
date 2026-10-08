@@ -3,15 +3,11 @@ import type { Apiary } from '../../store/store';
 import { AfscaNumber, AuthImage } from '../common';
 import { IconButton } from '../ui';
 import { ACTION_ICONS, OBJECT_ICONS } from '../../utils/icons';
-import { formatDistance } from '../../utils/format';
-import { distanceKm } from '../traps/trapListUtils';
 import { INFESTATION_LABELS } from './apiaryLevels';
 
 interface ApiaryListItemProps {
   apiary: Apiary & { id: number };
   isMine: boolean;
-  /** Position of the user, to show how far the apiary is */
-  origin?: { lat: number; lon: number } | null;
   onOpen: (apiary: Apiary) => void;
   onLocate: (apiary: Apiary) => void;
   /** Opens the other actions (sheet, edit, delete) */
@@ -20,7 +16,7 @@ interface ApiaryListItemProps {
 
 /** One row of the apiary manager: identity, infestation, sharing and the quick actions. */
 export default function ApiaryListItem({
-  apiary, isMine, origin, onOpen, onLocate, onMore,
+  apiary, isMine, onOpen, onLocate, onMore,
 }: ApiaryListItemProps) {
   const groups = apiary.extended_permissions ?? [];
 
@@ -62,15 +58,9 @@ export default function ApiaryListItem({
           {!isMine && apiary.owner && (
             <span className="d-block small text-muted text-truncate">{apiary.owner.display_name}</span>
           )}
-          {(apiary.afsca_number || origin) && (
-            <span className="small d-flex flex-wrap column-gap-3">
-              {apiary.afsca_number && <AfscaNumber value={apiary.afsca_number} />}
-              {origin && (
-                <span className="text-muted">
-                  {formatDistance(distanceKm(origin.lat, origin.lon, apiary.latitude, apiary.longitude) * 1000)}
-                </span>
-              )}
-            </span>
+          {/* No distance to the apiary: its position is sensitive */}
+          {apiary.afsca_number && (
+            <span className="d-block small text-truncate"><AfscaNumber value={apiary.afsca_number} /></span>
           )}
         </span>
       </button>

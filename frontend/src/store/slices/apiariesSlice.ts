@@ -65,8 +65,7 @@ export type ApiaryScope = 'mine' | 'shared' | 'all';
 export type ApiaryOrdering =
   | '-infestation_level' | 'infestation_level'
   | '-created_at' | 'created_at'
-  | 'address' | '-id' | 'id'
-  | 'distance';
+  | 'address' | '-id' | 'id';
 
 /** Query of the apiary manager (`GET /apiaries/managed/`) */
 export interface ManagedApiariesQuery {
@@ -76,9 +75,6 @@ export interface ManagedApiariesQuery {
   group?: string;
   /** `none`: apiaries not assessed */
   infestation_level?: '1' | '2' | '3' | 'none';
-  /** Needed by the `distance` ordering */
-  lat?: number;
-  lon?: number;
 }
 
 interface ManagedApiariesState {

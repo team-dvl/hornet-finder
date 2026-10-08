@@ -2215,9 +2215,10 @@ class ApiaryManagerTests(ApiaryTestCase):
         self.assertEqual(self._list(self._managed(self.owner_user, 'ordering=infestation_level')),
                          [self.apiary.id, self.far.id])
 
-    def test_distance_ordering_has_no_radius_limit(self):
-        ids = self._list(self._managed(self.owner_user, 'ordering=distance&lat=51.2&lon=4.4'))
-        self.assertEqual(ids, [self.far.id, self.apiary.id])
+    def test_there_is_no_ordering_by_distance(self):
+        # It would locate the apiaries: refused, even with a position
+        response = self._managed(self.owner_user, 'ordering=distance&lat=51.2&lon=4.4')
+        self.assertEqual(response.status_code, 400)
 
     def test_rows_carry_address_and_permissions(self):
         response = self._managed(self.member_user, 'scope=mine')
