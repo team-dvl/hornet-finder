@@ -19,7 +19,9 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   a growing delay (5 s to 60 s) while it does not. The login button no longer
   leaves for Keycloak while the server is unreachable. Its help also shows the
   device's public IP address (IPv4 and IPv6 when it has both), asked of ipify
-  only when the help is opened, for whoever manages the firewall's allowlist.
+  only when the help is opened (each address shows as soon as it is known, and
+  nothing is asked when the device has no network), for whoever manages the
+  firewall's allowlist.
   Prod: note 0020.
 - Error screens instead of a white page when a page fails while rendering (an
   unexpected API answer, a chunk that cannot be fetched): the page's own screen

@@ -4,28 +4,40 @@ import { HelpTip } from '../common';
 import { IconButton } from '../ui';
 import { useReachability } from '../../hooks/useReachability';
 import { probe } from '../../utils/reachability';
-import { fetchPublicIps, type PublicIps } from '../../utils/publicIp';
+import { fetchPublicIp, type IpFamily } from '../../utils/publicIp';
+
+/** What is known of each family: `undefined` while asked, `null` when there is none. */
+type Found = Partial<Record<IpFamily, string | null>>;
+const FAMILIES: IpFamily[] = ['v4', 'v6'];
 
 /**
  * The device's public IP address(es), for whoever manages the firewall's
- * allowlist. Mounted when the help opens, so it is only asked for then.
+ * allowlist. Mounted when the help opens, so it is only asked for then; each
+ * address shows as soon as it is known.
  */
 function PublicIpInfo() {
-  const [ips, setIps] = useState<PublicIps | null>(null);
+  const [found, setFound] = useState<Found>({});
 
   useEffect(() => {
     let cancelled = false;
-    void fetchPublicIps().then((found) => { if (!cancelled) setIps(found); });
+    FAMILIES.forEach((family) => {
+      void fetchPublicIp(family).then((ip) => {
+        if (!cancelled) setFound((previous) => ({ ...previous, [family]: ip ?? null }));
+      });
+    });
     return () => { cancelled = true; };
   }, []);
 
-  if (!ips) return <div className="mt-2 text-secondary">Recherche de votre adresse IP…</div>;
-  if (!ips.v4 && !ips.v6) return <div className="mt-2 text-secondary">Adresse IP indisponible.</div>;
+  const { v4, v6 } = found;
+  if (!v4 && !v6) {
+    const settled = v4 === null && v6 === null;
+    return <div className="mt-2 text-secondary">{settled ? 'Adresse IP indisponible.' : 'Recherche de votre adresse IP…'}</div>;
+  }
   return (
     <div className="mt-2">
       Votre adresse IP publique&nbsp;:
-      {ips.v4 && <div><code className="user-select-all text-body">{ips.v4}</code></div>}
-      {ips.v6 && <div><code className="user-select-all text-break text-body">{ips.v6}</code></div>}
+      {v4 && <div><code className="user-select-all text-body">{v4}</code></div>}
+      {v6 && <div><code className="user-select-all text-break text-body">{v6}</code></div>}
     </div>
   );
 }
