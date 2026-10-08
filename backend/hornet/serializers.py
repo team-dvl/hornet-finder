@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from rest_framework import serializers
 from . import apiary_permissions as apiary_perms
+from .afsca import AFSCA_DIGITS, AFSCA_FORMAT, normalize_afsca
 from . import nest_permissions as nest_perms
 from .trap_permissions import is_publicly_visible
 from .models import (
@@ -238,7 +239,15 @@ class ApiarySerializer(GPSValidationMixin, serializers.ModelSerializer):
         return data
 
     def validate_afsca_number(self, value: str) -> str:
-        return value.strip()
+        normalized = normalize_afsca(value)
+        if normalized is not None:
+            return normalized
+        # A number recorded before the format was enforced may be kept as is
+        if self.instance is not None and value.strip() == self.instance.afsca_number:
+            return self.instance.afsca_number
+        raise serializers.ValidationError(
+            f"An AFSCA number has {AFSCA_DIGITS} digits, written {AFSCA_FORMAT}."
+        )
 
     def validate_address(self, value: str) -> str:
         return value.strip()

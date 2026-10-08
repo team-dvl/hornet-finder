@@ -1,6 +1,6 @@
 import { Badge } from 'react-bootstrap';
 import type { Apiary } from '../../store/store';
-import { AuthImage } from '../common';
+import { AfscaNumber, AuthImage } from '../common';
 import { IconButton } from '../ui';
 import { ACTION_ICONS, OBJECT_ICONS } from '../../utils/icons';
 import { formatDistance } from '../../utils/format';
@@ -64,7 +64,7 @@ export default function ApiaryListItem({
           )}
           {(apiary.afsca_number || origin) && (
             <span className="small d-flex flex-wrap column-gap-3">
-              {apiary.afsca_number && <code title="N° AFSCA">{apiary.afsca_number}</code>}
+              {apiary.afsca_number && <AfscaNumber value={apiary.afsca_number} />}
               {origin && (
                 <span className="text-muted">
                   {formatDistance(distanceKm(origin.lat, origin.lon, apiary.latitude, apiary.longitude) * 1000)}

@@ -368,7 +368,7 @@ class NestViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewS
         return Response(self.get_serializer(self._fresh(nest)).data)
 
     @extend_schema(responses={200: OpenApiResponse(
-        description='AFSCA numbers of the apiaries within 1 km, sorted by number: `["BE-…", …]`'
+        description='AFSCA numbers of the apiaries within 1 km, sorted by number: `["9.005.577.599", …]`'
     )})
     @action(detail=True, methods=['get'], url_path='nearby-apiaries')
     def nearby_apiaries(self, request, pk=None):

@@ -1,10 +1,12 @@
 """API of the apiaries: CRUD, photo, sharing with groups and owner change."""
 
 import logging
+import re
 
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
-from django.db.models import F, Prefetch, Q
+from django.db.models import F, Prefetch, Q, Value
+from django.db.models.functions import Replace
 
 from rest_framework import viewsets
 from rest_framework.decorators import action
@@ -18,6 +20,7 @@ from drf_spectacular.utils import OpenApiParameter, extend_schema
 from hornet_finder_api.authentication import HasAnyRole, JWTBearerAuthentication
 
 from . import apiary_permissions as perms
+from .afsca import afsca_digits
 from .models import Apiary, ApiaryGroupPermission, User
 from .serializers import ApiarySerializer
 from .trap_permissions import local_user
@@ -151,6 +154,13 @@ class ApiaryViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         if search:
             match = (Q(address__icontains=search) | Q(afsca_number__icontains=search)
                      | Q(comments__icontains=search))
+            # An AFSCA number is found by its digits too, typed without the dots
+            digits = afsca_digits(search)
+            if len(digits) >= 3 and digits == re.sub(r'[\s./-]', '', search):
+                queryset = queryset.alias(
+                    afsca_plain=Replace('afsca_number', Value('.'), Value(''))
+                )
+                match |= Q(afsca_plain__icontains=digits)
             if search.isdigit():
                 match |= Q(pk=int(search))
             queryset = queryset.filter(match)

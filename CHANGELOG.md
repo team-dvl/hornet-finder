@@ -52,6 +52,12 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   release keep no date.
 - The reporter of a nest is always the signed-in user: `created_by` is no longer
   accepted from the client.
+- AFSCA numbers are written `X.XXX.XXX.XXX` (10 digits, e.g. `9.005.577.599`)
+  everywhere: one display component, a field that inserts the dots while typing
+  (numeric keypad) and refuses an incomplete number. The backend stores that form
+  and rewrites the recorded numbers that fit it (migration 0023); a number in
+  another form is kept until it is changed. The search finds a number typed
+  without dots.
 - Module icons in colour: on the landing page and in the navbar menu, each field
   module takes the colour of what it manages on the map (nests red, traps green,
   apiaries gold, map teal, statistics violet); documentation, administration and

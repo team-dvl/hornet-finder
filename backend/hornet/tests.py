@@ -1882,7 +1882,7 @@ class ApiaryWriteTests(ApiaryTestCase):
         self.assertEqual(response.status_code, 400)
 
     def test_update_needs_owner_or_update_grant(self):
-        patch_data = {'afsca_number': 'X1'}
+        patch_data = {'afsca_number': '9.005.577.599'}
         response = self._api('patch', '/', {'patch': 'partial_update'}, self.member_user,
                              patch_data, pk=self.apiary.id, format='json')
         self.assertEqual(response.status_code, 403)
@@ -3329,18 +3329,66 @@ class NestManagementTests(TestCase):
 
     def test_the_afsca_numbers_within_one_km_are_listed(self):
         # 0.001° of latitude is about 111 m
-        Apiary.objects.create(latitude=50.5081, longitude=4.5, afsca_number='BE-B900')   # ~900 m
-        Apiary.objects.create(latitude=50.5027, longitude=4.5, afsca_number='BE-C300')   # ~300 m
-        Apiary.objects.create(latitude=50.5054, longitude=4.5, afsca_number='BE-C300')   # same number
-        Apiary.objects.create(latitude=50.5009, longitude=4.5, afsca_number='')          # no number
-        Apiary.objects.create(latitude=50.5099, longitude=4.5, afsca_number='BE-A1100')  # ~1100 m
+        Apiary.objects.create(latitude=50.5081, longitude=4.5, afsca_number='2.000.000.900')  # ~900 m
+        Apiary.objects.create(latitude=50.5027, longitude=4.5, afsca_number='3.000.000.300')  # ~300 m
+        Apiary.objects.create(latitude=50.5054, longitude=4.5, afsca_number='3.000.000.300')  # same number
+        Apiary.objects.create(latitude=50.5009, longitude=4.5, afsca_number='')               # no number
+        Apiary.objects.create(latitude=50.5099, longitude=4.5, afsca_number='1.000.001.100')  # ~1100 m
         response = self._nearby(self.coordinator_user)
         self.assertEqual(response.status_code, 200)
         # Sorted by number, never by distance, and no distance given
-        self.assertEqual(response.data, ['BE-B900', 'BE-C300'])
+        self.assertEqual(response.data, ['2.000.000.900', '3.000.000.300'])
 
     def test_the_nearby_apiaries_are_for_the_managers(self):
-        Apiary.objects.create(latitude=50.5027, longitude=4.5, afsca_number='BE-300')
+        Apiary.objects.create(latitude=50.5027, longitude=4.5, afsca_number='3.000.000.300')
         self.assertEqual(self._nearby(self.admin_user).status_code, 200)
         for user in (self.reporter_user, self.hunter_user, self.trappers_admin_user):
             self.assertEqual(self._nearby(user).status_code, 403)
+
+
+# ---------------------------------------------------------------------------
+# AFSCA numbers: X.XXX.XXX.XXX
+# ---------------------------------------------------------------------------
+
+from .afsca import normalize_afsca
+
+
+class AfscaNumberTests(ApiaryTestCase):
+    def _create(self, number):
+        return self._api('post', '/apiaries/', {'post': 'create'}, self.owner_user, {
+            'latitude': 50.4, 'longitude': 4.4, 'afsca_number': number,
+        }, format='json')
+
+    def test_the_number_is_normalized(self):
+        for typed in ('9005577599', '9.005.577.599', ' 9 005 577 599 ', '9-005-577-599'):
+            self.assertEqual(normalize_afsca(typed), '9.005.577.599', typed)
+        self.assertEqual(normalize_afsca(''), '')
+
+    def test_a_malformed_number_is_refused(self):
+        for typed in ('900557759', '90055775990', 'BE9005577599', 'X1'):
+            self.assertIsNone(normalize_afsca(typed), typed)
+            response = self._create(typed)
+            self.assertEqual(response.status_code, 400, typed)
+            self.assertIn('afsca_number', response.data)
+
+    def test_the_stored_form_is_formatted(self):
+        response = self._create('9005577599')
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(Apiary.objects.get(pk=response.data['id']).afsca_number, '9.005.577.599')
+
+    def test_a_number_recorded_before_the_format_can_be_kept(self):
+        Apiary.objects.filter(pk=self.apiary.pk).update(afsca_number='BE-123')
+        response = self._api('patch', '/', {'patch': 'partial_update'}, self.owner_user,
+                             {'afsca_number': 'BE-123', 'comments': 'ok'}, pk=self.apiary.id,
+                             format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+        response = self._api('patch', '/', {'patch': 'partial_update'}, self.owner_user,
+                             {'afsca_number': 'BE-124'}, pk=self.apiary.id, format='json')
+        self.assertEqual(response.status_code, 400)
+
+    def test_the_search_finds_a_number_typed_without_dots(self):
+        Apiary.objects.filter(pk=self.apiary.pk).update(afsca_number='9.005.577.599')
+        request = self.factory.get('/apiaries/managed/?q=5577599')
+        force_authenticate(request, user=self.owner_user)
+        response = ApiaryViewSet.as_view({'get': 'managed'})(request)
+        self.assertEqual([a['id'] for a in response.data['results']], [self.apiary.id])
