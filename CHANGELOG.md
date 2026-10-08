@@ -112,6 +112,10 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   closed, so it renewed nothing. The service worker now only caches the app.
 
 ### Fixed
+- Trap photos (the trap's own photo, intervention and catch thumbnails, full-size
+  view) are loaded with the session token: a plain `<img>` sent none, so the
+  media view answered 404 for every trap that is private or bound to an apiary,
+  even to its owner.
 - The session survives a closed or suspended app: opening the installed app
   (or a tab) with an expired access token renews it with the refresh token
   instead of showing the user signed out, and so does coming back to the
