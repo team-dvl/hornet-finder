@@ -225,6 +225,16 @@ export const deleteNestPhoto = createAsyncThunk(
   }
 );
 
+/** Radius of the "nearest nests" list, the largest the API allows to every role */
+export const NEAREST_NESTS_RADIUS_KM = 5;
+
+/** The nests (current year, not archived) within 5 km of a position, not kept in the store */
+export async function fetchNestsAround(lat: number, lon: number): Promise<Nest[]> {
+  const params = new URLSearchParams({ lat: String(lat), lon: String(lon), radius: String(NEAREST_NESTS_RADIUS_KM) });
+  const response = await api.get(`/nests/?${params}`);
+  return response.data as Nest[];
+}
+
 /**
  * AFSCA numbers of the apiaries within 1 km of a nest, sorted by number (not
  * kept in the store). No distance, no order by distance: they would locate the apiaries.

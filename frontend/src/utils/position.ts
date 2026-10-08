@@ -1,4 +1,4 @@
-/** Position of the device, for the manager lists (sort by distance, add where one stands). */
+/** Position of the device: adding an object where one stands, the nearest nests. */
 
 /** Current position, rounded to ~10 m: plenty to sort objects by distance. */
 export function currentPosition(): Promise<{ lat: number; lon: number }> {

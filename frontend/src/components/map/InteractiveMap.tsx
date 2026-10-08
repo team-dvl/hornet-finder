@@ -27,6 +27,7 @@ import HornetInfoPopup from '../popups/HornetInfoPopup';
 import HornetReturnZoneInfoPopup from '../popups/HornetReturnZoneInfoPopup';
 import ApiaryInfoPopup from '../popups/ApiaryInfoPopup';
 import NestInfoPopup from '../popups/NestInfoPopup';
+import { NearestNestsSheet } from '../nests';
 import AddItemSelector from '../forms/AddItemSelector';
 import AddHornetPopup from '../popups/AddHornetPopup';
 import { ApiaryFormModal } from '../apiaries';
@@ -113,7 +114,7 @@ export default function InteractiveMap({
   const viewMode = MAP_VIEW_MODES[preset];
   const dispatch = useAppDispatch();
   const auth = useAuth();
-  const { isAdmin, canAddApiary, canAddHornet, canAddTrap, canAddNest, userGuid, roles } = useUserPermissions();
+  const { isAdmin, canAddApiary, canAddHornet, canAddTrap, canAddNest, canSeeAllNests, userGuid, roles } = useUserPermissions();
   
   // Redux state
   const mapCenter = useAppSelector(selectMapCenter);
@@ -585,6 +586,8 @@ export default function InteractiveMap({
           onErrorUpdate={() => {}} // Les erreurs sont maintenant gérées par Redux
           showApiariesButton={auth.isAuthenticated && (isAdmin || canAddApiary)}
           showNestsButton={true} // Tous les utilisateurs peuvent voir les nids (détruits pour non-authentifiés, tous pour authentifiés)
+          // The distance list is for those who see every nest (hunters, beekeepers, admins)
+          onShowNearestNests={canSeeAllNests ? () => openModal({ kind: 'nearest-nests' }) : undefined}
           onQuickHornetCapture={handleQuickHornetCapture}
           onAddTrap={canAddTrap && showTraps
             ? () => openModal({ kind: 'add-trap', position: null })
@@ -727,6 +730,15 @@ export default function InteractiveMap({
         onHide={closeModal}
         apiary={modalOfKind('apiary')?.apiary ?? null}
         onAddAtLocation={handleAddAtLocation}
+      />
+
+      <NearestNestsSheet
+        show={modal?.kind === 'nearest-nests'}
+        onHide={closeModal}
+        onSelect={(nest) => {
+          leafletMap?.setView([nest.latitude, nest.longitude], Math.max(leafletMap.getZoom(), 17));
+          openModal({ kind: 'nest', nest });
+        }}
       />
 
       <NestInfoPopup

@@ -85,6 +85,10 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   sees every nest and to the reporter, never on the public map. Prod: note 0019.
 - Nest editing by administrators and nest hunter coordinators: place, address,
   position, comment, destruction and its date.
+- Map, Layers → "Nids les plus proches": the nests of the year within 5 km of
+  the user, nearest first with their distance (as the crow flies, 20 at most);
+  a tap opens the nest and centres the map on it. For those who see every nest
+  (hunters, beekeepers, admins).
 - Nest sheet: the AFSCA numbers of the apiaries within 1 km of the nest, sorted
   by number, without any distance (administrators and nest hunter coordinators).
 - `GET /api/nests/my/`: the nests the requester reported.

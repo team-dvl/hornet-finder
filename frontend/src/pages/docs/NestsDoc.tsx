@@ -54,6 +54,11 @@ export default function NestsDoc() {
           neutralisé, sa date de destruction est retenue ; il ne peut plus être réactivé,
           sauf par un administrateur.
         </p>
+        <p className="mb-0 mt-2">
+          Chasseurs, apiculteurs et administrateurs trouvent dans <em>Couches → Nids les plus
+          proches</em> les nids de l&apos;année à 5 km au plus de leur position, du plus proche au
+          plus éloigné, avec leur distance à vol d&apos;oiseau.
+        </p>
       </section>
 
       <section>

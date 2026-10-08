@@ -380,6 +380,20 @@ button.module-card {
   color: var(--bs-secondary-color);
 }
 
+/* Action row of the layers sheet (opens a list rather than toggling a layer) */
+.layer-action {
+  width: 100%;
+  border: 0;
+  background: none;
+  text-align: start;
+}
+
+/* Distance column of the nearest nests: aligned figures */
+.nearest-nest-distance {
+  min-width: 4rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .layer-switch .form-check-input {
   width: 2.5em;
   height: 1.35em;

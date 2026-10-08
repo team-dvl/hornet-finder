@@ -14,7 +14,7 @@ export { selectApiaries, selectApiariesLoading, selectApiariesError, selectShowA
 export type { Apiary, ApiaryFormValues, ApiarySharingInfo, ApiaryGroupGrant, ApiaryScope, ApiaryOrdering, ManagedApiariesQuery } from './slices/apiariesSlice';
 
 // Export des actions et thunks du slice nests
-export { fetchNests, fetchNestsDestroyedPublic, createNest, updateNest, addNestPhotos, deleteNestPhoto, fetchNearbyApiaries, deleteNest, archiveNest, clearError as clearNestsError, clearNests, toggleNests, setShowNests, toggleShowArchived as toggleShowArchivedNests } from './slices/nestsSlice';
+export { fetchNests, fetchNestsDestroyedPublic, createNest, updateNest, addNestPhotos, deleteNestPhoto, fetchNearbyApiaries, fetchNestsAround, NEAREST_NESTS_RADIUS_KM, deleteNest, archiveNest, clearError as clearNestsError, clearNests, toggleNests, setShowNests, toggleShowArchived as toggleShowArchivedNests } from './slices/nestsSlice';
 export { selectNests, selectNestById, selectNestsLoading, selectNestsError, selectShowNests, selectShowArchivedNests } from './slices/nestsSlice';
 export type { Nest, NestPhoto, NestPermissions, NestUpdateValues } from './slices/nestsSlice';
 
