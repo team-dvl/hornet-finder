@@ -1,5 +1,6 @@
 import { Badge } from 'react-bootstrap';
 import type { Trap } from '../../store/store';
+import { AuthImage } from '../common';
 import { IconButton } from '../ui';
 import { ACTION_ICONS } from '../../utils/icons';
 import { OVERDUE_DAYS, daysSince } from './trapListUtils';
@@ -39,7 +40,7 @@ export default function TrapListItem({
         aria-label={`Fiche du piège #${trap.id}`}
       >
         <span className="manager-list-thumb flex-shrink-0 rounded">
-          {thumbnail ? <img src={thumbnail} alt="" className="rounded" /> : <span aria-hidden="true">🪤</span>}
+          {thumbnail ? <AuthImage src={thumbnail} alt="" className="rounded" /> : <span aria-hidden="true">🪤</span>}
         </span>
         <span className="d-block min-w-0">
           <span className="d-flex flex-wrap align-items-center gap-1">

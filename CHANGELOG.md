@@ -113,7 +113,7 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 
 ### Fixed
 - Trap photos (the trap's own photo, intervention and catch thumbnails, full-size
-  view) are loaded with the session token: a plain `<img>` sent none, so the
+  view, list thumbnails) are loaded with the session token: a plain `<img>` sent none, so the
   media view answered 404 for every trap that is private or bound to an apiary,
   even to its owner.
 - The session survives a closed or suspended app: opening the installed app
