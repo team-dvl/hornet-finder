@@ -24,14 +24,26 @@ set -u
 
 SCRIPT_DIR="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
-set -a; . ./.env; set +a
+# .env is optional: in a Claude Code web session there is none, the variables
+# come from the environment settings instead
+if [[ -f ./.env ]]; then
+    set -a; . ./.env; set +a
+else
+    echo "WARN: no .env, using the variables of the environment." >&2
+fi
 
-if [[ "${APP_ENV:-}" != "dev" ]]; then
-    echo "This script only runs against the development environment (APP_ENV=dev)." >&2
+# Everything the script reads, checked up front so a missing value stops it
+# before anything is created on the dev server
+MISSING=()
+for var in APP_ENV HOST KC_HOSTNAME KC_TEST_CLIENT_ID KC_TEST_CLIENT_SECRET KC_TEST_USER_PASSWORD; do
+    [[ -n "${!var:-}" ]] || MISSING+=("$var")
+done
+if (( ${#MISSING[@]} )); then
+    echo "Missing variables: ${MISSING[*]} (set them in .env or in the environment; see .env.example)." >&2
     exit 1
 fi
-if [[ -z "${KC_TEST_CLIENT_ID:-}" || -z "${KC_TEST_CLIENT_SECRET:-}" || -z "${KC_TEST_USER_PASSWORD:-}" ]]; then
-    echo "KC_TEST_CLIENT_ID / KC_TEST_CLIENT_SECRET / KC_TEST_USER_PASSWORD are missing from .env: see .env.example." >&2
+if [[ "$APP_ENV" != "dev" ]]; then
+    echo "This script only runs against the development environment (APP_ENV=dev)." >&2
     exit 1
 fi
 
@@ -95,7 +107,31 @@ trap cleanup EXIT
 echo "Fixtures: traps $TRAP1 $TRAP2, nest $NEST, hornet $HORNET, apiary $APIARY"
 
 mkdir -p "$OUT" .cache/ui-shots
-docker run --rm --ipc=host --user "$(id -u):$(id -g)" -e HOME=/tmp \
+
+# Docker daemon. In a Claude Code web session none runs at start: launch it
+# (root, dockerd preinstalled) and wait for its socket.
+if ! docker info >/dev/null 2>&1; then
+    if [[ -n "${CLAUDE_CODE_REMOTE:-}" ]] && command -v dockerd >/dev/null 2>&1 && [[ "$(id -u)" == 0 ]]; then
+        echo "Starting the Docker daemon (log: /tmp/dockerd.log)..."
+        (dockerd >/tmp/dockerd.log 2>&1 &)
+        for _ in $(seq 30); do docker info >/dev/null 2>&1 && break; sleep 1; done
+    fi
+    docker info >/dev/null 2>&1 || { echo "The Docker daemon is not reachable." >&2; exit 1; }
+fi
+
+# Behind an HTTPS proxy (Claude Code web), the container cannot use the default
+# route: it shares the host network to reach the proxy, and trusts the proxy's
+# CA for node/npm. Browsers receive the proxy through PROXY_SERVER.
+NET_ARGS=()
+if [[ -n "${HTTPS_PROXY:-}" ]]; then
+    NET_ARGS=(--network host -e HTTPS_PROXY="$HTTPS_PROXY" -e PROXY_SERVER="$HTTPS_PROXY")
+    PROXY_CA="${NODE_EXTRA_CA_CERTS:-${SSL_CERT_FILE:-}}"
+    if [[ -f "$PROXY_CA" ]]; then
+        NET_ARGS+=(-v "$PROXY_CA:/proxy-ca.crt:ro" -e NODE_EXTRA_CA_CERTS=/proxy-ca.crt -e SSL_CERT_FILE=/proxy-ca.crt)
+    fi
+fi
+
+docker run --rm --ipc=host "${NET_ARGS[@]}" --user "$(id -u):$(id -g)" -e HOME=/tmp \
     -e BASE_URL="https://${HOST}" -e KC_USER="$USER_EMAIL" -e KC_PASS="$KC_TEST_USER_PASSWORD" \
     -e LAT="$LAT" -e LNG="$LNG" -e DEVICES="${DEVICES[*]:-}" \
     -v "$SCRIPT_DIR/frontend/scripts:/scripts:ro" -v "$SCRIPT_DIR/$OUT:/out" \

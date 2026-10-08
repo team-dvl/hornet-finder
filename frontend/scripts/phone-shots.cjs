@@ -31,7 +31,12 @@ const SAMPLE_PHOTO = Buffer.from(
 
 async function walk(name) {
   const { engine, profile } = DEVICES[name];
-  const browser = await engine.launch();
+  // Behind an HTTPS proxy that re-signs TLS (Claude Code web), Chromium needs
+  // the proxy and does not trust its CA (no certutil in the image)
+  const proxy = process.env.PROXY_SERVER;
+  const browser = await engine.launch(proxy
+    ? { proxy: { server: proxy }, ...(engine === chromium ? { args: ['--ignore-certificate-errors'] } : {}) }
+    : {});
   const context = await browser.newContext({
     ...profile,
     geolocation: { latitude: LAT, longitude: LNG },
