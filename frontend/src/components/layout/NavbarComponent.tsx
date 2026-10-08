@@ -18,6 +18,7 @@ import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { UserAvatar } from '../common';
 import { useAvatarUrl } from '../../hooks/useAvatarUrl';
 import { APP_VERSION, IS_RELEASE } from '../../utils/version';
+import ReachabilityBanner from './ReachabilityBanner';
 
 const SITE_NAME = `Velutina${import.meta.env.DEV ? ' DEV' : ''}`;
 
@@ -200,6 +201,7 @@ export default function NavbarComponent() {
         onHide={() => setShowUserModal(false)}
       />
 
+      <ReachabilityBanner />
     </Navbar>
   );
 }

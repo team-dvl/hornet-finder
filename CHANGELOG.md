@@ -10,6 +10,18 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 
 ## [Unreleased]
 
+### Added
+- "Serveur injoignable" strip under the navbar when the server cannot be reached
+  (no coverage, a network the edge firewall does not let through), with a retry
+  button and a hint. The app probes `/api/ping` (a static answer of nginx) at
+  launch, on return to the foreground, on network events and after an API call
+  that got no answer; it never polls while the server answers, and retries with
+  a growing delay (5 s to 60 s) while it does not. The login button no longer
+  leaves for Keycloak while the server is unreachable. Prod: note 0020.
+- Dev: a message with a "Réessayer" button replaces the white page when the dev
+  server cannot be reached at launch (the dev service worker only caches
+  `index.html`, not the modules Vite serves).
+
 ### Fixed
 - The trap list showed "Relevé aujourd'hui" for a visit made the evening before:
   the age was counted in 24 h slices instead of calendar days. It now follows

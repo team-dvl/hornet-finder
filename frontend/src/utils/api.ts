@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getAccessToken, refreshSession, userManager } from './oidc';
+import { reportNetworkFailure } from './reachability';
 
 // Configuration de base d'Axios
 const api = axios.create({
@@ -35,6 +36,11 @@ api.interceptors.response.use(
       if (await refreshSession()) {
         return api(config);
       }
+    }
+    // No answer at all (no network, dropped packets, timeout): ask whether
+    // the server is reachable. A cancelled call or an HTTP error is not that.
+    if (axios.isAxiosError(error) && !error.response && error.code !== 'ERR_CANCELED') {
+      reportNetworkFailure();
     }
     return Promise.reject(error);
   }

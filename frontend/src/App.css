@@ -12,9 +12,17 @@ body {
   min-height: 100dvh;
 }
 
+/* Height of the "server unreachable" strip under the navbar, 0 while it is not shown */
+:root {
+  --reach-banner-h: 0px;
+}
+:root.reach-banner-shown {
+  --reach-banner-h: 2.75rem;
+}
+
 /* Scrolling pages (landing, placeholders) rendered under the fixed-top navbar */
 .page-content {
-  padding-top: calc(4rem + env(safe-area-inset-top));
+  padding-top: calc(4rem + var(--reach-banner-h) + env(safe-area-inset-top));
   min-height: 100vh;
   min-height: 100dvh;
   background-color: var(--bs-light);
@@ -118,6 +126,23 @@ button.module-card {
 
 .navbar.navbar-transparent.navbar-opaque {
   background-color: var(--bs-light) !important;
+}
+
+/* "Server unreachable" strip, hanging under the navbar (the navbar's backdrop
+   filter makes it the containing block, so `top: 100%` is its bottom edge) */
+.reach-banner {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: var(--reach-banner-h);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 calc(0.75rem + env(safe-area-inset-right)) 0 calc(0.75rem + env(safe-area-inset-left));
+  background-color: var(--bs-warning-bg-subtle);
+  color: var(--bs-warning-text-emphasis);
+  border-bottom: 1px solid var(--bs-warning-border-subtle);
 }
 
 /* Title of the bar: takes the room left by the menu button, never pushes it to a new line */
@@ -269,7 +294,7 @@ button.module-card {
 /* Map controls: a column of round buttons, top right, under the navbar */
 .map-controls-container {
   position: absolute;
-  top: calc(4.5rem + env(safe-area-inset-top));
+  top: calc(4.5rem + var(--reach-banner-h) + env(safe-area-inset-top));
   right: calc(0.75rem + env(safe-area-inset-right));
   z-index: 1000;
   display: flex;
@@ -322,7 +347,7 @@ button.module-card {
 /* Floating banners of the map (errors, status), under the navbar, clear of the buttons */
 .map-banner {
   position: absolute;
-  top: calc(4.5rem + env(safe-area-inset-top));
+  top: calc(4.5rem + var(--reach-banner-h) + env(safe-area-inset-top));
   left: 0.75rem;
   right: 4.75rem;
   z-index: 1001;
@@ -920,7 +945,7 @@ button.module-card {
 /* Map opened by another module (view modes `trap`, `trap-move`): back to the caller */
 .map-back-button {
   position: absolute;
-  top: calc(4.5rem + env(safe-area-inset-top));
+  top: calc(4.5rem + var(--reach-banner-h) + env(safe-area-inset-top));
   left: calc(0.75rem + env(safe-area-inset-left));
   z-index: 1000;
   width: auto;
@@ -1224,7 +1249,7 @@ button.module-card {
 
 .trap-manager-notice {
   position: fixed;
-  top: calc(4.5rem + env(safe-area-inset-top));
+  top: calc(4.5rem + var(--reach-banner-h) + env(safe-area-inset-top));
   left: 0.75rem;
   right: 0.75rem;
   z-index: 1040;

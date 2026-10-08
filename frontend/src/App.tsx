@@ -9,6 +9,7 @@ import { RequireRole } from './components/common';
 import { initIOSViewportFix } from './utils/iosViewportFix';
 import { useUrlCleaner } from './utils/urlCleaner';
 import { useSessionGuard } from './hooks/useSessionGuard';
+import { useReachabilityMonitor } from './hooks/useReachability';
 import { ADMIN, APP_ROLES, BEEKEEPER, TRAPPER } from './utils/roles';
 
 // The statistics are loaded on demand: they stay out of the first load of the PWA
@@ -25,6 +26,9 @@ function App() {
 
   // Renews the session on launch, resume and reconnection
   const resuming = useSessionGuard();
+
+  // Probes whether the server is reachable (banner under the navbar)
+  useReachabilityMonitor();
 
   // Initialiser la correction iOS pour le viewport
   useEffect(() => {
