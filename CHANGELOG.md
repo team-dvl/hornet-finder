@@ -79,8 +79,8 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   sees every nest and to the reporter, never on the public map. Prod: note 0019.
 - Nest editing by administrators and nest hunter coordinators: place, address,
   position, comment, destruction and its date.
-- Nest sheet: the AFSCA numbers of the apiaries within 1 km of the nest, nearest
-  first with their distance (administrators and nest hunter coordinators).
+- Nest sheet: the AFSCA numbers of the apiaries within 1 km of the nest, sorted
+  by number, without any distance (administrators and nest hunter coordinators).
 - `GET /api/nests/my/`: the nests the requester reported.
 - Coordinators of the trappers (`/trappers/admin`): Administration → Piégeurs
   lists every trapper by name; removing a trapper, who loses the role, is left

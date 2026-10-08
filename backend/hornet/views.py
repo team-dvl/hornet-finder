@@ -368,31 +368,25 @@ class NestViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewS
         return Response(self.get_serializer(self._fresh(nest)).data)
 
     @extend_schema(responses={200: OpenApiResponse(
-        description='AFSCA numbers of the apiaries within 1 km, nearest first: '
-                    '`[{"afsca_number": str, "distance_m": int}]`, one entry per number'
+        description='AFSCA numbers of the apiaries within 1 km, sorted by number: `["BE-…", …]`'
     )})
     @action(detail=True, methods=['get'], url_path='nearby-apiaries')
     def nearby_apiaries(self, request, pk=None):
         """
-        The AFSCA numbers of the apiaries within 1 km of the nest. Apiaries
-        without a number are left out; a number shared by several apiaries is
-        listed once, at the distance of the nearest.
+        The AFSCA numbers of the apiaries within 1 km of the nest, each listed
+        once, sorted by number. Neither the distance nor an order by distance
+        is given: they would locate the apiaries. Apiaries without a number are
+        left out.
         """
         nest = self.get_object()
         if not nest_perms.can_see_nearby_apiaries(request):
             raise PermissionDenied("You do not have permission to see the apiaries near this nest.")
         center = nest.point or Point(nest.longitude, nest.latitude, srid=4326)
-        apiaries = (
+        numbers = (
             Apiary.objects.exclude(afsca_number='')
-            .annotate(distance=Distance('point', center))
-            .filter(distance__lte=D(m=nest_perms.NEARBY_APIARY_RADIUS_M))
-            .order_by('distance', 'id')
-            .values_list('afsca_number', 'distance')
+            .filter(point__distance_lte=(center, D(m=nest_perms.NEARBY_APIARY_RADIUS_M)))
+            .order_by('afsca_number')
+            .values_list('afsca_number', flat=True)
+            .distinct()
         )
-        nearest = {}
-        for number, distance in apiaries:
-            nearest.setdefault(number, round(distance.m))
-        return Response([
-            {'afsca_number': number, 'distance_m': distance_m}
-            for number, distance_m in nearest.items()
-        ])
+        return Response(list(numbers))

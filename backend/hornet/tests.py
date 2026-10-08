@@ -3329,16 +3329,15 @@ class NestManagementTests(TestCase):
 
     def test_the_afsca_numbers_within_one_km_are_listed(self):
         # 0.001° of latitude is about 111 m
-        Apiary.objects.create(latitude=50.5027, longitude=4.5, afsca_number='BE-300')    # ~300 m
-        Apiary.objects.create(latitude=50.5081, longitude=4.5, afsca_number='BE-900')    # ~900 m
-        Apiary.objects.create(latitude=50.5054, longitude=4.5, afsca_number='BE-300')    # same number, farther
+        Apiary.objects.create(latitude=50.5081, longitude=4.5, afsca_number='BE-B900')   # ~900 m
+        Apiary.objects.create(latitude=50.5027, longitude=4.5, afsca_number='BE-C300')   # ~300 m
+        Apiary.objects.create(latitude=50.5054, longitude=4.5, afsca_number='BE-C300')   # same number
         Apiary.objects.create(latitude=50.5009, longitude=4.5, afsca_number='')          # no number
-        Apiary.objects.create(latitude=50.5099, longitude=4.5, afsca_number='BE-1100')   # ~1100 m
+        Apiary.objects.create(latitude=50.5099, longitude=4.5, afsca_number='BE-A1100')  # ~1100 m
         response = self._nearby(self.coordinator_user)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual([a['afsca_number'] for a in response.data], ['BE-300', 'BE-900'])
-        self.assertAlmostEqual(response.data[0]['distance_m'], 300, delta=5)
-        self.assertAlmostEqual(response.data[1]['distance_m'], 900, delta=10)
+        # Sorted by number, never by distance, and no distance given
+        self.assertEqual(response.data, ['BE-B900', 'BE-C300'])
 
     def test_the_nearby_apiaries_are_for_the_managers(self):
         Apiary.objects.create(latitude=50.5027, longitude=4.5, afsca_number='BE-300')

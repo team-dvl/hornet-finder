@@ -65,12 +65,6 @@ export interface NestUpdateValues {
   destroyed_at?: string;
 }
 
-/** An apiary near a nest, by its AFSCA number */
-export interface NearbyApiary {
-  afsca_number: string;
-  distance_m: number;
-}
-
 /** First message of a DRF error, field errors included (`{"destroyed": ["…"]}`) */
 function nestErrorMessage(error: unknown): string {
   const data = (error as AxiosErrorResponse).response?.data;
@@ -231,10 +225,13 @@ export const deleteNestPhoto = createAsyncThunk(
   }
 );
 
-/** AFSCA numbers of the apiaries within 1 km of a nest (not kept in the store) */
-export async function fetchNearbyApiaries(id: number): Promise<NearbyApiary[]> {
+/**
+ * AFSCA numbers of the apiaries within 1 km of a nest, sorted by number (not
+ * kept in the store). No distance, no order by distance: they would locate the apiaries.
+ */
+export async function fetchNearbyApiaries(id: number): Promise<string[]> {
   const response = await api.get(`/nests/${id}/nearby-apiaries/`);
-  return response.data as NearbyApiary[];
+  return response.data as string[];
 }
 
 // Thunk async pour supprimer un nid (admin uniquement)
