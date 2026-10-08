@@ -1,12 +1,13 @@
-import { Badge } from 'react-bootstrap';
+import { Alert, Badge, Button } from 'react-bootstrap';
 import { useState } from 'react';
-import { useDispatch } from 'react-redux';
 import { useAuth } from 'react-oidc-context';
-import { Nest, deleteNest, archiveNest } from '../../store/slices/nestsSlice';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { Nest, NestPhoto, deleteNest, archiveNest, deleteNestPhoto, selectNestById } from '../../store/slices/nestsSlice';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { ConfirmationModal } from '../modals';
-import { AppDispatch } from '../../store/store';
-import { AppModal, FieldRow, SheetActions } from '../ui';
+import { AuthImage, ClampedText } from '../common';
+import { NearbyApiaries, NestFormModal, NestPhotos } from '../nests';
+import { AppModal, ConfirmDialog, FieldRow, SheetActions } from '../ui';
 import { ACTION_ICONS, OBJECT_ICONS } from '../../utils/icons';
 import { formatDate } from '../../utils/format';
 
@@ -17,131 +18,171 @@ interface NestInfoPopupProps {
   onAddAtLocation?: (lat: number, lng: number) => void;
 }
 
+/** Dialog shown in place of the sheet (one dialog at a time) */
+type SubDialog =
+  | { kind: 'edit' | 'delete' | 'archive' }
+  | { kind: 'photo' | 'photo-delete'; photo: NestPhoto };
+
+/** Detail of a nest; what the user may change comes from the backend (`permissions`). */
 export default function NestInfoPopup({ show, onHide, nest, onAddAtLocation }: NestInfoPopupProps) {
-  const dispatch = useDispatch<AppDispatch>();
+  const dispatch = useAppDispatch();
   const auth = useAuth();
-  const { canDeleteNest, canArchiveNest, accessToken } = useUserPermissions();
-  
-  // États pour la suppression
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const { canArchiveNest } = useUserPermissions();
+  const [sub, setSub] = useState<SubDialog | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  // États pour l'archivage
-  const [showArchiveModal, setShowArchiveModal] = useState(false);
-  const [archiveError, setArchiveError] = useState<string | null>(null);
-  const [isArchiving, setIsArchiving] = useState(false);
+  // The store copy follows the edits made from this sheet
+  const stored = useAppSelector((state) => selectNestById(state, nest?.id));
+  const current = stored || nest;
+  if (!current?.id) return null;
+  const nestId = current.id;
 
-  if (!nest) return null;
-
-  // Logique de suppression
-  const handleDelete = async () => {
-    if (!nest?.id || !accessToken) return;
-    
-    setIsDeleting(true);
-    setDeleteError(null);
-    
-    try {
-      await dispatch(deleteNest({ 
-        nestId: nest.id, 
-        accessToken 
-      })).unwrap();
-      
-      setShowDeleteModal(false);
-      onHide(); // Fermer le popup principal
-    } catch (error) {
-      setDeleteError(error as string);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  // Logique d'archivage
-  const handleArchive = async () => {
-    if (!nest?.id || !accessToken) return;
-
-    setIsArchiving(true);
-    setArchiveError(null);
-
-    try {
-      await dispatch(archiveNest({
-        nestId: nest.id,
-        accessToken
-      })).unwrap();
-
-      setShowArchiveModal(false);
-      onHide(); // Fermer le popup principal
-    } catch (error) {
-      setArchiveError(error as string);
-    } finally {
-      setIsArchiving(false);
-    }
-  };
-
-  const confirming = showDeleteModal || showArchiveModal;
-  const canDelete = auth.isAuthenticated && canDeleteNest(nest);
-  const canArchive = auth.isAuthenticated && canArchiveNest() && !nest.archived;
+  const permissions = current.permissions;
+  const mayEdit = Boolean(permissions?.update);
+  const mayChangePhotos = Boolean(permissions?.photos);
+  const mayDelete = Boolean(permissions?.delete);
+  const mayArchive = auth.isAuthenticated && canArchiveNest() && !current.archived;
   const canAddHere = auth.isAuthenticated && onAddAtLocation;
+  const photos = current.photos ?? [];
+
+  const closeSub = () => {
+    setSub(null);
+    setError(null);
+  };
+
+  // Runs an action of a sub-dialog; `then` decides where the user lands
+  const run = async (action: () => Promise<unknown>, then: () => void) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await action();
+      then();
+    } catch (actionError) {
+      setError(actionError as string);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDelete = () => run(
+    () => dispatch(deleteNest({ nestId })).unwrap(),
+    () => { setSub(null); onHide(); },
+  );
+
+  const handleArchive = () => run(
+    () => dispatch(archiveNest({ nestId })).unwrap(),
+    () => { setSub(null); onHide(); },
+  );
+
+  const handleDeletePhoto = (photo: NestPhoto) => run(
+    () => dispatch(deleteNestPhoto({ id: nestId, photoId: photo.id })).unwrap(),
+    () => setSub(null),
+  );
 
   return (
     <>
       <AppModal
-        show={show && !confirming}
+        show={show && sub === null}
         onHide={onHide}
         icon={OBJECT_ICONS.nest}
-        title={`Nid #${nest.id}`}
+        title={`Nid #${nestId}`}
         badges={(
-          <Badge bg={nest.destroyed ? 'secondary' : 'danger'} className="fw-normal">
-            {nest.destroyed ? 'Détruit' : 'Actif'}
+          <Badge bg={current.destroyed ? 'secondary' : 'danger'} className="fw-normal">
+            {current.destroyed ? 'Détruit' : 'Actif'}
           </Badge>
         )}
       >
-        <FieldRow label="Lieu">{nest.public_place ? 'Public' : 'Privé'}</FieldRow>
-        {nest.destroyed && nest.destroyed_at && <FieldRow label="Détruit le">{formatDate(nest.destroyed_at)}</FieldRow>}
-        {nest.created_at && <FieldRow label="Signalé le">{formatDate(nest.created_at)}</FieldRow>}
-        {nest.created_by && <FieldRow label="Signalé par">{nest.created_by.display_name || nest.created_by.guid}</FieldRow>}
-        {nest.address && (
+        {error && sub === null && <Alert variant="danger" className="py-2">{error}</Alert>}
+
+        <NestPhotos
+          nestId={nestId}
+          photos={photos}
+          canAdd={mayChangePhotos}
+          onOpen={(photo) => setSub({ kind: 'photo', photo })}
+          onError={setError}
+        />
+
+        <FieldRow label="Lieu">{current.public_place ? 'Public' : 'Privé'}</FieldRow>
+        {current.destroyed && current.destroyed_at && <FieldRow label="Détruit le">{formatDate(current.destroyed_at)}</FieldRow>}
+        {current.created_at && <FieldRow label="Signalé le">{formatDate(current.created_at)}</FieldRow>}
+        {current.created_by && <FieldRow label="Signalé par">{current.created_by.display_name || current.created_by.guid}</FieldRow>}
+        {current.address && (
           <div className="text-muted small mt-1 d-flex gap-1">
             <i className="bi bi-geo-alt flex-shrink-0" aria-hidden="true" />
-            <span>{nest.address}</span>
+            <ClampedText id={`nest-${nestId}-address`} text={current.address} lines={2} />
           </div>
         )}
-        {nest.comments && <p className="small mt-2 mb-0">{nest.comments}</p>}
+        {current.comments && <p className="small mt-2 mb-0">{current.comments}</p>}
 
-        {(canAddHere || canArchive || canDelete) && (
+        {permissions?.nearby_apiaries && show && sub === null && <NearbyApiaries nestId={nestId} />}
+
+        {(mayEdit || canAddHere || mayArchive || mayDelete) && (
           <SheetActions
             className="mt-3"
             more={[
+              mayEdit && { icon: ACTION_ICONS.edit, label: 'Modifier', onClick: () => setSub({ kind: 'edit' }) },
               canAddHere && {
                 icon: ACTION_ICONS.addHere,
                 label: 'Ajouter à cette position',
-                onClick: () => onAddAtLocation(nest.latitude, nest.longitude),
+                onClick: () => onAddAtLocation(current.latitude, current.longitude),
               },
-              canArchive && { icon: ACTION_ICONS.archive, label: 'Archiver', tone: 'warning', onClick: () => setShowArchiveModal(true) },
-              canDelete && { icon: ACTION_ICONS.delete, label: 'Supprimer', tone: 'danger', onClick: () => setShowDeleteModal(true) },
+              mayArchive && { icon: ACTION_ICONS.archive, label: 'Archiver', tone: 'warning', onClick: () => setSub({ kind: 'archive' }) },
+              mayDelete && { icon: ACTION_ICONS.delete, label: 'Supprimer', tone: 'danger', onClick: () => setSub({ kind: 'delete' }) },
             ]}
           />
         )}
       </AppModal>
 
+      {sub?.kind === 'edit' && <NestFormModal onHide={closeSub} nest={{ ...current, id: nestId }} />}
+
       <ConfirmationModal
-        show={showDeleteModal}
-        onHide={() => setShowDeleteModal(false)}
+        show={sub?.kind === 'delete'}
+        onHide={closeSub}
         onConfirm={handleDelete}
-        itemName={`le nid #${nest.id}`}
+        itemName={`le nid #${nestId}`}
         action="delete"
-        isDeleting={isDeleting}
-        deleteError={deleteError}
+        isDeleting={busy}
+        deleteError={error}
       />
 
       <ConfirmationModal
-        show={showArchiveModal}
-        onHide={() => setShowArchiveModal(false)}
+        show={sub?.kind === 'archive'}
+        onHide={closeSub}
         onConfirm={handleArchive}
-        itemName={`le nid #${nest.id}`}
+        itemName={`le nid #${nestId}`}
         action="archive"
-        isDeleting={isArchiving}
-        deleteError={archiveError}
+        isDeleting={busy}
+        deleteError={error}
+      />
+
+      {/* Agrandissement d'une photo */}
+      <AppModal
+        show={sub?.kind === 'photo'}
+        onHide={closeSub}
+        title="Photo"
+        size="lg"
+        bodyClassName="p-0 d-flex align-items-center bg-dark"
+        footer={mayChangePhotos && sub?.kind === 'photo' ? (
+          <Button variant="outline-danger" onClick={() => setSub({ kind: 'photo-delete', photo: sub.photo })}>
+            <i className={`bi bi-${ACTION_ICONS.delete} me-2`} aria-hidden="true" />
+            Supprimer
+          </Button>
+        ) : undefined}
+      >
+        {sub?.kind === 'photo' && sub.photo.url && <AuthImage src={sub.photo.url} alt="Photo du nid" className="w-100" />}
+      </AppModal>
+
+      <ConfirmDialog
+        show={sub?.kind === 'photo-delete'}
+        onHide={() => (sub?.kind === 'photo-delete' ? setSub({ kind: 'photo', photo: sub.photo }) : closeSub())}
+        onConfirm={() => sub?.kind === 'photo-delete' && void handleDeletePhoto(sub.photo)}
+        title="Supprimer cette photo ?"
+        message="Elle sera retirée du nid pour tout le monde."
+        confirmLabel="Supprimer"
+        confirmIcon={ACTION_ICONS.delete}
+        busy={busy}
+        error={error}
       />
     </>
   );

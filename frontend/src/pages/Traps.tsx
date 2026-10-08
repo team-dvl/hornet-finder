@@ -28,7 +28,7 @@ const LIST_PATH = '/traps';
 
 const ORDERINGS: TrapOrdering[] = [
   'last_event_at', '-last_event_at', 'hornet_catch_count', '-hornet_catch_count',
-  'installed_at', '-installed_at', 'address', 'id', '-id', 'distance',
+  'installed_at', '-installed_at', 'address', 'id', '-id',
 ];
 
 /**
@@ -89,8 +89,6 @@ export default function Traps() {
   // A platform admin cannot own traps: they start on every trap
   const defaultScope: TrapScope = scopes.includes('mine') ? 'mine' : isAdmin ? 'all' : 'delegated';
 
-  const [origin, setOrigin] = useState<{ lat: number; lon: number } | null>(null);
-  const [listError, setListError] = useState<string | null>(null);
 
   const query = useMemo<ManagedTrapsQuery>(() => {
     const scope = searchParams.get('show') as TrapScope | null;
@@ -106,38 +104,18 @@ export default function Traps() {
       trap_type: searchParams.get('trap_type') || undefined,
       has_tag: hasTag === 'true' || hasTag === 'false' ? hasTag : undefined,
     };
-    if (result.ordering === 'distance' && origin) {
-      result.lat = origin.lat;
-      result.lon = origin.lon;
-    }
     return result;
-  }, [searchParams, scopes, defaultScope, origin]);
+  }, [searchParams, scopes, defaultScope]);
 
   const updateQuery = useCallback((changes: Partial<ManagedTrapsQuery>) => {
     const next = new URLSearchParams(listPath.split('?')[1] ?? '');
     Object.entries(changes).forEach(([key, value]) => {
-      if (key === 'lat' || key === 'lon') return;
       if (value === undefined || value === '') next.delete(urlKey(key));
       else next.set(urlKey(key), String(value));
     });
     const search = next.toString();
     navigate({ pathname: LIST_PATH, search: search ? `?${search}` : '' }, { replace: true });
   }, [listPath, navigate]);
-
-  // Sorting by distance needs the position of the user: the list waits for it
-  const needsOrigin = query.ordering === 'distance' && !origin;
-  useEffect(() => {
-    if (!needsOrigin || !auth.isAuthenticated) return;
-    let cancelled = false;
-    currentPosition()
-      .then((position) => { if (!cancelled) setOrigin(position); })
-      .catch((error: Error) => {
-        if (cancelled) return;
-        setListError(error.message);
-        updateQuery({ ordering: 'last_event_at' });
-      });
-    return () => { cancelled = true; };
-  }, [needsOrigin, auth.isAuthenticated, updateQuery]);
 
   const queryKey = JSON.stringify(query);
   const reload = useCallback(() => {
@@ -146,9 +124,9 @@ export default function Traps() {
   }, [dispatch, queryKey]);
 
   useEffect(() => {
-    if (!auth.isAuthenticated || needsOrigin) return;
+    if (!auth.isAuthenticated) return;
     reload();
-  }, [auth.isAuthenticated, needsOrigin, reload]);
+  }, [auth.isAuthenticated, reload]);
 
   useEffect(() => {
     if (auth.isAuthenticated && trapTypes.length === 0) dispatch(fetchTrapTypes());
@@ -306,16 +284,12 @@ export default function Traps() {
               trapTypes={trapTypes}
               count={managed.count}
               loading={managed.loading && managed.page === 0}
-              locating={needsOrigin}
             />
 
             {placing && (
               <Alert variant="light" className="small py-2">
                 <Spinner animation="border" size="sm" className="me-2" />Localisation…
               </Alert>
-            )}
-            {listError && (
-              <Alert variant="warning" dismissible onClose={() => setListError(null)}>{listError}</Alert>
             )}
             {managed.error && <Alert variant="danger">{managed.error}</Alert>}
 
@@ -339,7 +313,6 @@ export default function Traps() {
                   trap={trap}
                   isMine={Boolean(trap.owner && trap.owner.guid === userGuid)}
                   canAct={canActOnTrap(trap)}
-                  origin={query.ordering === 'distance' ? origin : null}
                   onOpen={setSheetTrap}
                   onLocate={locate}
                   onRecord={setRecordTrap}

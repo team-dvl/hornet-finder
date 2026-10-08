@@ -1,5 +1,5 @@
 """
-Image processing for the user-uploaded photos (traps module, profile photos).
+Image processing for the user-uploaded photos (traps, apiaries, nests, profile photos).
 
 Photos come from phones and weigh several MB; the frontend already resizes
 them, this module is the server-side counterpart: it validates the upload,
@@ -12,6 +12,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from PIL import Image, ImageOps, UnidentifiedImageError
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 MAX_SIDE = 1600
 THUMBNAIL_SIDE = 320
@@ -81,3 +82,21 @@ def processed_avatar(uploaded) -> tuple[str, ContentFile]:
     image.save(buffer, format='JPEG', quality=JPEG_QUALITY, optimize=True)
     uploaded.seek(0)
     return uuid.uuid4().hex, buffer
+
+
+def store_photo(target, file_field, thumb_field, uploaded) -> None:
+    """Resize an upload and store it in the given image fields of `target` (not saved)."""
+    try:
+        basename, full, thumbnail = processed_image(uploaded)
+    except ValidationError as exc:
+        # A rejected upload is a bad request, not a server error
+        raise DRFValidationError({'photo': exc.messages}) from exc
+    getattr(target, file_field).save(f"{basename}.jpg", full, save=False)
+    getattr(target, thumb_field).save(f"{basename}_thumb.jpg", thumbnail, save=False)
+
+
+def delete_files(*image_fields) -> None:
+    """Remove the files backing image fields, ignoring already-missing ones."""
+    for field in image_fields:
+        if field:
+            field.delete(save=False)

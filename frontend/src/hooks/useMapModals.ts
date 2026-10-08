@@ -36,6 +36,8 @@ export type MapModal =
   /** A trap can also be placed from an address, hence a position that may be missing */
   | { kind: 'add-trap'; position: MapPoint | null }
   | { kind: 'overlap'; objects: MapObject[]; position: MapPoint }
+  /** The nests nearest to the user, with their distance */
+  | { kind: 'nearest-nests' }
   /** A scanned QR tag not attached to any trap yet */
   | { kind: 'tag-associate'; value: string; short: string }
   | { kind: 'tag-scanner' }

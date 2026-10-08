@@ -43,8 +43,9 @@ export default function ApiariesDoc() {
           {' '}<strong>Partagés</strong> (ceux qu'un apiculteur partage avec l'une de vos
           associations) et, pour les administrateurs, <strong>Tous</strong>. Cherchez par numéro,
           adresse, numéro AFSCA ou commentaire, filtrez par niveau d'infestation ou par
-          association, et triez : les plus infestés d'abord par défaut, ou « Le plus proche », qui
-          utilise votre position et affiche la distance de chaque rucher.
+          association, et triez : les plus infestés d'abord par défaut, par date, adresse ou numéro.
+          Aucune distance n'est affichée ni utilisée pour trier : la position d'un rucher reste
+          confidentielle.
         </p>
         <p className="mb-0">
           Sur chaque ligne : <strong>📍</strong> ouvre le module <em>Carte</em> centré sur le rucher,

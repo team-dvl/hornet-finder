@@ -641,7 +641,21 @@
       "name": "hunters",
       "description": "Chasseurs de nids",
       "path": "/hunters",
-      "subGroups": [],
+      "subGroups": [
+        {
+          "id": "4b6e2f3a-9d1c-4e8b-a7f5-2c3d8e9f1a6b",
+          "name": "admin",
+          "description": "Coordinateurs des chasseurs de nids",
+          "path": "/hunters/admin",
+          "parentId": "c80bc5ca-7840-411c-8754-bf78a85db170",
+          "subGroups": [],
+          "attributes": {},
+          "realmRoles": [
+            "group-admin"
+          ],
+          "clientRoles": {}
+        }
+      ],
       "attributes": {},
       "realmRoles": [
         "hunter"

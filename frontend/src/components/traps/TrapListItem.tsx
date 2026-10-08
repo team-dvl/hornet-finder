@@ -2,8 +2,7 @@ import { Badge } from 'react-bootstrap';
 import type { Trap } from '../../store/store';
 import { IconButton } from '../ui';
 import { ACTION_ICONS } from '../../utils/icons';
-import { formatDistance } from '../../utils/format';
-import { OVERDUE_DAYS, daysSince, distanceKm } from './trapListUtils';
+import { OVERDUE_DAYS, daysSince } from './trapListUtils';
 
 function lastVisitLabel(days: number | null): string {
   if (days === null) return 'Jamais relevé';
@@ -16,8 +15,6 @@ interface TrapListItemProps {
   trap: Trap;
   isMine: boolean;
   canAct: boolean;
-  /** Position of the user, to show how far the trap is */
-  origin?: { lat: number; lon: number } | null;
   onOpen: (trap: Trap) => void;
   onLocate: (trap: Trap) => void;
   onRecord: (trap: Trap) => void;
@@ -27,7 +24,7 @@ interface TrapListItemProps {
 
 /** One row of the trap manager: identity, status and the quick actions. */
 export default function TrapListItem({
-  trap, isMine, canAct, origin, onOpen, onLocate, onRecord, onMore,
+  trap, isMine, canAct, onOpen, onLocate, onRecord, onMore,
 }: TrapListItemProps) {
   const days = daysSince(trap.last_event_at);
   const overdue = trap.active && (days === null || days > OVERDUE_DAYS);
@@ -70,11 +67,6 @@ export default function TrapListItem({
             {trap.tag_short
               ? <code title="QR Code">{trap.tag_short}</code>
               : <span className="text-muted fst-italic">sans QR Code</span>}
-            {origin && (
-              <span className="text-muted">
-                {formatDistance(distanceKm(origin.lat, origin.lon, trap.latitude, trap.longitude) * 1000)}
-              </span>
-            )}
           </span>
         </span>
       </button>

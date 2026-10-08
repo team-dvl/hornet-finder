@@ -97,12 +97,38 @@ class Nest(GeolocatedModel):
     public_place = models.BooleanField(default=False)
     address = models.CharField(max_length=255, blank=True, default='')  # Allow empty address
     destroyed = models.BooleanField(default=False)
+    # When the nest was neutralised: set by the server when `destroyed` turns
+    # true, or given by whoever records it later. Only an admin turns it back.
     destroyed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL)
     comments = models.TextField(null=True, blank=True)
     archived = models.BooleanField(default=False)
     archived_at = models.DateTimeField(null=True, blank=True)
+
+
+def nest_photo_path(instance, filename):
+    """Every file of a nest lives under `nests/<nest id>/`, which lets the
+    media view resolve the nest (and its permissions) from the path."""
+    return f"nests/{instance.nest_id}/{uuid.uuid4().hex}.jpg"
+
+
+class NestPhoto(models.Model):
+    """A photo of a nest, taken when it is reported or added later."""
+
+    id = models.AutoField(primary_key=True)
+    nest = models.ForeignKey(Nest, on_delete=models.CASCADE, related_name='photos')
+    image = models.ImageField(upload_to=nest_photo_path)
+    thumbnail = models.ImageField(upload_to=nest_photo_path, null=True, blank=True)
+    uploaded_by = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL,
+                                    related_name='nest_photos')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at', 'id']
+
+    def __str__(self):
+        return f"Photo {self.id} of nest {self.nest_id}"
 
 class BeekeeperGroup(models.Model):
     """Represents a group of beekeepers for access control."""

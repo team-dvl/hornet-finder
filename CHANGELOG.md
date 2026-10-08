@@ -11,6 +11,18 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ## [Unreleased]
 
 ### Added
+- Nest photos: one or more photos when reporting a nest; administrators and the
+  coordinators of the nest hunters (`/hunters/admin`, new Keycloak subgroup) add
+  and remove them from the nest sheet. Photos are private media, shown to who
+  sees every nest and to the reporter, never on the public map. Prod: note 0021.
+- Nest editing by administrators and nest hunter coordinators: place, address,
+  position, comment, destruction and its date.
+- Map, Layers → "Nids les plus proches": the nests of the year within 5 km of
+  the user, nearest first with their distance (as the crow flies, 20 at most);
+  a tap opens the nest and centres the map on it. For those who see every nest
+  (hunters, beekeepers, admins).
+- Nest sheet: the AFSCA numbers of the apiaries within 1 km of the nest, sorted
+  by number, without any distance (administrators and nest hunter coordinators).
 - "Serveur injoignable" strip under the navbar when the server cannot be reached
   (no coverage, a network the edge firewall does not let through), with a retry
   button and a hint. The app probes `/api/ping` (a static answer of nginx) at
@@ -31,6 +43,26 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 - Dev: a message with a "Réessayer" button replaces the white page when the dev
   server cannot be reached at launch (the dev service worker only caches
   `index.html`, not the modules Vite serves).
+
+### Changed
+- The destruction date of a nest is kept: set when it is marked destroyed (today
+  by default, an earlier day can be given), and a destroyed nest can no longer be
+  turned back to active, except by an administrator. Nests destroyed before this
+  release keep no date.
+- The reporter of a nest is always the signed-in user: `created_by` is no longer
+  accepted from the client.
+- AFSCA numbers are written `X.XXX.XXX.XXX` (10 digits, e.g. `9.005.577.599`)
+  everywhere: one display component, a field that inserts the dots while typing
+  (numeric keypad) and refuses an incomplete number. The backend stores that form
+  and rewrites the recorded numbers that fit it (migration 0023); a number in
+  another form is kept until it is changed. The search finds a number typed
+  without dots. Prod: note 0021.
+
+### Removed
+- Apiary and trap lists: the distance from the user to each apiary or trap and
+  the "Le plus proche" sort are gone, in the app and in the API
+  (`ordering=distance` is now refused on `/apiaries/managed/` and
+  `/traps/managed/`): of little use, and they would locate the apiaries.
 
 ### Fixed
 - The trap list showed "Relevé aujourd'hui" for a visit made the evening before:

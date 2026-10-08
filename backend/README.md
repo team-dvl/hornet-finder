@@ -29,17 +29,22 @@ A RESTful API built with Django and Django REST Framework for managing hornet de
 - `GET|PUT|PATCH|DELETE /api/hornets/{id}/` - Retrieve, update, or delete a specific hornet
 - `GET|POST /api/nests/` - List all nests (hunters, beekeepers, admins) or report a new nest (every role)
 - `GET /api/nests/my/` - The nests the requester reported, with the filters of the list (what a trapper sees besides the destroyed ones)
-- `GET|PUT|PATCH|DELETE /api/nests/{id}/` - Retrieve, update, or delete a specific nest
+- `GET|POST /api/nests/` also takes `multipart/form-data`: up to 10 `photos` files with the report (resized to 1600 px, plus a 320 px thumbnail). Every nest in the list carries its `photos` (`url`, `thumbnail_url`, private media) and `permissions` (`update`, `photos`, `reactivate`, `delete`, `nearby_apiaries`) for the requester. The reporter (`created_by`) is always the requester, never a field
+- `GET|DELETE /api/nests/{id}/` - Retrieve or delete a nest (platform admins)
+- `PUT|PATCH /api/nests/{id}/` - Update a nest: platform admins and administrators of the nest hunters (`/hunters/admin`). `destroyed_at` is set when `destroyed` turns true (now, unless a date is given, never in the future) and kept afterwards; a destroyed nest turns back to active (`destroyed: false`, date cleared) through a platform admin only, otherwise 400
+- `POST /api/nests/{id}/photos/` - Add photos (`photos` files, up to 10), same rights as the update; returns the nest
+- `DELETE /api/nests/{id}/photos/{photo_id}/` - Remove a photo, same rights; returns the nest
+- `GET /api/nests/{id}/nearby-apiaries/` - AFSCA numbers of the apiaries within 1 km of the nest, `["9.005.577.599", …]`, each once, sorted by number; apiaries without a number are left out. No distance and no order by distance: they would locate the apiaries. Same rights as the update (apiaries are private)
 - `GET|POST /api/apiaries/` - Apiaries around a position (`lat`, `lon`, `radius`, `mine`) the caller may see, or create one (the caller becomes its owner)
 - `GET|PUT|PATCH|DELETE /api/apiaries/{id}/` - Retrieve, update, or delete a specific apiary
-- `GET /api/apiaries/managed/` - Apiary manager, paginated (`page`, `page_size` up to 200, default 50). `scope`: `mine` (default), `shared` (apiaries shared with one of the caller's groups, parents of their subgroups included, their own excluded) or `all` (platform admins only). Filters: `group` (path of a group the apiary is shared with), `infestation_level` (`1`, `2`, `3`, or `none` for apiaries not assessed: the level is optional), `q` (number, address, AFSCA number, comments). `ordering`: `infestation_level`, `created_at`, `address`, `id`, `distance` (needs `lat`/`lon`, no radius limit), `-` prefix for descending order, apiaries not assessed last either way; default `-infestation_level`
+- `GET /api/apiaries/managed/` - Apiary manager, paginated (`page`, `page_size` up to 200, default 50). `scope`: `mine` (default), `shared` (apiaries shared with one of the caller's groups, parents of their subgroups included, their own excluded) or `all` (platform admins only). Filters: `group` (path of a group the apiary is shared with), `infestation_level` (`1`, `2`, `3`, or `none` for apiaries not assessed: the level is optional), `q` (number, address, AFSCA number, comments). `ordering`: `infestation_level`, `created_at`, `address`, `id`, `-` prefix for descending order, apiaries not assessed last either way; default `-infestation_level`. No ordering by distance (and no distance shown): it would locate the apiaries
 
 ### Traps
 
 - `GET|POST /api/traps/` - Traps around a position (`lat`, `lon`, `radius`, `active`, `mine`), or create one. The listing is open to anonymous visitors, who get the public shape (no owner, no group, no journal) and only public traps. A trap whose type is `apiary_bound` (electric harp, muzzle...: only ever set up in front of hives) is never public, whatever its `visibility`: only its owner, the members of its delegated group and platform admins see it, on the map, in detail, through its photos and its QR tag. `publicly_visible` in the trap representation tells whether anonymous visitors see it
 - `GET|PATCH|DELETE /api/traps/{id}/` - Detail with its journal, update (owner or platform admin), delete
 - `GET /api/traps/my/` - Traps of the caller
-- `GET /api/traps/managed/` - Trap manager, paginated (`page`, `page_size` up to 200, default 50). `scope`: `mine` (default), `delegated` (traps delegated to one of the caller's groups, parents of their subgroups included, their own excluded) or `all` (platform admins only). Filters: `active` (`true` by default, `false`, `all`), `group` (path), `trap_type` (slug), `has_tag`, `q` (number, address, comments, QR code). `ordering`: `last_event_at` (default, never visited traps first), `hornet_catch_count`, `installed_at`, `address`, `id`, `distance` (needs `lat`/`lon`, no radius limit since the scope already bounds the result), `-` prefix for descending order
+- `GET /api/traps/managed/` - Trap manager, paginated (`page`, `page_size` up to 200, default 50). `scope`: `mine` (default), `delegated` (traps delegated to one of the caller's groups, parents of their subgroups included, their own excluded) or `all` (platform admins only). Filters: `active` (`true` by default, `false`, `all`), `group` (path), `trap_type` (slug), `has_tag`, `q` (number, address, comments, QR code). `ordering`: `last_event_at` (default, never visited traps first), `hornet_catch_count`, `installed_at`, `address`, `id`, `-` prefix for descending order (no ordering by distance)
 - `POST|DELETE /api/traps/{id}/photo/` - Replace or remove the trap photo (multipart)
 - `GET|POST /api/traps/{id}/events/` - Journal of the trap, or record an intervention (multipart, `photos` repeated). Reserved to the owner and the delegated group: platform admins do not record field work
 - `POST /api/traps/{id}/catches/` - Record a visit (a reading, "relevé"): `items` (one `{species_slug, quantity}` per species, one event each; the Asian hornet may be at 0, which records a reading without catch, any other species needs at least 1), `bycatch_counted` (whether the other species were counted; forced to true when one is recorded, null when not said), `actions` (maintenance done during the visit: `cleaning`, `refill`, `repair`, one event each), `photo_N` for item N. Every event shares one `batch` and `performed_at`; `items` and `actions` are JSON strings in a multipart request
@@ -118,13 +123,15 @@ The emails use the layout of the Keycloak email theme (`auth/themes/velutina/ema
 - Location (latitude, longitude, PostGIS point)
 - Public/private place indicator
 - Address information
-- Destruction status and timestamp
+- Destruction status and date (kept once destroyed; only an admin reactivates)
 - Creation timestamp and author
 - Comments
+- Photos (`NestPhoto`, files under `nests/<nest id>/`, served by the media view to who sees every nest and to the reporter)
 
 ### Apiary
 - Location (latitude, longitude, PostGIS point)
 - Infestation level (Light, Medium, High)
+- AFSCA number, stored `X.XXX.XXX.XXX` (10 digits, `hornet/afsca.py`): accepted with or without separators, refused otherwise (a value recorded before the format is kept while unchanged)
 - Creation timestamp and author
 - Comments
 

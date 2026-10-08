@@ -46,8 +46,7 @@ export default function TrapsDoc() {
         </p>
         <p>
           Le tri par défaut place en tête les pièges relevés il y a le plus longtemps, ceux jamais
-          relevés d'abord ; un relevé de plus de 7 jours est mis en évidence. Le tri
-          « Le plus proche » utilise votre position et affiche la distance de chaque piège.
+          relevés d'abord ; un relevé de plus de 7 jours est mis en évidence.
         </p>
         <p className="mb-0">
           Sur chaque ligne : <strong>📍</strong> ouvre le module <em>Carte</em> centré sur le piège,
