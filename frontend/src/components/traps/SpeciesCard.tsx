@@ -180,7 +180,6 @@ export default function SpeciesCard({
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         className="d-none"
         onChange={handleFile}
       />

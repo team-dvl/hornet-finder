@@ -78,6 +78,8 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   fragments, CVE-2026-18209). Prod: note 0019.
 
 ### Changed
+- Trap photos: the camera button no longer forces the camera. On a phone it
+  now offers the camera or the photo library.
 - Module icons in colour: on the landing page and in the navbar menu, each field
   module takes the colour of what it manages on the map (nests red, traps green,
   apiaries gold, map teal, statistics violet); documentation, administration and
