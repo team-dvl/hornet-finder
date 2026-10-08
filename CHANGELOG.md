@@ -10,6 +10,12 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 
 ## [Unreleased]
 
+### Added
+- Install suggestion: from the second visit, a sheet offers to pin the app on
+  the home screen (an "Installer" button on Android, the share-menu steps on
+  iOS). Closing it postpones the next suggestion by 30 days; the menu entry
+  "Installer l'app" stays available until the app is installed.
+
 ## [1.3.0] - 2026-10-09
 
 ### Added
