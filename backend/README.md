@@ -29,7 +29,12 @@ A RESTful API built with Django and Django REST Framework for managing hornet de
 - `GET|PUT|PATCH|DELETE /api/hornets/{id}/` - Retrieve, update, or delete a specific hornet
 - `GET|POST /api/nests/` - List all nests (hunters, beekeepers, admins) or report a new nest (every role)
 - `GET /api/nests/my/` - The nests the requester reported, with the filters of the list (what a trapper sees besides the destroyed ones)
-- `GET|PUT|PATCH|DELETE /api/nests/{id}/` - Retrieve, update, or delete a specific nest
+- `GET|POST /api/nests/` also takes `multipart/form-data`: up to 10 `photos` files with the report (resized to 1600 px, plus a 320 px thumbnail). Every nest in the list carries its `photos` (`url`, `thumbnail_url`, private media) and `permissions` (`update`, `photos`, `reactivate`, `delete`, `nearby_apiaries`) for the requester. The reporter (`created_by`) is always the requester, never a field
+- `GET|DELETE /api/nests/{id}/` - Retrieve or delete a nest (platform admins)
+- `PUT|PATCH /api/nests/{id}/` - Update a nest: platform admins and administrators of the nest hunters (`/hunters/admin`). `destroyed_at` is set when `destroyed` turns true (now, unless a date is given, never in the future) and kept afterwards; a destroyed nest turns back to active (`destroyed: false`, date cleared) through a platform admin only, otherwise 400
+- `POST /api/nests/{id}/photos/` - Add photos (`photos` files, up to 10), same rights as the update; returns the nest
+- `DELETE /api/nests/{id}/photos/{photo_id}/` - Remove a photo, same rights; returns the nest
+- `GET /api/nests/{id}/nearby-apiaries/` - AFSCA numbers of the apiaries within 1 km of the nest, nearest first, `[{"afsca_number", "distance_m"}]`, one entry per number (its nearest apiary); apiaries without a number are left out. Same rights as the update (apiaries are private)
 - `GET|POST /api/apiaries/` - Apiaries around a position (`lat`, `lon`, `radius`, `mine`) the caller may see, or create one (the caller becomes its owner)
 - `GET|PUT|PATCH|DELETE /api/apiaries/{id}/` - Retrieve, update, or delete a specific apiary
 - `GET /api/apiaries/managed/` - Apiary manager, paginated (`page`, `page_size` up to 200, default 50). `scope`: `mine` (default), `shared` (apiaries shared with one of the caller's groups, parents of their subgroups included, their own excluded) or `all` (platform admins only). Filters: `group` (path of a group the apiary is shared with), `infestation_level` (`1`, `2`, `3`, or `none` for apiaries not assessed: the level is optional), `q` (number, address, AFSCA number, comments). `ordering`: `infestation_level`, `created_at`, `address`, `id`, `distance` (needs `lat`/`lon`, no radius limit), `-` prefix for descending order, apiaries not assessed last either way; default `-infestation_level`
@@ -118,9 +123,10 @@ The emails use the layout of the Keycloak email theme (`auth/themes/velutina/ema
 - Location (latitude, longitude, PostGIS point)
 - Public/private place indicator
 - Address information
-- Destruction status and timestamp
+- Destruction status and date (kept once destroyed; only an admin reactivates)
 - Creation timestamp and author
 - Comments
+- Photos (`NestPhoto`, files under `nests/<nest id>/`, served by the media view to who sees every nest and to the reporter)
 
 ### Apiary
 - Location (latitude, longitude, PostGIS point)

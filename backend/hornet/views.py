@@ -3,12 +3,18 @@ from django.contrib.gis.geos import Point
 from django.contrib.gis.db.models.functions import Distance
 from django.utils import timezone
 
+from django.db import transaction
+
 from rest_framework import viewsets
 from rest_framework.decorators import action, api_view
+from rest_framework.exceptions import PermissionDenied, ValidationError as DRFValidationError
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
-from .models import Hornet, Nest, User
+from . import nest_permissions as nest_perms
+from .images import delete_files, store_photo
+from .models import Apiary, Hornet, Nest, NestPhoto, User
 from .stats.periods import PeriodError, resolve_archive_period
 from .serializers import HornetSerializer, NestSerializer, PublicNestSerializer
 from hornet_finder_api.authentication import JWTBearerAuthentication, HasAnyRole
@@ -202,9 +208,21 @@ class HornetViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelVie
         user_obj = User.objects.filter(guid=user_guid).first()
         serializer.save(created_by=user_obj, linked_nest=None)
 
+# Photos accepted in one request (creation or addition)
+MAX_NEST_PHOTOS_PER_REQUEST = 10
+
+PHOTOS_REQUEST_SCHEMA = {
+    'multipart/form-data': {
+        'type': 'object',
+        'properties': {'photos': {'type': 'array', 'items': {'type': 'string', 'format': 'binary'}}},
+    },
+}
+
+
 class NestViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewSet):
-    queryset = Nest.objects.all()
+    queryset = Nest.objects.select_related('created_by').prefetch_related('photos')
     serializer_class = NestSerializer
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     @geographic_list_schema() # The permissions and authentication for this action are handled in the get_authenticators and get_permissions methods
     def list(self, request, *args, **kwargs):
@@ -244,7 +262,9 @@ class NestViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewS
         return Response(serializer.data)
 
     # Everyone may report a nest and see their own; every nest, with its author, is for
-    # nest hunters, beekeepers and admins; only admins retrieve, update and destroy them
+    # nest hunters, beekeepers and admins. The content of a nest (fields, photos) is
+    # managed by admins and by the administrators of the nest hunters (`/hunters/admin`),
+    # checked per action below; only admins archive and delete (see nest_permissions.py)
     def get_authenticators(self):
         # Allow public access to destroyed action (viewing destroyed nests)
         if hasattr(self, 'action') and self.action == 'destroyed':
@@ -256,13 +276,123 @@ class NestViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewS
         # Allow public access to destroyed action (viewing destroyed nests)
         if hasattr(self, 'action') and self.action == 'destroyed':
             return super().get_permissions()
-        if hasattr(self, 'action') and self.action in ('create', 'my'):
+        if hasattr(self, 'action') and self.action in (
+            'create', 'my', 'update', 'partial_update', 'add_photos', 'delete_photo', 'nearby_apiaries',
+        ):
             return [HasAnyRole(list(APP_ROLES))]
         if hasattr(self, 'action') and self.action == 'list':
             return [HasAnyRole([HUNTER, BEEKEEPER, ADMIN])]
         return [HasAnyRole(['admin'])]
-    
-    def perform_create(self, serializer):
-        user_guid = getattr(self.request.user, 'guid', None)
-        user_obj = User.objects.filter(guid=user_guid).first()
-        serializer.save(created_by=user_obj)
+
+    def _uploaded_photos(self):
+        """The `photos` files of the request, checked for their number."""
+        uploaded = self.request.FILES.getlist('photos')
+        if len(uploaded) > MAX_NEST_PHOTOS_PER_REQUEST:
+            raise DRFValidationError(
+                {'photos': f"At most {MAX_NEST_PHOTOS_PER_REQUEST} photos at a time."}
+            )
+        return uploaded
+
+    def _store_photos(self, nest, uploaded, user):
+        """Store the photos of a nest. Files already written are removed if one is rejected."""
+        stored = []
+        try:
+            for upload in uploaded:
+                photo = NestPhoto(nest=nest, uploaded_by=user)
+                store_photo(photo, 'image', 'thumbnail', upload)
+                stored.append(photo)
+                photo.save()
+        except Exception:
+            for photo in stored:
+                delete_files(photo.image, photo.thumbnail)
+            raise
+
+    def _fresh(self, nest):
+        """The nest reloaded with its photos, for the response."""
+        return self.get_queryset().get(pk=nest.pk)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        uploaded = self._uploaded_photos()
+        user = User.objects.filter(guid=getattr(request.user, 'guid', None)).first()
+        with transaction.atomic():
+            nest = serializer.save(created_by=user)
+            self._store_photos(nest, uploaded, user)
+        return Response(self.get_serializer(self._fresh(nest)).data, status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        nest = self.get_object()
+        if not nest_perms.can_edit_nest(request, nest):
+            raise PermissionDenied("You do not have permission to update this nest.")
+        response = super().update(request, *args, **kwargs)
+        # Photos are managed through their own actions, the response shows them all
+        response.data = self.get_serializer(self._fresh(nest)).data
+        return response
+
+    def destroy(self, request, *args, **kwargs):
+        nest = self.get_object()
+        files = [(photo.image, photo.thumbnail) for photo in nest.photos.all()]
+        response = super().destroy(request, *args, **kwargs)
+        for image, thumbnail in files:
+            delete_files(image, thumbnail)
+        return response
+
+    @extend_schema(request=PHOTOS_REQUEST_SCHEMA, responses={200: NestSerializer})
+    @action(detail=True, methods=['post'], url_path='photos')
+    def add_photos(self, request, pk=None):
+        """Add one or more photos (`photos` files) to a nest."""
+        nest = self.get_object()
+        if not nest_perms.can_edit_nest(request, nest):
+            raise PermissionDenied("You do not have permission to change the photos of this nest.")
+        uploaded = self._uploaded_photos()
+        if not uploaded:
+            raise DRFValidationError({'photos': "No file received."})
+        user = User.objects.filter(guid=getattr(request.user, 'guid', None)).first()
+        with transaction.atomic():
+            self._store_photos(nest, uploaded, user)
+        return Response(self.get_serializer(self._fresh(nest)).data)
+
+    @extend_schema(request=None, responses={200: NestSerializer})
+    @action(detail=True, methods=['delete'], url_path=r'photos/(?P<photo_id>\d+)')
+    def delete_photo(self, request, pk=None, photo_id=None):
+        """Remove one photo of a nest."""
+        nest = self.get_object()
+        if not nest_perms.can_edit_nest(request, nest):
+            raise PermissionDenied("You do not have permission to change the photos of this nest.")
+        photo = nest.photos.filter(pk=photo_id).first()
+        if photo is None:
+            return Response({"detail": "Unknown photo."}, status=status.HTTP_404_NOT_FOUND)
+        delete_files(photo.image, photo.thumbnail)
+        photo.delete()
+        return Response(self.get_serializer(self._fresh(nest)).data)
+
+    @extend_schema(responses={200: OpenApiResponse(
+        description='AFSCA numbers of the apiaries within 1 km, nearest first: '
+                    '`[{"afsca_number": str, "distance_m": int}]`, one entry per number'
+    )})
+    @action(detail=True, methods=['get'], url_path='nearby-apiaries')
+    def nearby_apiaries(self, request, pk=None):
+        """
+        The AFSCA numbers of the apiaries within 1 km of the nest. Apiaries
+        without a number are left out; a number shared by several apiaries is
+        listed once, at the distance of the nearest.
+        """
+        nest = self.get_object()
+        if not nest_perms.can_see_nearby_apiaries(request):
+            raise PermissionDenied("You do not have permission to see the apiaries near this nest.")
+        center = nest.point or Point(nest.longitude, nest.latitude, srid=4326)
+        apiaries = (
+            Apiary.objects.exclude(afsca_number='')
+            .annotate(distance=Distance('point', center))
+            .filter(distance__lte=D(m=nest_perms.NEARBY_APIARY_RADIUS_M))
+            .order_by('distance', 'id')
+            .values_list('afsca_number', 'distance')
+        )
+        nearest = {}
+        for number, distance in apiaries:
+            nearest.setdefault(number, round(distance.m))
+        return Response([
+            {'afsca_number': number, 'distance_m': distance_m}
+            for number, distance_m in nearest.items()
+        ])

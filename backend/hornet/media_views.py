@@ -3,8 +3,8 @@ Permission-checked delivery of the uploaded media.
 
 Nothing under MEDIA_ROOT is exposed by nginx directly: the files of a trap
 restricted to a group must stay invisible to everyone else, and a URL is not a
-secret. Every file therefore goes through this view, which resolves the trap
-or the apiary from the path, applies the same rules as the API, and then hands
+secret. Every file therefore goes through this view, which resolves the trap,
+the apiary or the nest from the path, applies the same rules as the API, and then hands
 the transfer back to nginx through X-Accel-Redirect (the `/_media/` location
 is `internal`).
 """
@@ -21,14 +21,17 @@ from drf_spectacular.utils import OpenApiResponse, extend_schema
 from hornet_finder_api.authentication import JWTBearerAuthentication
 
 from . import apiary_permissions
+from . import nest_permissions
 from . import trap_permissions as perms
-from .models import Apiary, Trap
+from .models import Apiary, Nest, Trap
 
 # Files of a trap live under `traps/<trap id>/`, which is what makes the
 # permission check possible from the path alone.
 TRAP_FILE_RE = re.compile(r'^traps/(?P<trap_id>\d+)/[^/]+$')
 # Same for an apiary, under `apiaries/<apiary id>/`; apiaries are never public
 APIARY_FILE_RE = re.compile(r'^apiaries/(?P<apiary_id>\d+)/[^/]+$')
+# And for a nest, under `nests/<nest id>/`: those who see the whole nest
+NEST_FILE_RE = re.compile(r'^nests/(?P<nest_id>\d+)/[^/]+$')
 # Profile photos are public too: the Keycloak account console loads them
 # without any token, and their file names are random.
 PUBLIC_PREFIXES = ('trap-types/', 'species/', 'avatars/')
@@ -57,6 +60,7 @@ def media_view(request, path):
         # 404 rather than 403 when refused: the existence of the file is itself private
         trap_match = TRAP_FILE_RE.match(path)
         apiary_match = APIARY_FILE_RE.match(path)
+        nest_match = NEST_FILE_RE.match(path)
         if trap_match:
             trap = Trap.objects.select_related('group', 'owner', 'trap_type').filter(
                 pk=trap_match.group('trap_id')
@@ -68,6 +72,10 @@ def media_view(request, path):
             if apiary is None or not apiary_permissions.has_apiary_permission(
                 request, apiary, apiary_permissions.READ
             ):
+                raise Http404
+        elif nest_match:
+            nest = Nest.objects.filter(pk=nest_match.group('nest_id')).first()
+            if nest is None or not nest_permissions.can_read_nest(request, nest):
                 raise Http404
         else:
             raise Http404

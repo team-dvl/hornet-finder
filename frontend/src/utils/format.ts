@@ -35,3 +35,19 @@ export function formatDistance(meters: number): string {
     ? `${Math.round(meters)} m`
     : `${(meters / 1000).toLocaleString(LOCALE, { maximumFractionDigits: 1 })} km`;
 }
+
+/** Local calendar day of a date, as a `date` input expects it (2026-09-22) */
+export function toDateInputValue(value: DateInput = new Date()): string {
+  const date = new Date(value);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/**
+ * ISO datetime of a day picked in a `date` input: now for today, noon (local)
+ * for a past day, so the day stays the same whatever the time zone.
+ */
+export function dateInputToIso(day: string): string {
+  if (day === toDateInputValue()) return new Date().toISOString();
+  return new Date(`${day}T12:00:00`).toISOString();
+}

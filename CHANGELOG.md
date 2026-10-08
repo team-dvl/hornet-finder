@@ -46,6 +46,12 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   fragments, CVE-2026-18209). Prod: note 0019.
 
 ### Changed
+- The destruction date of a nest is kept: set when it is marked destroyed (today
+  by default, an earlier day can be given), and a destroyed nest can no longer be
+  turned back to active, except by an administrator. Nests destroyed before this
+  release keep no date.
+- The reporter of a nest is always the signed-in user: `created_by` is no longer
+  accepted from the client.
 - Module icons in colour: on the landing page and in the navbar menu, each field
   module takes the colour of what it manages on the map (nests red, traps green,
   apiaries gold, map teal, statistics violet); documentation, administration and
@@ -67,6 +73,14 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   journal is a panel set into the sheet and grows as it is scrolled.
 
 ### Added
+- Nest photos: one or more photos when reporting a nest; administrators and the
+  coordinators of the nest hunters (`/hunters/admin`, new Keycloak subgroup) add
+  and remove them from the nest sheet. Photos are private media, shown to who
+  sees every nest and to the reporter, never on the public map. Prod: note 0019.
+- Nest editing by administrators and nest hunter coordinators: place, address,
+  position, comment, destruction and its date.
+- Nest sheet: the AFSCA numbers of the apiaries within 1 km of the nest, nearest
+  first with their distance (administrators and nest hunter coordinators).
 - `GET /api/nests/my/`: the nests the requester reported.
 - Coordinators of the trappers (`/trappers/admin`): Administration → Piégeurs
   lists every trapper by name; removing a trapper, who loses the role, is left

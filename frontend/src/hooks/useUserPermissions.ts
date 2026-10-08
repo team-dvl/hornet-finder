@@ -2,7 +2,6 @@ import { useAuth } from 'react-oidc-context';
 import { jwtDecode } from 'jwt-decode';
 import { useMemo, useCallback } from 'react';
 import { Hornet } from '../store/store';
-import { Nest } from '../store/slices/nestsSlice';
 import { Trap } from '../store/slices/trapsSlice';
 import { ADMIN, BEEKEEPER, HUNTER, TRAPPER, appRoles } from '../utils/roles';
 import { TRAPPERS_ROOT, isBeekeeperGroup, memberGroups } from '../utils/groups';
@@ -74,13 +73,7 @@ export const useUserPermissions = () => {
     return isOwner(hornet.created_by);
   }, [isAdmin, userGuid, isSignedIn]);
 
-  // Fonction pour vérifier si l'utilisateur peut supprimer un nid
-  const canDeleteNest = useCallback((nest: Nest) => {
-    if (!nest || !userGuid || !isSignedIn) return false;
-    if (isAdmin) return true;
-    if (!nest.created_by) return false;
-    return isOwner(nest.created_by);
-  }, [isAdmin, userGuid, isSignedIn]);
+  // Les droits sur un nid (modifier, photos, supprimer) viennent du backend : `nest.permissions`
 
   // Seuls les admins peuvent archiver (contrairement à la suppression, pas d'exception pour le créateur)
   const canArchiveHornet = useCallback(() => isAdmin, [isAdmin]);
@@ -180,7 +173,6 @@ export const useUserPermissions = () => {
       isAdmin: false,
       canEditHornet: () => false,
       canDeleteHornet: () => false,
-      canDeleteNest: () => false,
       canArchiveHornet: () => false,
       canArchiveNest: () => false,
       canAddHornet: false,
@@ -206,7 +198,6 @@ export const useUserPermissions = () => {
     isAdmin,
     canEditHornet,
     canDeleteHornet,
-    canDeleteNest,
     canArchiveHornet,
     canArchiveNest,
     canAddHornet,

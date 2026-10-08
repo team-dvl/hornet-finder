@@ -5,7 +5,6 @@ import uuid
 
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
-from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import models as db_models, transaction
 from django.db.models import Exists, F, Max, OuterRef, Prefetch, ProtectedError
 from django.utils import timezone
@@ -25,7 +24,7 @@ from hornet_finder_api.roles import APP_ROLES, BEEKEEPER, TRAPPER
 
 from . import trap_permissions as perms
 from .invitation_views import BEEKEEPERS_ROOT, _sort_key
-from .images import processed_image
+from .images import delete_files as _delete_files, store_photo as _store_photo
 from .models import BeekeeperGroup, Species, Tag, Trap, TrapEvent, TrapPhoto, TrapType, User
 from .serializers import (
     CatchSerializer, PublicTrapSerializer, SpeciesSerializer, TrapDetailSerializer, TrapEventSerializer,
@@ -105,24 +104,6 @@ def _group_for_path(path: str) -> BeekeeperGroup:
         group.name = name
         group.save(update_fields=['name'])
     return group
-
-
-def _store_photo(target, file_field, thumb_field, uploaded):
-    """Resize an upload and store it in the given image fields of `target`."""
-    try:
-        basename, full, thumbnail = processed_image(uploaded)
-    except DjangoValidationError as exc:
-        # A rejected upload is a bad request, not a server error
-        raise DRFValidationError({'photo': exc.messages}) from exc
-    getattr(target, file_field).save(f"{basename}.jpg", full, save=False)
-    getattr(target, thumb_field).save(f"{basename}_thumb.jpg", thumbnail, save=False)
-
-
-def _delete_files(*image_fields):
-    """Remove the files backing image fields, ignoring already-missing ones."""
-    for field in image_fields:
-        if field:
-            field.delete(save=False)
 
 
 class ReferentialViewSet(viewsets.ModelViewSet):

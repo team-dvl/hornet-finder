@@ -3082,3 +3082,266 @@ class TrapperRosterTests(GroupInvitationTestCase):
         self.assertEqual((response.status_code, response.data['code']), (403, 'platform_only'))
         self.assertEqual(self._remove(self.trapper, self.admin).status_code, 204)
         self.assertIn((str(self.trapper.guid), 'gid-trappers'), self.kc.removed)
+
+
+# ---------------------------------------------------------------------------
+# Nests: photos, editing, destruction date, nearby apiaries
+# ---------------------------------------------------------------------------
+
+from .models import Apiary, NestPhoto
+
+_NEST_MEDIA = Path(_tempfile.mkdtemp(prefix='nest-tests-'))
+_HUNTERS_ADMIN = '/hunters/admin'
+
+
+@override_settings(MEDIA_ROOT=_NEST_MEDIA)
+class NestManagementTests(TestCase):
+    """Admins and `/hunters/admin` manage the content of a nest; a destroyed nest stays so."""
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        _shutil.rmtree(_NEST_MEDIA, ignore_errors=True)
+
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        patcher = patch('hornet.serializers.get_user_display_name', return_value='Tester')
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+        self.reporter_guid = uuid_module.uuid4()
+        self.reporter = User.objects.create(guid=self.reporter_guid, group_paths=['/trappers'])
+        self.reporter_user = FakeTrapUser(['trapper'], self.reporter_guid, ['/trappers'])
+        self.hunter_user = FakeTrapUser(['hunter'], uuid_module.uuid4(), ['/hunters'])
+        self.coordinator_user = FakeTrapUser(['hunter'], uuid_module.uuid4(), [_HUNTERS_ADMIN])
+        # Administers a group, but not the hunters'
+        self.trappers_admin_user = FakeTrapUser(['trapper'], uuid_module.uuid4(), ['/trappers/admin'])
+        self.admin_user = FakeTrapUser(['admin'], uuid_module.uuid4(), ['/admins'])
+        self.stranger_user = FakeTrapUser(['trapper'], uuid_module.uuid4(), ['/trappers'])
+
+        self.nest = Nest.objects.create(latitude=50.5, longitude=4.5, created_by=self.reporter,
+                                        comments='Dans le chêne')
+
+    def _call(self, method, path, actions, user, data=None, fmt=None, **kwargs):
+        request = getattr(self.factory, method)(path, data, format=fmt) if data is not None \
+            else getattr(self.factory, method)(path)
+        force_authenticate(request, user=user)
+        return NestViewSet.as_view(actions)(request, **kwargs)
+
+    def _patch(self, user, data):
+        return self._call('patch', f'/nests/{self.nest.id}/', {'patch': 'partial_update'}, user,
+                          data, 'json', pk=self.nest.id)
+
+    def _add_photos(self, user, count=1):
+        files = [_image_file(f'p{i}.jpg') for i in range(count)]
+        return self._call('post', f'/nests/{self.nest.id}/photos/', {'post': 'add_photos'}, user,
+                          {'photos': files}, 'multipart', pk=self.nest.id)
+
+    def _delete_photo(self, user, photo_id):
+        return self._call('delete', f'/nests/{self.nest.id}/photos/{photo_id}/',
+                          {'delete': 'delete_photo'}, user, pk=self.nest.id, photo_id=photo_id)
+
+    def _nearby(self, user):
+        return self._call('get', f'/nests/{self.nest.id}/nearby-apiaries/',
+                          {'get': 'nearby_apiaries'}, user, pk=self.nest.id)
+
+    # -- creation ---------------------------------------------------------------
+
+    def test_a_nest_is_reported_with_several_photos(self):
+        files = [_image_file('a.jpg'), _image_file('b.jpg')]
+        response = self._call('post', '/nests/', {'post': 'create'}, self.reporter_user,
+                              {'latitude': 50.5, 'longitude': 4.5, 'photos': files}, 'multipart')
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(len(response.data['photos']), 2)
+        nest = Nest.objects.get(pk=response.data['id'])
+        self.assertEqual(nest.created_by, self.reporter)
+        for photo in nest.photos.all():
+            self.assertTrue(photo.image.name.startswith(f'nests/{nest.id}/'))
+            with Image.open(photo.image.path) as image:
+                self.assertLessEqual(max(image.size), 1600)
+
+    def test_a_rejected_photo_creates_no_nest(self):
+        bad = SimpleUploadedFile('note.txt', b'not an image', content_type='text/plain')
+        response = self._call('post', '/nests/', {'post': 'create'}, self.reporter_user,
+                              {'latitude': 50.6, 'longitude': 4.6, 'photos': [_image_file(), bad]},
+                              'multipart')
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Nest.objects.filter(latitude=50.6).exists())
+        self.assertFalse(NestPhoto.objects.exists())
+
+    def test_the_reporter_cannot_be_chosen(self):
+        response = self._call('post', '/nests/', {'post': 'create'}, self.reporter_user,
+                              {'latitude': 50.5, 'longitude': 4.5,
+                               'created_by': str(uuid_module.uuid4())}, 'json')
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['created_by']['guid'], str(self.reporter_guid))
+
+    def test_a_nest_reported_destroyed_gets_a_date(self):
+        response = self._call('post', '/nests/', {'post': 'create'}, self.reporter_user,
+                              {'latitude': 50.5, 'longitude': 4.5, 'destroyed': True}, 'json')
+        self.assertEqual(response.status_code, 201)
+        self.assertIsNotNone(Nest.objects.get(pk=response.data['id']).destroyed_at)
+
+    # -- editing ----------------------------------------------------------------
+
+    def test_the_admin_and_the_hunters_admin_edit_a_nest(self):
+        for user in (self.admin_user, self.coordinator_user):
+            response = self._patch(user, {'comments': f'Vu par {user.guid}'})
+            self.assertEqual(response.status_code, 200)
+            self.nest.refresh_from_db()
+            self.assertEqual(self.nest.comments, f'Vu par {user.guid}')
+
+    def test_others_do_not_edit_a_nest(self):
+        for user in (self.reporter_user, self.hunter_user, self.trappers_admin_user):
+            self.assertEqual(self._patch(user, {'comments': 'non'}).status_code, 403)
+        self.nest.refresh_from_db()
+        self.assertEqual(self.nest.comments, 'Dans le chêne')
+
+    def test_editing_keeps_the_reporter(self):
+        response = self._patch(self.coordinator_user, {'created_by': str(uuid_module.uuid4())})
+        self.assertEqual(response.status_code, 200)
+        self.nest.refresh_from_db()
+        self.assertEqual(self.nest.created_by, self.reporter)
+
+    def test_the_permissions_follow_the_requester(self):
+        response = self._call('get', '/nests/?lat=50.5&lon=4.5&radius=5', {'get': 'list'},
+                              self.coordinator_user)
+        self.assertEqual(response.data[0]['permissions'], {
+            'update': True, 'photos': True, 'reactivate': False, 'delete': False,
+            'nearby_apiaries': True,
+        })
+        response = self._call('get', '/nests/?lat=50.5&lon=4.5&radius=5', {'get': 'list'},
+                              self.hunter_user)
+        self.assertFalse(any(response.data[0]['permissions'].values()))
+
+    # -- destruction ------------------------------------------------------------
+
+    def test_destroying_a_nest_records_the_date(self):
+        before = timezone.now()
+        response = self._patch(self.coordinator_user, {'destroyed': True})
+        self.assertEqual(response.status_code, 200)
+        self.nest.refresh_from_db()
+        self.assertTrue(self.nest.destroyed)
+        self.assertGreaterEqual(self.nest.destroyed_at, before)
+
+    def test_the_destruction_date_can_be_given_and_corrected(self):
+        given = timezone.now() - timedelta(days=3)
+        self._patch(self.coordinator_user, {'destroyed': True, 'destroyed_at': given.isoformat()})
+        self.nest.refresh_from_db()
+        self.assertEqual(self.nest.destroyed_at, given)
+        # Editing something else keeps the date
+        self._patch(self.coordinator_user, {'comments': 'Neutralisé à la perche'})
+        self.nest.refresh_from_db()
+        self.assertEqual(self.nest.destroyed_at, given)
+        corrected = given - timedelta(days=1)
+        self._patch(self.coordinator_user, {'destroyed_at': corrected.isoformat()})
+        self.nest.refresh_from_db()
+        self.assertEqual(self.nest.destroyed_at, corrected)
+
+    def test_the_destruction_date_is_not_in_the_future(self):
+        future = timezone.now() + timedelta(days=1)
+        response = self._patch(self.coordinator_user, {'destroyed': True, 'destroyed_at': future.isoformat()})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('destroyed_at', response.data)
+
+    def test_only_an_admin_reactivates_a_destroyed_nest(self):
+        self._patch(self.coordinator_user, {'destroyed': True})
+        response = self._patch(self.coordinator_user, {'destroyed': False})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('destroyed', response.data)
+        self.nest.refresh_from_db()
+        self.assertTrue(self.nest.destroyed)
+
+        response = self._patch(self.admin_user, {'destroyed': False})
+        self.assertEqual(response.status_code, 200)
+        self.nest.refresh_from_db()
+        self.assertFalse(self.nest.destroyed)
+        self.assertIsNone(self.nest.destroyed_at)
+
+    def test_a_nest_destroyed_before_the_dates_were_kept_keeps_no_invented_date(self):
+        Nest.objects.filter(pk=self.nest.pk).update(destroyed=True, destroyed_at=None)
+        self._patch(self.coordinator_user, {'comments': 'Ancien nid'})
+        self.nest.refresh_from_db()
+        self.assertIsNone(self.nest.destroyed_at)
+
+    # -- photos -----------------------------------------------------------------
+
+    def test_the_hunters_admin_adds_and_deletes_photos(self):
+        response = self._add_photos(self.coordinator_user, count=2)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['photos']), 2)
+        photo = self.nest.photos.first()
+        path = photo.image.path
+        self.assertTrue(os.path.exists(path))
+
+        response = self._delete_photo(self.coordinator_user, photo.id)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['photos']), 1)
+        self.assertFalse(os.path.exists(path))
+
+    def test_the_admin_adds_and_deletes_photos(self):
+        self.assertEqual(self._add_photos(self.admin_user).status_code, 200)
+        photo = self.nest.photos.get()
+        self.assertEqual(self._delete_photo(self.admin_user, photo.id).status_code, 200)
+        self.assertFalse(self.nest.photos.exists())
+
+    def test_others_do_not_change_the_photos(self):
+        self._add_photos(self.admin_user)
+        photo = self.nest.photos.get()
+        for user in (self.reporter_user, self.hunter_user, self.trappers_admin_user):
+            self.assertEqual(self._add_photos(user).status_code, 403)
+            self.assertEqual(self._delete_photo(user, photo.id).status_code, 403)
+        self.assertEqual(self.nest.photos.count(), 1)
+
+    def test_a_photo_of_another_nest_is_not_deleted(self):
+        other = Nest.objects.create(latitude=50.5, longitude=4.5)
+        photo = NestPhoto.objects.create(nest=other, image='nests/x/y.jpg')
+        self.assertEqual(self._delete_photo(self.admin_user, photo.id).status_code, 404)
+        self.assertTrue(NestPhoto.objects.filter(pk=photo.pk).exists())
+
+    def test_deleting_a_nest_removes_its_files(self):
+        self._add_photos(self.admin_user)
+        path = self.nest.photos.get().image.path
+        response = self._call('delete', f'/nests/{self.nest.id}/', {'delete': 'destroy'},
+                              self.admin_user, pk=self.nest.id)
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(os.path.exists(path))
+
+    def test_the_photos_are_served_to_who_sees_the_nest(self):
+        self._add_photos(self.admin_user)
+        path = self.nest.photos.get().image.name
+        for user, expected in ((self.reporter_user, 200), (self.hunter_user, 200),
+                               (self.admin_user, 200), (self.stranger_user, 404)):
+            request = self.factory.get(f'/api/media/{path}')
+            force_authenticate(request, user=user)
+            self.assertEqual(media_view(request, path=path).status_code, expected, user.roles)
+        self.assertEqual(media_view(self.factory.get(f'/api/media/{path}'), path=path).status_code, 404)
+
+    def test_the_public_list_shows_no_photo(self):
+        self._add_photos(self.admin_user)
+        Nest.objects.filter(pk=self.nest.pk).update(destroyed=True)
+        response = NestViewSet.as_view({'get': 'destroyed'})(
+            self.factory.get('/nests/destroyed/?lat=50.5&lon=4.5&radius=5'))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('photos', response.data[0])
+
+    # -- nearby apiaries ----------------------------------------------------------
+
+    def test_the_afsca_numbers_within_one_km_are_listed(self):
+        # 0.001° of latitude is about 111 m
+        Apiary.objects.create(latitude=50.5027, longitude=4.5, afsca_number='BE-300')    # ~300 m
+        Apiary.objects.create(latitude=50.5081, longitude=4.5, afsca_number='BE-900')    # ~900 m
+        Apiary.objects.create(latitude=50.5054, longitude=4.5, afsca_number='BE-300')    # same number, farther
+        Apiary.objects.create(latitude=50.5009, longitude=4.5, afsca_number='')          # no number
+        Apiary.objects.create(latitude=50.5099, longitude=4.5, afsca_number='BE-1100')   # ~1100 m
+        response = self._nearby(self.coordinator_user)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([a['afsca_number'] for a in response.data], ['BE-300', 'BE-900'])
+        self.assertAlmostEqual(response.data[0]['distance_m'], 300, delta=5)
+        self.assertAlmostEqual(response.data[1]['distance_m'], 900, delta=10)
+
+    def test_the_nearby_apiaries_are_for_the_managers(self):
+        Apiary.objects.create(latitude=50.5027, longitude=4.5, afsca_number='BE-300')
+        self.assertEqual(self._nearby(self.admin_user).status_code, 200)
+        for user in (self.reporter_user, self.hunter_user, self.trappers_admin_user):
+            self.assertEqual(self._nearby(user).status_code, 403)

@@ -20,7 +20,7 @@ Les rôles applicatifs à définir dans le realm sont :
 | --- | --- |
 | `admin` | Accès complet aux API. Peut lire, créer, modifier, archiver et supprimer les données. Pour les ruchers, contourne les permissions de groupe et l'appartenance au propriétaire. |
 | `beekeeper` | Peut créer des observations de frelons, des nids, des ruchers et des pièges. Voit tous les nids. Peut lire et gérer ses propres ruchers. Les droits sur les ruchers d'autres utilisateurs dépendent de `ApiaryGroupPermission`. |
-| `hunter` | Chasseur de nids. Peut créer des observations de frelons (lâchers, direction de vol) et des nids, et voit tous les nids. N'a pas accès aux ruchers ni aux pièges en tant que propriétaire. Ne peut pas modifier les frelons ou les nids, qui sont réservés à `admin`. |
+| `hunter` | Chasseur de nids. Peut créer des observations de frelons (lâchers, direction de vol) et des nids, et voit tous les nids. N'a pas accès aux ruchers ni aux pièges en tant que propriétaire. Ne peut pas modifier les frelons ni les nids : les nids sont modifiés par `admin` et par les coordinateurs des chasseurs (`/hunters/admin`, voir section 7). |
 | `trapper` | Piégeur, rôle de tout nouveau compte. Possède des pièges et imprime leurs QR Codes. Peut signaler un nid ; il voit les nids détruits et ceux qu'il a signalés (`GET /api/nests/my/`), pas les autres. N'enregistre pas d'observation de frelon. |
 | `beekeeper-group-admin` | Rôle prévu pour identifier l'administrateur d'un groupe d'apiculteurs. Il est attribué aux sous-groupes `admin` des groupes d'apiculteurs. À ce jour, le backend ne l'utilise pas directement pour autoriser une opération : sa présence dans Keycloak ne remplace donc pas une permission Django. |
 
@@ -46,11 +46,12 @@ La hiérarchie attendue est la suivante :
 /beekeepers/<identifiant-groupe>
 /beekeepers/<identifiant-groupe>/admin
 /hunters
+/hunters/admin
 /trappers
 /trappers/admin
 ```
 
-`/hunters` et `/trappers` sont des groupes plats : pas d'organisation sous eux. Seules les associations d'apiculteurs (`/beekeepers/<identifiant-groupe>`) ont des membres invités et reçoivent des délégations de pièges.
+`/hunters` et `/trappers` sont des groupes plats : pas d'organisation sous eux, seulement leur sous-groupe `admin`. Seules les associations d'apiculteurs (`/beekeepers/<identifiant-groupe>`) ont des membres invités et reçoivent des délégations de pièges.
 
 Les mappings de rôles des groupes sont les suivants :
 
@@ -60,6 +61,7 @@ Les mappings de rôles des groupes sont les suivants :
 | `/beekeepers` | `beekeeper` |
 | `/beekeepers/<identifiant-groupe>/admin` | `group-admin`, `beekeeper-group-admin` |
 | `/hunters` | `hunter` |
+| `/hunters/admin` | `group-admin` (hérite `hunter` de `/hunters`) |
 | `/trappers` | `trapper` |
 | `/trappers/admin` | `group-admin` (hérite `trapper` de `/trappers`) |
 
@@ -78,6 +80,7 @@ Dans le realm applicatif (`hornet-finder` ou `hornet-finder-dev`) :
 3. Dans **Groups**, ajouter l'utilisateur au groupe approprié :
    - `/trappers` : automatique à l'inscription ;
    - `/hunters` pour un chasseur de nids ;
+   - `/hunters/admin` pour un coordinateur des chasseurs de nids ;
    - `/trappers/admin` pour un coordinateur des piégeurs ;
    - `/beekeepers/<identifiant-groupe>` pour un apiculteur ;
    - `/beekeepers/<identifiant-groupe>/admin` uniquement pour le responsable du groupe ;
@@ -150,6 +153,7 @@ Un **administrateur de groupe** est membre du sous-groupe `admin` de son groupe 
 | Groupe | Administrateurs |
 | --- | --- |
 | `/beekeepers/vsab` | `/beekeepers/vsab/admin` |
+| `/hunters` | `/hunters/admin` |
 | `/trappers` | `/trappers/admin` |
 
 Ces sous-groupes portent le rôle realm `group-admin` (les sous-groupes d'apiculteurs
@@ -206,6 +210,14 @@ Un retrait ou un changement de rôle atteint le jeton de la personne à son proc
 renouvellement : au plus 60 minutes (durée du jeton d'accès). Renommer un groupe
 (sa description Keycloak) reste à la console Keycloak, en attendant un module
 d'administration de la plateforme.
+
+Le **coordinateur des chasseurs de nids** (membre de `/hunters/admin`) gère le contenu des
+nids, comme un administrateur de la plateforme : il modifie un nid (lieu, adresse, position,
+commentaire, destruction et sa date), ajoute et retire ses photos, et voit les numéros AFSCA
+des ruchers situés à 1 km au plus du nid. Un nid détruit le reste : seul un administrateur de
+la plateforme le réactive. Supprimer et archiver un nid restent réservés aux administrateurs
+de la plateforme. `/hunters/admin` n'a pas de page *Mon groupe* : les membres de `/hunters`
+sont nommés par un administrateur de la plateforme dans la console Keycloak.
 
 L'import de realm ne s'applique qu'à un realm neuf : sur un environnement existant, créez
 le sous-groupe `admin` à la main dans la console Keycloak et attribuez-lui `group-admin`.
