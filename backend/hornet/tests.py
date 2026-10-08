@@ -2092,12 +2092,9 @@ class TrapManagerTests(TrapTestCase):
         response = self._managed(self.owner_user, 'active=all&ordering=-last_event_at')
         self.assertEqual(self._ids(response), [self.trap.id, self.removed.id, never.id])
 
-    def test_distance_ordering_has_no_radius_limit(self):
-        # The removed trap is ~80 km away: far beyond the 5 km of the map listing
-        ids = self._ids(self._managed(self.owner_user,
-                                      'active=all&ordering=distance&lat=51.2&lon=4.4'))
-        self.assertEqual(ids, [self.removed.id, self.trap.id])
-        self.assertEqual(self._managed(self.owner_user, 'ordering=distance').status_code, 400)
+    def test_there_is_no_ordering_by_distance(self):
+        response = self._managed(self.owner_user, 'active=all&ordering=distance&lat=51.2&lon=4.4')
+        self.assertEqual(response.status_code, 400)
 
     def test_pagination(self):
         for _ in range(3):

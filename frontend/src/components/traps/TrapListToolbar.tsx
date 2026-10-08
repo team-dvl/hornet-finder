@@ -5,7 +5,6 @@ import type { ManagedTrapsQuery, TrapOrdering, TrapScope, TrapType } from '../..
 const ORDERINGS: { value: TrapOrdering; label: string }[] = [
   { value: 'last_event_at', label: 'Relevé le plus ancien' },
   { value: '-last_event_at', label: 'Relevé le plus récent' },
-  { value: 'distance', label: 'Le plus proche' },
   { value: '-hornet_catch_count', label: 'Le plus de captures' },
   { value: '-installed_at', label: 'Installé récemment' },
   { value: 'installed_at', label: 'Installé il y a longtemps' },
@@ -29,12 +28,11 @@ interface TrapListToolbarProps {
   trapTypes: TrapType[];
   count: number;
   loading: boolean;
-  locating: boolean;
 }
 
 /** Scope, search, filters and sorting of the trap manager. */
 export default function TrapListToolbar({
-  query, onChange, scopes, groups, trapTypes, count, loading, locating,
+  query, onChange, scopes, groups, trapTypes, count, loading,
 }: TrapListToolbarProps) {
   // Typed text is sent once the user pauses, not on every key
   const [search, setSearch] = useState(query.q ?? '');
@@ -149,7 +147,6 @@ export default function TrapListToolbar({
           {loading ? <Spinner animation="border" size="sm" /> : `${count} piège${count > 1 ? 's' : ''}`}
         </span>
         <div className="d-flex align-items-center gap-2">
-          {locating && <Spinner animation="border" size="sm" aria-label="Localisation…" />}
           <Form.Select
                         value={query.ordering}
             onChange={(e) => onChange({ ordering: e.target.value as TrapOrdering })}

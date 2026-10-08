@@ -157,8 +157,7 @@ export type TrapOrdering =
   | 'last_event_at' | '-last_event_at'
   | 'hornet_catch_count' | '-hornet_catch_count'
   | 'installed_at' | '-installed_at'
-  | 'address' | 'id' | '-id'
-  | 'distance';
+  | 'address' | 'id' | '-id';
 
 /** Query of the trap manager (`GET /traps/managed/`) */
 export interface ManagedTrapsQuery {
@@ -169,9 +168,6 @@ export interface ManagedTrapsQuery {
   group?: string;
   trap_type?: string;
   has_tag?: 'true' | 'false';
-  /** Needed by the `distance` ordering */
-  lat?: number;
-  lon?: number;
 }
 
 interface ManagedTrapsState {

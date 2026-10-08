@@ -93,9 +93,10 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   to platform admins.
 
 ### Removed
-- Apiary list: the distance from the user to each apiary and the "Le plus
-  proche" sort are gone, in the app and in the API (`ordering=distance` is now
-  refused): they would locate the apiaries.
+- Apiary and trap lists: the distance from the user to each apiary or trap and
+  the "Le plus proche" sort are gone, in the app and in the API
+  (`ordering=distance` is now refused on `/apiaries/managed/` and
+  `/traps/managed/`): of little use, and they would locate the apiaries.
 - The service worker's token extension (`sw-auth-extension.js`) and its
   helpers: a service worker cannot read the tokens nor run while the app is
   closed, so it renewed nothing. The service worker now only caches the app.

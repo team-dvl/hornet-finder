@@ -3,8 +3,6 @@
 import logging
 import uuid
 
-from django.contrib.gis.db.models.functions import Distance
-from django.contrib.gis.geos import Point
 from django.db import models as db_models, transaction
 from django.db.models import Exists, F, Max, OuterRef, Prefetch, ProtectedError
 from django.utils import timezone
@@ -41,7 +39,6 @@ MANAGED_ORDERINGS = {
     'installed_at': 'installed_at',
     'address': 'address',
     'id': 'id',
-    'distance': 'distance',
 }
 
 
@@ -313,11 +310,7 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
                              location=OpenApiParameter.QUERY, required=False,
                              description=("One of " + ', '.join(sorted(MANAGED_ORDERINGS))
                                           + ", prefixed with '-' for descending order. "
-                                          "'distance' needs lat and lon")),
-            OpenApiParameter(name='lat', type=OpenApiTypes.FLOAT, location=OpenApiParameter.QUERY,
-                             required=False),
-            OpenApiParameter(name='lon', type=OpenApiTypes.FLOAT, location=OpenApiParameter.QUERY,
-                             required=False),
+                                          "No ordering by distance")),
             OpenApiParameter(name='page', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY,
                              required=False),
             OpenApiParameter(name='page_size', type=OpenApiTypes.INT,
@@ -379,12 +372,6 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         descending = ordering.startswith('-')
         if field not in MANAGED_ORDERINGS:
             raise DRFValidationError({'ordering': f"Unknown ordering '{ordering}'."})
-        if field == 'distance':
-            try:
-                center = Point(float(params['lon']), float(params['lat']), srid=4326)
-            except (KeyError, ValueError):
-                raise DRFValidationError({'ordering': "Sorting by distance needs lat and lon."})
-            queryset = queryset.annotate(distance=Distance('point', center))
         expression = F(MANAGED_ORDERINGS[field])
         # Never visited traps are the most overdue: first in ascending order
         expression = (expression.desc(nulls_last=True) if descending
