@@ -2,10 +2,11 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css'
 import { Container, Alert, Spinner } from 'react-bootstrap'
 import { lazy, Suspense, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from 'react-oidc-context';
 import { Home, MapPage, Nests, Traps, Apiaries, DocsIndex, DocPage, AdminIndex, TrapTypesAdmin, SpeciesAdmin, TagsAdmin, ArchivingAdmin, GroupAdmin, PrivacyPolicy, DataDeletion, Invitations } from './pages';
-import { RequireRole } from './components/common';
+import { ErrorBoundary, RequireRole } from './components/common';
+import { PageErrorFallback } from './components/layout';
 import { initIOSViewportFix } from './utils/iosViewportFix';
 import { useUrlCleaner } from './utils/urlCleaner';
 import { useSessionGuard } from './hooks/useSessionGuard';
@@ -20,6 +21,7 @@ const pageFallback = <div className="text-center py-5"><Spinner animation="borde
 
 function App() {
   const auth = useAuth();
+  const location = useLocation();
 
   // Nettoyer automatiquement l'URL après authentification (pour PWA)
   useUrlCleaner(auth.isAuthenticated);
@@ -79,6 +81,7 @@ function App() {
   }
 
   return (
+    <ErrorBoundary resetKey={location.pathname} fallback={<PageErrorFallback />}>
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/map" element={<MapPage />} />
@@ -140,6 +143,7 @@ function App() {
       <Route path="/data-deletion" element={<DataDeletion />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </ErrorBoundary>
   );
 }
 

@@ -7,6 +7,8 @@ import { store } from './store'
 import './index.css'
 import App from './App'
 import { userManager } from './utils/oidc'
+import { ErrorBoundary } from './components/common'
+import { RootErrorFallback } from './components/layout'
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
 // Nettoyer l'URL après connexion réussie
@@ -16,6 +18,7 @@ const onSigninCallback = () => {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
+    <ErrorBoundary fallback={<RootErrorFallback />}>
     <BrowserRouter>
       <Provider store={store}>
         <AuthProvider userManager={userManager} onSigninCallback={onSigninCallback}>
@@ -23,5 +26,6 @@ createRoot(document.getElementById('root')!).render(
         </AuthProvider>
       </Provider>
     </BrowserRouter>
+    </ErrorBoundary>
   </StrictMode>,
 )

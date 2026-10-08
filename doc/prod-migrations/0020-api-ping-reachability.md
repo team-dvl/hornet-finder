@@ -9,6 +9,7 @@ status: pending
 |---|---|
 | `location = /api/ping` : réponse statique `{"status":"ok"}` (`Cache-Control: no-store`, sans journal d'accès), servie par nginx sans passer par Django | `nginx/conf.d/prod.conf` (et `app-dev.conf` en dev) |
 | Frontend : sonde de joignabilité du serveur et bandeau « Serveur injoignable » sous la barre de navigation, avec nouvelle tentative automatique | `frontend/src/utils/reachability.ts`, `components/layout/ReachabilityBanner.tsx` |
+| Frontend : écrans d'erreur (error boundary) à la place d'une page blanche quand l'affichage d'une page échoue | `components/common/ErrorBoundary.tsx`, `components/layout/ErrorFallback.tsx` |
 
 La sonde n'est pas périodique tant que le serveur répond : elle part au lancement, au retour au premier plan, aux événements réseau du téléphone et après un appel API resté sans réponse. Seul un serveur injoignable déclenche des tentatives automatiques (5, 10, 20, 30 puis 60 s, avec ±20 % d'aléa, seulement app visible). Chaque sonde coûte environ 1 Ko, répondu par nginx.
 

@@ -18,6 +18,11 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   that got no answer; it never polls while the server answers, and retries with
   a growing delay (5 s to 60 s) while it does not. The login button no longer
   leaves for Keycloak while the server is unreachable. Prod: note 0020.
+- Error screens instead of a white page when a page fails while rendering (an
+  unexpected API answer, a chunk that cannot be fetched): the page's own screen
+  keeps the navbar, so the user can go elsewhere; a last one covers the whole
+  app. Both offer "Recharger"; the first adds the advice to retry later when
+  the server is unreachable.
 - Dev: a message with a "Réessayer" button replaces the white page when the dev
   server cannot be reached at launch (the dev service worker only caches
   `index.html`, not the modules Vite serves).
