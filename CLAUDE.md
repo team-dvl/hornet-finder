@@ -82,6 +82,12 @@ The phone is the primary target: iPhone (Safari/WebKit, reference iPhone 14, 390
 - **Shell Libraries**: `lib/common.sh` (env loading, service aliases, UI), `lib/volumes.sh` (Docker volumes, verify-only for deploy), `lib/zfs.sh` (ZFS backend)
 - **Geographic Queries**: `?lat=45.5&lon=2.5&radius=10` for 10km radius searches
 
+## Development from claude.ai web (not local)
+These rules apply to sessions run from claude.ai web (cloud container), not to local development.
+- **Branching**: for any change, unless told otherwise, create a new branch from `devel`.
+- **Between prompts**: before starting each new prompt, fetch `origin` and check whether the working branch is behind `devel`; rebase it onto `origin/devel` if needed.
+- **Merging**: never merge into `devel` without the developer's explicit agreement. When merging is approved, rebase onto `origin/devel` first if needed, then merge.
+
 ## Tips
 - Always use Docker for local dev to match prod.
 - For debugging, use `./logs.sh <service>` or `docker compose logs <service>` from the worktree root.
