@@ -1,7 +1,7 @@
 """Write the AFSCA numbers already recorded as `X.XXX.XXX.XXX`.
 
 Only numbers made of 10 digits and separators are rewritten; any other value
-is left untouched (see prod note 0019 to list them).
+is left untouched (see prod note 0021 to list them).
 """
 
 from django.db import migrations
