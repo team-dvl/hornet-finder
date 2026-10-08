@@ -70,7 +70,6 @@ export default function NestPhotos({ nestId, photos, canAdd, onOpen, onError }: 
             ref={inputRef}
             type="file"
             accept="image/*"
-            capture="environment"
             multiple
             className="d-none"
             onChange={handleFiles}
