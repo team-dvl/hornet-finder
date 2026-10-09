@@ -10,6 +10,8 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-09
+
 ### Added
 - Nest photos: one or more photos when reporting a nest; administrators and the
   coordinators of the nest hunters (`/hunters/admin`, new Keycloak subgroup) add
@@ -233,7 +235,8 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   algorithm-confusion flaws were not reachable; `PyJWKClient` redirect handling
   is fixed.
 
-[Unreleased]: https://github.com/team-dvl/hornet-finder/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/team-dvl/hornet-finder/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/team-dvl/hornet-finder/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/team-dvl/hornet-finder/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/team-dvl/hornet-finder/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/team-dvl/hornet-finder/releases/tag/v1.0.0
