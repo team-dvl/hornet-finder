@@ -12,7 +12,7 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 
 ### Added
 - Map: satellite view. The layers sheet starts with two exclusive switches, "Plan" and "Satellite"
-  (Esri World Imagery, remembered on the device). The nginx CSP now allows
+  (Esri World Imagery; the map always opens on the plan). The nginx CSP now allows
   `server.arcgisonline.com` for images: nginx must be reloaded (see
   `doc/prod-migrations/0022-satellite-basemap-csp.md`).
 - Install suggestion: from the second visit, a sheet offers to pin the app on
