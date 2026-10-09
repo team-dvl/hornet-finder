@@ -31,6 +31,17 @@ function latestSpringYear(today = new Date()): number {
 /** Base map: the street plan or the satellite imagery */
 export type Basemap = 'plan' | 'satellite';
 
+const BASEMAP_KEY = 'map-basemap';
+
+/** The base map the user picked last (per device); the plan when unset or storage is unavailable */
+function loadBasemap(): Basemap {
+  try {
+    return localStorage.getItem(BASEMAP_KEY) === 'satellite' ? 'satellite' : 'plan';
+  } catch {
+    return 'plan';
+  }
+}
+
 export interface MapState {
   center: MapPosition;
   zoom: number;
@@ -56,7 +67,7 @@ const initialState: MapState = {
   isInitialized: false,
   isAdmin: false,
   analysis: { layer: null, period: 'spring', year: latestSpringYear() },
-  basemap: 'plan',
+  basemap: loadBasemap(),
   lastFetchedArea: undefined,
 };
 
@@ -149,6 +160,11 @@ const mapSlice = createSlice({
     },
     setBasemap: (state, action: PayloadAction<Basemap>) => {
       state.basemap = action.payload;
+      try {
+        localStorage.setItem(BASEMAP_KEY, action.payload);
+      } catch {
+        // Storage unavailable: the choice only lasts for this visit
+      }
     },
     setAnalysisLayer: (state, action: PayloadAction<AnalysisLayer | null>) => {
       state.analysis.layer = action.payload;

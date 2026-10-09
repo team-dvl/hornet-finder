@@ -15,4 +15,4 @@ Ce qui **ne change pas** : `.env`, volumes, base de données, Keycloak.
 3. Ouvrir la carte, bouton « Couches », choisir « Satellite » : les tuiles s'affichent.
 
 ## Retour arrière
-Revenir au commit précédent et `./deploy.sh` ;.
+Revenir au commit précédent et `./deploy.sh` ; le choix mémorisé (`localStorage`) retombe sur le plan.
