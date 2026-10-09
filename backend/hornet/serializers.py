@@ -232,9 +232,11 @@ class ApiarySerializer(GPSValidationMixin, serializers.ModelSerializer):
         request = self.context.get('request')
         if request is not None:
             data['permissions'] = {
+                'read': apiary_perms.has_apiary_permission(request, instance, apiary_perms.READ),
                 'update': apiary_perms.has_apiary_permission(request, instance, apiary_perms.UPDATE),
                 'delete': apiary_perms.has_apiary_permission(request, instance, apiary_perms.DELETE),
                 'share': apiary_perms.can_share_apiary(request, instance),
+                'change_owner': apiary_perms.can_change_owner(request, instance),
             }
         return data
 

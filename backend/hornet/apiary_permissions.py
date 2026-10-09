@@ -12,7 +12,8 @@ from django.db.models import Q
 
 from .models import ApiaryGroupPermission
 from .trap_permissions import (
-    ADMIN_SEGMENT, is_member_of, is_platform_admin, membership_paths, owner_group_paths,
+    ADMIN_SEGMENT, administered_groups, is_beekeeper_group, is_member_of, is_platform_admin,
+    membership_paths, owner_group_paths,
 )
 
 READ, UPDATE, DELETE = 'read', 'update', 'delete'
@@ -103,3 +104,29 @@ def allowed_share_groups(request, apiary):
     if is_platform_admin(user):
         return None
     return {p for p in map(association_path, owner_group_paths(apiary.owner)) if p}
+
+
+def owner_transfer_groups(request, apiary):
+    """
+    Associations within which the requester may hand this apiary over: the
+    ones they administer and the current owner belongs to, so a group
+    administrator never reaches the apiary of someone outside their group.
+    `None` means any association (platform admin).
+    """
+    user = _authenticated(request)
+    if user is None:
+        return set()
+    if is_platform_admin(user):
+        return None
+    administered = {g for g in administered_groups(membership_paths(request)) if is_beekeeper_group(g)}
+    if not administered:
+        # Most requesters: no need to look up the owner's groups
+        return set()
+    owner_associations = {p for p in map(association_path, owner_group_paths(apiary.owner)) if p}
+    return administered & owner_associations
+
+
+def can_change_owner(request, apiary) -> bool:
+    """Handing an apiary over: a platform admin, or the administrator of the owner's group."""
+    allowed = owner_transfer_groups(request, apiary)
+    return allowed is None or bool(allowed)

@@ -21,6 +21,7 @@ This document describes the permissions logic for all `/apiaries/` endpoints in 
 | GET /apiaries/{id}/    | all           | own + group(read) | own + group(read) | group(read)   |
 | PATCH /apiaries/{id}/  | all           | own + group(update)| own + group(update)| group(update) |
 | DELETE /apiaries/{id}/ | all           | own + group(delete)| own + group(delete)| group(delete) |
+| PUT /apiaries/{id}/owner/ | all        | -                 | group admin, owner in the group | - |
 
 ### Legend
 - **all**: All apiaries
@@ -32,6 +33,7 @@ This document describes the permissions logic for all `/apiaries/` endpoints in 
 ## Details
 - **Admin** users have full access to all apiaries and all actions.
 - **Beekeeper** users can always manage their own apiaries, and may have additional access via group permissions.
+- **Hand-over**: a platform admin, or the administrator (`<group>/admin`) of an association the current owner belongs to, changes the owner of an apiary, to a member of that association. The group's members are listed by first and last name only. The former owner no longer sees the apiary unless it is shared with their group.
 - **Other** users (trappers, hunters) have no access to the apiaries API, which requires `beekeeper` or `admin`.
 - All access is enforced both at the list and detail endpoints.
 - Geographical filtering is available on GET endpoints via `lat`, `lon`, and `radius` query parameters.

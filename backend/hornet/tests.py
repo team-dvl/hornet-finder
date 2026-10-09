@@ -1848,7 +1848,8 @@ class ApiaryVisibilityTests(ApiaryTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['owner']['guid'], str(self.owner_guid))
         self.assertEqual(response.data['permissions'],
-                         {'update': True, 'delete': False, 'share': False})
+                         {'read': True, 'update': True, 'delete': False, 'share': False,
+                          'change_owner': False})
 
 
 class ApiaryWriteTests(ApiaryTestCase):
@@ -2221,7 +2222,8 @@ class ApiaryManagerTests(ApiaryTestCase):
         response = self._managed(self.member_user, 'scope=mine')
         row = next(r for r in response.data['results'] if r['id'] == self.shared.id)
         self.assertEqual(row['address'], 'Chemin des Ruches 7')
-        self.assertEqual(row['permissions'], {'update': True, 'delete': True, 'share': True})
+        self.assertEqual(row['permissions'], {
+            'read': True, 'update': True, 'delete': True, 'share': True, 'change_owner': False})
 
     def test_pagination(self):
         response = self._managed(self.owner_user, 'page_size=1')
@@ -3390,3 +3392,116 @@ class AfscaNumberTests(ApiaryTestCase):
         force_authenticate(request, user=self.owner_user)
         response = ApiaryViewSet.as_view({'get': 'managed'})(request)
         self.assertEqual([a['id'] for a in response.data['results']], [self.apiary.id])
+
+
+# ---------------------------------------------------------------------------
+# Apiary hand-over (`/apiaries/<id>/owner/`)
+# ---------------------------------------------------------------------------
+
+class ApiaryOwnerTransferTests(GroupInvitationTestCase):
+    """A platform admin, or the administrator of the owner's group, hands an apiary over."""
+
+    def setUp(self):
+        super().setUp()
+        patcher = patch('hornet.serializers.get_user_display_name', return_value='Tester')
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.kc.groups[_ENA_ADMIN] = {'id': 'gid-ena-admin', 'path': _ENA_ADMIN, 'name': 'admin',
+                                      'attributes': {}}
+        # `aga` administers ena; `member` is a direct member; `newcomer` never signed in here
+        self.newcomer_guid = str(uuid_module.uuid4())
+        self.kc.members['gid-ena'] = [
+            {'id': self.member.guid, 'firstName': 'Anne', 'lastName': 'Bastin',
+             'email': 'anne@example.org'},
+            {'id': self.newcomer_guid, 'firstName': 'Zoé', 'lastName': 'Zimmer'},
+        ]
+        self.kc.members['gid-ena-admin'] = [{'id': self.aga.guid, 'firstName': 'Jean', 'lastName': 'Lambert'}]
+        self.kc.members['gid-vsab'] = [{'id': self.invitee_guid, 'firstName': 'Pi', 'lastName': 'Abeille'}]
+        # The administrator created the apiary for a member who is not at ease with the app
+        self.apiary = Apiary.objects.create(
+            latitude=50.5, longitude=4.5, created_by_id=self.aga.guid, owner_id=self.aga.guid)
+
+    def _owner(self, method, user, data=None, query=''):
+        return self._call(ApiaryViewSet, method, f'/api/apiaries/{self.apiary.id}/owner/{query}',
+                          {'get': 'owner', 'put': 'owner'}, user, data, pk=self.apiary.id)
+
+    def test_group_admin_hands_the_apiary_over_to_a_member(self):
+        response = self._owner('put', self.aga, {'owner_guid': self.member.guid, 'group_path': _ENA})
+        self.assertEqual(response.status_code, 200, response.data)
+        self.apiary.refresh_from_db()
+        self.assertEqual(str(self.apiary.owner_id), self.member.guid)
+        # The creator is kept, and the former owner no longer sees it
+        self.assertEqual(str(self.apiary.created_by_id), self.aga.guid)
+        self.assertFalse(response.data['permissions']['read'])
+
+    def test_a_member_who_never_signed_in_gets_a_local_user(self):
+        response = self._owner('put', self.aga, {'owner_guid': self.newcomer_guid, 'group_path': _ENA})
+        self.assertEqual(response.status_code, 200, response.data)
+        self.apiary.refresh_from_db()
+        self.assertEqual(str(self.apiary.owner_id), self.newcomer_guid)
+
+    def test_candidates_are_named_without_email(self):
+        response = self._owner('get', self.aga, query=f'?group_path={_ENA}')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([g['path'] for g in response.data['groups']], [_ENA])
+        self.assertEqual([m['name'] for m in response.data['members']], ['Anne Bastin', 'Jean Lambert', 'Zoé Zimmer'])
+        self.assertNotIn('example.org', str(response.data))
+
+    def test_the_target_must_belong_to_the_group(self):
+        outsider = str(uuid_module.uuid4())
+        data = {'owner_guid': outsider, 'group_path': _ENA}
+        self.assertEqual(self._owner('put', self.aga, data).status_code, 400)
+        data = {'owner_guid': self.invitee_guid, 'group_path': _ENA}
+        self.assertEqual(self._owner('put', self.aga, data).status_code, 400)
+        self.assertEqual(self._owner('put', self.aga, {'owner_guid': 'x', 'group_path': _ENA}).status_code, 400)
+        self.assertEqual(self._owner('put', self.aga, {'owner_guid': self.member.guid}).status_code, 400)
+
+    def test_group_admin_cannot_use_another_group(self):
+        data = {'owner_guid': self.invitee_guid, 'group_path': _VSAB}
+        self.assertEqual(self._owner('put', self.aga, data).status_code, 403)
+        self.assertEqual(self._owner('get', self.aga, query=f'?group_path={_VSAB}').status_code, 403)
+        self.apiary.refresh_from_db()
+        self.assertEqual(str(self.apiary.owner_id), self.aga.guid)
+
+    def test_group_admin_cannot_take_the_apiary_of_someone_outside_the_group(self):
+        outsider = User.objects.create(guid=uuid_module.uuid4(), group_paths=[_VSAB])
+        Apiary.objects.filter(pk=self.apiary.pk).update(owner=outsider)
+        data = {'owner_guid': self.member.guid, 'group_path': _ENA}
+        self.assertEqual(self._owner('put', self.aga, data).status_code, 403)
+        self.assertEqual(self._owner('get', self.aga).status_code, 403)
+
+    def test_members_and_plain_owners_cannot_hand_over(self):
+        Apiary.objects.filter(pk=self.apiary.pk).update(owner_id=self.member.guid)
+        data = {'owner_guid': self.newcomer_guid, 'group_path': _ENA}
+        for user in (self.member, self.trappers_admin):
+            self.assertEqual(self._owner('put', user, data).status_code, 403)
+            self.assertEqual(self._owner('get', user).status_code, 403)
+
+    def test_platform_admin_chooses_any_association(self):
+        response = self._owner('get', self.admin)
+        self.assertEqual([g['path'] for g in response.data['groups']], [_ENA, _VSAB])
+        data = {'owner_guid': self.invitee_guid, 'group_path': _VSAB}
+        self.assertEqual(self._owner('put', self.admin, data).status_code, 200)
+        self.apiary.refresh_from_db()
+        self.assertEqual(str(self.apiary.owner_id), self.invitee_guid)
+
+    def test_platform_admin_can_still_name_a_known_user_directly(self):
+        response = self._owner('put', self.admin, {'owner_guid': self.member.guid})
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(self._owner('put', self.admin, {'owner_guid': str(uuid_module.uuid4())}).status_code, 400)
+
+    def test_permissions_tell_who_may_hand_over(self):
+        def flag(user):
+            request = self.factory.get(f'/api/apiaries/{self.apiary.id}/')
+            force_authenticate(request, user=user)
+            response = ApiaryViewSet.as_view({'get': 'retrieve'})(request, pk=self.apiary.id)
+            self.assertEqual(response.status_code, 200, response.data)
+            return response.data['permissions']['change_owner']
+        self.assertTrue(flag(self.aga))      # owner and administrator
+        self.assertTrue(flag(self.admin))
+        # Shared with the group, a member's apiary is readable by its administrator, not handed over by peers
+        Apiary.objects.filter(pk=self.apiary.pk).update(owner_id=self.member.guid)
+        ApiaryGroupPermission.objects.create(
+            apiary=self.apiary, group=BeekeeperGroup.objects.create(name='ena', path=_ENA), can_read=True)
+        self.assertTrue(flag(self.aga))
+        self.assertFalse(flag(self.member))

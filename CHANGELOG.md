@@ -15,6 +15,12 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   the home screen (an "Installer" button on Android, the share-menu steps on
   iOS). Closing it postpones the next suggestion by 30 days; the menu entry
   "Installer l'app" stays available until the app is installed.
+- Apiary sheet, "Changer de propriétaire": a platform administrator, or the
+  administrator of a beekeeper association (for its own members), hands an
+  apiary over to a member of the association, listed by first and last name. An
+  administrator can thus create an apiary for a beekeeper who is not at ease
+  with the app, then transfer it. The former owner no longer sees it unless it
+  is shared with their association.
 
 ## [1.3.0] - 2026-10-09
 

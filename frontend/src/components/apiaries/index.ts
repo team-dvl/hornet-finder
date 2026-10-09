@@ -1,4 +1,5 @@
 export { default as ApiaryFormModal } from './ApiaryFormModal';
+export { default as ApiaryOwnerModal } from './ApiaryOwnerModal';
 export { default as ApiarySharingPanel } from './ApiarySharingPanel';
 export { default as ApiaryListItem } from './ApiaryListItem';
 export { default as ApiaryListToolbar } from './ApiaryListToolbar';

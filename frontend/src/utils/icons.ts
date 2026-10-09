@@ -20,6 +20,7 @@ export const ACTION_ICONS = {
   delete: 'trash',
   archive: 'archive',
   move: 'arrows-move',
+  transfer: 'arrow-left-right',
   scan: 'qr-code-scan',
   locate: 'crosshair',
   showOnMap: 'geo-alt-fill',

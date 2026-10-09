@@ -37,7 +37,7 @@ export interface Apiary {
   owner?: { guid: string; display_name: string } | null;
   extended_permissions?: ApiaryGroupGrant[];
   /** What the current user may do, computed by the backend */
-  permissions?: { update: boolean; delete: boolean; share: boolean };
+  permissions?: { read: boolean; update: boolean; delete: boolean; share: boolean; change_owner: boolean };
 }
 
 /** Payload shared by the create and update forms. */
@@ -56,6 +56,15 @@ export interface ApiarySharingInfo {
   can_share: boolean;
   /** Named as in Keycloak; every association for a platform admin */
   allowed_groups: { path: string; name: string }[];
+}
+
+/** Who an apiary can be handed over to (`GET /apiaries/:id/owner/`) */
+export interface ApiaryOwnerChoices {
+  /** Associations to pick the new owner from */
+  groups: { path: string; name: string }[];
+  owner_guid: string | null;
+  /** Present when a group was asked for; first and last name, `null` without any */
+  members?: { guid: string; name: string | null }[];
 }
 
 /** Whose apiaries the manager lists */
@@ -274,6 +283,32 @@ export const unshareApiary = createAsyncThunk(
   }
 );
 
+/** Groups, and the members of one of them, the apiary can be handed over to. */
+export const fetchApiaryOwnerChoices = createAsyncThunk(
+  'apiaries/fetchApiaryOwnerChoices',
+  async ({ id, groupPath }: { id: number; groupPath?: string }, { rejectWithValue }) => {
+    try {
+      const response = await api.get(`/apiaries/${id}/owner/`, { params: groupPath ? { group_path: groupPath } : {} });
+      return response.data as ApiaryOwnerChoices;
+    } catch (error: unknown) {
+      return rejectWithValue(getAxiosErrorMessage(error));
+    }
+  }
+);
+
+/** Hand the apiary over to a member of `groupPath`. */
+export const transferApiary = createAsyncThunk(
+  'apiaries/transferApiary',
+  async ({ id, ownerGuid, groupPath }: { id: number; ownerGuid: string; groupPath: string }, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`/apiaries/${id}/owner/`, { owner_guid: ownerGuid, group_path: groupPath });
+      return response.data as Apiary;
+    } catch (error: unknown) {
+      return rejectWithValue(getAxiosErrorMessage(error));
+    }
+  }
+);
+
 // Thunk async pour supprimer un rucher
 export const deleteApiary = createAsyncThunk(
   'apiaries/deleteApiary',
@@ -433,6 +468,19 @@ const apiariesSlice = createSlice({
       .addCase(deleteApiary.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+      })
+      // The former owner may no longer see the apiary once handed over
+      .addCase(transferApiary.fulfilled, (state, action) => {
+        const handedOver = action.payload;
+        if (handedOver.permissions?.read !== false) {
+          refresh(state, handedOver);
+          return;
+        }
+        state.apiaries = state.apiaries.filter((apiary) => apiary.id !== handedOver.id);
+        if (state.managed.items.some((apiary) => apiary.id === handedOver.id)) {
+          state.managed.items = state.managed.items.filter((apiary) => apiary.id !== handedOver.id);
+          state.managed.count = Math.max(0, state.managed.count - 1);
+        }
       })
       // Photo removal and sharing return the updated apiary
       .addMatcher(

@@ -2,6 +2,7 @@
 
 import logging
 import re
+import uuid
 
 from django.db.models import F, Prefetch, Q, Value
 from django.db.models.functions import Replace
@@ -15,12 +16,15 @@ from rest_framework.response import Response
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 
+from hornet_finder_api import utils as keycloak
 from hornet_finder_api.authentication import HasAnyRole, JWTBearerAuthentication
 
 from . import apiary_permissions as perms
 from .afsca import afsca_digits
 from .models import Apiary, ApiaryGroupPermission, User
 from .serializers import ApiarySerializer
+from .group_views import _Roster, _full_name
+from .invitation_views import _keycloak, _sort_key, is_beekeeper_group
 from .trap_permissions import local_user
 from .trap_views import _delete_files, _group_choices, _group_for_path, _store_photo
 from .views import GeographicFilterMixin, geographic_list_schema
@@ -286,24 +290,85 @@ class ApiaryViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         return self._fresh(apiary)
 
     @extend_schema(
+        parameters=[OpenApiParameter(name='group_path', type=OpenApiTypes.STR,
+                                     location=OpenApiParameter.QUERY, required=False,
+                                     description='GET: the group whose members are listed')],
         request={'application/json': {'type': 'object',
-                                      'properties': {'owner_guid': {'type': 'string'}}}},
+                                      'properties': {'owner_guid': {'type': 'string'},
+                                                     'group_path': {'type': 'string'}}}},
         responses={200: ApiarySerializer},
     )
-    @action(detail=True, methods=['put'], url_path='owner')
+    @action(detail=True, methods=['get', 'put'], url_path='owner')
     def owner(self, request, pk=None):
-        """Hand an apiary over to another beekeeper. Platform admins only."""
+        """
+        Hand an apiary over to another beekeeper: a platform admin, or the
+        administrator of a group the owner belongs to, to a member of that group.
+
+        GET: the groups to choose from and, with `?group_path=`, their members
+        (first and last name, never an email). PUT: `owner_guid`, and the
+        `group_path` the person was picked from (optional for a platform admin).
+        """
         apiary = self.get_object()
-        if not perms.is_platform_admin(request.user):
-            raise PermissionDenied("Only a platform administrator can change the owner.")
+        allowed = perms.owner_transfer_groups(request, apiary)
+        if allowed is not None and not allowed:
+            raise PermissionDenied("You cannot change the owner of this apiary.")
+
+        if request.method == 'GET':
+            return Response(self._transfer_choices(request, apiary, allowed))
+
         owner_guid = request.data.get('owner_guid')
         if not owner_guid:
             raise DRFValidationError({'owner_guid': "This field is required."})
-        new_owner = User.objects.filter(guid=owner_guid).first()
-        if new_owner is None:
-            raise DRFValidationError({'owner_guid': "Unknown user."})
+        group_path = request.data.get('group_path')
+        if group_path or allowed is not None:
+            new_owner = self._member_user(group_path, owner_guid, allowed)
+        else:
+            new_owner = User.objects.filter(guid=owner_guid).first()
+            if new_owner is None:
+                raise DRFValidationError({'owner_guid': "Unknown user."})
         previous = apiary.owner_id
         apiary.owner = new_owner
         apiary.save(update_fields=['owner'])
-        logger.info("Apiary %s reassigned from %s to %s", apiary.id, previous, new_owner.guid)
-        return Response(self.get_serializer(apiary).data)
+        logger.info("Apiary %s reassigned from %s to %s by %s", apiary.id, previous,
+                    new_owner.guid, getattr(request.user, 'guid', None))
+        return self._fresh(apiary)
+
+    def _transfer_choices(self, request, apiary, allowed):
+        groups = _group_choices(allowed)
+        group_path = request.query_params.get('group_path', '').strip()
+        data = {'groups': groups, 'owner_guid': str(apiary.owner_id) if apiary.owner_id else None}
+        if group_path:
+            self._check_transfer_group(group_path, allowed)
+            roster = _Roster(group_path, self._keycloak_group(group_path))
+            data['members'] = sorted(
+                ({'guid': guid, 'name': _full_name(user)} for guid, user in roster.users.items()),
+                key=lambda m: _sort_key(m['name'] or '~'),
+            )
+        return data
+
+    @staticmethod
+    def _check_transfer_group(group_path, allowed):
+        if not is_beekeeper_group(group_path) or (allowed is not None and group_path not in allowed):
+            raise PermissionDenied(f"You cannot hand this apiary over within {group_path}.")
+
+    @staticmethod
+    def _keycloak_group(group_path):
+        group = _keycloak(keycloak.get_group_by_path, group_path)
+        if group is None:
+            raise DRFValidationError({'group_path': "Unknown group."})
+        return group
+
+    def _member_user(self, group_path, owner_guid, allowed):
+        """The local user of a member of `group_path`, created if they never signed in."""
+        if not group_path:
+            raise DRFValidationError({'group_path': "This field is required."})
+        self._check_transfer_group(group_path, allowed)
+        try:
+            guid = str(uuid.UUID(str(owner_guid)))
+        except ValueError:
+            raise DRFValidationError({'owner_guid': "Invalid identifier."})
+        roster = _Roster(group_path, self._keycloak_group(group_path))
+        if guid not in roster:
+            raise DRFValidationError({'owner_guid': "This person is not a member of the group."})
+        user, _ = User.objects.get_or_create(guid=guid)
+        return user
