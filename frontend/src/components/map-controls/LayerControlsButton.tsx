@@ -42,6 +42,8 @@ import HornetColorFilterPanel from './HornetColorFilterPanel';
 interface LayerControlsButtonProps {
   showApiariesButton?: boolean;
   showNestsButton?: boolean;
+  /** Opens the list of the nests nearest to the user */
+  onShowNearestNests?: () => void;
 }
 
 /** One layer switch; `sub` indents an option of the layer above. */
@@ -65,7 +67,8 @@ function LayerSwitch({ id, icon, label, checked, onChange, sub = false }: {
 /** Map button opening the layers sheet: layers (archives included for admins), hornet colour filter. */
 export default function LayerControlsButton({ 
   showApiariesButton = false, 
-  showNestsButton = false 
+  showNestsButton = false,
+  onShowNearestNests,
 }: LayerControlsButtonProps) {
   const [open, setOpen] = useState(false);
   const dispatch = useAppDispatch();
@@ -113,6 +116,21 @@ export default function LayerControlsButton({
         )}
         {showNestsButton && (
           <LayerSwitch id="layer-nests" icon={OBJECT_ICONS.nest} label="Nids" checked={showNests} onChange={() => dispatch(toggleNests())} />
+        )}
+        {showNestsButton && onShowNearestNests && (
+          <button
+            type="button"
+            className="layer-switch layer-switch-sub layer-action"
+            onClick={() => {
+              // One overlay at a time: the list replaces this sheet
+              setOpen(false);
+              onShowNearestNests();
+            }}
+          >
+            <span className="me-2" aria-hidden="true">📏</span>
+            <span className="flex-grow-1">Nids les plus proches</span>
+            <i className="bi bi-chevron-right" aria-hidden="true" />
+          </button>
         )}
         {showApiariesButton && (
           <LayerSwitch id="layer-apiaries" icon={OBJECT_ICONS.apiary} label="Ruchers" checked={showApiaries} onChange={() => dispatch(toggleApiaries())} />

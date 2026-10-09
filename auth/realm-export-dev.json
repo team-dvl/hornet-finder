@@ -641,7 +641,21 @@
       "name": "hunters",
       "description": "Chasseurs de nids",
       "path": "/hunters",
-      "subGroups": [],
+      "subGroups": [
+        {
+          "id": "333b94c1-56ac-40e2-b90b-781db6785162",
+          "name": "admin",
+          "description": "Coordinateurs des chasseurs de nids",
+          "path": "/hunters/admin",
+          "parentId": "c80bc5ca-7840-411c-8754-bf78a85db170",
+          "subGroups": [],
+          "attributes": {},
+          "realmRoles": [
+            "group-admin"
+          ],
+          "clientRoles": {}
+        }
+      ],
       "attributes": {},
       "realmRoles": [
         "hunter"
@@ -3675,7 +3689,7 @@
     "actionTokenGeneratedByUserLifespan.reset-credentials": "",
     "darkMode": "false"
   },
-  "keycloakVersion": "26.7.4",
+  "keycloakVersion": "26.8.0",
   "userManagedAccessAllowed": true,
   "organizationsEnabled": false,
   "verifiableCredentialsEnabled": false,

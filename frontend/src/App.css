@@ -12,9 +12,17 @@ body {
   min-height: 100dvh;
 }
 
+/* Height of the "server unreachable" strip under the navbar, 0 while it is not shown */
+:root {
+  --reach-banner-h: 0px;
+}
+:root.reach-banner-shown {
+  --reach-banner-h: 2.75rem;
+}
+
 /* Scrolling pages (landing, placeholders) rendered under the fixed-top navbar */
 .page-content {
-  padding-top: calc(4rem + env(safe-area-inset-top));
+  padding-top: calc(4rem + var(--reach-banner-h) + env(safe-area-inset-top));
   min-height: 100vh;
   min-height: 100dvh;
   background-color: var(--bs-light);
@@ -118,6 +126,23 @@ button.module-card {
 
 .navbar.navbar-transparent.navbar-opaque {
   background-color: var(--bs-light) !important;
+}
+
+/* "Server unreachable" strip, hanging under the navbar (the navbar's backdrop
+   filter makes it the containing block, so `top: 100%` is its bottom edge) */
+.reach-banner {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: var(--reach-banner-h);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 calc(0.75rem + env(safe-area-inset-right)) 0 calc(0.75rem + env(safe-area-inset-left));
+  background-color: var(--bs-warning-bg-subtle);
+  color: var(--bs-warning-text-emphasis);
+  border-bottom: 1px solid var(--bs-warning-border-subtle);
 }
 
 /* Title of the bar: takes the room left by the menu button, never pushes it to a new line */
@@ -269,7 +294,7 @@ button.module-card {
 /* Map controls: a column of round buttons, top right, under the navbar */
 .map-controls-container {
   position: absolute;
-  top: calc(4.5rem + env(safe-area-inset-top));
+  top: calc(4.5rem + var(--reach-banner-h) + env(safe-area-inset-top));
   right: calc(0.75rem + env(safe-area-inset-right));
   z-index: 1000;
   display: flex;
@@ -322,7 +347,7 @@ button.module-card {
 /* Floating banners of the map (errors, status), under the navbar, clear of the buttons */
 .map-banner {
   position: absolute;
-  top: calc(4.5rem + env(safe-area-inset-top));
+  top: calc(4.5rem + var(--reach-banner-h) + env(safe-area-inset-top));
   left: 0.75rem;
   right: 4.75rem;
   z-index: 1001;
@@ -353,6 +378,20 @@ button.module-card {
   padding-left: 1.5rem;
   font-size: 0.925rem;
   color: var(--bs-secondary-color);
+}
+
+/* Action row of the layers sheet (opens a list rather than toggling a layer) */
+.layer-action {
+  width: 100%;
+  border: 0;
+  background: none;
+  text-align: start;
+}
+
+/* Distance column of the nearest nests: aligned figures */
+.nearest-nest-distance {
+  min-width: 4rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .layer-switch .form-check-input {
@@ -688,6 +727,40 @@ button.module-card {
   padding: 0.2rem 0;
 }
 
+/* Photos of a nest: square tiles that wrap, the last one adds photos */
+.nest-photo-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.nest-photo-tile {
+  width: 4.5rem;
+  height: 4.5rem;
+  flex-shrink: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.625rem;
+  background: var(--bs-secondary-bg);
+}
+
+.nest-photo-tile img,
+.nest-photo-tile > span {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nest-photo-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-style: dashed;
+  color: var(--bs-secondary-color);
+  font-size: 1.5rem;
+}
+
 /* Action bar of an object sheet: the main action with its label, the others as icons */
 .sheet-actions {
   display: flex;
@@ -920,7 +993,7 @@ button.module-card {
 /* Map opened by another module (view modes `trap`, `trap-move`): back to the caller */
 .map-back-button {
   position: absolute;
-  top: calc(4.5rem + env(safe-area-inset-top));
+  top: calc(4.5rem + var(--reach-banner-h) + env(safe-area-inset-top));
   left: calc(0.75rem + env(safe-area-inset-left));
   z-index: 1000;
   width: auto;
@@ -1224,7 +1297,7 @@ button.module-card {
 
 .trap-manager-notice {
   position: fixed;
-  top: calc(4.5rem + env(safe-area-inset-top));
+  top: calc(4.5rem + var(--reach-banner-h) + env(safe-area-inset-top));
   left: 0.75rem;
   right: 0.75rem;
   z-index: 1040;

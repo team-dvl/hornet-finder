@@ -4,6 +4,7 @@ import { useAuth } from 'react-oidc-context';
 import { useAppDispatch } from '../../store/hooks';
 import { createNest } from '../../store/store';
 import { AppModal } from '../ui';
+import { PhotoInput } from '../traps';
 import { OBJECT_ICONS } from '../../utils/icons';
 import { reverseGeocode } from '../../utils/geocoding';
 
@@ -19,6 +20,7 @@ export default function AddNestPopup({ show, onHide, latitude, longitude, onSucc
   const [publicPlace, setPublicPlace] = useState(false);
   const [address, setAddress] = useState('');
   const [comments, setComments] = useState('');
+  const [photos, setPhotos] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,7 +45,7 @@ export default function AddNestPopup({ show, onHide, latitude, longitude, onSucc
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!auth.user?.access_token) {
+    if (!auth.isAuthenticated) {
       setError('Vous devez être connecté pour ajouter un nid');
       return;
     }
@@ -58,14 +60,14 @@ export default function AddNestPopup({ show, onHide, latitude, longitude, onSucc
         public_place: publicPlace,
         address: address.trim() || undefined,
         comments: comments.trim() || undefined,
-        accessToken: auth.user.access_token,
-        userGuid: auth.user?.profile?.sub || ''
+        photos,
       })).unwrap();
 
       // Réinitialiser le formulaire
       setPublicPlace(false);
       setAddress('');
       setComments('');
+      setPhotos([]);
       
       // Fermer la popup et notifier le succès
       onHide();
@@ -84,6 +86,7 @@ export default function AddNestPopup({ show, onHide, latitude, longitude, onSucc
       setPublicPlace(false);
       setAddress('');
       setComments('');
+      setPhotos([]);
       setError(null);
       onHide();
     }
@@ -125,6 +128,8 @@ export default function AddNestPopup({ show, onHide, latitude, longitude, onSucc
           onChange={(e) => setAddress(e.target.value)}
         />
       </Form.Group>
+
+      <PhotoInput label="Photos" multiple onChange={setPhotos} disabled={loading} />
 
       <Form.Group className="mb-0" controlId="nest-comments">
         <Form.Label>Commentaire</Form.Label>

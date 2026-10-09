@@ -3,9 +3,6 @@
 import logging
 import uuid
 
-from django.contrib.gis.db.models.functions import Distance
-from django.contrib.gis.geos import Point
-from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import models as db_models, transaction
 from django.db.models import Exists, F, Max, OuterRef, Prefetch, ProtectedError
 from django.utils import timezone
@@ -25,7 +22,7 @@ from hornet_finder_api.roles import APP_ROLES, BEEKEEPER, TRAPPER
 
 from . import trap_permissions as perms
 from .invitation_views import BEEKEEPERS_ROOT, _sort_key
-from .images import processed_image
+from .images import delete_files as _delete_files, store_photo as _store_photo
 from .models import BeekeeperGroup, Species, Tag, Trap, TrapEvent, TrapPhoto, TrapType, User
 from .serializers import (
     CatchSerializer, PublicTrapSerializer, SpeciesSerializer, TrapDetailSerializer, TrapEventSerializer,
@@ -42,7 +39,6 @@ MANAGED_ORDERINGS = {
     'installed_at': 'installed_at',
     'address': 'address',
     'id': 'id',
-    'distance': 'distance',
 }
 
 
@@ -105,24 +101,6 @@ def _group_for_path(path: str) -> BeekeeperGroup:
         group.name = name
         group.save(update_fields=['name'])
     return group
-
-
-def _store_photo(target, file_field, thumb_field, uploaded):
-    """Resize an upload and store it in the given image fields of `target`."""
-    try:
-        basename, full, thumbnail = processed_image(uploaded)
-    except DjangoValidationError as exc:
-        # A rejected upload is a bad request, not a server error
-        raise DRFValidationError({'photo': exc.messages}) from exc
-    getattr(target, file_field).save(f"{basename}.jpg", full, save=False)
-    getattr(target, thumb_field).save(f"{basename}_thumb.jpg", thumbnail, save=False)
-
-
-def _delete_files(*image_fields):
-    """Remove the files backing image fields, ignoring already-missing ones."""
-    for field in image_fields:
-        if field:
-            field.delete(save=False)
 
 
 class ReferentialViewSet(viewsets.ModelViewSet):
@@ -332,11 +310,7 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
                              location=OpenApiParameter.QUERY, required=False,
                              description=("One of " + ', '.join(sorted(MANAGED_ORDERINGS))
                                           + ", prefixed with '-' for descending order. "
-                                          "'distance' needs lat and lon")),
-            OpenApiParameter(name='lat', type=OpenApiTypes.FLOAT, location=OpenApiParameter.QUERY,
-                             required=False),
-            OpenApiParameter(name='lon', type=OpenApiTypes.FLOAT, location=OpenApiParameter.QUERY,
-                             required=False),
+                                          "No ordering by distance")),
             OpenApiParameter(name='page', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY,
                              required=False),
             OpenApiParameter(name='page_size', type=OpenApiTypes.INT,
@@ -398,12 +372,6 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         descending = ordering.startswith('-')
         if field not in MANAGED_ORDERINGS:
             raise DRFValidationError({'ordering': f"Unknown ordering '{ordering}'."})
-        if field == 'distance':
-            try:
-                center = Point(float(params['lon']), float(params['lat']), srid=4326)
-            except (KeyError, ValueError):
-                raise DRFValidationError({'ordering': "Sorting by distance needs lat and lon."})
-            queryset = queryset.annotate(distance=Distance('point', center))
         expression = F(MANAGED_ORDERINGS[field])
         # Never visited traps are the most overdue: first in ascending order
         expression = (expression.desc(nulls_last=True) if descending

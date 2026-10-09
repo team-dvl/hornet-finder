@@ -9,6 +9,7 @@ interface MapControlsContainerProps {
   onErrorUpdate: (error: string | null) => void;
   showApiariesButton?: boolean;
   showNestsButton?: boolean;
+  onShowNearestNests?: () => void;
   onQuickHornetCapture?: () => void;
   onAddTrap?: () => void;
   onScanTag?: () => void;
@@ -20,6 +21,7 @@ export default function MapControlsContainer({
   onErrorUpdate, 
   showApiariesButton = false, 
   showNestsButton = false,
+  onShowNearestNests,
   onQuickHornetCapture,
   onAddTrap,
   onScanTag
@@ -38,6 +40,7 @@ export default function MapControlsContainer({
         <LayerControlsButton 
           showApiariesButton={showApiariesButton}
           showNestsButton={showNestsButton}
+          onShowNearestNests={onShowNearestNests}
         />
         <AddActionsButton
           onQuickHornetCapture={compassSupported ? onQuickHornetCapture : undefined}

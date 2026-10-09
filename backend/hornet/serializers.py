@@ -1,12 +1,16 @@
 import json
+from datetime import timedelta
 from typing import Optional
 from django.db.models import Max
+from django.utils import timezone
 
 from rest_framework import serializers
 from . import apiary_permissions as apiary_perms
+from .afsca import AFSCA_DIGITS, AFSCA_FORMAT, normalize_afsca
+from . import nest_permissions as nest_perms
 from .trap_permissions import is_publicly_visible
 from .models import (
-    Apiary, Hornet, Nest, Species, Trap, TrapEvent, TrapPhoto, TrapType, User,
+    Apiary, Hornet, Nest, NestPhoto, Species, Trap, TrapEvent, TrapPhoto, TrapType, User,
     HORNET_SPECIES_SLUG, unique_slug,
 )
 from hornet_finder_api.utils import user_exists, get_user_display_name
@@ -79,12 +83,34 @@ class HornetSerializer(GPSValidationMixin, serializers.ModelSerializer):
 
 
 
+class NestPhotoSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+    thumbnail_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = NestPhoto
+        fields = ['id', 'url', 'thumbnail_url', 'created_at']
+        read_only_fields = fields
+
+    def get_url(self, instance) -> Optional[str]:
+        return instance.image.url if instance.image else None
+
+    def get_thumbnail_url(self, instance) -> Optional[str]:
+        return instance.thumbnail.url if instance.thumbnail else None
+
+
+# A phone's clock may run slightly ahead of the server's
+DESTROYED_AT_CLOCK_SKEW = timedelta(minutes=5)
+
+
 class NestSerializer(GPSValidationMixin, serializers.ModelSerializer):
-    created_by = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
+    photos = NestPhotoSerializer(many=True, read_only=True)
+
     class Meta:
         model = Nest
-        fields = ['id', 'longitude', 'latitude', 'public_place', 'address', 'destroyed', 'destroyed_at', 'created_at', 'created_by', 'comments', 'archived', 'archived_at']
-        read_only_fields = ['id', 'created_at', 'archived', 'archived_at']
+        fields = ['id', 'longitude', 'latitude', 'public_place', 'address', 'destroyed', 'destroyed_at', 'created_at', 'created_by', 'comments', 'archived', 'archived_at', 'photos']
+        # The reporter is the requester, set by the view: never a form field
+        read_only_fields = ['id', 'created_at', 'created_by', 'archived', 'archived_at']
     
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -97,6 +123,16 @@ class NestSerializer(GPSValidationMixin, serializers.ModelSerializer):
             }
         else:
             data['created_by'] = None
+        # What the requester may do, so the UI does not have to redo the rules
+        request = self.context.get('request')
+        if request is not None:
+            data['permissions'] = {
+                'update': nest_perms.can_edit_nest(request, instance),
+                'photos': nest_perms.can_edit_nest(request, instance),
+                'reactivate': nest_perms.can_reactivate_nest(request),
+                'delete': nest_perms.can_delete_nest(request),
+                'nearby_apiaries': nest_perms.can_see_nearby_apiaries(request),
+            }
         return data
 
     def validate_address(self, value: str) -> str:
@@ -108,6 +144,37 @@ class NestSerializer(GPSValidationMixin, serializers.ModelSerializer):
             raise serializers.ValidationError("Address must be 255 characters or less.")
         
         return value
+
+    def validate_destroyed_at(self, value):
+        if value is not None and value > timezone.now() + DESTROYED_AT_CLOCK_SKEW:
+            raise serializers.ValidationError("The destruction date cannot be in the future.")
+        return value
+
+    def validate(self, attrs):
+        """
+        Keep `destroyed_at` in step with `destroyed`: set when the nest turns
+        destroyed (now, unless a date is given), cleared when an admin turns
+        it back. A destroyed nest only turns back through an admin.
+        """
+        instance = self.instance
+        was_destroyed = bool(instance and instance.destroyed)
+        destroyed = attrs.get('destroyed', was_destroyed)
+
+        if was_destroyed and not destroyed:
+            request = self.context.get('request')
+            if request is None or not nest_perms.can_reactivate_nest(request):
+                raise serializers.ValidationError(
+                    {'destroyed': "A destroyed nest can only be reactivated by an admin."}
+                )
+
+        if not destroyed:
+            attrs['destroyed_at'] = None
+        elif attrs.get('destroyed_at') is None:
+            # No date given: keep the recorded one, or stamp a new destruction
+            attrs.pop('destroyed_at', None)
+            if not was_destroyed:
+                attrs['destroyed_at'] = timezone.now()
+        return attrs
 
 class PublicNestSerializer(GPSValidationMixin, serializers.ModelSerializer):
     """
@@ -172,7 +239,15 @@ class ApiarySerializer(GPSValidationMixin, serializers.ModelSerializer):
         return data
 
     def validate_afsca_number(self, value: str) -> str:
-        return value.strip()
+        normalized = normalize_afsca(value)
+        if normalized is not None:
+            return normalized
+        # A number recorded before the format was enforced may be kept as is
+        if self.instance is not None and value.strip() == self.instance.afsca_number:
+            return self.instance.afsca_number
+        raise serializers.ValidationError(
+            f"An AFSCA number has {AFSCA_DIGITS} digits, written {AFSCA_FORMAT}."
+        )
 
     def validate_address(self, value: str) -> str:
         return value.strip()

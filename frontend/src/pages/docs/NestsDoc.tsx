@@ -40,10 +40,25 @@ export default function NestsDoc() {
         </h5>
         <ul className="mb-0">
           <li><strong>Chasseurs de nids :</strong> observations et lâchers de frelons, tous les nids</li>
+          <li><strong>Coordinateurs des chasseurs :</strong> modification des nids et de leurs photos, numéros AFSCA des ruchers à moins de 1 km</li>
           <li><strong>Piégeurs :</strong> signalement de nids ; ils voient les nids détruits et les leurs</li>
           <li><strong>Apiculteurs :</strong> Gestion des ruchers et signalements</li>
-          <li><strong>Administrateurs :</strong> Vue d'ensemble et coordination</li>
+          <li><strong>Administrateurs :</strong> Vue d'ensemble et coordination ; eux seuls réactivent un nid détruit</li>
         </ul>
+      </section>
+
+      <section className="mb-4">
+        <h5 className="text-primary">Signaler un nid</h5>
+        <p className="mb-0">
+          Un signalement peut être accompagné d'une ou plusieurs photos. Quand un nid est
+          neutralisé, sa date de destruction est retenue ; il ne peut plus être réactivé,
+          sauf par un administrateur.
+        </p>
+        <p className="mb-0 mt-2">
+          Chasseurs, apiculteurs et administrateurs trouvent dans <em>Couches → Nids les plus
+          proches</em> les nids de l&apos;année à 5 km au plus de leur position, du plus proche au
+          plus éloigné, avec leur distance à vol d&apos;oiseau.
+        </p>
       </section>
 
       <section>

@@ -5,7 +5,7 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { Apiary, updateApiary, selectApiaryById, deleteApiary } from '../../store/slices/apiariesSlice';
 import { ConfirmationModal } from '../modals';
 import InfestationLevelInput, { InfestationLevel } from '../common/InfestationLevelInput';
-import { AuthImage, ClampedText } from '../common';
+import { AfscaNumber, AuthImage, ClampedText } from '../common';
 import { ApiaryFormModal, ApiarySharingPanel } from '../apiaries';
 import { AppModal, FieldRow, IconButton, SheetActions } from '../ui';
 import { ACTION_ICONS, OBJECT_ICONS } from '../../utils/icons';
@@ -101,7 +101,7 @@ export default function ApiaryInfoPopup({ show, onHide, apiary, onAddAtLocation,
         />
 
         <div className="mt-3">
-          {current.afsca_number && <FieldRow label="N° AFSCA"><code>{current.afsca_number}</code></FieldRow>}
+          {current.afsca_number && <FieldRow label="N° AFSCA"><AfscaNumber value={current.afsca_number} /></FieldRow>}
           {current.owner && <FieldRow label="Propriétaire">{current.owner.display_name}</FieldRow>}
           {!creatorIsOwner && current.created_by && (
             <FieldRow label="Créé par">{current.created_by.display_name}</FieldRow>

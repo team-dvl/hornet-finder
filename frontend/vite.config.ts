@@ -50,6 +50,36 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       {
+        // DEV only. The dev service worker caches index.html but none of the
+        // modules Vite serves, so on a network that does not reach the server
+        // (edge firewall) React never starts and the page stays white. This
+        // inline script, part of the cached index.html, replaces the white page
+        // with a message once the app has not started after BOOT_WAIT_MS, or
+        // as soon as one of its scripts fails to load. React replaces it when
+        // it does start. The prod build is precached whole and needs no guard.
+        name: 'dev-boot-guard',
+        apply: 'serve',
+        transformIndexHtml: () => [{
+          tag: 'script',
+          injectTo: 'head-prepend',
+          children: `(function () {
+  var BOOT_WAIT_MS = 8000;
+  function show() {
+    var root = document.getElementById('root');
+    if (!root || root.childNodes.length) return;
+    root.innerHTML = '<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center;font:16px system-ui,sans-serif;color:#212529">'
+      + '<strong>Serveur injoignable</strong>'
+      + '<span>Le serveur de développement ne répond pas. Ce réseau n’est peut-être pas autorisé\u00a0: passez sur un Wi-Fi ou un VPN autorisé.</span>'
+      + '<button type="button" onclick="location.reload()" style="min-width:44px;min-height:44px;padding:8px 20px;border:0;border-radius:6px;background:#0d6efd;color:#fff;font:inherit">Réessayer</button></div>';
+  }
+  setTimeout(show, BOOT_WAIT_MS);
+  // A script that fails to load fires "error" on its element, which does not bubble
+  window.addEventListener('error', function (e) { if (e.target && e.target.tagName === 'SCRIPT') show(); }, true);
+  window.addEventListener('online', function () { if (!document.getElementById('root').childNodes.length) location.reload(); });
+})();`,
+        }],
+      },
+      {
         name: 'env-icons',
         transformIndexHtml: (html: string) => html
           .replace('href="/favicon.ico"', `href="/${versioned(`favicon${iconSuffix}.ico`)}"`)

@@ -7,7 +7,7 @@ import {
   type Trap, type TrapEvent, type TrapEventKind,
 } from '../../store/store';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
-import { ClampedText } from '../common';
+import { AuthImage, ClampedText } from '../common';
 import { ConfirmationModal } from '../modals';
 import { AppModal, FieldRow, IconButton, SheetActions } from '../ui';
 import { ACTION_ICONS, OBJECT_ICONS } from '../../utils/icons';
@@ -90,7 +90,7 @@ function EventRow({ event, canDelete, onDelete, onPreview }: {
         {event.photos.length > 0 && (
           <div className="d-flex flex-wrap gap-1 mt-1">
             {event.photos.map((photo) => (
-              <img
+              <AuthImage
                 key={photo.id}
                 src={photo.thumbnail_url ?? photo.url ?? ''}
                 alt="Photo de l'intervention"
@@ -180,7 +180,7 @@ function VisitRow({ events, accumulates, canDelete, onDelete, onPreview }: {
                 title={photo ? `Photo de la capture : ${name}` : name}
               >
                 {thumbnail ? (
-                  <img
+                  <AuthImage
                     src={thumbnail}
                     alt={name}
                     style={THUMBNAIL}
@@ -376,7 +376,7 @@ export default function TrapInfoPopup({
 
         <div className="trap-kpis mb-2">
           {current.photo_url && (
-            <img
+            <AuthImage
               src={current.photo_url}
               alt="Photo du piège"
               role="button"
@@ -551,7 +551,7 @@ export default function TrapInfoPopup({
         size="lg"
         bodyClassName="p-0 d-flex align-items-center bg-dark"
       >
-        {sub?.kind === 'photo' && <img src={sub.url} alt="Photo" className="w-100" />}
+        {sub?.kind === 'photo' && <AuthImage src={sub.url} alt="Photo" className="w-100" />}
       </AppModal>
     </>
   );

@@ -12,3 +12,6 @@ export { default as HelpTip } from './HelpTip';
 export { default as ClampedText } from './ClampedText';
 export { default as UserAvatar } from './UserAvatar';
 export { default as AuthImage } from './AuthImage';
+export { default as ErrorBoundary } from './ErrorBoundary';
+export { default as AfscaNumber } from './AfscaNumber';
+export { default as AfscaNumberInput } from './AfscaNumberInput';

@@ -11,8 +11,8 @@ interface PhotoInputProps {
 }
 
 /**
- * Photo picker for the traps module: a camera button (the camera opens on a
- * phone), the pictures downscaled before they reach the network, and
+ * Photo picker for the traps module: a camera button (a phone offers the
+ * camera or the photo library), the pictures downscaled before they reach the network, and
  * thumbnails of what will be sent.
  */
 export default function PhotoInput({ label = 'Photo', multiple = false, onChange, disabled }: PhotoInputProps) {
@@ -77,7 +77,6 @@ export default function PhotoInput({ label = 'Photo', multiple = false, onChange
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         multiple={multiple}
         className="d-none"
         onChange={handleFiles}

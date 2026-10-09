@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../../utils/api';
-import { getAxiosErrorMessage } from '../../utils/axiosTypes';
+import { getAxiosErrorMessage, type AxiosErrorResponse } from '../../utils/axiosTypes';
 
 // Interface pour les paramètres de géolocalisation
 export interface GeolocationParams {
@@ -16,6 +16,24 @@ export interface ArchiveFilterParams {
   archived?: 'true' | 'all';
 }
 
+export interface NestPhoto {
+  id: number;
+  /** Private media: shown through `AuthImage` */
+  url: string | null;
+  thumbnail_url: string | null;
+  created_at: string;
+}
+
+/** What the requester may do on a nest, computed by the backend (absent from the public list) */
+export interface NestPermissions {
+  update: boolean;
+  photos: boolean;
+  /** Turn a destroyed nest back into an active one (admins) */
+  reactivate: boolean;
+  delete: boolean;
+  nearby_apiaries: boolean;
+}
+
 // Types pour les données de nid
 export interface Nest {
   id?: number;
@@ -24,13 +42,40 @@ export interface Nest {
   public_place?: boolean;
   address?: string;
   destroyed?: boolean;
-  destroyed_at?: string;
+  /** Date of the destruction (neutralisation), kept by the backend */
+  destroyed_at?: string | null;
   created_at?: string;
   created_by?: { guid: string; display_name: string }; // GUID of the user who created the nest
-  comments?: string;
+  comments?: string | null;
   archived?: boolean;
   archived_at?: string;
+  photos?: NestPhoto[];
+  permissions?: NestPermissions;
 }
+
+/** Fields a nest manager may change */
+export interface NestUpdateValues {
+  latitude?: number;
+  longitude?: number;
+  public_place?: boolean;
+  address?: string;
+  comments?: string;
+  destroyed?: boolean;
+  /** ISO datetime; left out to keep the recorded date */
+  destroyed_at?: string;
+}
+
+/** First message of a DRF error, field errors included (`{"destroyed": ["…"]}`) */
+function nestErrorMessage(error: unknown): string {
+  const data = (error as AxiosErrorResponse).response?.data;
+  if (data && !data.detail && !data.message) {
+    const first = Object.values(data).flat().find((value) => typeof value === 'string');
+    if (first) return first as string;
+  }
+  return getAxiosErrorMessage(error);
+}
+
+const MULTIPART = { headers: { 'Content-Type': 'multipart/form-data' } };
 
 // État initial du slice
 interface NestsState {
@@ -111,88 +156,103 @@ export const fetchNestsDestroyedPublic = createAsyncThunk(
   }
 );
 
-// Thunk async pour créer un nouveau nid
+// Thunk async pour créer un nouveau nid, avec ses photos éventuelles.
+// Le signaleur est le demandeur, déduit du jeton par le backend.
 export const createNest = createAsyncThunk(
   'nests/createNest',
-  async ({ 
-    latitude, 
-    longitude, 
-    public_place,
-    address,
-    comments,
-    accessToken,
-    userGuid
-  }: { 
-    latitude: number; 
-    longitude: number; 
+  async ({ latitude, longitude, public_place, address, comments, photos = [] }: {
+    latitude: number;
+    longitude: number;
     public_place?: boolean;
     address?: string;
     comments?: string;
-    accessToken: string;
-    userGuid: string; // GUID Keycloak
+    photos?: File[];
   }, { rejectWithValue }) => {
     try {
-      const requestBody: {
-        latitude: number;
-        longitude: number;
-        public_place?: boolean;
-        address?: string;
-        comments?: string;
-        created_by: string;
-      } = {
-        latitude,
-        longitude,
-        created_by: userGuid,
-      };
-      if (public_place !== undefined) {
-        requestBody.public_place = public_place;
-      }
-      if (address) {
-        requestBody.address = address;
-      }
-      if (comments) {
-        requestBody.comments = comments;
-      }
-      const response = await api.post('/nests/', requestBody, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      });
+      const form = new FormData();
+      form.append('latitude', String(latitude));
+      form.append('longitude', String(longitude));
+      if (public_place !== undefined) form.append('public_place', String(public_place));
+      if (address) form.append('address', address);
+      if (comments) form.append('comments', comments);
+      photos.forEach((photo) => form.append('photos', photo));
+      const response = await api.post('/nests/', form, MULTIPART);
       return response.data as Nest;
     } catch (error: unknown) {
-      const axiosError = error as { response?: { data?: { message?: string; detail?: string }; status?: number } };
-      const errorMessage = axiosError.response?.data?.message || 
-                          axiosError.response?.data?.detail ||
-                          `HTTP error! status: ${axiosError.response?.status}`;
-      return rejectWithValue(errorMessage || 'Erreur lors de la création du nid');
+      return rejectWithValue(nestErrorMessage(error) || 'Erreur lors de la création du nid');
     }
   }
 );
 
-// Thunk async pour supprimer un nid
+// Modifier un nid (administrateurs, coordinateurs des chasseurs)
+export const updateNest = createAsyncThunk(
+  'nests/updateNest',
+  async ({ id, values }: { id: number; values: NestUpdateValues }, { rejectWithValue }) => {
+    try {
+      const response = await api.patch(`/nests/${id}/`, values);
+      return response.data as Nest;
+    } catch (error: unknown) {
+      return rejectWithValue(nestErrorMessage(error));
+    }
+  }
+);
+
+// Ajouter une ou plusieurs photos à un nid
+export const addNestPhotos = createAsyncThunk(
+  'nests/addNestPhotos',
+  async ({ id, photos }: { id: number; photos: File[] }, { rejectWithValue }) => {
+    try {
+      const form = new FormData();
+      photos.forEach((photo) => form.append('photos', photo));
+      const response = await api.post(`/nests/${id}/photos/`, form, MULTIPART);
+      return response.data as Nest;
+    } catch (error: unknown) {
+      return rejectWithValue(nestErrorMessage(error));
+    }
+  }
+);
+
+// Retirer une photo d'un nid
+export const deleteNestPhoto = createAsyncThunk(
+  'nests/deleteNestPhoto',
+  async ({ id, photoId }: { id: number; photoId: number }, { rejectWithValue }) => {
+    try {
+      const response = await api.delete(`/nests/${id}/photos/${photoId}/`);
+      return response.data as Nest;
+    } catch (error: unknown) {
+      return rejectWithValue(nestErrorMessage(error));
+    }
+  }
+);
+
+/** Radius of the "nearest nests" list, the largest the API allows to every role */
+export const NEAREST_NESTS_RADIUS_KM = 5;
+
+/** The nests (current year, not archived) within 5 km of a position, not kept in the store */
+export async function fetchNestsAround(lat: number, lon: number): Promise<Nest[]> {
+  const params = new URLSearchParams({ lat: String(lat), lon: String(lon), radius: String(NEAREST_NESTS_RADIUS_KM) });
+  const response = await api.get(`/nests/?${params}`);
+  return response.data as Nest[];
+}
+
+/**
+ * AFSCA numbers of the apiaries within 1 km of a nest, sorted by number (not
+ * kept in the store). No distance, no order by distance: they would locate the apiaries.
+ */
+export async function fetchNearbyApiaries(id: number): Promise<string[]> {
+  const response = await api.get(`/nests/${id}/nearby-apiaries/`);
+  return response.data as string[];
+}
+
+// Thunk async pour supprimer un nid (admin uniquement)
 export const deleteNest = createAsyncThunk(
   'nests/deleteNest',
-  async ({ 
-    nestId, 
-    accessToken 
-  }: { 
-    nestId: number; 
-    accessToken: string 
-  }, { rejectWithValue }) => {
+  async ({ nestId }: { nestId: number }, { rejectWithValue }) => {
     try {
-      await api.delete(`/nests/${nestId}/`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      });
-
+      await api.delete(`/nests/${nestId}/`);
       return nestId;
     } catch (error: unknown) {
-      const axiosError = error as { response?: { data?: { message?: string; detail?: string }; status?: number } };
-      const errorMessage = axiosError.response?.data?.message || 
-                          axiosError.response?.data?.detail ||
-                          `HTTP error! status: ${axiosError.response?.status}`;
-      return rejectWithValue(errorMessage || 'Une erreur est survenue lors de la suppression');
+      return rejectWithValue(nestErrorMessage(error) || 'Une erreur est survenue lors de la suppression');
     }
   }
 );
@@ -200,23 +260,20 @@ export const deleteNest = createAsyncThunk(
 // Thunk async pour archiver un nid (admin uniquement)
 export const archiveNest = createAsyncThunk(
   'nests/archiveNest',
-  async ({ nestId, accessToken }: { nestId: number; accessToken: string }, { rejectWithValue }) => {
+  async ({ nestId }: { nestId: number }, { rejectWithValue }) => {
     try {
-      const response = await api.post(`/nests/${nestId}/archive/`, {}, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      });
+      const response = await api.post(`/nests/${nestId}/archive/`, {});
       return response.data as Nest;
     } catch (error: unknown) {
-      const axiosError = error as { response?: { data?: { message?: string; detail?: string }; status?: number } };
-      const errorMessage = axiosError.response?.data?.message ||
-                          axiosError.response?.data?.detail ||
-                          `HTTP error! status: ${axiosError.response?.status}`;
-      return rejectWithValue(errorMessage || "Erreur lors de l'archivage du nid");
+      return rejectWithValue(nestErrorMessage(error) || "Erreur lors de l'archivage du nid");
     }
   }
 );
+
+function replaceNest(state: NestsState, nest: Nest) {
+  const index = state.nests.findIndex((item) => item.id === nest.id);
+  if (index >= 0) state.nests[index] = nest;
+}
 
 // Slice pour les nids
 const nestsSlice = createSlice({
@@ -300,6 +357,10 @@ const nestsSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
+      // Modification et photos : la copie du store suit la réponse du backend
+      .addCase(updateNest.fulfilled, (state, action) => replaceNest(state, action.payload))
+      .addCase(addNestPhotos.fulfilled, (state, action) => replaceNest(state, action.payload))
+      .addCase(deleteNestPhoto.fulfilled, (state, action) => replaceNest(state, action.payload))
       // Cas de archiveNest : l'élément archivé disparaît de la vue courante (par défaut non-archivée)
       .addCase(archiveNest.fulfilled, (state, action) => {
         state.nests = state.nests.filter(nest => nest.id !== action.payload.id);
@@ -316,41 +377,8 @@ export const selectNestsLoading = (state: { nests: NestsState }) => state.nests.
 export const selectNestsError = (state: { nests: NestsState }) => state.nests.error;
 export const selectShowNests = (state: { nests: NestsState }) => state.nests.showNests;
 export const selectShowArchivedNests = (state: { nests: NestsState }) => state.nests.showArchived;
+export const selectNestById = (state: { nests: NestsState }, id?: number) =>
+  id === undefined ? undefined : state.nests.nests.find((nest) => nest.id === id);
 
 export const { clearError, clearNests, addNest, toggleNests, setShowNests, toggleShowArchived } = nestsSlice.actions;
 export default nestsSlice.reducer;
-
-// Utilisation dans un composant React
-/*
-import React from 'react';
-import { useDispatch } from 'react-redux';
-import { createNest } from './nestsSlice';
-import { useAuth } from 'react-oidc-context';
-import { jwtDecode } from 'jwt-decode';
-
-const MyComponent = () => {
-  const dispatch = useDispatch();
-  const auth = useAuth();
-  const accessToken = auth.user?.access_token;
-  const userGuid = accessToken ? jwtDecode<{ sub: string }>(accessToken).sub : undefined;
-
-  const handleCreateNest = () => {
-    const latitude = 48.8588443;
-    const longitude = 2.2943506;
-    const public_place = true;
-    const address = 'Champ de Mars, 5 Avenue Anatole France, 75007 Paris, France';
-    const comments = 'Près de la Tour Eiffel';
-
-    dispatch(createNest({ latitude, longitude, public_place, address, comments, accessToken, userGuid }));
-  };
-
-  return (
-    <div>
-      <h1>Créer un nid</h1>
-      <button onClick={handleCreateNest}>Ajouter</button>
-    </div>
-  );
-};
-
-export default MyComponent;
-*/

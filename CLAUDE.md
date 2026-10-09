@@ -28,9 +28,10 @@
 ## Project-Specific Conventions
 - **No Local Registration**: Users ONLY authenticate via Keycloak (auth.velutina.ovh for prod, auth.dev.velutina.ovh for dev). No passwords/emails stored in app
 - **Geospatial First**: All location data uses PostGIS `PointField` (EPSG:4326). Base pattern: `GeolocatedModel` abstract class auto-generates `point` field from `latitude`/`longitude`
-- **Role-Based Access**: 4 roles, one per trade (`admin`, `beekeeper`, `hunter` = nest hunters, `trapper` = trap campaign, default role), names in `backend/hornet_finder_api/roles.py` and `frontend/src/utils/roles.ts`, + group-based permissions. Traps are only delegated to beekeeper associations (`/beekeepers/<id>`). See `doc/KEYCLOAK_USERS_GROUPS.md`, `auth/realm-export.json` and `backend/hornet/models.py` (`BeekeeperGroup`, `ApiaryGroupPermission`)
+- **Role-Based Access**: 4 roles, one per trade (`admin`, `beekeeper`, `hunter` = nest hunters, `trapper` = trap campaign, default role), names in `backend/hornet_finder_api/roles.py` and `frontend/src/utils/roles.ts`, + group-based permissions. Traps are only delegated to beekeeper associations (`/beekeepers/<id>`). Nests are edited (fields, photos) by `admin` and `/hunters/admin`, see `backend/hornet/nest_permissions.py`. See `doc/KEYCLOAK_USERS_GROUPS.md`, `auth/realm-export.json` and `backend/hornet/models.py` (`BeekeeperGroup`, `ApiaryGroupPermission`)
 - **JWT Auth Pattern**: Custom `JWTBearerAuthentication` validates Keycloak tokens. API endpoints use `HasAnyRole` permission class
 - **PWA Auth**: the page keeps the session, never the service worker (it cannot read the tokens and does not run while the app is closed). `oidc-client-ts` renews the access token with the refresh token while the app runs; `useSessionGuard` renews it on launch, resume and reconnection; the API client (`utils/api.ts`) renews it before a call and replays a call once after a 401. All of them share one renewal (`refreshSession` in `utils/oidc.ts`); only Keycloak's `invalid_grant` signs the user out, a network failure keeps the session
+- **Reachability**: `utils/reachability.ts` probes `GET /api/ping` (static nginx answer, never Django) to tell whether the server is reachable, as `navigator.onLine` is true behind a dropping firewall. Event-driven (launch, resume, `online`/`offline`, an API call without answer); no polling while reachable, backoff while not. `ReachabilityBanner` (in the navbar) shows the state; `signInFromCurrentPage` does nothing while unreachable. In dev, the `dev-boot-guard` plugin of `vite.config.ts` replaces the white page when the modules never load. `ErrorBoundary` (`components/common`) wraps the routes (`PageErrorFallback`, keeps the navbar, resets on route change) and the whole app (`RootErrorFallback`, no router or session needed); it only catches render errors, not event handlers or promises
 - **Environment Variables**: one `.env` per worktree, from `.env.example` (dev profile active, prod profile commented). Besides secrets it holds `COMPOSE_FILE`, the volume names (`API_DB_VOLUME`, `KEYCLOAK_DB_VOLUME`, `FRONTEND_DIST_VOLUME`: single source of truth for the compose overlay AND the scripts) and `ZFS_PARENT`
 - **Storage Invariants**: dataset name == volume name (`<ZFS_PARENT>/<volume>`); never derive a filesystem path from a dataset mountpoint (Docker owns the `_data` layout underneath); existence checks go through `docker volume inspect` / `zfs list` only
 
@@ -80,6 +81,12 @@ The phone is the primary target: iPhone (Safari/WebKit, reference iPhone 14, 390
 - **Deployment Script**: `./deploy.sh -b` from the prod worktree - builds frontend, composes services, loads environment
 - **Shell Libraries**: `lib/common.sh` (env loading, service aliases, UI), `lib/volumes.sh` (Docker volumes, verify-only for deploy), `lib/zfs.sh` (ZFS backend)
 - **Geographic Queries**: `?lat=45.5&lon=2.5&radius=10` for 10km radius searches
+
+## Development from claude.ai web (not local)
+These rules apply to sessions run from claude.ai web (cloud container), not to local development.
+- **Branching**: for any change, unless told otherwise, create a new branch from `devel`.
+- **Between prompts**: before starting each new prompt, fetch `origin` and check whether the working branch is behind `devel`; rebase it onto `origin/devel` if needed.
+- **Merging**: never merge into `devel` without the developer's explicit agreement. When merging is approved, rebase onto `origin/devel` first if needed, then merge.
 
 ## Tips
 - Always use Docker for local dev to match prod.

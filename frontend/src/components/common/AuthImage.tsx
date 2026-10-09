@@ -14,7 +14,7 @@ type AuthImageProps = Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'src'> & {
  * header, which a plain `<img>` never sends: the file is fetched with the
  * token and shown from a `blob:` URL instead.
  */
-export default function AuthImage({ src, alt = '', style, ...props }: AuthImageProps) {
+export default function AuthImage({ src, alt = '', style, className, ...props }: AuthImageProps) {
   const [objectUrl, setObjectUrl] = useState<{ src: string; url: string | null } | null>(null);
 
   useEffect(() => {
@@ -38,17 +38,17 @@ export default function AuthImage({ src, alt = '', style, ...props }: AuthImageP
   const current = objectUrl?.src === src ? objectUrl : null;
   if (!current) {
     return (
-      <span className="d-inline-flex align-items-center justify-content-center bg-body-secondary" style={style}>
+      <span className={`d-inline-flex align-items-center justify-content-center bg-body-secondary ${className ?? ''}`} style={style}>
         <Spinner animation="border" size="sm" />
       </span>
     );
   }
   if (!current.url) {
     return (
-      <span className="d-inline-flex align-items-center justify-content-center bg-body-secondary text-muted" style={style} title="Photo indisponible">
+      <span className={`d-inline-flex align-items-center justify-content-center bg-body-secondary text-muted ${className ?? ''}`} style={style} title="Photo indisponible">
         <i className="bi bi-image" aria-hidden="true" />
       </span>
     );
   }
-  return <img src={current.url} alt={alt} style={style} {...props} />;
+  return <img src={current.url} alt={alt} style={style} className={className} {...props} />;
 }

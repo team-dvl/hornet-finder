@@ -10,6 +10,68 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-09
+
+### Added
+- Nest photos: one or more photos when reporting a nest; administrators and the
+  coordinators of the nest hunters (`/hunters/admin`, new Keycloak subgroup) add
+  and remove them from the nest sheet. Photos are private media, shown to who
+  sees every nest and to the reporter, never on the public map. Prod: note 0021.
+- Nest editing by administrators and nest hunter coordinators: place, address,
+  position, comment, destruction and its date.
+- Map, Layers → "Nids les plus proches": the nests of the year within 5 km of
+  the user, nearest first with their distance (as the crow flies, 20 at most);
+  a tap opens the nest and centres the map on it. For those who see every nest
+  (hunters, beekeepers, admins).
+- Nest sheet: the AFSCA numbers of the apiaries within 1 km of the nest, sorted
+  by number, without any distance (administrators and nest hunter coordinators).
+- "Serveur injoignable" strip under the navbar when the server cannot be reached
+  (no coverage, a network the edge firewall does not let through), with a retry
+  button and a hint. The app probes `/api/ping` (a static answer of nginx) at
+  launch, on return to the foreground, on network events and after an API call
+  that got no answer; it never polls while the server answers, and retries with
+  a growing delay (5 s to 60 s) while it does not. The login button no longer
+  leaves for Keycloak while the server is unreachable. Its help also shows the
+  device's public IP address (IPv4 and IPv6 when it has both), asked of ipify
+  only when the help is opened (each address shows as soon as it is known, and
+  nothing is asked when the device has no network), for whoever manages the
+  firewall's allowlist.
+  Prod: note 0020.
+- Error screens instead of a white page when a page fails while rendering (an
+  unexpected API answer, a chunk that cannot be fetched): the page's own screen
+  keeps the navbar, so the user can go elsewhere; a last one covers the whole
+  app. Both offer "Recharger"; the first adds the advice to retry later when
+  the server is unreachable.
+- Dev: a message with a "Réessayer" button replaces the white page when the dev
+  server cannot be reached at launch (the dev service worker only caches
+  `index.html`, not the modules Vite serves).
+
+### Changed
+- The destruction date of a nest is kept: set when it is marked destroyed (today
+  by default, an earlier day can be given), and a destroyed nest can no longer be
+  turned back to active, except by an administrator. Nests destroyed before this
+  release keep no date.
+- The reporter of a nest is always the signed-in user: `created_by` is no longer
+  accepted from the client.
+- AFSCA numbers are written `X.XXX.XXX.XXX` (10 digits, e.g. `9.005.577.599`)
+  everywhere: one display component, a field that inserts the dots while typing
+  (numeric keypad) and refuses an incomplete number. The backend stores that form
+  and rewrites the recorded numbers that fit it (migration 0023); a number in
+  another form is kept until it is changed. The search finds a number typed
+  without dots. Prod: note 0021.
+
+### Removed
+- Apiary and trap lists: the distance from the user to each apiary or trap and
+  the "Le plus proche" sort are gone, in the app and in the API
+  (`ordering=distance` is now refused on `/apiaries/managed/` and
+  `/traps/managed/`): of little use, and they would locate the apiaries.
+
+### Fixed
+- The trap list showed "Relevé aujourd'hui" for a visit made the evening before:
+  the age was counted in 24 h slices instead of calendar days. It now follows
+  the calendar (yesterday at 19:00 reads "Relevé hier" the next morning), and
+  so does the 7-day "to visit" warning.
+
 ## [1.2.0] - 2026-10-06
 
 ### Security
@@ -18,6 +80,8 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   fragments, CVE-2026-18209). Prod: note 0019.
 
 ### Changed
+- Trap and nest photos: the camera button no longer forces the camera. On a
+  phone it now offers the camera or the photo library.
 - Module icons in colour: on the landing page and in the navbar menu, each field
   module takes the colour of what it manages on the map (nests red, traps green,
   apiaries gold, map teal, statistics violet); documentation, administration and
@@ -50,6 +114,10 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   closed, so it renewed nothing. The service worker now only caches the app.
 
 ### Fixed
+- Trap photos (the trap's own photo, intervention and catch thumbnails, full-size
+  view, list thumbnails) are loaded with the session token: a plain `<img>` sent none, so the
+  media view answered 404 for every trap that is private or bound to an apiary,
+  even to its owner.
 - The session survives a closed or suspended app: opening the installed app
   (or a tab) with an expired access token renews it with the refresh token
   instead of showing the user signed out, and so does coming back to the
@@ -167,7 +235,8 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   algorithm-confusion flaws were not reachable; `PyJWKClient` redirect handling
   is fixed.
 
-[Unreleased]: https://github.com/team-dvl/hornet-finder/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/team-dvl/hornet-finder/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/team-dvl/hornet-finder/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/team-dvl/hornet-finder/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/team-dvl/hornet-finder/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/team-dvl/hornet-finder/releases/tag/v1.0.0

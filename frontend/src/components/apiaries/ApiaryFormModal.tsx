@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Alert, Button, Form, Spinner } from 'react-bootstrap';
 import { useAppDispatch } from '../../store/hooks';
 import { createApiary, updateApiary, type Apiary } from '../../store/store';
-import { HelpTip, InfestationLevelInput } from '../common';
+import { AfscaNumberInput, HelpTip, InfestationLevelInput } from '../common';
+import { afscaInputIsValid } from '../../utils/afsca';
 import CoordinateInput from '../common/CoordinateInput';
 import { AddressSearch, PhotoInput } from '../traps';
 import { AppModal } from '../ui';
@@ -54,6 +55,8 @@ export default function ApiaryFormModal({
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    // The field shows what is wrong; nothing is sent until it is fixed
+    if (!afscaInputIsValid(afscaNumber, apiary?.afsca_number ?? '')) return;
     setSaving(true);
     setError(null);
     const values = {
@@ -149,15 +152,13 @@ export default function ApiaryFormModal({
           N° AFSCA
           <HelpTip id="apiary-afsca-help" title="Numéro AFSCA">
             Numéro d'enregistrement du rucher auprès de l'Agence fédérale pour la sécurité de la
-            chaîne alimentaire. Facultatif.
+            chaîne alimentaire : 10 chiffres, par exemple 9.005.577.599. Facultatif.
           </HelpTip>
         </Form.Label>
-        <Form.Control
-          type="text"
+        <AfscaNumberInput
           value={afscaNumber}
-          maxLength={32}
-          autoComplete="off"
-          onChange={(event) => setAfscaNumber(event.target.value)}
+          initialValue={apiary?.afsca_number ?? ''}
+          onChange={setAfscaNumber}
           disabled={saving}
         />
       </Form.Group>

@@ -24,7 +24,7 @@ import { currentPosition } from '../utils/position';
 const LIST_PATH = '/apiaries';
 
 const ORDERINGS: ApiaryOrdering[] = [
-  '-infestation_level', 'infestation_level', '-created_at', 'created_at', 'address', '-id', 'id', 'distance',
+  '-infestation_level', 'infestation_level', '-created_at', 'created_at', 'address', '-id', 'id',
 ];
 
 /**
@@ -71,8 +71,6 @@ export default function Apiaries() {
   // A platform admin who keeps no apiary starts on every apiary
   const defaultScope: ApiaryScope = scopes.includes('mine') ? 'mine' : isAdmin ? 'all' : 'shared';
 
-  const [origin, setOrigin] = useState<{ lat: number; lon: number } | null>(null);
-  const [listError, setListError] = useState<string | null>(null);
 
   const query = useMemo<ManagedApiariesQuery>(() => {
     const scope = searchParams.get('show') as ApiaryScope | null;
@@ -85,38 +83,18 @@ export default function Apiaries() {
       group: searchParams.get('group') || undefined,
       infestation_level: level === '1' || level === '2' || level === '3' || level === 'none' ? level : undefined,
     };
-    if (result.ordering === 'distance' && origin) {
-      result.lat = origin.lat;
-      result.lon = origin.lon;
-    }
     return result;
-  }, [searchParams, scopes, defaultScope, origin]);
+  }, [searchParams, scopes, defaultScope]);
 
   const updateQuery = useCallback((changes: Partial<ManagedApiariesQuery>) => {
     const next = new URLSearchParams(listPath.split('?')[1] ?? '');
     Object.entries(changes).forEach(([key, value]) => {
-      if (key === 'lat' || key === 'lon') return;
       if (value === undefined || value === '') next.delete(urlKey(key));
       else next.set(urlKey(key), String(value));
     });
     const search = next.toString();
     navigate({ pathname: LIST_PATH, search: search ? `?${search}` : '' }, { replace: true });
   }, [listPath, navigate]);
-
-  // Sorting by distance needs the position of the user: the list waits for it
-  const needsOrigin = query.ordering === 'distance' && !origin;
-  useEffect(() => {
-    if (!needsOrigin || !auth.isAuthenticated) return;
-    let cancelled = false;
-    currentPosition()
-      .then((position) => { if (!cancelled) setOrigin(position); })
-      .catch((error: Error) => {
-        if (cancelled) return;
-        setListError(error.message);
-        updateQuery({ ordering: '-infestation_level' });
-      });
-    return () => { cancelled = true; };
-  }, [needsOrigin, auth.isAuthenticated, updateQuery]);
 
   const queryKey = JSON.stringify(query);
   const reload = useCallback(() => {
@@ -125,9 +103,9 @@ export default function Apiaries() {
   }, [dispatch, queryKey]);
 
   useEffect(() => {
-    if (!auth.isAuthenticated || needsOrigin) return;
+    if (!auth.isAuthenticated) return;
     reload();
-  }, [auth.isAuthenticated, needsOrigin, reload]);
+  }, [auth.isAuthenticated, reload]);
 
   const loadMore = () => dispatch(fetchManagedApiaries({ query, page: managed.page + 1 }));
 
@@ -226,16 +204,12 @@ export default function Apiaries() {
               groups={groupOptions}
               count={managed.count}
               loading={managed.loading && managed.page === 0}
-              locating={needsOrigin}
             />
 
             {placing && (
               <Alert variant="light" className="small py-2">
                 <Spinner animation="border" size="sm" className="me-2" />Localisation…
               </Alert>
-            )}
-            {listError && (
-              <Alert variant="warning" dismissible onClose={() => setListError(null)}>{listError}</Alert>
             )}
             {linkError && (
               <Alert variant="danger" dismissible onClose={() => setLinkError(null)}>{linkError}</Alert>
@@ -261,7 +235,6 @@ export default function Apiaries() {
                   key={apiary.id}
                   apiary={{ ...apiary, id: apiary.id }}
                   isMine={Boolean(apiary.owner && apiary.owner.guid === userGuid)}
-                  origin={query.ordering === 'distance' ? origin : null}
                   onOpen={setSheetApiary}
                   onLocate={locate}
                   onMore={setActionsApiary}
