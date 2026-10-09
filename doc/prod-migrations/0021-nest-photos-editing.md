@@ -1,4 +1,4 @@
-status: pending
+status: applied (2026-10-09)
 
 # Photos, modification et date de destruction des nids, format des numéros AFSCA (`devel`)
 
