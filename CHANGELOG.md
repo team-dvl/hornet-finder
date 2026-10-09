@@ -11,6 +11,10 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ## [Unreleased]
 
 ### Added
+- Map: satellite view. The layers sheet starts with a "Plan / Satellite" choice
+  (Esri World Imagery, remembered on the device). The nginx CSP now allows
+  `server.arcgisonline.com` for images: nginx must be reloaded (see
+  `doc/prod-migrations/0022-satellite-basemap-csp.md`).
 - Install suggestion: from the second visit, a sheet offers to pin the app on
   the home screen (an "Installer" button on Android, the share-menu steps on
   iOS). Closing it postpones the next suggestion by 30 days; the menu entry

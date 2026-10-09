@@ -60,6 +60,18 @@ export const MAX_ZOOM = 21;
  */
 export const MAX_NATIVE_ZOOM = 18;
 
+/** Tile sources of the base maps (satellite: Esri World Imagery, also allowed in the nginx CSP) */
+export const BASEMAPS = {
+  plan: {
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  },
+  satellite: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics, and the GIS User Community',
+  },
+} as const;
+
 /**
  * Distance en pixels pour considérer qu'il y a chevauchement d'objets sur la carte
  * Utilisé dans le système de détection de chevauchement pour déterminer

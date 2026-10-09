@@ -28,6 +28,20 @@ function latestSpringYear(today = new Date()): number {
   return today.getMonth() >= 1 ? today.getFullYear() : today.getFullYear() - 1;
 }
 
+/** Base map: the street plan or the satellite imagery */
+export type Basemap = 'plan' | 'satellite';
+
+const BASEMAP_KEY = 'map-basemap';
+
+/** The base map the user picked last (per device); the plan when unset or storage is unavailable */
+function loadBasemap(): Basemap {
+  try {
+    return localStorage.getItem(BASEMAP_KEY) === 'satellite' ? 'satellite' : 'plan';
+  } catch {
+    return 'plan';
+  }
+}
+
 export interface MapState {
   center: MapPosition;
   zoom: number;
@@ -36,6 +50,7 @@ export interface MapState {
   isInitialized: boolean;
   isAdmin: boolean;
   analysis: MapAnalysis;
+  basemap: Basemap;
   lastFetchedArea?: {
     center: MapPosition;
     radius: number;
@@ -52,6 +67,7 @@ const initialState: MapState = {
   isInitialized: false,
   isAdmin: false,
   analysis: { layer: null, period: 'spring', year: latestSpringYear() },
+  basemap: loadBasemap(),
   lastFetchedArea: undefined,
 };
 
@@ -142,6 +158,14 @@ const mapSlice = createSlice({
     setLastFetchedArea: (state, action: PayloadAction<{ center: MapPosition; radius: number; bounds: MapBounds; zoom: number }>) => {
       state.lastFetchedArea = action.payload;
     },
+    setBasemap: (state, action: PayloadAction<Basemap>) => {
+      state.basemap = action.payload;
+      try {
+        localStorage.setItem(BASEMAP_KEY, action.payload);
+      } catch {
+        // Storage unavailable: the choice only lasts for this visit
+      }
+    },
     setAnalysisLayer: (state, action: PayloadAction<AnalysisLayer | null>) => {
       state.analysis.layer = action.payload;
     },
@@ -186,6 +210,7 @@ export const {
   setLastFetchedArea,
   setAnalysisLayer,
   setAnalysisPeriod,
+  setBasemap,
 } = mapSlice.actions;
 
 export default mapSlice.reducer;
@@ -201,3 +226,4 @@ export const selectIsInitialized = (state: { map: MapState }) => state.map.isIni
 export const selectIsAdmin = (state: { map: MapState }) => state.map.isAdmin;
 export const selectLastFetchedArea = (state: { map: MapState }) => state.map.lastFetchedArea;
 export const selectMapAnalysis = (state: { map: MapState }) => state.map.analysis;
+export const selectBasemap = (state: { map: MapState }) => state.map.basemap;

@@ -40,9 +40,9 @@ export type {
 } from './slices/trapsSlice';
 
 // Export des actions et selectors du slice map
-export { setMapCenter, setZoom, setGeolocationLoading, setGeolocationError, setIsAdmin, updateMapViewport, initializeGeolocation, setLastFetchedArea, setAnalysisLayer, setAnalysisPeriod } from './slices/mapSlice';
-export { selectMapCenter, selectZoom, selectSearchRadius, selectGeolocationLoading, selectGeolocationError, selectIsInitialized, selectIsAdmin, selectLastFetchedArea, selectMapAnalysis } from './slices/mapSlice';
-export type { MapPosition, MapState, MapBounds, AnalysisLayer, AnalysisPeriod, MapAnalysis } from './slices/mapSlice';
+export { setMapCenter, setZoom, setGeolocationLoading, setGeolocationError, setIsAdmin, updateMapViewport, initializeGeolocation, setLastFetchedArea, setAnalysisLayer, setAnalysisPeriod, setBasemap } from './slices/mapSlice';
+export { selectMapCenter, selectZoom, selectSearchRadius, selectGeolocationLoading, selectGeolocationError, selectIsInitialized, selectIsAdmin, selectLastFetchedArea, selectMapAnalysis, selectBasemap } from './slices/mapSlice';
+export type { MapPosition, MapState, MapBounds, AnalysisLayer, AnalysisPeriod, MapAnalysis, Basemap } from './slices/mapSlice';
 
 // Export des actions et selectors du slice profile
 export { fetchAvatar, uploadAvatar, deleteAvatar, clearProfileError } from './slices/profileSlice';

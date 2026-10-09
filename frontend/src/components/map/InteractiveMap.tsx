@@ -4,11 +4,11 @@ import { Spinner } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 import L, { Map } from 'leaflet';
-import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowApiaryCircles, selectShowHornets, selectShowReturnZones, selectShowNests, initializeGeolocation, selectMapCenter, selectGeolocationError, setGeolocationError, setIsAdmin, selectTraps, selectShowTraps, selectMovingTrapId, setShowTraps, setShowNests, setShowApiaries, setShowHornets, startMovingTrap, stopMovingTrap, updateTrap, fetchTrapDetail, fetchApiaryDetail } from '../../store/store';
+import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowApiaryCircles, selectShowHornets, selectShowReturnZones, selectBasemap, selectShowNests, initializeGeolocation, selectMapCenter, selectGeolocationError, setGeolocationError, setIsAdmin, selectTraps, selectShowTraps, selectMovingTrapId, setShowTraps, setShowNests, setShowApiaries, setShowHornets, startMovingTrap, stopMovingTrap, updateTrap, fetchTrapDetail, fetchApiaryDetail } from '../../store/store';
 import { selectFilteredHornets } from '../../store/slices/hornetsSlice';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useMapDataFetching } from '../../hooks/useMapDataFetching';
-import { MAX_ZOOM, MAX_NATIVE_ZOOM, MIN_ZOOM_TO_SEPARATE } from '../../utils/constants';
+import { BASEMAPS, MAX_ZOOM, MAX_NATIVE_ZOOM, MIN_ZOOM_TO_SEPARATE } from '../../utils/constants';
 import { apiaryToMapObject, nestToMapObject, trapToMapObject } from '../../hooks/useOverlapDetection';
 import { signInFromCurrentPage } from '../../utils/authRedirect';
 import { reverseGeocode } from '../../utils/geocoding';
@@ -161,6 +161,7 @@ export default function InteractiveMap({
   const showApiaryCircles = useAppSelector(selectShowApiaryCircles);
   const showHornets = useAppSelector(selectShowHornets);
   const showReturnZones = useAppSelector(selectShowReturnZones);
+  const basemap = useAppSelector(selectBasemap);
   const showNests = useAppSelector(selectShowNests);
   const traps = useAppSelector(selectTraps);
   const showTraps = useAppSelector(selectShowTraps);
@@ -598,10 +599,11 @@ export default function InteractiveMap({
         <MapEventHandler />
         <MapClickHandler onMapClick={handleMapClick} />
         <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          key={basemap}
+          url={BASEMAPS[basemap].url}
           maxZoom={MAX_ZOOM}
           maxNativeZoom={MAX_NATIVE_ZOOM}
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          attribution={BASEMAPS[basemap].attribution}
         />
         <ZoomControl position="bottomleft" />
         {/* Frelons et zones de retour - niveau le plus bas */}

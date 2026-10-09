@@ -30,6 +30,8 @@ import {
   selectMapAnalysis,
   setAnalysisLayer,
   setAnalysisPeriod,
+  selectBasemap,
+  setBasemap,
   type AnalysisPeriod,
 } from '../../store/store';
 import { HelpTip } from '../common';
@@ -82,6 +84,7 @@ export default function LayerControlsButton({
     ? `/stats/traps-${analysis.layer}?${new URLSearchParams(analysisParams(analysis.period, analysis.year))}`
     : '';
   
+  const basemap = useAppSelector(selectBasemap);
   const showHornets = useAppSelector(selectShowHornets);
   const showReturnZones = useAppSelector(selectShowReturnZones);
   const showApiaries = useAppSelector(selectShowApiaries);
@@ -110,6 +113,21 @@ export default function LayerControlsButton({
       </button>
 
       <BottomSheet show={open} onHide={() => setOpen(false)} title="Couches">
+        <div className="basemap-choice" role="radiogroup" aria-label="Fond de carte">
+          {([['plan', 'bi-map', 'Plan'], ['satellite', 'bi-globe-europe-africa', 'Satellite']] as const).map(([value, icon, label]) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={basemap === value}
+              className={`basemap-option ${basemap === value ? 'active' : ''}`}
+              onClick={() => dispatch(setBasemap(value))}
+            >
+              <i className={`bi ${icon} me-1`} aria-hidden="true" />
+              {label}
+            </button>
+          ))}
+        </div>
         <LayerSwitch id="layer-hornets" icon={OBJECT_ICONS.hornet} label="Frelons" checked={showHornets} onChange={() => dispatch(toggleHornets())} />
         {showHornets && (
           <LayerSwitch id="layer-zones" icon="🔺" label="Zones de retour" checked={showReturnZones} onChange={() => dispatch(toggleReturnZones())} sub />
