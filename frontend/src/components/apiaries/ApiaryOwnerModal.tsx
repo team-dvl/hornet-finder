@@ -78,7 +78,7 @@ export default function ApiaryOwnerModal({ onHide, apiary, onTransferred }: Apia
       show
       onHide={onHide}
       icon={OBJECT_ICONS.apiary}
-      title={`Rucher #${apiary.id} : changer de propriétaire`}
+      title="Changer de propriétaire"
       onSubmit={handleSubmit}
       footer={(
         <Button type="submit" variant="primary" disabled={saving || !selected}>
