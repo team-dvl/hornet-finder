@@ -7,7 +7,7 @@ export default function StatsDoc() {
         territoire, sur la période de votre choix.
       </p>
 
-      <section className="mb-4">
+      <section data-section="catches" className="mb-4">
         <h5 className="text-primary">
           <span className="me-2">📈</span>
           Captures de frelons asiatiques
@@ -26,7 +26,7 @@ export default function StatsDoc() {
         </p>
       </section>
 
-      <section className="mb-4">
+      <section data-section="species" className="mb-4">
         <h5 className="text-primary">
           <span className="me-2">🐝</span>
           Captures par espèce
@@ -38,7 +38,7 @@ export default function StatsDoc() {
         </p>
       </section>
 
-      <section className="mb-4">
+      <section data-section="trap-types" className="mb-4">
         <h5 className="text-primary">
           <span className="me-2">⚖️</span>
           Types de piège
@@ -51,7 +51,7 @@ export default function StatsDoc() {
         </p>
       </section>
 
-      <section className="mb-4">
+      <section data-section="ranking" className="mb-4">
         <h5 className="text-primary">
           <span className="me-2">🏆</span>
           Pièges les plus actifs
@@ -63,7 +63,7 @@ export default function StatsDoc() {
         </p>
       </section>
 
-      <section className="mb-4">
+      <section data-section="view" className="mb-4">
         <h5 className="text-primary">
           <span className="me-2">📊</span>
           Tableau ou graphique
@@ -76,7 +76,7 @@ export default function StatsDoc() {
         </p>
       </section>
 
-      <section className="mb-4">
+      <section data-section="coverage" className="mb-4">
         <h5 className="text-primary">
           <span className="me-2">🗺️</span>
           Couverture et pression
@@ -97,7 +97,7 @@ export default function StatsDoc() {
         </p>
       </section>
 
-      <section className="mb-4">
+      <section data-section="periods" className="mb-4">
         <h5 className="text-primary">
           <span className="me-2">🗓️</span>
           Périodes et filtres
@@ -110,7 +110,7 @@ export default function StatsDoc() {
         </ul>
       </section>
 
-      <section className="mb-4">
+      <section data-section="scope" className="mb-4">
         <h5 className="text-primary">
           <span className="me-2">👁️</span>
           Pièges comptés
@@ -122,7 +122,7 @@ export default function StatsDoc() {
         </p>
       </section>
 
-      <section>
+      <section data-section="export">
         <h5 className="text-primary">
           <span className="me-2">📤</span>
           Exporter

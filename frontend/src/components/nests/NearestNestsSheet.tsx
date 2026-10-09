@@ -53,7 +53,7 @@ export default function NearestNestsSheet({ show, onHide, onSelect }: NearestNes
       title={(
         <span className="d-inline-flex align-items-center">
           Nids les plus proches
-          <HelpTip id="nearest-nests-help" title="Nids les plus proches">
+          <HelpTip id="nearest-nests-help" doc="nests#report" title="Nids les plus proches">
             Les nids de l&apos;année à {NEAREST_NESTS_RADIUS_KM} km au plus de votre position, du plus
             proche au plus éloigné ({MAX_NESTS} au plus). La distance est à vol d&apos;oiseau.
           </HelpTip>

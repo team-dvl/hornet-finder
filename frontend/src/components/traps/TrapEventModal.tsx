@@ -239,7 +239,7 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
             <Form.Label className="d-flex align-items-center">
               {accumulates ? 'Contenu du piège' : 'Captures'}
               {accumulates ? (
-                <HelpTip id="catch-help" title="Compter le contenu du piège">
+                <HelpTip id="catch-help" doc="traps#journal" title="Compter le contenu du piège">
                   Comptez tout ce que contient le piège, y compris ce qui y était déjà : les compteurs
                   partent du contenu laissé au dernier relevé, l'application en déduit les nouvelles
                   prises. Touchez l'image d'une espèce pour ajouter un individu, le nombre rouge pour
@@ -247,7 +247,7 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
                   capture pour suivre la pression.
                 </HelpTip>
               ) : (
-                <HelpTip id="catch-help" title="Compter les captures">
+                <HelpTip id="catch-help" doc="traps#journal" title="Compter les captures">
                   Comptez ce que vous retirez de la zone de capture : un insecte laissé dans le piège
                   serait compté une seconde fois au relevé suivant. Touchez l'image d'une espèce pour
                   ajouter un individu, le nombre rouge pour saisir un total. Un relevé sans frelon

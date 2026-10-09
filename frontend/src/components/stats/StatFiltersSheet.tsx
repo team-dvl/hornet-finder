@@ -87,7 +87,7 @@ export default function StatFiltersSheet({
         <Form.Group controlId="stat-year" className="mt-2">
           <Form.Label className="small text-muted mb-1 d-flex align-items-center">
             Année du cycle
-            <HelpTip id="stat-year-help" title="Année">
+            <HelpTip id="stat-year-help" doc="stats#periods" title="Année">
               Le cycle de vie du frelon, assimilé à l&apos;année civile : du 1er janvier au
               31 décembre, jusqu&apos;à aujourd&apos;hui pour l&apos;année en cours.
             </HelpTip>
@@ -134,7 +134,7 @@ export default function StatFiltersSheet({
         <>
           <Form.Label className="fw-semibold mt-3 mb-2 d-flex align-items-center">
             Classement
-            <HelpTip id="stat-order-help" title="Classement">
+            <HelpTip id="stat-order-help" doc="stats#ranking" title="Classement">
               Par semaine : frelons capturés par semaine de présence du piège, qui ne favorise pas les
               pièges posés plus tôt. Captures : le total de la période.
             </HelpTip>
@@ -178,7 +178,7 @@ export default function StatFiltersSheet({
           <Form.Group controlId="stat-zone">
             <Form.Label className="small text-muted mb-1 d-flex align-items-center">
               Zone
-              <HelpTip id="stat-zone-help" title="Zone">
+              <HelpTip id="stat-zone-help" doc="stats#scope" title="Zone">
                 Un total limité à une zone pourrait révéler un piège privé, et donc un rucher :
                 avec une zone, seuls les pièges que vous voyez sur la carte sont comptés.
               </HelpTip>

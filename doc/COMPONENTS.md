@@ -72,7 +72,13 @@ Contient les composants de formulaires et sélecteurs d'éléments :
 Composants de la page de garde (`pages/Home.tsx`) :
 - `ModuleCard.tsx` : Tuile du menu des modules (définis dans `config/modules.ts`)
 
-Les pages de documentation vivent dans `pages/docs/` : une page par module, enregistrée dans `pages/docs/registry.ts` (`DOC_PAGES`). Un module sans entrée affiche « Documentation à venir ».
+### `/help/`
+Documentation des modules, affichée dans un panneau (offcanvas à droite, au-dessus de la page et de tout dialogue) et non dans des pages :
+- `*Doc.tsx` : une documentation par module ; chaque `<section data-section="…">` est une ancre
+- `registry.ts` (`DOC_PAGES`) et `anchors.ts` (`DOC_SECTIONS`, types `DocRef`) : un nouveau module y est déclaré dans les deux ; un module sans documentation s'affiche « À venir » dans le sommaire
+- `helpStore.ts` : `openHelp('traps#journal')` ouvre le panneau depuis n'importe où (`HelpTip doc="…"`, entrée « Aide » du menu) ; `HelpHost.tsx` le charge à la demande
+- `HelpPanel.tsx` : sommaire des modules, documentation d'un module (liste « Aller à », recherche surlignée dans la page), recherche dans toute l'aide (`searchDocs.ts`)
+- `DocsRedirect.tsx` : anciennes adresses `/docs` et `/docs/:module`
 
 ### `/components/layout/`
 Composants de mise en page de l'application :

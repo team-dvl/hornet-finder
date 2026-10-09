@@ -78,7 +78,7 @@ export default function TagsPrinting() {
         <div className="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2">
           <h2 className="h5 mb-0">
             Mes QR Codes libres{free && ` (${reprintable.length})`}
-            <HelpTip id="help-tag-free" title="QR Codes libres">
+            <HelpTip id="help-tag-free" doc="traps#qr-code" title="QR Codes libres">
               Les QR Codes déjà générés mais pas encore associés à un objet.
             </HelpTip>
           </h2>
@@ -101,7 +101,7 @@ export default function TagsPrinting() {
         <div className="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2">
           <h2 className="h5 mb-0">
             Mes QR Codes en service{inUse && ` (${inUse.length})`}
-            <HelpTip id="help-tag-in-use" title="QR Codes en service">
+            <HelpTip id="help-tag-in-use" doc="traps#qr-code" title="QR Codes en service">
               Les QR Codes déjà collés sur vos objets, pour remplacer une étiquette abîmée : le même QR
               Code reste valable, et l'objet est imprimé sous le code pour ne pas les confondre.
             </HelpTip>
@@ -125,7 +125,7 @@ export default function TagsPrinting() {
       <div className="mt-4">
         <h2 className="h5">
           Nouvelle planche{batch.length > 0 && ` (${batch.length})`}
-          <HelpTip id="help-tag-print" title="Imprimer des QR Codes">
+          <HelpTip id="help-tag-print" doc="traps#qr-code" title="Imprimer des QR Codes">
             Générez des QR Codes vierges, collez-en un sur chaque objet (un piège, par exemple), puis
             scannez-le depuis la carte (bouton « + », « Scanner un QR Code ») pour l'associer à l'objet.
             Ensuite, un scan ouvre directement sa fiche. Le PDF A4 donne des étiquettes de 45 mm à découper : imprimez-le à 100 %, sans

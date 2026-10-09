@@ -108,7 +108,7 @@ export default function TrapFormModal({
               <>
                 <i className="bi bi-lock-fill me-1" aria-hidden="true" />
                 Privé
-                <HelpTip id="trap-visibility-help" title="Visibilité">
+                <HelpTip id="trap-visibility-help" doc="traps#delegation" title="Visibilité">
                   Ce type de piège ne s'installe que devant des ruches : le montrer révélerait un rucher.
                   Il n'est visible que de vous, du groupe à qui vous en déléguez l'entretien et des admins.
                 </HelpTip>
@@ -117,7 +117,7 @@ export default function TrapFormModal({
               <>
                 <i className="bi bi-globe2 me-1" aria-hidden="true" />
                 Public
-                <HelpTip id="trap-visibility-help" title="Visibilité">
+                <HelpTip id="trap-visibility-help" doc="traps#delegation" title="Visibilité">
                   Le piège est public par défaut : sa position et ses captures sont visibles de tous.
                   La délégation à une association se règle depuis la fiche du piège.
                 </HelpTip>

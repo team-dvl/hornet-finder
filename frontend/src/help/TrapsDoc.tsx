@@ -32,7 +32,7 @@ export default function TrapsDoc() {
         </Col>
       </Row>
 
-      <section className="mb-4">
+      <section data-section="manager" className="mb-4">
         <h5 className="text-primary">
           <span className="me-2">🗂️</span>
           Le gestionnaire de pièges
@@ -58,7 +58,7 @@ export default function TrapsDoc() {
         </p>
       </section>
 
-      <section className="mb-4">
+      <section data-section="placing" className="mb-4">
         <h5 className="text-primary">
           <span className="me-2">📍</span>
           Placer et déplacer un piège
@@ -81,7 +81,7 @@ export default function TrapsDoc() {
         </p>
       </section>
 
-      <section className="mb-4">
+      <section data-section="qr-code" className="mb-4">
         <h5 className="text-primary">
           <span className="me-2">🏷️</span>
           Le QR Code du piège
@@ -97,7 +97,7 @@ export default function TrapsDoc() {
         </p>
       </section>
 
-      <section className="mb-4">
+      <section data-section="journal" className="mb-4">
         <h5 className="text-primary">
           <span className="me-2">📖</span>
           Le journal du piège
@@ -124,7 +124,7 @@ export default function TrapsDoc() {
         </ul>
       </section>
 
-      <section className="mb-4">
+      <section data-section="delegation" className="mb-4">
         <h5 className="text-primary">
           <span className="me-2">👁️</span>
           Visibilité et délégation
@@ -144,7 +144,7 @@ export default function TrapsDoc() {
         </p>
       </section>
 
-      <section>
+      <section data-section="permissions">
         <h5 className="text-primary">Qui peut faire quoi ?</h5>
         <ul className="mb-0">
           <li><strong>Propriétaire</strong> (piégeur ou apiculteur) : tout sur ses pièges</li>

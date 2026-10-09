@@ -32,7 +32,7 @@ export default function ApiariesDoc() {
         </Col>
       </Row>
 
-      <section className="mb-4">
+      <section data-section="manager" className="mb-4">
         <h5 className="text-primary">
           <span className="me-2">🗂️</span>
           Le gestionnaire de ruchers
@@ -56,7 +56,7 @@ export default function ApiariesDoc() {
         </p>
       </section>
 
-      <section className="mb-4">
+      <section data-section="adding" className="mb-4">
         <h5 className="text-primary">
           <span className="me-2">📍</span>
           Ajouter un rucher
@@ -77,7 +77,7 @@ export default function ApiariesDoc() {
         </p>
       </section>
 
-      <section className="mb-4">
+      <section data-section="sharing" className="mb-4">
         <h5 className="text-primary">
           <span className="me-2">🔒</span>
           Visibilité et partage
@@ -94,7 +94,7 @@ export default function ApiariesDoc() {
         </p>
       </section>
 
-      <section>
+      <section data-section="permissions">
         <h5 className="text-primary">Qui peut faire quoi ?</h5>
         <ul className="mb-0">
           <li><strong>Propriétaire</strong> (apiculteur) : tout sur ses ruchers</li>

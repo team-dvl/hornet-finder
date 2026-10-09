@@ -73,7 +73,7 @@ function SpeciesChart({ result }: { result: StatResult }) {
       </div>
       <h3 className="stat-chart-title d-flex align-items-center">
         Part de chaque espèce parmi les insectes comptés
-        <HelpTip id="stat-species-chart-help" title="Lire le graphique">
+        <HelpTip id="stat-species-chart-help" doc="stats#species" title="Lire le graphique">
           Sur les seuls relevés où toutes les espèces ont été comptées. Une barre vide : aucun
           relevé complet sur cette période. Touchez une barre pour la détailler.
         </HelpTip>
@@ -100,7 +100,7 @@ export default function TrapSpeciesView({ result, chart = false }: { result: Sta
         <span>Espèce</span>
         <span className="d-inline-flex align-items-center">
           Captures · part
-          <HelpTip id="stat-species-help" title="Captures par espèce">
+          <HelpTip id="stat-species-help" doc="stats#species" title="Captures par espèce">
             Les captures comptent tous les relevés. La part d&apos;une espèce parmi les insectes
             comptés ne porte que sur les relevés où toutes les espèces ont été comptées, à partir de
             20 insectes. Entre crochets, l&apos;intervalle de confiance à 95 %.

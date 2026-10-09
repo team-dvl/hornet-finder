@@ -119,7 +119,7 @@ export default function TrapTypeFormModal({ onHide, trapType = null }: TrapTypeF
           checked={accumulates}
           onChange={(event) => setAccumulates(event.target.checked)}
         />
-        <HelpTip id="accumulates-help" title="Accumule les captures">
+        <HelpTip id="accumulates-help" doc="traps#journal" title="Accumule les captures">
           Les prises restent dans le piège d'un relevé à l'autre (harpe, nasse, piège létal...) :
           on compte ce qu'il contient et l'on indique s'il a été vidé, l'application en déduit les
           nouvelles prises. Sinon (filet...), chaque relevé retire tout ce qui a été pris.

@@ -122,7 +122,7 @@ export default function MapStatView({ statId, params, onParams, onState }: MapSt
 
       <div className="d-flex align-items-center mt-3 mb-1 fw-semibold small">
         Maille
-        <HelpTip id="stat-grid-help" title="Maille">
+        <HelpTip id="stat-grid-help" doc="stats#coverage" title="Maille">
           Carrés de 250 m ou hexagones de même surface (6,25 ha, 155 m de côté). Les totaux de la
           zone ne changent pas. Un hexagone a six voisins à la même distance (269 m), un carré
           quatre à 250 m et quatre en diagonale à 354 m : les hexagones évitent les effets
@@ -146,7 +146,7 @@ export default function MapStatView({ statId, params, onParams, onState }: MapSt
 
       <div className="d-flex align-items-center mt-3 mb-1 fw-semibold small">
         {coverage ? "Rayon d'action supposé d'un piège" : 'Lissage'}
-        <HelpTip id="stat-distance-help" title={coverage ? "Rayon d'action" : 'Lissage'}>
+        <HelpTip id="stat-distance-help" doc="stats#coverage" title={coverage ? "Rayon d'action" : 'Lissage'}>
           {coverage
             ? "Chaque piège en service couvre un disque de ce rayon. La portée réelle d'un piège appâté n'est pas établie et dépend de l'appât et du vent : c'est une hypothèse de travail, rappelée dans les exports. À surface égale, 5 pièges par km² font des disques d'environ 250 m, 1 par km² d'environ 560 m."
             : "Chaque maille reçoit les captures des pièges voisins, pondérées par la distance (noyau gaussien de cette largeur), divisées par leur effort pondéré. Une maille trop loin des pièges (moins de 7 pièges-jours pondérés) reste transparente : pas de couleur sans effort de piégeage."}

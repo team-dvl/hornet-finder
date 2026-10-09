@@ -1,4 +1,4 @@
-import { MODULES, findModule } from '../config/modules';
+import { MODULES } from '../config/modules';
 
 export interface Crumb {
   label: string;
@@ -26,7 +26,7 @@ export const STAT_SECTIONS: Record<string, string> = {
 
 /**
  * Breadcrumb trail for the current route, derived from the module config:
- * `/nests` → [Nids], `/docs/nests` → [Documentation, Nids],
+ * `/nests` → [Nids],
  * `/admin/trap-types` → [Administration, Types de pièges]. The site name
  * (link to `/`) is prepended by the navbar itself.
  */
@@ -36,12 +36,6 @@ export function getBreadcrumbs(pathname: string): Crumb[] {
   if (!module?.path) return [];
 
   const crumbs: Crumb[] = [{ label: module.shortTitle, path: module.path }];
-  if (module.id === 'docs' && segments[1]) {
-    const documented = findModule(segments[1]);
-    if (documented) {
-      crumbs.push({ label: documented.shortTitle, path: `/docs/${documented.id}` });
-    }
-  }
   if (module.id === 'stats' && segments[1]) {
     const section = STAT_SECTIONS[segments[1]];
     if (section) {

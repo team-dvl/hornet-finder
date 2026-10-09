@@ -127,7 +127,7 @@ export default function ApiarySharingPanel({ apiary }: ApiarySharingPanelProps) 
             <div className="mt-3">
               <Form.Label htmlFor={`apiary-${apiary.id}-share-group`} className="small mb-1 d-flex align-items-center">
                 Partager avec
-                <HelpTip id="apiary-share-help" title="Partage">
+                <HelpTip id="apiary-share-help" doc="apiaries#sharing" title="Partage">
                   Les membres de l'association voient le rucher ; avec « Peut modifier », ils
                   peuvent aussi le mettre à jour. La suppression reste réservée au propriétaire.
                 </HelpTip>

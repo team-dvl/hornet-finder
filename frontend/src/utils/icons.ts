@@ -36,4 +36,6 @@ export const ACTION_ICONS = {
   filters: 'funnel',
   export: 'download',
   help: 'info-circle',
+  docs: 'book',
+  search: 'search',
 } as const;

@@ -200,7 +200,7 @@ export default function StatExportSheet({
           <span>
             Lien envoyé à {emailed.sent_to}, valable jusqu&apos;à {formatTime(emailed.expires_at)}.
           </span>
-          <HelpTip id="stat-email-help" title="Lien par email">
+          <HelpTip id="stat-email-help" doc="stats#export" title="Lien par email">
             Le lien ouvre une page de téléchargement, sans connexion, pendant une heure et pour dix
             fichiers au plus. Les chiffres y sont calculés au moment du téléchargement, sur la
             période et avec les droits de la demande. Ne transférez pas cet email.

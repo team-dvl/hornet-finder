@@ -59,7 +59,7 @@ function CatchesChart({ result }: { result: StatResult }) {
 
       <h3 className="stat-chart-title d-flex align-items-center">
         Frelons par piège et par semaine
-        <HelpTip id="stat-rate-chart-help" title="Lire la courbe">
+        <HelpTip id="stat-rate-chart-help" doc="stats#catches" title="Lire la courbe">
           La bande claire est l&apos;intervalle de confiance à 95 % : plus il y a de pièges et de
           relevés, plus elle est étroite. Une différence qui reste dans la bande n&apos;est pas
           significative. Touchez une période pour la détailler.
@@ -99,7 +99,7 @@ function CatchesList({ result }: { result: StatResult }) {
         <span>{unit}</span>
         <span className="d-inline-flex align-items-center">
           Frelons · par piège et par semaine
-          <HelpTip id="stat-rate-help" title="Frelons par piège et par semaine">
+          <HelpTip id="stat-rate-help" doc="stats#catches" title="Frelons par piège et par semaine">
             Les frelons d&apos;un relevé sont répartis sur les jours écoulés depuis le relevé
             précédent, puis divisés par le nombre de jours où les pièges étaient en place : une
             valeur comparable d&apos;une semaine et d&apos;une année à l&apos;autre, quel que soit le

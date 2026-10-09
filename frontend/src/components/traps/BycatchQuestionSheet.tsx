@@ -31,7 +31,7 @@ export default function BycatchQuestionSheet({ show, onHide, onAnswer, onCount }
       title={(
         <span className="d-inline-flex align-items-center">
           Et les autres insectes ?
-          <HelpTip id="bycatch-help" title="Autres insectes">
+          <HelpTip id="bycatch-help" doc="traps#journal" title="Autres insectes">
             La part des autres espèces mesure la sélectivité du piège : elle sert à comparer les
             modèles de pièges et à limiter leur impact sur les autres insectes. Elle n'est juste que
             si tout ce que contient le piège est compté.

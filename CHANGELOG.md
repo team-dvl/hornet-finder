@@ -11,6 +11,14 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ## [Unreleased]
 
 ### Added
+- Help panel: the documentation opens in a panel sliding in from the right, over the
+  page and over any dialog (nothing typed is lost; Back or Escape close the panel
+  first). A help tip linked to the documentation ends with "Documentation
+  complète", which opens it at the right section (with a mouse, a click on the icon
+  does the same); about thirty tips of the traps, nests, apiaries and statistics
+  modules are linked. In the panel: a list of the modules of your roles, a "go to"
+  list per module, a search in the page (matches highlighted, ▲▼ to step through
+  them) and a search in all the documentation. The "Aide" entry of the menu opens it.
 - Map: satellite view. The layers sheet starts with two exclusive switches, "Plan" and "Satellite"
   (Esri World Imagery, remembered on the device). The nginx CSP now allows
   `server.arcgisonline.com` for images: nginx must be reloaded (see
@@ -25,6 +33,14 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   administrator can thus create an apiary for a beekeeper who is not at ease
   with the app, then transfer it. The former owner no longer sees it unless it
   is shared with their association.
+
+### Changed
+- Help tips: with a mouse, the popover stays open while the pointer moves onto it,
+  so that a link inside it can be reached.
+
+### Removed
+- The Documentation module (tile of the home page, `/docs` pages): the former
+  addresses open the home page with the help panel on the module concerned.
 
 ## [1.3.0] - 2026-10-09
 

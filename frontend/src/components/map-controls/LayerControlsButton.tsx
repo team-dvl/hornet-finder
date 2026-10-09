@@ -158,7 +158,7 @@ export default function LayerControlsButton({
           <div className="border-top mt-2 pt-2">
             <div className="small text-muted d-flex align-items-center">
               Analyse du piégeage
-              <HelpTip id="layer-analysis-help" title="Analyse du piégeage">
+              <HelpTip id="layer-analysis-help" doc="stats#coverage" title="Analyse du piégeage">
                 Une grille de mailles de 250 m. La couverture montre la part de chaque maille à
                 moins de 250 m d&apos;un piège en service ; la pression, les frelons asiatiques par
                 piège et par semaine, lissés. Seuls les pièges que vous voyez sont comptés.

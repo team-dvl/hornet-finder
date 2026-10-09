@@ -18,7 +18,7 @@ function TrapTypesChart({ rows }: { rows: StatRow[] }) {
     <>
       <h3 className="stat-chart-title d-flex align-items-center">
         Frelons par piège et par semaine
-        <HelpTip id="stat-types-chart-help" title="Lire le graphique">
+        <HelpTip id="stat-types-chart-help" doc="stats#trap-types" title="Lire le graphique">
           Un point par type de piège ; le trait couvre l&apos;intervalle de confiance à 95 %. Deux
           types dont les traits se chevauchent largement ne sont pas départagés.
         </HelpTip>
@@ -72,7 +72,7 @@ export default function TrapTypesView({ result, chart = false }: { result: StatR
         <span>Type de piège</span>
         <span className="d-inline-flex align-items-center">
           Efficacité · sélectivité
-          <HelpTip id="stat-types-help" title="Comparer les types de piège">
+          <HelpTip id="stat-types-help" doc="stats#trap-types" title="Comparer les types de piège">
             L&apos;efficacité est le nombre de frelons asiatiques par piège et par semaine. La
             sélectivité est la part de frelons asiatiques parmi les insectes comptés, sur les seuls
             relevés où toutes les espèces ont été comptées ; elle n&apos;est donnée qu&apos;à partir

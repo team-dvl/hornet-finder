@@ -169,7 +169,7 @@ export default function StatDetail() {
           <div className="d-flex align-items-center small text-muted mb-2">
             {/* A map shows its trap count in its key figures */}
             {isMap ? result.scope.label : <>{result.scope.label}{'\u00a0'}: {result.scope.traps}</>}
-            <HelpTip id="stat-scope-help" title="Pièges comptés">
+            <HelpTip id="stat-scope-help" doc="stats#scope" title="Pièges comptés">
               {result.scope.kind === 'all'
                 ? 'Ces totaux ne situent aucun piège : ils comptent tous les pièges, y compris ceux réservés à un groupe. Avec une zone, seuls les pièges que vous voyez sur la carte seraient comptés.'
                 : 'Un résultat limité à une zone situe les pièges, et donc souvent les ruchers : il ne compte que les pièges que vous voyez déjà sur la carte (publics, les vôtres, ceux de vos groupes).'}

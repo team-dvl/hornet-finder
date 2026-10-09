@@ -42,7 +42,7 @@ export default function TrapAddressChangeModal({
         <dd>{currentAddress}</dd>
         <dt className="small text-muted fw-normal d-flex align-items-center">
           Adresse de la nouvelle position
-          <HelpTip id="trap-address-help" title="Position et adresse">
+          <HelpTip id="trap-address-help" doc="traps#placing" title="Position et adresse">
             La position GPS est enregistrée dans les deux cas : elle seule situe le piège.
           </HelpTip>
         </dt>

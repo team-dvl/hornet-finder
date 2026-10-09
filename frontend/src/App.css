@@ -1325,3 +1325,145 @@ button.module-card {
 .year-select-action {
   min-height: 44px;
 }
+
+/* --- Help panel (help/HelpPanel.tsx): the documentation slides in from the
+   right, over the page and over any dialog or sheet (above both, which sit
+   at 1055 and 1065), full width on a phone --- */
+.offcanvas.help-panel {
+  width: 100%;
+  z-index: 1067;
+}
+
+@media (min-width: 576px) {
+  .offcanvas.help-panel {
+    width: 540px;
+    max-width: 100%;
+  }
+}
+
+.offcanvas-backdrop.help-panel-backdrop {
+  z-index: 1066;
+}
+
+.help-panel-header {
+  gap: 0.25rem;
+  padding: calc(0.5rem + env(safe-area-inset-top)) 0.5rem 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.help-panel-header .offcanvas-title {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Close button with a 44 px touch target */
+.help-panel-header .btn-close {
+  box-sizing: content-box;
+  margin: 0;
+  padding: 0.875rem;
+}
+
+.help-toc,
+.help-search {
+  padding: 0.5rem 0.5rem 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.help-search {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.help-search .form-control {
+  flex: 1;
+  min-width: 0;
+}
+
+.help-search-count {
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.help-panel-body {
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+}
+
+/* The section a link points at lights up for a moment */
+.help-panel-body [data-section] {
+  border-radius: 0.5rem;
+  transition: background-color 1.2s;
+}
+
+.help-panel-body [data-section].help-section-flash {
+  background-color: var(--bs-warning-bg-subtle);
+  transition: none;
+}
+
+mark.help-hit {
+  padding: 0 1px;
+  border-radius: 3px;
+  background: #ffe066;
+  color: inherit;
+}
+
+mark.help-hit-current {
+  background: #ff922b;
+  outline: 2px solid #e8590c;
+}
+
+.help-result {
+  display: block;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.75rem 0.25rem;
+  border: 0;
+  border-bottom: 1px solid var(--bs-border-color);
+  background: transparent;
+  color: inherit;
+  text-align: start;
+}
+
+.help-result:hover,
+.help-result:focus-visible {
+  background: var(--bs-tertiary-bg);
+}
+
+.help-result-path,
+.help-result-snippet {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.help-result-path {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.help-result-snippet {
+  font-size: 0.9rem;
+}
+
+/* "Documentation complète" link closing a help tip's popover */
+.help-tip-more {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0 var(--bs-popover-body-padding-x);
+  border: 0;
+  border-top: var(--bs-popover-border-width) solid var(--bs-popover-border-color);
+  border-radius: 0 0 var(--bs-popover-inner-border-radius) var(--bs-popover-inner-border-radius);
+  background: transparent;
+  color: var(--bs-link-color);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: start;
+}
+
+.help-tip-more:hover,
+.help-tip-more:focus-visible {
+  background: var(--bs-tertiary-bg);
+}

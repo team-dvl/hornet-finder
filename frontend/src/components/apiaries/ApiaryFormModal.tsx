@@ -94,7 +94,7 @@ export default function ApiaryFormModal({
           <span className="me-auto small text-muted d-inline-flex align-items-center">
             <i className="bi bi-lock me-1" aria-hidden="true" />
             Privé
-            <HelpTip id="apiary-visibility-help" title="Visibilité">
+            <HelpTip id="apiary-visibility-help" doc="apiaries#sharing" title="Visibilité">
               Un rucher n'est visible que de vous. Le partage avec une association se règle
               depuis la fiche du rucher.
             </HelpTip>
@@ -150,7 +150,7 @@ export default function ApiaryFormModal({
       <Form.Group className="mb-3" controlId="apiary-afsca">
         <Form.Label className="d-flex align-items-center">
           N° AFSCA
-          <HelpTip id="apiary-afsca-help" title="Numéro AFSCA">
+          <HelpTip id="apiary-afsca-help" doc="apiaries#adding" title="Numéro AFSCA">
             Numéro d'enregistrement du rucher auprès de l'Agence fédérale pour la sécurité de la
             chaîne alimentaire : 10 chiffres, par exemple 9.005.577.599. Facultatif.
           </HelpTip>

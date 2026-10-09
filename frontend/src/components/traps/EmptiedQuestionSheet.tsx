@@ -27,7 +27,7 @@ export default function EmptiedQuestionSheet({ show, onHide, onAnswer }: Emptied
       title={(
         <span className="d-inline-flex align-items-center">
           Le piège a-t-il été vidé ?
-          <HelpTip id="emptied-help" title="Piège vidé ou laissé en place">
+          <HelpTip id="emptied-help" doc="traps#journal" title="Piège vidé ou laissé en place">
             Les nouvelles prises sont déduites de ce que le piège contenait au relevé précédent.
             Un piège laissé en place garde ses insectes : ils ne sont pas comptés une seconde fois
             au relevé suivant.

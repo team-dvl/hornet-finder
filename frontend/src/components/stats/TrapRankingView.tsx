@@ -48,7 +48,7 @@ export default function TrapRankingView({ result, chart = false }: { result: Sta
       <>
         <h3 className="stat-chart-title d-flex align-items-center">
           Frelons par semaine, {top.length < rows.length ? `${top.length} premiers pièges` : 'par piège'}
-          <HelpTip id="stat-ranking-chart-help" title="Lire le graphique">
+          <HelpTip id="stat-ranking-chart-help" doc="stats#ranking" title="Lire le graphique">
             Un point par piège, dans l&apos;ordre du classement ; le trait couvre l&apos;intervalle de
             confiance à 95 %. Un piège en place depuis moins de 7 jours n&apos;a pas de taux : trop
             peu de données.
@@ -74,7 +74,7 @@ export default function TrapRankingView({ result, chart = false }: { result: Sta
         <span>Piège</span>
         <span className="d-inline-flex align-items-center">
           {byRate ? 'Frelons par semaine' : 'Frelons capturés'}
-          <HelpTip id="stat-ranking-help" title="Pièges les plus actifs">
+          <HelpTip id="stat-ranking-help" doc="stats#ranking" title="Pièges les plus actifs">
             {byRate
               ? 'Classés par frelons asiatiques capturés par semaine de présence, ce qui ne favorise pas les pièges posés plus tôt. Un piège en place depuis moins de 7 jours n’est pas classé. '
               : 'Classés par frelons asiatiques capturés sur la période. '}

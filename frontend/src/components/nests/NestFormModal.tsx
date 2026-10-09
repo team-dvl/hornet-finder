@@ -94,7 +94,7 @@ export default function NestFormModal({ onHide, nest }: NestFormModalProps) {
             disabled={saving || lockedDestroyed}
             onChange={(event) => handleDestroyed(event.target.checked)}
           />
-          <HelpTip id="nest-destroyed-help" title="Nid détruit">
+          <HelpTip id="nest-destroyed-help" doc="nests#report" title="Nid détruit">
             Un nid neutralisé ne peut plus être réactivé, sauf par un administrateur.
             Sa date de destruction reste modifiable.
           </HelpTip>

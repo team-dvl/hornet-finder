@@ -33,7 +33,7 @@ export default function NestsDoc() {
         </Col>
       </Row>
 
-      <section className="mb-4">
+      <section data-section="who" className="mb-4">
         <h5 className="text-primary">
           <span className="me-2">ℹ️</span>
           Qui peut utiliser ce module ?
@@ -47,7 +47,7 @@ export default function NestsDoc() {
         </ul>
       </section>
 
-      <section className="mb-4">
+      <section data-section="report" className="mb-4">
         <h5 className="text-primary">Signaler un nid</h5>
         <p className="mb-0">
           Un signalement peut être accompagné d'une ou plusieurs photos. Quand un nid est
@@ -61,7 +61,7 @@ export default function NestsDoc() {
         </p>
       </section>
 
-      <section>
+      <section data-section="access">
         <h5 className="text-primary">Accès</h5>
         <p className="mb-0">
           La consultation de la carte est libre ; le signalement nécessite une authentification

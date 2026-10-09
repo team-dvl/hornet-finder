@@ -105,7 +105,7 @@ export default function ApiaryOwnerModal({ onHide, apiary, onTransferred }: Apia
         <>
           <div className="small mb-1 d-flex align-items-center">
             Nouveau propriétaire
-            <HelpTip id="apiary-owner-help" title="Changer de propriétaire">
+            <HelpTip id="apiary-owner-help" doc="apiaries#permissions" title="Changer de propriétaire">
               Le rucher passe à la personne choisie, qui peut alors le modifier, le partager et
               le supprimer. Vous ne le voyez plus ensuite, sauf s'il est partagé avec votre
               association.

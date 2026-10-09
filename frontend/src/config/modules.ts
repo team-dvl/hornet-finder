@@ -7,11 +7,11 @@ import { APP_ROLES, BEEKEEPER, ADMIN } from '../utils/roles';
  * those realm roles (see `visibleModules` below); the route itself is guarded
  * by RequireRole.
  */
-export type ModuleId = 'map' | 'nests' | 'traps' | 'apiaries' | 'stats' | 'docs' | 'admin' | 'account';
+export type ModuleId = 'map' | 'nests' | 'traps' | 'apiaries' | 'stats' | 'admin' | 'account';
 
 /**
  * Colour family of a module's icon: the field modules take the colour of what
- * they manage on the map, the platform ones (documentation, administration,
+ * they manage on the map, the platform ones (administration,
  * account) stay grey. See the `--tone-*` tokens in App.css.
  */
 export type ModuleTone = 'map' | 'nest' | 'trap' | 'apiary' | 'stats' | 'plain';
@@ -80,15 +80,6 @@ export const MODULES: ModuleDefinition[] = [
     requiredRoles: APP_ROLES,
   },
   {
-    id: 'docs',
-    title: 'Documentation',
-    shortTitle: 'Documentation',
-    description: 'Comment utiliser chaque module de la plateforme.',
-    icon: 'bi-book',
-    tone: 'plain',
-    path: '/docs',
-  },
-  {
     id: 'admin',
     title: 'Administration',
     shortTitle: 'Administration',
@@ -117,13 +108,13 @@ export function visibleModules(roles: string[]): ModuleDefinition[] {
 }
 
 /**
- * Modules that get a page under /docs: the user-facing ones the given roles
- * open, which leaves out the documentation module itself, the account
- * console and the map shortcut (its layers are documented with the nest and
- * trap modules). A module nobody but an admin can use is not named to others.
+ * Modules listed in the help panel: the user-facing ones the given roles
+ * open, which leaves out the account console and the map shortcut (its layers
+ * are documented with the nest and trap modules). A module nobody but an
+ * admin can use is not named to others.
  */
 export function documentedModules(roles: string[]): ModuleDefinition[] {
-  return visibleModules(roles).filter((m) => m.id !== 'docs' && m.id !== 'account' && m.id !== 'map');
+  return visibleModules(roles).filter((m) => m.id !== 'account' && m.id !== 'map');
 }
 
 export function findModule(id: string): ModuleDefinition | undefined {
