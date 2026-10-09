@@ -82,28 +82,28 @@
         "name": "admin",
         "description": "",
         "composite": true,
-        "clientRole": false,
-        "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
-        "attributes": {},
         "composites": {
           "realm": [
             "mfa-required"
           ]
-        }
+        },
+        "clientRole": false,
+        "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
+        "attributes": {}
       },
       {
-        "id": "1afe8454-5dd5-4fd3-bf0c-2fbbdfedc557",
-        "name": "hunter",
-        "description": "Nest hunter: hornet sightings and releases, every nest",
+        "id": "e63bd2c9-e664-469d-b3ba-05e6dc3195ba",
+        "name": "mfa-required",
+        "description": "Users holding this role must use a second factor (OTP) to sign in with a password",
         "composite": false,
         "clientRole": false,
         "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
         "attributes": {}
       },
       {
-        "id": "5b0e8f8c-3f0a-4c55-9d8e-7a51f2c6e101",
-        "name": "trapper",
-        "description": "Trapper: owns traps and prints their QR Codes; default role of a new account",
+        "id": "11fd1eb5-6262-419d-a218-3efdb00c655a",
+        "name": "hunter",
+        "description": "Nest hunter: hornet sightings and releases, every nest",
         "composite": false,
         "clientRole": false,
         "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
@@ -149,12 +149,13 @@
         "attributes": {}
       },
       {
-        "id": "52cf4430-5497-4289-98b6-687511aa0716",
-        "name": "mfa-required",
-        "description": "Users holding this role must use a second factor (OTP) to sign in with a password",
+        "id": "3c6db444-b3c3-4625-a687-1f4716e430f8",
+        "name": "trapper",
+        "description": "Trapper: owns traps and prints their QR Codes; default role of a new account",
         "composite": false,
         "clientRole": false,
-        "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049"
+        "containerId": "0a2b88de-ad3d-4820-af60-8397202b8049",
+        "attributes": {}
       }
     ],
     "client": {
@@ -609,7 +610,7 @@
       "path": "/hunters",
       "subGroups": [
         {
-          "id": "4b6e2f3a-9d1c-4e8b-a7f5-2c3d8e9f1a6b",
+          "id": "9e7c7caf-f034-4964-aa10-0a7488fa704b",
           "name": "admin",
           "description": "Coordinateurs des chasseurs de nids",
           "path": "/hunters/admin",
@@ -629,17 +630,17 @@
       "clientRoles": {}
     },
     {
-      "id": "6d2a1c3e-8b7f-4e19-a0c4-2f9d5e7b3a11",
+      "id": "a9cc6ef7-1256-40d9-bada-365950314a10",
       "name": "trappers",
       "description": "Piégeurs",
       "path": "/trappers",
       "subGroups": [
         {
-          "id": "6d2a1c3e-8b7f-4e19-a0c4-2f9d5e7b3a12",
+          "id": "f091d230-1ac6-43a9-a65e-f4ee84c09880",
           "name": "admin",
           "description": "Coordinateurs des piégeurs",
           "path": "/trappers/admin",
-          "parentId": "6d2a1c3e-8b7f-4e19-a0c4-2f9d5e7b3a11",
+          "parentId": "a9cc6ef7-1256-40d9-bada-365950314a10",
           "subGroups": [],
           "attributes": {},
           "realmRoles": [
@@ -669,6 +670,7 @@
   "requiredCredentials": [
     "password"
   ],
+  "passwordPolicy": "length(12) and notUsername and notEmail",
   "otpPolicyType": "totp",
   "otpPolicyAlgorithm": "HmacSHA1",
   "otpPolicyInitialCounter": 0,
@@ -1131,6 +1133,7 @@
         "require.pushed.authorization.requests": "false",
         "request.object.encryption.enc": "any",
         "ssf.enabled": "false",
+        "pkce.code.challenge.method": "S256",
         "dpop.bound.access.tokens": "false",
         "logout.confirmation.enabled": "false",
         "id.token.as.detached.signature": "false",
@@ -1143,8 +1146,7 @@
         "acr.loa.map": "{}",
         "tls.client.certificate.bound.access.tokens": "false",
         "display.on.consent.screen": "false",
-        "token.response.type.bearer.lower-case": "false",
-        "pkce.code.challenge.method": "S256"
+        "token.response.type.bearer.lower-case": "false"
       },
       "authenticationFlowBindingOverrides": {
         "browser": "e24cc354-6ca9-40e5-b8a0-85adae6e4d08"
@@ -1236,8 +1238,8 @@
         "acr.loa.map": "{}",
         "display.on.consent.screen": "false",
         "request.object.encryption.enc": "any",
-        "token.response.type.bearer.lower-case": "false",
-        "pkce.code.challenge.method": "S256"
+        "pkce.code.challenge.method": "S256",
+        "token.response.type.bearer.lower-case": "false"
       },
       "authenticationFlowBindingOverrides": {},
       "fullScopeAllowed": true,
@@ -1814,7 +1816,6 @@
             "full.path": "true",
             "introspection.token.claim": "true",
             "userinfo.token.claim": "true",
-            "multivalued": "true",
             "id.token.claim": "true",
             "lightweight.claim": "false",
             "access.token.claim": "true",
@@ -2643,13 +2644,13 @@
           "userSetupAllowed": false
         },
         {
+          "authenticatorConfig": "mfa-role-not-required",
           "authenticator": "conditional-user-role",
           "authenticatorFlow": false,
           "requirement": "REQUIRED",
           "priority": 20,
           "autheticatorFlow": false,
-          "userSetupAllowed": false,
-          "authenticatorConfig": "mfa-role-not-required"
+          "userSetupAllowed": false
         },
         {
           "authenticator": "auth-otp-form",
@@ -2660,13 +2661,13 @@
           "userSetupAllowed": false
         },
         {
+          "authenticatorConfig": "skip-otp-if-passkey-used",
           "authenticator": "conditional-credential",
           "authenticatorFlow": false,
           "requirement": "REQUIRED",
           "priority": 40,
           "autheticatorFlow": false,
-          "userSetupAllowed": false,
-          "authenticatorConfig": "skip-otp-if-passkey-used"
+          "userSetupAllowed": false
         }
       ]
     },
@@ -2796,6 +2797,33 @@
           "priority": 20,
           "autheticatorFlow": true,
           "flowAlias": "Account verification options",
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "id": "c1b4e99d-2703-441c-bff0-08545b53e69b",
+      "alias": "Mandatory OTP",
+      "description": "OTP for users holding the mfa-required role, configured at sign-in when missing",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorConfig": "mfa-role-required",
+          "authenticator": "conditional-user-role",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "auth-otp-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "autheticatorFlow": false,
           "userSetupAllowed": false
         }
       ]
@@ -3374,33 +3402,6 @@
           "userSetupAllowed": false
         }
       ]
-    },
-    {
-      "id": "c2b2a4c1-ca9c-4886-b937-b3463187a533",
-      "alias": "Mandatory OTP",
-      "description": "OTP for users holding the mfa-required role, configured at sign-in when missing",
-      "providerId": "basic-flow",
-      "topLevel": false,
-      "builtIn": false,
-      "authenticationExecutions": [
-        {
-          "authenticator": "conditional-user-role",
-          "authenticatorFlow": false,
-          "requirement": "REQUIRED",
-          "priority": 10,
-          "autheticatorFlow": false,
-          "userSetupAllowed": false,
-          "authenticatorConfig": "mfa-role-required"
-        },
-        {
-          "authenticator": "auth-otp-form",
-          "authenticatorFlow": false,
-          "requirement": "REQUIRED",
-          "priority": 20,
-          "autheticatorFlow": false,
-          "userSetupAllowed": false
-        }
-      ]
     }
   ],
   "authenticatorConfig": [
@@ -3409,6 +3410,22 @@
       "alias": "create unique user config",
       "config": {
         "require.password.update.after.registration": "false"
+      }
+    },
+    {
+      "id": "cf01faf3-4f2c-402b-a451-0b53f6cee787",
+      "alias": "mfa-role-not-required",
+      "config": {
+        "condUserRole": "mfa-required",
+        "negate": "true"
+      }
+    },
+    {
+      "id": "c71fe2e1-5a7b-42f9-8486-0cc004456851",
+      "alias": "mfa-role-required",
+      "config": {
+        "condUserRole": "mfa-required",
+        "negate": "false"
       }
     },
     {
@@ -3424,22 +3441,6 @@
       "config": {
         "credentials": "webauthn-passwordless",
         "included": "false"
-      }
-    },
-    {
-      "id": "5b0a8533-6d11-4ecc-99db-8486a218b818",
-      "alias": "mfa-role-required",
-      "config": {
-        "condUserRole": "mfa-required",
-        "negate": "false"
-      }
-    },
-    {
-      "id": "053756a4-f376-44e0-af5a-f6ffceacec32",
-      "alias": "mfa-role-not-required",
-      "config": {
-        "condUserRole": "mfa-required",
-        "negate": "true"
       }
     }
   ],
@@ -3585,7 +3586,7 @@
     "actionTokenGeneratedByUserLifespan.reset-credentials": "",
     "darkMode": "false"
   },
-  "keycloakVersion": "26.7.4",
+  "keycloakVersion": "26.8.0",
   "userManagedAccessAllowed": true,
   "organizationsEnabled": false,
   "verifiableCredentialsEnabled": false,
@@ -3596,6 +3597,5 @@
   },
   "clientPolicies": {
     "policies": []
-  },
-  "passwordPolicy": "length(12) and notUsername and notEmail"
+  }
 }
