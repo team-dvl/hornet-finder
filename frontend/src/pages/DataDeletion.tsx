@@ -40,7 +40,7 @@ export default function DataDeletion() {
               <li>Tous les signalements de nids que vous avez créés</li>
               <li>Vos données de géolocalisation associées aux signalements</li>
               <li>Toutes les photos et descriptions que vous avez fournies</li>
-              <li>L'historique de vos connexions et activités sur l'application</li>
+              <li>L'historique de vos connexions sur l'application</li>
             </ul>
           </section>
 
@@ -121,6 +121,12 @@ export default function DataDeletion() {
             <ul>
               <li>Vous ne pourrez plus accéder à l'application avec votre compte Facebook actuel</li>
               <li>Tous vos signalements seront définitivement supprimés de notre base de données</li>
+              <li>
+                Le journal des actions garde, jusqu'à un an, la trace de vos actions et de l'état des
+                objets supprimés, sous un identifiant technique qui n'est plus relié à votre nom ni à
+                votre adresse email (voir la <Link to="/privacy-policy">politique de confidentialité</Link>,
+                article 8).
+              </li>
               <li>Vous recevrez un email de confirmation de la suppression</li>
               <li>Vous pourrez créer un nouveau compte si vous souhaitez utiliser à nouveau l'application</li>
             </ul>
@@ -136,8 +142,9 @@ export default function DataDeletion() {
               <strong>Email :</strong> <a href="mailto:contact@velutina.ovh">contact@velutina.ovh</a>
             </p>
             <p>
-              En cas de désaccord, vous avez le droit de déposer une réclamation auprès 
-              de la Commission Nationale de l'Informatique et des Libertés (CNIL).
+              En cas de désaccord, vous avez le droit de déposer une réclamation auprès
+              de l'<a href="https://www.autoriteprotectiondonnees.be" target="_blank" rel="noopener">Autorité
+              de protection des données</a> (APD).
             </p>
           </section>
 

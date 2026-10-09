@@ -1,5 +1,9 @@
 import { Container, Row, Col } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
+import { formatDate } from '../utils/format';
+
+/** Date of the last revision of this policy */
+const LAST_UPDATED = '2026-10-09T12:00:00';
 
 export default function PrivacyPolicy() {
   return (
@@ -15,7 +19,8 @@ export default function PrivacyPolicy() {
           <h1 className="mb-4">Politique de Confidentialité</h1>
           
           <div className="text-muted mb-4">
-            <small>Dernière mise à jour : {new Date().toLocaleDateString('fr-FR')}</small>
+            {/* Fixed date: change it with every revision of this text */}
+            <small>Dernière mise à jour : {formatDate(LAST_UPDATED)}</small>
           </div>
 
           <section className="mb-5">
@@ -50,7 +55,7 @@ export default function PrivacyPolicy() {
               <li>Informations de profil (nom, email) fournies par votre fournisseur d'identité (Facebook, Google, etc.)</li>
               <li>Données de géolocalisation des signalements</li>
               <li>Informations techniques relatives aux signalements (photos, descriptions, dates)</li>
-              <li>Données de connexion et d'utilisation de l'application</li>
+              <li>Journal des actions faites dans l'application (voir l'article 8)</li>
             </ul>
           </section>
 
@@ -60,6 +65,7 @@ export default function PrivacyPolicy() {
             <ul>
               <li><strong>L'intérêt légitime</strong> (Art. 6.1.f RGPD) : lutte contre une espèce invasive nuisible à l'environnement</li>
               <li><strong>Votre consentement</strong> (Art. 6.1.a RGPD) : pour l'utilisation de services tiers d'authentification</li>
+              <li><strong>L'intérêt légitime</strong> (Art. 6.1.f RGPD) : sécurité de la plateforme et traçabilité des actions sur les données partagées (journal des actions)</li>
               <li><strong>L'exécution d'une mission d'intérêt public</strong> (Art. 6.1.e RGPD) : protection de l'environnement et de la biodiversité</li>
             </ul>
           </section>
@@ -105,10 +111,46 @@ export default function PrivacyPolicy() {
               Les données de signalement peuvent être conservées plus longtemps à des fins 
               statistiques et de recherche scientifique, après anonymisation.
             </p>
+            <p>Le journal des actions est conservé un an (article 8).</p>
           </section>
 
           <section className="mb-5">
-            <h2>8. Sécurité des données</h2>
+            <h2>8. Journal des actions</h2>
+            <p>
+              Pour la sécurité de la plateforme et la traçabilité des données partagées entre ses
+              utilisateurs, chaque action faite dans l'application est enregistrée dans un journal :
+            </p>
+            <ul>
+              <li>signalement, modification ou suppression d'un nid, d'un frelon, d'un rucher ou d'un piège ;</li>
+              <li>relevés ;</li>
+              <li>partages, délégations et transferts ;</li>
+              <li>QR Codes ;</li>
+              <li>membres et invitations des groupes ;</li>
+              <li>exports de statistiques et leurs téléchargements.</li>
+            </ul>
+            <p>
+              Chaque entrée indique quand l'action a eu lieu, quel objet elle concerne et ce qui a
+              changé. L'auteur y figure sous un identifiant technique de compte. Quand un objet est
+              supprimé, le journal garde son dernier état : c'est la seule trace qui en reste.
+            </p>
+            <p>
+              Le journal ne contient ni votre adresse email, ni votre adresse IP, ni votre nom.
+              Votre nom est lu dans votre compte au moment où un administrateur consulte le journal.
+            </p>
+            <p>
+              Seuls les administrateurs de la plateforme peuvent le consulter. Personne ne peut
+              modifier ni effacer une entrée.
+            </p>
+            <p>
+              Chaque entrée est conservée <strong>un an</strong>, puis supprimée automatiquement. Si
+              vous supprimez votre compte, les entrées existantes restent jusqu'à cette échéance, sous
+              l'identifiant technique de votre ancien compte. Celui-ci n'est plus relié à aucun nom
+              ni à aucune adresse.
+            </p>
+          </section>
+
+          <section className="mb-5">
+            <h2>9. Sécurité des données</h2>
             <p>
               Nous mettons en œuvre des mesures techniques et organisationnelles appropriées 
               pour protéger vos données personnelles contre la perte, l'utilisation abusive, 
@@ -117,7 +159,7 @@ export default function PrivacyPolicy() {
           </section>
 
           <section className="mb-5">
-            <h2>9. Transferts internationaux</h2>
+            <h2>10. Transferts internationaux</h2>
             <p>
               Dans le cadre de l'utilisation de services d'authentification tiers (Facebook, Google), 
               vos données peuvent être transférées vers des pays situés en dehors de l'Espace 
@@ -127,7 +169,7 @@ export default function PrivacyPolicy() {
           </section>
 
           <section className="mb-5">
-            <h2>10. Contact et délégué à la protection des données</h2>
+            <h2>11. Contact et délégué à la protection des données</h2>
             <p>
               Pour toute question relative à cette politique de confidentialité ou pour 
               exercer vos droits RGPD, vous pouvez nous contacter à :
@@ -136,14 +178,15 @@ export default function PrivacyPolicy() {
               <strong>Email :</strong> <a href="mailto:contact@velutina.ovh">contact@velutina.ovh</a>
             </p>
             <p>
-              Vous avez également le droit d'introduire une réclamation auprès de la 
-              Commission Nationale de l'Informatique et des Libertés (CNIL) si vous 
-              estimez que le traitement de vos données ne respecte pas la réglementation.
+Vous avez également le droit d'introduire une réclamation auprès de
+              l'<a href="https://www.autoriteprotectiondonnees.be" target="_blank" rel="noopener">Autorité
+              de protection des données</a> (APD) si vous estimez que le traitement de vos
+              données ne respecte pas la réglementation.
             </p>
           </section>
 
           <section className="mb-5">
-            <h2>11. Modifications de cette politique</h2>
+            <h2>12. Modifications de cette politique</h2>
             <p>
               Cette politique de confidentialité peut être mise à jour périodiquement. 
               Les modifications importantes vous seront notifiées via l'application ou 

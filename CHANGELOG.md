@@ -52,6 +52,12 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ### Changed
 - Default map position: the church of Vedrin Centre (50.5034, 4.8728441) replaces the
   previous point, for the map and the compass.
+- Privacy policy: new article 8 on the audit trail (what is recorded, who reads
+  it, kept one year, kept after an account deletion under the former account's
+  technical identifier), its legal basis and retention; the "last update" date
+  is fixed instead of showing today's date. The data deletion page says what the
+  audit trail keeps. Both pages name the Belgian data protection authority
+  (APD) instead of the CNIL.
 - Help tips: with a mouse, the popover stays open while the pointer moves onto it,
   so that a link inside it can be reached.
 
