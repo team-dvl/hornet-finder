@@ -4,7 +4,7 @@ import { Spinner } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 import L, { Map } from 'leaflet';
-import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowApiaryCircles, selectShowHornets, selectShowReturnZones, selectBasemap, selectShowNests, initializeGeolocation, selectMapCenter, selectGeolocationError, setGeolocationError, setIsAdmin, selectTraps, selectShowTraps, selectMovingTrapId, setShowTraps, setShowNests, setShowApiaries, setShowHornets, startMovingTrap, stopMovingTrap, updateTrap, fetchTrapDetail, fetchApiaryDetail } from '../../store/store';
+import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowApiaryCircles, selectShowHornets, selectShowReturnZones, selectBasemap, selectShowNests, initializeGeolocation, selectMapCenter, selectZoom, selectGeolocationError, setGeolocationError, setIsAdmin, selectTraps, selectShowTraps, selectMovingTrapId, setShowTraps, setShowNests, setShowApiaries, setShowHornets, startMovingTrap, stopMovingTrap, updateTrap, fetchTrapDetail, fetchApiaryDetail } from '../../store/store';
 import { selectFilteredHornets } from '../../store/slices/hornetsSlice';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useMapDataFetching } from '../../hooks/useMapDataFetching';
@@ -118,6 +118,9 @@ export default function InteractiveMap({
   
   // Redux state
   const mapCenter = useAppSelector(selectMapCenter);
+  // Initial zoom only: the map keeps its own afterwards
+  const storedZoom = useAppSelector(selectZoom);
+  const [mapZoom] = useState(storedZoom);
   const geolocationError = useAppSelector(selectGeolocationError);
   
   // Initialiser la géolocalisation en premier
@@ -575,7 +578,7 @@ export default function InteractiveMap({
     <div className="position-relative w-100 h-100">
       <MapContainer
         center={coordinates}
-        zoom={15}
+        zoom={mapZoom}
         maxZoom={MAX_ZOOM}
         scrollWheelZoom={true}
         style={{ height: "100%", width: "100%" }}

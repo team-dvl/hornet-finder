@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { DEFAULT_GEOLOCATION, DEFAULT_ZOOMFACTOR } from '../../utils/constants';
+import { DEFAULT_GEOLOCATION } from '../../utils/constants';
+import { DEFAULT_MAP_VIEW, loadMapView } from '../../utils/mapMemory';
 
 export interface MapPosition {
   latitude: number;
@@ -59,9 +60,12 @@ export interface MapState {
   };
 }
 
+// Start where the user left the map on this device, else on the default position
+const startView = loadMapView() ?? DEFAULT_MAP_VIEW;
+
 const initialState: MapState = {
-  center: DEFAULT_GEOLOCATION,
-  zoom: DEFAULT_ZOOMFACTOR,
+  center: { latitude: startView.latitude, longitude: startView.longitude },
+  zoom: startView.zoom,
   isGeolocationLoading: false,
   geolocationError: null,
   isInitialized: false,

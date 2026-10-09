@@ -388,6 +388,18 @@ button.module-card {
   text-align: start;
 }
 
+/* Main button of an action row that also holds a help tip (no button inside a button) */
+.layer-action-main {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  align-self: stretch;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: start;
+}
+
 /* Distance column of the nearest nests: aligned figures */
 .nearest-nest-distance {
   min-width: 4rem;

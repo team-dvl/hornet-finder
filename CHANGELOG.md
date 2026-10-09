@@ -11,6 +11,10 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ## [Unreleased]
 
 ### Added
+- Map: it reopens where you left it (centre and zoom, on this device, for 30 days after
+  the last move). Only a drag by hand is remembered, never a locate fix or a jump to an
+  object. "Position par défaut" in the layers sheet forgets it and recentres on the
+  default position.
 - Help panel: the documentation opens in a panel sliding in from the right, over the
   page and over any dialog (nothing typed is lost; Back or Escape close the panel
   first). A help tip linked to the documentation ends with "Documentation
