@@ -11,7 +11,7 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ## [Unreleased]
 
 ### Added
-- Map: satellite view. The layers sheet starts with a "Plan / Satellite" choice
+- Map: satellite view. The layers sheet starts with two exclusive switches, "Plan" and "Satellite"
   (Esri World Imagery, remembered on the device). The nginx CSP now allows
   `server.arcgisonline.com` for images: nginx must be reloaded (see
   `doc/prod-migrations/0022-satellite-basemap-csp.md`).

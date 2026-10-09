@@ -113,21 +113,9 @@ export default function LayerControlsButton({
       </button>
 
       <BottomSheet show={open} onHide={() => setOpen(false)} title="Couches">
-        <div className="basemap-choice" role="radiogroup" aria-label="Fond de carte">
-          {([['plan', 'bi-map', 'Plan'], ['satellite', 'bi-globe-europe-africa', 'Satellite']] as const).map(([value, icon, label]) => (
-            <button
-              key={value}
-              type="button"
-              role="radio"
-              aria-checked={basemap === value}
-              className={`basemap-option ${basemap === value ? 'active' : ''}`}
-              onClick={() => dispatch(setBasemap(value))}
-            >
-              <i className={`bi ${icon} me-1`} aria-hidden="true" />
-              {label}
-            </button>
-          ))}
-        </div>
+        <LayerSwitch id="basemap-plan" icon="🗺️" label="Plan" checked={basemap === 'plan'} onChange={() => dispatch(setBasemap('plan'))} />
+        <LayerSwitch id="basemap-satellite" icon="🛰️" label="Satellite" checked={basemap === 'satellite'} onChange={() => dispatch(setBasemap('satellite'))} />
+        <div className="border-top my-2" />
         <LayerSwitch id="layer-hornets" icon={OBJECT_ICONS.hornet} label="Frelons" checked={showHornets} onChange={() => dispatch(toggleHornets())} />
         {showHornets && (
           <LayerSwitch id="layer-zones" icon="🔺" label="Zones de retour" checked={showReturnZones} onChange={() => dispatch(toggleReturnZones())} sub />
