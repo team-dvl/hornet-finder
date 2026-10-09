@@ -3,11 +3,12 @@ import { Button } from "react-bootstrap";
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polygon, useMapEvents } from "react-leaflet";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import "leaflet/dist/leaflet.css";
+import { DEFAULT_GEOLOCATION } from "../../utils/constants";
 
 const range = 3000; // Distance in meters
 
 export default function CompassMap() {
-  const [coordinates, setCoordinates] = useState<[number, number]>([50.491064, 4.884473]);
+  const [coordinates, setCoordinates] = useState<[number, number]>([DEFAULT_GEOLOCATION.latitude, DEFAULT_GEOLOCATION.longitude]);
   const [direction, setDirection] = useState<number | null>(null);
   const [choosingDirection, setChoosingDirection] = useState<boolean>(false);
   const [markerPosition, setMarkerPosition] = useState<[number, number] | null>(null);

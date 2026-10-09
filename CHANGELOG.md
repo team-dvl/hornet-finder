@@ -42,6 +42,8 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   is shared with their association.
 
 ### Changed
+- Default map position: the church of Vedrin Centre (50.5034, 4.8728441) replaces the
+  previous point, for the map and the compass.
 - Help tips: with a mouse, the popover stays open while the pointer moves onto it,
   so that a link inside it can be reached.
 

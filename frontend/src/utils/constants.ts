@@ -26,12 +26,12 @@ export const HORNET_RETURN_ZONE_ABSOLUTE_MAX_DISTANCE_M = 3000;
 export const HORNET_FLIGHT_SPEED_M_PER_MIN = 100;
 
 /**
- * Géolocalisation par défaut de l'application (région de Namur, Belgique)
+ * Géolocalisation par défaut de l'application (église de Vedrin Centre, Namur, Belgique)
  * Utilisée comme centre de carte et position utilisateur par défaut
  */
 export const DEFAULT_GEOLOCATION = {
-  latitude: 50.491064,
-  longitude: 4.884473
+  latitude: 50.5034,
+  longitude: 4.8728441
 };
 
 /**
