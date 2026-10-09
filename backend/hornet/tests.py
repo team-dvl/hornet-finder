@@ -3463,6 +3463,16 @@ class ApiaryOwnerTransferTests(GroupInvitationTestCase):
         self.apiary.refresh_from_db()
         self.assertEqual(str(self.apiary.owner_id), self.aga.guid)
 
+    def test_group_admin_cannot_hand_over_a_private_apiary_of_a_member(self):
+        Apiary.objects.filter(pk=self.apiary.pk).update(owner_id=self.member.guid)
+        data = {'owner_guid': self.newcomer_guid, 'group_path': _ENA}
+        self.assertEqual(self._owner('put', self.aga, data).status_code, 403)
+        self.assertEqual(self._owner('get', self.aga).status_code, 403)
+        # Shared with the group, the administrator sees it and may hand it over
+        ApiaryGroupPermission.objects.create(
+            apiary=self.apiary, group=BeekeeperGroup.objects.create(name='ena', path=_ENA), can_read=True)
+        self.assertEqual(self._owner('put', self.aga, data).status_code, 200)
+
     def test_group_admin_cannot_take_the_apiary_of_someone_outside_the_group(self):
         outsider = User.objects.create(guid=uuid_module.uuid4(), group_paths=[_VSAB])
         Apiary.objects.filter(pk=self.apiary.pk).update(owner=outsider)

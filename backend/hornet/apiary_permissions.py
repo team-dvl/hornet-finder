@@ -109,8 +109,9 @@ def allowed_share_groups(request, apiary):
 def owner_transfer_groups(request, apiary):
     """
     Associations within which the requester may hand this apiary over: the
-    ones they administer and the current owner belongs to, so a group
-    administrator never reaches the apiary of someone outside their group.
+    ones they administer and the current owner belongs to, and, unless they own
+    the apiary, with which it is shared: a group administrator never reaches an
+    apiary their group cannot see.
     `None` means any association (platform admin).
     """
     user = _authenticated(request)
@@ -123,7 +124,13 @@ def owner_transfer_groups(request, apiary):
         # Most requesters: no need to look up the owner's groups
         return set()
     owner_associations = {p for p in map(association_path, owner_group_paths(apiary.owner)) if p}
-    return administered & owner_associations
+    allowed = administered & owner_associations
+    if is_apiary_owner(user, apiary):
+        return allowed
+    # An administrator only hands over what their group can see: a private apiary
+    # stays invisible to them, even when its owner is a member
+    shared = {grant.group.path for grant in apiary.apiarygrouppermission_set.all() if grant.can_read}
+    return allowed & shared
 
 
 def can_change_owner(request, apiary) -> bool:
