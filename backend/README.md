@@ -105,6 +105,16 @@ The emails use the layout of the Keycloak email theme (`auth/themes/velutina/ema
 - `GET /api/me/group-invitations/` - Pending invitations of the caller
 - `POST /api/me/group-invitations/{id}/accept/`, `POST /api/me/group-invitations/{id}/decline/` - Answer one; the new membership shows in the next token
 
+### Audit trail
+
+Business actions (reports, edits, deletions, hand-overs, sharings, delegations, journal entries, QR codes, group memberships, invitations, statistics exports and their downloads) recorded by the `audit` app, in the transaction of the change, append-only (a database trigger refuses `UPDATE`, and `DELETE` outside the retention purge). Platform admins only, read-only. See `doc/AUDIT_TRAIL.md`.
+
+- `GET /api/audit/events/` - Events newest first, cursor-paginated (`cursor`, `page_size` ≤ 200). Filters: `since`, `until` (date, included, or date-time), `actor` (GUIDs), `action`, `domain` (comma-separated), `ref` (`trap:42`, `group:/beekeepers/x`…: every event concerning it), `source` (`api`, `system`, `backfill`), `q` (text in the details). Each event carries `actor_name` (Keycloak, cached 10 minutes, never stored) and `actor_deleted`
+- `GET /api/audit/events/{id}/` - One event
+- `GET /api/audit/events/catalogue/` - Action codes with their domain, domains, sources and `retention_days`
+- `GET /api/audit/events/actors/?q=` - Up to 10 accounts matching a name or an email, to filter on an actor
+- `GET /api/audit/events/export/` - The filtered events as CSV (`;`, UTF-8 with BOM, at most 50 000 rows); the export is itself recorded
+
 ### Documentation
 
 - `GET /api/docs/` - Interactive Swagger UI documentation (development only)
@@ -146,6 +156,7 @@ The application requires several environment variables to be configured. These a
 - `KEYCLOAK_*` - Keycloak authentication server configuration
 - `TAG_HMAC_KEYS`, `TAG_HMAC_ACTIVE_INDEX`, `TAG_SITE_ID` - Signing keys of the QR tags, the key new tags are signed with, and the site identifier (see `.env.example` for rotation)
 - `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USE_SSL` / `EMAIL_USE_TLS`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL` - Outgoing email. Dev: Mailpit, no TLS nor authentication. Prod: OVH MX Plan, `ssl0.ovh.net:465` with implicit TLS and a full mailbox address as user (only the user and password come from `.env`); without `EMAIL_HOST` nothing is sent and the statistics email link is not offered
+- `AUDIT_RETENTION_DAYS` - Days the audit trail keeps an event (default 365); older events are purged at most once a day, or by `manage.py audit_purge`
 
 Refer to the main project's [docker-compose.yml](../docker-compose.yml) file for the complete list of required environment variables.
 

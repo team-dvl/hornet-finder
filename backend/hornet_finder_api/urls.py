@@ -32,6 +32,7 @@ def robots_txt(request: HttpRequest) -> HttpResponse:
 urlpatterns = [
     # path('admin/', admin.site.urls),
     path('robots.txt', robots_txt),
+    path('api/audit/', include('audit.urls')),
     path('api/', include('hornet.urls')),
 ]
 

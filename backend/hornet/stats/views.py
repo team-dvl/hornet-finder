@@ -13,6 +13,7 @@ from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from audit import recorder as audit
 from hornet_finder_api.authentication import HasAnyRole, JWTBearerAuthentication
 
 from . import mailing
@@ -103,8 +104,24 @@ class StatExportLinkView(StatsView):
             return error_response(exc)
         token = signing.dumps({'stat': stat_id, 'format': fmt, 'params': params,
                                'scope': scope.as_dict()}, salt=EXPORT_SALT, compress=True)
+        audit.record(request, 'stats.export_link', ('statistic', stat_id), label=statistic.title,
+                     changes={'format': fmt, 'params': params}, refs=[export_ref(token)])
         return Response({'url': reverse('stats-export-file', args=[token]),
                          'filename': filename(result, fmt), 'expires_in': EXPORT_LINK_SECONDS})
+
+
+def export_ref(token: str) -> str:
+    """
+    What ties the downloads of an export to its request in the audit trail: a
+    digest of the link's token, never the token itself (it opens the file).
+    """
+    return audit.ref('export', mailing.token_hash(token)[:16])
+
+
+def _record_download(request, token, statistic, fmt, **details):
+    """A file left through a link: no one is signed in, the link stands for the requester."""
+    audit.record(request, 'stats.export_downloaded', ('statistic', statistic.id), label=statistic.title,
+                 changes={'format': fmt, **details}, refs=[export_ref(token)])
 
 
 def _text_response(message: str, status: int) -> HttpResponse:
@@ -142,6 +159,7 @@ def stat_export_file(request, token):
         result = statistic.compute(payload.get('params', {}), scope)
     except StatError as exc:
         return _text_response(str(exc), exc.status)
+    _record_download(request, token, statistic, fmt, via='link')
     return _file_response(result, fmt)
 
 
@@ -177,6 +195,9 @@ class StatEmailLinkView(StatsView):
             logger.warning("Could not email statistics export %s: %s", stat_id, type(exc).__name__)
             job.delete()
             return Response({'error': "L'email n'a pas pu être envoyé : réessayez plus tard."}, status=502)
+        audit.record(request, 'stats.export_emailed', ('statistic', stat_id), label=statistic.title,
+                     changes={'params': params, 'expires_at': job.expires_at.isoformat()},
+                     refs=[export_ref(token)])
         return Response({'sent_to': mailing.mask_email(address), 'expires_at': job.expires_at.isoformat()})
 
 
@@ -224,4 +245,6 @@ def stat_export_job_file(request, token, fmt):
         result = statistic.compute(job.params, scope)
     except StatError as exc:
         return _text_response(str(exc), exc.status)
+    job.refresh_from_db(fields=['downloads'])
+    _record_download(request, token, statistic, fmt, via='email', download=job.downloads)
     return _file_response(result, fmt)

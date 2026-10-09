@@ -14,6 +14,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
 
+from audit import recorder as audit
 from hornet_finder_api.authentication import HasAnyRole
 from hornet_finder_api.roles import ADMIN, BEEKEEPER, TRAPPER
 
@@ -203,10 +204,14 @@ class TagViewSet(viewsets.ViewSet):
             raise DRFValidationError({'count': f"Between 1 and {MAX_BATCH}."})
         config = get_config()
         owner = perms.local_user(request)
-        tags = Tag.objects.bulk_create([
-            Tag(value=generate_tag_value(config), key_index=config.active_index, generated_by=owner)
-            for _ in range(count)
-        ])
+        with transaction.atomic():
+            tags = Tag.objects.bulk_create([
+                Tag(value=generate_tag_value(config), key_index=config.active_index, generated_by=owner)
+                for _ in range(count)
+            ])
+            audit.record(request, 'tag.batch_generated', ('tag', None),
+                         changes={'count': count, 'key_index': config.active_index},
+                         refs=[audit.ref('tag', tag.pk) for tag in tags])
         logger.info("%s tag(s) generated with key %s by %s",
                     count, config.active_index, getattr(request.user, 'guid', None))
         return Response([_tag_payload(tag) for tag in tags], status=status.HTTP_201_CREATED)
@@ -301,6 +306,7 @@ class TagViewSet(viewsets.ViewSet):
 
             user = perms.local_user(request)
             now = timezone.now()
+            replaced = None
             current = Tag.objects.select_for_update().filter(
                 trap=trap, revoked_at__isnull=True).first()
             if current is not None:
@@ -309,6 +315,7 @@ class TagViewSet(viewsets.ViewSet):
                                   status.HTTP_409_CONFLICT, existing_short=current.short)
                 current.revoked_at, current.revoked_by = now, user
                 current.save(update_fields=['revoked_at', 'revoked_by'])
+                replaced = current
                 logger.info("Tag %s of trap %s revoked by %s",
                             current.short, trap.id, getattr(request.user, 'guid', None))
 
@@ -321,6 +328,10 @@ class TagViewSet(viewsets.ViewSet):
             except IntegrityError:
                 return _error('trap_has_tag', "This trap already has a tag.",
                               status.HTTP_409_CONFLICT)
+            audit.record(request, 'tag.associated', tag, changes={
+                'short': tag.short, 'trap': trap.id,
+                **({'replaced_tag': replaced.pk, 'replaced_short': replaced.short} if replaced else {}),
+            }, refs=[audit.ref('tag', replaced.pk)] if replaced else [])
         logger.info("Tag %s associated with trap %s by %s",
                     tag.short, trap.id, getattr(request.user, 'guid', None))
         return Response({'status': 'associated', 'short': short_code(tag.value),
@@ -433,6 +444,7 @@ class TagAdminViewSet(viewsets.ViewSet):
                               status.HTTP_409_CONFLICT)
             tag.revoked_at, tag.revoked_by = timezone.now(), perms.local_user(request)
             tag.save(update_fields=['revoked_at', 'revoked_by'])
+            audit.record(request, 'tag.revoked', tag, changes={'short': tag.short, 'trap': tag.trap_id})
         logger.info("Tag %s (trap %s) revoked by admin %s",
                     tag.short, tag.trap_id, getattr(request.user, 'guid', None))
         return Response(self._row(tag, {}))

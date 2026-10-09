@@ -19,6 +19,7 @@ from drf_spectacular.types import OpenApiTypes
 from hornet_finder_api import utils as keycloak
 from hornet_finder_api.authentication import HasAnyRole, JWTBearerAuthentication
 from hornet_finder_api.roles import APP_ROLES, BEEKEEPER, TRAPPER
+from audit import recorder as audit
 
 from . import trap_permissions as perms
 from .invitation_views import BEEKEEPERS_ROOT, _sort_key
@@ -122,10 +123,21 @@ class ReferentialViewSet(viewsets.ModelViewSet):
         return [HasAnyRole(['admin'])]
 
     def perform_create(self, serializer):
-        self._attach_photo(serializer.save())
+        with transaction.atomic():
+            instance = serializer.save()
+            self._attach_photo(instance)
+            kind = audit.type_of(instance)
+            audit.record(self.request, f"{kind}.created", instance, changes=audit.snapshot(instance))
 
     def perform_update(self, serializer):
-        self._attach_photo(serializer.save())
+        kind = audit.type_of(serializer.instance)
+        with audit.track(self.request, f"{kind}.updated", serializer.instance):
+            self._attach_photo(serializer.save())
+
+    def _record_deletion(self, request, instance, pk):
+        kind = audit.type_of(instance)
+        audit.record(request, f"{kind}.deleted", (kind, pk), changes=audit.snapshot(instance),
+                     label=audit.label_of(instance))
 
     def _attach_photo(self, instance):
         uploaded = self.request.FILES.get('photo')
@@ -147,9 +159,13 @@ class TrapTypeViewSet(ReferentialViewSet):
                               409: OpenApiResponse(description='Trap type still in use')})
     def destroy(self, request, *args, **kwargs):
         trap_type = self.get_object()
+        pk = trap_type.pk
         try:
+            with transaction.atomic():
+                trap_type.delete()
+                self._record_deletion(request, trap_type, pk)
+            # Only once deleted: a trap type still in use keeps its photo
             _delete_files(trap_type.photo, trap_type.photo_thumbnail)
-            trap_type.delete()
         except ProtectedError:
             count = Trap.objects.filter(trap_type=trap_type).count()
             return Response(
@@ -194,15 +210,19 @@ class SpeciesViewSet(ReferentialViewSet):
         with transaction.atomic():
             for position, pk in enumerate(ids):
                 Species.objects.filter(pk=pk).update(sort_order=position)
+            audit.record(request, 'species.reordered', ('species', None), changes={'order': ids},
+                         refs=[audit.ref('species', pk) for pk in ids])
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @extend_schema(responses={204: OpenApiResponse(description='Deleted'),
                               409: OpenApiResponse(description='Species still in use')})
     def destroy(self, request, *args, **kwargs):
         species = self.get_object()
+        pk = species.pk
         try:
             with transaction.atomic():
                 species.delete()
+                self._record_deletion(request, species, pk)
             _delete_files(species.photo, species.photo_thumbnail)
         except ProtectedError:
             count = TrapEvent.objects.filter(species=species).count()
@@ -413,10 +433,17 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         )
         # The installation is what puts the trap in service, here as anywhere else
         trap.apply_event_side_effects(event)
+        audit.record(self.request, 'trap.created', trap, changes=audit.snapshot(trap),
+                     refs=[audit.ref('trap_event', event.pk)])
         self._created_trap = trap
 
+    def perform_update(self, serializer):
+        with audit.track(self.request, 'trap.updated', serializer.instance):
+            serializer.save()
+
     def create(self, request, *args, **kwargs):
-        response = super().create(request, *args, **kwargs)
+        with transaction.atomic():
+            response = super().create(request, *args, **kwargs)
         # Re-serialise so the response carries the photo URLs and the journal
         response.data = TrapDetailSerializer(self._created_trap).data
         return response
@@ -435,10 +462,18 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         trap = self.get_object()
         if not perms.can_edit_trap(request, trap):
             raise PermissionDenied("You do not have permission to delete this trap.")
-        for photo in trap.photos.all():
-            _delete_files(photo.image, photo.thumbnail)
-        _delete_files(trap.photo, trap.photo_thumbnail)
-        return super().destroy(request, *args, **kwargs)
+        files = [(photo.image, photo.thumbnail) for photo in trap.photos.all()]
+        files.append((trap.photo, trap.photo_thumbnail))
+        with transaction.atomic():
+            changes = {**audit.snapshot(trap), 'events': trap.events.count(),
+                       'hornet_catch_count': trap.hornet_catch_count}
+            refs = audit.default_refs(trap)
+            response = super().destroy(request, *args, **kwargs)
+            audit.record(request, 'trap.deleted', ('trap', trap.pk), changes=changes, refs=refs,
+                         label=audit.label_of(trap))
+        for image, thumbnail in files:
+            _delete_files(image, thumbnail)
+        return response
 
     @extend_schema(
         request={'multipart/form-data': {'type': 'object',
@@ -452,16 +487,18 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         if not perms.can_edit_trap(request, trap):
             raise PermissionDenied("You do not have permission to modify this trap.")
 
-        _delete_files(trap.photo, trap.photo_thumbnail)
-        if request.method == 'DELETE':
-            trap.photo = None
-            trap.photo_thumbnail = None
-        else:
-            uploaded = request.FILES.get('photo')
-            if not uploaded:
-                raise DRFValidationError({'photo': "No file received."})
-            _store_photo(trap, 'photo', 'photo_thumbnail', uploaded)
-        trap.save(update_fields=['photo', 'photo_thumbnail'])
+        uploaded = request.FILES.get('photo')
+        if request.method != 'DELETE' and not uploaded:
+            raise DRFValidationError({'photo': "No file received."})
+        action = 'trap.photo_removed' if request.method == 'DELETE' else 'trap.photo_set'
+        with audit.track(request, action, trap, fields=['photo']):
+            _delete_files(trap.photo, trap.photo_thumbnail)
+            if request.method == 'DELETE':
+                trap.photo = None
+                trap.photo_thumbnail = None
+            else:
+                _store_photo(trap, 'photo', 'photo_thumbnail', uploaded)
+            trap.save(update_fields=['photo', 'photo_thumbnail'])
         return Response(TrapSerializer(trap).data)
 
     # -- journal -------------------------------------------------------------
@@ -484,16 +521,20 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
             )
         serializer = TrapEventSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        event = serializer.save(trap=trap, performed_by=perms.local_user(request))
+        uploads = request.FILES.getlist('photos')
+        with transaction.atomic():
+            event = serializer.save(trap=trap, performed_by=perms.local_user(request))
 
-        for uploaded in request.FILES.getlist('photos'):
-            photo = TrapPhoto(trap=trap, event=event, uploaded_by=event.performed_by)
-            _store_photo(photo, 'image', 'thumbnail', uploaded)
-            photo.save()
+            for uploaded in uploads:
+                photo = TrapPhoto(trap=trap, event=event, uploaded_by=event.performed_by)
+                _store_photo(photo, 'image', 'thumbnail', uploaded)
+                photo.save()
 
-        trap.apply_event_side_effects(event)
-        # A catch gets its quantity derived by the side effects
-        event.refresh_from_db()
+            trap.apply_event_side_effects(event)
+            # A catch gets its quantity derived by the side effects
+            event.refresh_from_db()
+            audit.record(request, 'trap.event_recorded', event,
+                         changes={**audit.snapshot(event), 'photos': len(uploads)})
         return Response(TrapEventSerializer(event).data, status=status.HTTP_201_CREATED)
 
     @extend_schema(
@@ -563,6 +604,16 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
                     )
                     events.append(event)
                 trap.recompute_catches()
+                audit.record(request, 'trap.visit_recorded', trap, changes={
+                    'batch': str(batch),
+                    'performed_at': audit.json_value(data['performed_at']),
+                    'items': [{'species': item['species'].slug, 'observed': item['quantity']}
+                              for item in data['items']],
+                    'actions': list(data['actions']),
+                    'emptied': data['emptied'],
+                    'bycatch_counted': data['bycatch_counted'],
+                    'photos': len(stored),
+                }, refs=[audit.ref('visit', batch)] + [audit.ref('trap_event', e.pk) for e in events])
         except Exception:
             # The rows are rolled back, the files written so far are not
             for photo in stored:
@@ -588,8 +639,12 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
 
         photos = list(TrapPhoto.objects.filter(event__in=events))
         with transaction.atomic():
+            removed = [audit.snapshot(event) for event in events]
             TrapEvent.objects.filter(pk__in=[event.pk for event in events]).delete()
             trap.recompute_catches()
+            audit.record(request, 'trap.visit_deleted', trap,
+                         changes={'batch': batch, 'events': removed, 'photos': len(photos)},
+                         refs=[audit.ref('visit', batch)] + [audit.ref('trap_event', e.pk) for e in events])
         for photo in photos:
             _delete_files(photo.image, photo.thumbnail)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -625,11 +680,17 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
                 "administrator can change the delegation of this trap."
             )
 
+        delegation_fields = ['group', 'visibility']
+        previous_group = trap.group.path if trap.group else None
         if request.method == 'DELETE':
-            trap.group = None
-            # A trap with no group cannot stay restricted to that group
-            trap.visibility = Trap.VISIBILITY_PUBLIC
-            trap.save(update_fields=['group', 'visibility', 'updated_at'])
+            with audit.track(request, 'trap.undelegated', trap, fields=delegation_fields) as tracked:
+                if previous_group:
+                    tracked.extra = {'group_path': [previous_group, None]}
+                    tracked.refs = [audit.ref('group', previous_group)]
+                trap.group = None
+                # A trap with no group cannot stay restricted to that group
+                trap.visibility = Trap.VISIBILITY_PUBLIC
+                trap.save(update_fields=['group', 'visibility', 'updated_at'])
             return Response(TrapSerializer(trap).data)
 
         group_path = request.data.get('group_path')
@@ -639,11 +700,15 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         if not perms.can_delegate_to(request, trap, group_path):
             raise PermissionDenied(f"You cannot delegate this trap to {group_path}.")
 
-        trap.group = _group_for_path(group_path)
-        visibility = request.data.get('visibility')
-        if visibility in (Trap.VISIBILITY_PUBLIC, Trap.VISIBILITY_GROUP):
-            trap.visibility = visibility
-        trap.save(update_fields=['group', 'visibility', 'updated_at'])
+        with audit.track(request, 'trap.delegated', trap, fields=delegation_fields) as tracked:
+            trap.group = _group_for_path(group_path)
+            visibility = request.data.get('visibility')
+            if visibility in (Trap.VISIBILITY_PUBLIC, Trap.VISIBILITY_GROUP):
+                trap.visibility = visibility
+            trap.save(update_fields=['group', 'visibility', 'updated_at'])
+            if previous_group != group_path:
+                tracked.extra = {'group_path': [previous_group, group_path]}
+            tracked.refs = [audit.ref('group', path) for path in (previous_group, group_path) if path]
         return Response(TrapSerializer(trap).data)
 
     @extend_schema(
@@ -666,8 +731,10 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
             raise DRFValidationError({'owner_guid': "Unknown user."})
 
         previous = trap.owner_id
-        trap.owner = new_owner
-        trap.save(update_fields=['owner', 'updated_at'])
+        with audit.track(request, 'trap.owner_changed', trap, fields=['owner']) as tracked:
+            tracked.refs = [audit.ref('user', guid) for guid in (previous, new_owner.guid) if guid]
+            trap.owner = new_owner
+            trap.save(update_fields=['owner', 'updated_at'])
         logger.info("Trap %s reassigned from %s to %s", trap.id, previous, new_owner.guid)
         return Response(TrapSerializer(trap).data)
 
@@ -699,11 +766,14 @@ class TrapEventViewSet(viewsets.GenericViewSet):
         data.pop('kind', None)
         serializer = TrapEventSerializer(event, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
-        event = serializer.save()
-        # A reading or an installation moved or changed shifts the catches after it
-        if event.kind in TrapEvent.BASELINE_KINDS:
-            event.trap.recompute_catches()
-            event.refresh_from_db()
+        # The derived quantity is not the correction: only what was typed is compared
+        fields = [name for name in audit.FIELDS['trap_event'] if name != 'quantity']
+        with audit.track(request, 'trap.event_corrected', event, fields=fields):
+            event = serializer.save()
+            # A reading or an installation moved or changed shifts the catches after it
+            if event.kind in TrapEvent.BASELINE_KINDS:
+                event.trap.recompute_catches()
+                event.refresh_from_db()
         return Response(TrapEventSerializer(event).data)
 
     def destroy(self, request, *args, **kwargs):
@@ -711,11 +781,18 @@ class TrapEventViewSet(viewsets.GenericViewSet):
         if not perms.can_delete_event(request, event):
             raise PermissionDenied("You do not have permission to delete this event.")
         trap, shifts = event.trap, event.kind in TrapEvent.BASELINE_KINDS
-        for photo in event.photos.all():
+        photos = list(event.photos.all())
+        with transaction.atomic():
+            changes = {**audit.snapshot(event), 'photos': len(photos)}
+            pk = event.pk
+            event.delete()
+            if shifts:
+                trap.recompute_catches()
+            audit.record(request, 'trap.event_deleted', ('trap_event', pk), changes=changes,
+                         label=trap.address,
+                         refs=[audit.ref('trap', trap.pk)])
+        for photo in photos:
             _delete_files(photo.image, photo.thumbnail)
-        event.delete()
-        if shifts:
-            trap.recompute_catches()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -740,6 +817,15 @@ class TrapPhotoViewSet(viewsets.GenericViewSet):
         )
         if not allowed:
             raise PermissionDenied("You do not have permission to delete this photo.")
+        with transaction.atomic():
+            refs = [audit.ref('trap', photo.trap_id)]
+            if photo.event_id:
+                refs.append(audit.ref('trap_event', photo.event_id))
+            audit.record(request, 'trap.journal_photo_removed', ('trap_photo', photo.pk),
+                         label=photo.trap.address, changes={
+                'event': photo.event_id, 'uploaded_by': audit.json_value(photo.uploaded_by_id),
+                'uploaded_at': audit.json_value(photo.created_at),
+            }, refs=refs)
+            photo.delete()
         _delete_files(photo.image, photo.thumbnail)
-        photo.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

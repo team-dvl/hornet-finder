@@ -32,6 +32,7 @@ from rest_framework.exceptions import (
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, inline_serializer
 
+from audit import recorder as audit
 from hornet_finder_api import utils as keycloak
 from hornet_finder_api.authentication import HasAnyRole, JWTBearerAuthentication
 from hornet_finder_api.roles import APP_ROLES
@@ -339,6 +340,9 @@ class GroupInvitationViewSet(viewsets.GenericViewSet):
         if notified:
             invitation.last_notified_at = timezone.now()
             invitation.save(update_fields=['last_notified_at'])
+        # After the email, to tell whether it left; the invitation is stored either way
+        audit.record(request, 'invitation.sent', invitation,
+                     changes={'group': group_path, 'notified': notified})
         return Response({**_serialize(invitation, names, with_invitee=True), 'notified': notified},
                         status=status.HTTP_201_CREATED)
 
@@ -379,6 +383,8 @@ class GroupInvitationViewSet(viewsets.GenericViewSet):
             invitation.last_notified_at = now
             invitation.reminders_sent += 1
             invitation.save(update_fields=['last_notified_at', 'reminders_sent'])
+            audit.record(request, 'invitation.reminded', invitation,
+                         changes={'reminder': invitation.reminders_sent})
         logger.info("Group invitation %s: reminder %s sent by %s",
                     invitation.id, invitation.reminders_sent, request.user.guid)
         return Response(_serialize(invitation, names, with_invitee=True))
@@ -389,9 +395,11 @@ class GroupInvitationViewSet(viewsets.GenericViewSet):
         invitation = self.get_queryset().filter(pk=pk, status=GroupInvitation.STATUS_PENDING).first()
         if invitation is None or not can_invite_to(request, invitation.group_path):
             raise NotFound()
-        invitation.status = GroupInvitation.STATUS_CANCELLED
-        invitation.responded_at = timezone.now()
-        invitation.save(update_fields=['status', 'responded_at'])
+        with transaction.atomic():
+            invitation.status = GroupInvitation.STATUS_CANCELLED
+            invitation.responded_at = timezone.now()
+            invitation.save(update_fields=['status', 'responded_at'])
+            audit.record(request, 'invitation.cancelled', invitation)
         logger.info("Group invitation %s cancelled by %s", invitation.id, request.user.guid)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -448,6 +456,7 @@ class MyGroupInvitationViewSet(viewsets.GenericViewSet):
                                  else GroupInvitation.STATUS_DECLINED)
             invitation.responded_at = timezone.now()
             invitation.save(update_fields=['status', 'responded_at'])
+            audit.record(request, f"invitation.{invitation.status}", invitation)
         logger.info("Group invitation %s %s by %s", invitation.id, invitation.status, request.user.guid)
         return Response(_serialize(invitation, _Names()))
 

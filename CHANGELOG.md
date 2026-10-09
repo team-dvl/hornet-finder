@@ -23,6 +23,13 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   (Esri World Imagery, remembered on the device). The nginx CSP now allows
   `server.arcgisonline.com` for images: nginx must be reloaded (see
   `doc/prod-migrations/0022-satellite-basemap-csp.md`).
+- Audit trail (backend): every business action (reports, edits, deletions,
+  hand-overs, sharings, delegations, trap journal, QR codes, group members,
+  invitations, statistics exports and their downloads) is recorded with its
+  author, time and changes, append-only, kept 1 year (`AUDIT_RETENTION_DAYS`).
+  Read API for platform administrators only (`/api/audit/events/`: filters,
+  object history, CSV export). The last year is rebuilt from the dated facts of
+  the existing data at deployment. See `doc/AUDIT_TRAIL.md`.
 - Install suggestion: from the second visit, a sheet offers to pin the app on
   the home screen (an "Installer" button on Android, the share-menu steps on
   iOS). Closing it postpones the next suggestion by 30 days; the menu entry
@@ -41,6 +48,9 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ### Removed
 - The Documentation module (tile of the home page, `/docs` pages): the former
   addresses open the home page with the help panel on the module concerned.
+
+### Fixed
+- Deleting a trap type still in use no longer removes its photo.
 
 ## [1.3.0] - 2026-10-09
 

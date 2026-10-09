@@ -19,6 +19,7 @@ from .stats.periods import PeriodError, resolve_archive_period
 from .serializers import HornetSerializer, NestSerializer, PublicNestSerializer
 from hornet_finder_api.authentication import JWTBearerAuthentication, HasAnyRole
 from hornet_finder_api.roles import ADMIN, APP_ROLES, BEEKEEPER, HUNTER
+from audit import recorder as audit
 from rest_framework import status
 
 
@@ -87,9 +88,11 @@ class ArchiveFilterMixin:
     @action(detail=True, methods=['post'], permission_classes=[HasAnyRole(['admin'])])
     def archive(self, request, pk=None):
         obj = self.get_object()
-        obj.archived = True
-        obj.archived_at = timezone.now()
-        obj.save()
+        with transaction.atomic():
+            obj.archived = True
+            obj.archived_at = timezone.now()
+            obj.save()
+            audit.record(request, f"{audit.type_of(obj)}.archived", obj)
         serializer = self.get_serializer(obj)
         return Response(serializer.data)
 
@@ -135,7 +138,14 @@ class ArchiveFilterMixin:
         queryset, period, error = self.archivable(request)
         if error:
             return error
-        updated_count = queryset.update(archived=True, archived_at=timezone.now())
+        kind = audit.TYPES[queryset.model._meta.model_name]
+        with transaction.atomic():
+            ids = list(queryset.values_list('pk', flat=True))
+            updated_count = queryset.model.objects.filter(pk__in=ids).update(
+                archived=True, archived_at=timezone.now())
+            audit.record(request, f"{kind}.bulk_archived", (kind, None),
+                         changes={'count': updated_count, 'period': period.as_dict()},
+                         refs=[audit.ref(kind, pk) for pk in ids])
         return Response({"archived_count": updated_count, "period": period.as_dict()})
 
 
@@ -206,7 +216,21 @@ class HornetViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelVie
     def perform_create(self, serializer):
         user_guid = getattr(self.request.user, 'guid', None)
         user_obj = User.objects.filter(guid=user_guid).first()
-        serializer.save(created_by=user_obj, linked_nest=None)
+        with transaction.atomic():
+            hornet = serializer.save(created_by=user_obj, linked_nest=None)
+            audit.record(self.request, 'hornet.reported', hornet, changes=audit.snapshot(hornet))
+
+    def perform_update(self, serializer):
+        with audit.track(self.request, 'hornet.updated', serializer.instance,
+                         resolve=lambda changes: audit.flip_action('hornet', changes, None)):
+            serializer.save()
+
+    def perform_destroy(self, instance):
+        with transaction.atomic():
+            changes, label = audit.snapshot(instance), audit.label_of(instance)
+            pk = instance.pk
+            instance.delete()
+            audit.record(self.request, 'hornet.deleted', ('hornet', pk), changes=changes, label=label)
 
 # Photos accepted in one request (creation or addition)
 MAX_NEST_PHOTOS_PER_REQUEST = 10
@@ -319,13 +343,17 @@ class NestViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewS
         with transaction.atomic():
             nest = serializer.save(created_by=user)
             self._store_photos(nest, uploaded, user)
+            audit.record(request, 'nest.reported', nest,
+                         changes={**audit.snapshot(nest), 'photos': len(uploaded)})
         return Response(self.get_serializer(self._fresh(nest)).data, status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
         nest = self.get_object()
         if not nest_perms.can_edit_nest(request, nest):
             raise PermissionDenied("You do not have permission to update this nest.")
-        response = super().update(request, *args, **kwargs)
+        with audit.track(request, 'nest.updated', nest,
+                         resolve=lambda changes: audit.flip_action('nest', changes, None)):
+            response = super().update(request, *args, **kwargs)
         # Photos are managed through their own actions, the response shows them all
         response.data = self.get_serializer(self._fresh(nest)).data
         return response
@@ -333,7 +361,11 @@ class NestViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewS
     def destroy(self, request, *args, **kwargs):
         nest = self.get_object()
         files = [(photo.image, photo.thumbnail) for photo in nest.photos.all()]
-        response = super().destroy(request, *args, **kwargs)
+        with transaction.atomic():
+            changes = {**audit.snapshot(nest), 'photos': len(files)}
+            response = super().destroy(request, *args, **kwargs)
+            audit.record(request, 'nest.deleted', ('nest', nest.pk), changes=changes,
+                         label=audit.label_of(nest))
         for image, thumbnail in files:
             delete_files(image, thumbnail)
         return response
@@ -351,6 +383,7 @@ class NestViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewS
         user = User.objects.filter(guid=getattr(request.user, 'guid', None)).first()
         with transaction.atomic():
             self._store_photos(nest, uploaded, user)
+            audit.record(request, 'nest.photo_added', nest, changes={'count': len(uploaded)})
         return Response(self.get_serializer(self._fresh(nest)).data)
 
     @extend_schema(request=None, responses={200: NestSerializer})
@@ -363,8 +396,13 @@ class NestViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewS
         photo = nest.photos.filter(pk=photo_id).first()
         if photo is None:
             return Response({"detail": "Unknown photo."}, status=status.HTTP_404_NOT_FOUND)
+        with transaction.atomic():
+            audit.record(request, 'nest.photo_removed', nest,
+                         changes={'photo': photo.pk, 'uploaded_by': audit.json_value(photo.uploaded_by_id),
+                                  'uploaded_at': audit.json_value(photo.created_at)},
+                         refs=[audit.ref('nest_photo', photo.pk)])
+            photo.delete()
         delete_files(photo.image, photo.thumbnail)
-        photo.delete()
         return Response(self.get_serializer(self._fresh(nest)).data)
 
     @extend_schema(responses={200: OpenApiResponse(

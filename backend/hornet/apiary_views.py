@@ -4,6 +4,7 @@ import logging
 import re
 import uuid
 
+from django.db import transaction
 from django.db.models import F, Prefetch, Q, Value
 from django.db.models.functions import Replace
 
@@ -18,6 +19,7 @@ from drf_spectacular.utils import OpenApiParameter, extend_schema
 
 from hornet_finder_api import utils as keycloak
 from hornet_finder_api.authentication import HasAnyRole, JWTBearerAuthentication
+from audit import recorder as audit
 
 from . import apiary_permissions as perms
 from .afsca import afsca_digits
@@ -188,11 +190,14 @@ class ApiaryViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = local_user(self.request)
-        apiary = serializer.save(created_by=user, owner=user)
-        self._attach_photo(apiary)
+        with transaction.atomic():
+            apiary = serializer.save(created_by=user, owner=user)
+            self._attach_photo(apiary)
+            audit.record(self.request, 'apiary.created', apiary, changes=audit.snapshot(apiary))
 
     def perform_update(self, serializer):
-        self._attach_photo(serializer.save())
+        with audit.track(self.request, 'apiary.updated', serializer.instance):
+            self._attach_photo(serializer.save())
 
     def _attach_photo(self, apiary):
         uploaded = self.request.FILES.get('photo')
@@ -213,8 +218,16 @@ class ApiaryViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         apiary = self.get_object()
         self._require(apiary, perms.DELETE, "You do not have permission to delete this apiary.")
-        _delete_files(apiary.photo, apiary.photo_thumbnail)
-        return super().destroy(request, *args, **kwargs)
+        files = (apiary.photo, apiary.photo_thumbnail)
+        with transaction.atomic():
+            changes = {**audit.snapshot(apiary), 'shared_with': [
+                share.group.path for share in apiary.apiarygrouppermission_set.select_related('group')]}
+            response = super().destroy(request, *args, **kwargs)
+            audit.record(request, 'apiary.deleted', ('apiary', apiary.pk), changes=changes,
+                         label=audit.label_of(apiary),
+                         refs=[audit.ref('group', path) for path in changes['shared_with']])
+        _delete_files(*files)
+        return response
 
     @extend_schema(
         request={'multipart/form-data': {'type': 'object',
@@ -227,14 +240,18 @@ class ApiaryViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         apiary = self.get_object()
         self._require(apiary, perms.UPDATE, "You do not have permission to update this apiary.")
         if request.method == 'DELETE':
+            if not apiary.photo:
+                return Response(self.get_serializer(apiary).data)
             _delete_files(apiary.photo, apiary.photo_thumbnail)
-            apiary.photo = None
-            apiary.photo_thumbnail = None
-            apiary.save(update_fields=['photo', 'photo_thumbnail'])
+            with audit.track(request, 'apiary.photo_removed', apiary, fields=['photo']):
+                apiary.photo = None
+                apiary.photo_thumbnail = None
+                apiary.save(update_fields=['photo', 'photo_thumbnail'])
         else:
             if not request.FILES.get('photo'):
                 raise DRFValidationError({'photo': "No file received."})
-            self._attach_photo(apiary)
+            with audit.track(request, 'apiary.photo_set', apiary, fields=['photo']):
+                self._attach_photo(apiary)
         return Response(self.get_serializer(apiary).data)
 
     # -- sharing -------------------------------------------------------------
@@ -273,7 +290,12 @@ class ApiaryViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
             group_path = request.query_params.get('group_path')
             if not group_path:
                 raise DRFValidationError({'group_path': "This field is required."})
-            ApiaryGroupPermission.objects.filter(apiary=apiary, group__path=group_path).delete()
+            with transaction.atomic():
+                deleted, _ = ApiaryGroupPermission.objects.filter(
+                    apiary=apiary, group__path=group_path).delete()
+                if deleted:
+                    audit.record(request, 'apiary.unshared', apiary, changes={'group': group_path},
+                                 refs=[audit.ref('group', group_path)])
             return self._fresh(apiary)
 
         group_path = request.data.get('group_path')
@@ -282,11 +304,22 @@ class ApiaryViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         if allowed is not None and group_path not in allowed:
             raise PermissionDenied(f"You cannot share this apiary with {group_path}.")
         can_update = str(request.data.get('can_update', False)).lower() in ('true', '1')
-        ApiaryGroupPermission.objects.update_or_create(
-            apiary=apiary, group=_group_for_path(group_path),
-            # Sharing is about seeing and possibly maintaining; deleting stays with the owner
-            defaults={'can_read': True, 'can_update': can_update, 'can_delete': False},
-        )
+        with transaction.atomic():
+            group = _group_for_path(group_path)
+            previous = ApiaryGroupPermission.objects.filter(apiary=apiary, group=group).first()
+            ApiaryGroupPermission.objects.update_or_create(
+                apiary=apiary, group=group,
+                # Sharing is about seeing and possibly maintaining; deleting stays with the owner
+                defaults={'can_read': True, 'can_update': can_update, 'can_delete': False},
+            )
+            if previous is None:
+                audit.record(request, 'apiary.shared', apiary,
+                             changes={'group': group_path, 'can_update': can_update},
+                             refs=[audit.ref('group', group_path)])
+            elif previous.can_update != can_update:
+                audit.record(request, 'apiary.share_changed', apiary,
+                             changes={'group': group_path, 'can_update': [previous.can_update, can_update]},
+                             refs=[audit.ref('group', group_path)])
         return self._fresh(apiary)
 
     @extend_schema(
@@ -327,8 +360,13 @@ class ApiaryViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
             if new_owner is None:
                 raise DRFValidationError({'owner_guid': "Unknown user."})
         previous = apiary.owner_id
-        apiary.owner = new_owner
-        apiary.save(update_fields=['owner'])
+        with audit.track(request, 'apiary.owner_changed', apiary, fields=['owner']) as tracked:
+            tracked.refs = [audit.ref('user', guid) for guid in (previous, new_owner.guid) if guid]
+            if group_path:
+                # The association the new owner was picked from
+                tracked.refs.append(audit.ref('group', group_path))
+            apiary.owner = new_owner
+            apiary.save(update_fields=['owner'])
         logger.info("Apiary %s reassigned from %s to %s by %s", apiary.id, previous,
                     new_owner.guid, getattr(request.user, 'guid', None))
         return self._fresh(apiary)

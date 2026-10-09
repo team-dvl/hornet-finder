@@ -2,7 +2,7 @@ import uuid
 from datetime import timedelta
 
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 from django.contrib.gis.db import models as geomodels
 from django.contrib.gis.geos import Point
 from django.utils import timezone
@@ -643,10 +643,22 @@ class GroupInvitation(models.Model):
 
     @classmethod
     def expire_stale(cls, **filters) -> None:
-        """Mark the pending invitations past their validity as expired."""
-        cls.objects.filter(
-            status=cls.STATUS_PENDING, created_at__lte=timezone.now() - cls.VALIDITY, **filters,
-        ).update(status=cls.STATUS_EXPIRED)
+        """
+        Mark the pending invitations past their validity as expired, each
+        recorded in the audit trail at the moment its validity ended.
+        """
+        from audit import recorder as audit
+
+        with transaction.atomic():
+            stale = list(cls.objects.select_for_update().filter(
+                status=cls.STATUS_PENDING, created_at__lte=timezone.now() - cls.VALIDITY, **filters,
+            ))
+            if not stale:
+                return
+            cls.objects.filter(pk__in=[i.pk for i in stale]).update(status=cls.STATUS_EXPIRED)
+            for invitation in stale:
+                audit.record(None, 'invitation.expired', invitation,
+                             occurred_at=invitation.created_at + cls.VALIDITY)
 
 
 class InvitationThrottle(models.Model):

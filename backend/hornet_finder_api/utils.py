@@ -195,6 +195,49 @@ def get_active_user_email(guid: str) -> Optional[str]:
     return None
 
 
+def _person_name(user: dict) -> str:
+    """First and last name, else the username (an email address in this realm)."""
+    full = f"{user.get('firstName') or ''} {user.get('lastName') or ''}".strip()
+    return full or user.get('username') or user.get('email') or user.get('id')
+
+
+def describe_users(guids) -> dict:
+    """
+    `{guid: {'name': str | None, 'deleted': bool}}` for each GUID, with one
+    admin client for all of them. `deleted` is only set when Keycloak answers
+    404; any other failure leaves the name unknown. For platform admins only:
+    the name may be an email address.
+    """
+    result = {}
+    if not guids:
+        return result
+    try:
+        admin = _get_keycloak_admin()
+    except Exception as exc:
+        logger.warning(f"Keycloak unavailable to name users: {type(exc).__name__}: {exc}")
+        return {str(guid): {'name': None, 'deleted': False} for guid in guids}
+    for guid in guids:
+        key = str(guid)
+        try:
+            result[key] = {'name': _person_name(admin.get_user(key)), 'deleted': False}
+        except KeycloakGetError as exc:
+            result[key] = {'name': None, 'deleted': exc.response_code == 404}
+        except Exception as exc:
+            logger.warning(f"Failed to name Keycloak user {key}: {type(exc).__name__}: {exc}")
+            result[key] = {'name': None, 'deleted': False}
+    return result
+
+
+def search_users(query: str, limit: int = 10) -> list:
+    """
+    Accounts whose name, username or email contains `query`: `[{'guid', 'name'}]`.
+
+    :raises Exception: Any Keycloak failure, left to the caller.
+    """
+    users = _get_keycloak_admin().get_users({'search': query, 'max': limit, 'briefRepresentation': 'true'})
+    return [{'guid': user['id'], 'name': _person_name(user)} for user in users[:limit]]
+
+
 def get_group_by_path(path: str) -> Optional[dict]:
     """
     The Keycloak group at `path` (with its attributes), or None when it does not exist.

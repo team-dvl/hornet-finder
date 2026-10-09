@@ -42,9 +42,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.postgres',
     'rest_framework',
     'drf_spectacular',
-    'hornet'
+    'hornet',
+    'audit',
 ]
 
 if DEBUG:
@@ -185,6 +187,9 @@ MEDIA_ACCEL_PREFIX = '/_media/'
 # Files are handed over to nginx, which serves them from the shared volume.
 # Set to False only when running Django without nginx in front.
 MEDIA_USE_X_ACCEL = os.environ.get('MEDIA_USE_X_ACCEL', 'True') == 'True'
+
+# Audit trail: business actions older than this are purged (see audit/recorder.py)
+AUDIT_RETENTION_DAYS = int(os.environ.get('AUDIT_RETENTION_DAYS') or 365)
 
 # Signed QR tags (see hornet/tags.py). TAG_HMAC_KEYS is `index:key,...`,
 # TAG_HMAC_ACTIVE_INDEX the key new tags are signed with, TAG_SITE_ID a stable

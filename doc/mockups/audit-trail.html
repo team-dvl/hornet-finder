@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette – Journal d'audit</title>
+<style>
+  :root { --bg:#f1f3f5; --card:#fff; --ink:#212529; --muted:#6c757d; --line:#dee2e6;
+          --pri:#b8860b; --pri-ink:#fff; --danger:#c0392b; --ok:#2e7d32; --warn:#b26a00; --info:#1f6feb;
+          --old:#fdecea; --new:#e8f5e9; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14171a; --card:#1e2226; --ink:#e9ecef; --muted:#9aa3ab; --line:#343a40;
+            --old:#3a2224; --new:#1f3323; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.4 system-ui,sans-serif; }
+  h1 { font-size:1.25rem; margin:0; }
+  header.doc { padding:16px; max-width:1500px; margin:auto; }
+  header.doc p { color:var(--muted); margin:.25rem 0 0; max-width:900px; }
+  .board { display:flex; flex-wrap:wrap; gap:24px; padding:0 16px 32px; max-width:1500px; margin:auto; }
+  figure { margin:0; }
+  figcaption { font-size:.85rem; color:var(--muted); margin:0 0 8px; max-width:390px; }
+  figcaption b { color:var(--ink); }
+  .phone { width:390px; height:780px; background:var(--card); border:1px solid var(--line);
+           border-radius:28px; overflow:hidden; position:relative; display:flex; flex-direction:column; }
+  .nav { display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid var(--line); min-height:48px; }
+  .nav .back { color:var(--pri); text-decoration:none; white-space:nowrap; }
+  .nav .cur { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .nav .menu { margin-left:auto; font-size:1.25rem; }
+  .body { flex:1; overflow:hidden; padding:12px; }
+  .desc { color:var(--muted); font-size:.9rem; margin:0 0 10px; }
+  .help { display:inline-grid; place-items:center; width:20px; height:20px; border-radius:50%; border:1px solid var(--muted);
+          font-size:.7rem; color:var(--muted); margin-left:6px; vertical-align:middle; }
+  .toolbar { display:flex; gap:8px; align-items:flex-start; margin-bottom:8px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; flex:1; min-width:0; }
+  .chip { padding:6px 10px; min-height:36px; border:1px solid var(--line); border-radius:99px; display:flex; align-items:center;
+          gap:6px; font-size:.85rem; white-space:nowrap; }
+  .chip.on { background:var(--pri); color:var(--pri-ink); border-color:var(--pri); }
+  .chip .x { opacity:.8; }
+  .ib { width:44px; height:44px; border:1px solid var(--line); border-radius:10px; display:grid; place-items:center;
+        background:transparent; color:var(--ink); flex-shrink:0; font-size:1.05rem; position:relative; }
+  .ib .count { position:absolute; top:-6px; right:-6px; background:var(--pri); color:var(--pri-ink); border-radius:99px;
+               font-size:.7rem; padding:1px 6px; }
+  .day { font-size:.75rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:10px 0 2px; }
+  .ev { display:flex; gap:10px; padding:9px 0; border-bottom:1px solid var(--line); min-height:56px; }
+  .ev .ico { width:36px; height:36px; border-radius:10px; background:var(--bg); display:grid; place-items:center; flex-shrink:0; }
+  .ev .grow { flex:1; min-width:0; }
+  .ev .top { display:flex; gap:8px; align-items:baseline; }
+  .ev .what { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
+  .ev .time { font-size:.8rem; color:var(--muted); flex-shrink:0; }
+  .ev .obj, .ev .who { font-size:.82rem; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ev .who { display:flex; gap:6px; align-items:center; }
+  .badge { font-size:.68rem; padding:1px 7px; border-radius:99px; border:1px solid var(--line); white-space:nowrap; flex-shrink:0; }
+  .badge.adm { background:var(--pri); color:var(--pri-ink); border-color:var(--pri); }
+  .badge.sys { color:var(--info); border-color:var(--info); }
+  .badge.bf { color:var(--warn); border-color:var(--warn); border-style:dashed; }
+  .badge.del { color:var(--danger); border-color:var(--danger); }
+  .btn { display:block; width:100%; min-height:44px; padding:10px; border-radius:10px; border:1px solid var(--line);
+         background:transparent; color:var(--ink); text-align:center; font-size:1rem; margin-top:10px; }
+  .btn.pri { background:var(--pri); color:var(--pri-ink); border-color:var(--pri); font-weight:600; }
+  .veil { position:absolute; inset:0; background:rgba(0,0,0,.45); }
+  .sheet { position:absolute; left:0; right:0; bottom:0; background:var(--card); border-radius:18px 18px 0 0;
+           padding:12px 12px 16px; box-shadow:0 -4px 20px rgba(0,0,0,.25); max-height:88%; overflow:hidden; }
+  .sheet .grab { width:40px; height:4px; border-radius:2px; background:var(--line); margin:0 auto 10px; }
+  .sheet h2 { font-size:1.05rem; margin:0 0 6px; display:flex; align-items:center; }
+  .sheet h2 .close { margin-left:auto; font-size:1.2rem; color:var(--muted); }
+  label.l { display:block; font-size:.8rem; color:var(--muted); margin:10px 0 4px; }
+  .seg { display:flex; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .seg span { flex:1; text-align:center; padding:10px 2px; min-height:44px; font-size:.85rem; }
+  .seg span.on { background:var(--pri); color:var(--pri-ink); font-weight:600; }
+  input, select { width:100%; min-height:44px; font-size:16px; padding:8px 10px; border:1px solid var(--line);
+                  border-radius:10px; background:var(--card); color:var(--ink); }
+  .two { display:flex; gap:8px; } .two > * { flex:1; min-width:0; }
+  .pick { border:1px solid var(--line); border-radius:10px; margin-top:4px; font-size:.9rem; }
+  .pick div { padding:10px; border-bottom:1px solid var(--line); min-height:44px; }
+  .pick div:last-child { border-bottom:0; }
+  .footer2 { display:flex; gap:8px; } .footer2 .btn { flex:1; }
+  /* AppModal, full screen below sm */
+  .modal-full { position:absolute; inset:0; background:var(--card); display:flex; flex-direction:column; }
+  .mhead { display:flex; align-items:center; gap:8px; padding:12px; border-bottom:1px solid var(--line); min-height:52px; }
+  .mhead h2 { font-size:1.05rem; margin:0; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .mhead .close { font-size:1.3rem; color:var(--muted); width:44px; text-align:center; }
+  .mbody { flex:1; overflow:hidden; padding:4px 12px 12px; }
+  .mfoot { border-top:1px solid var(--line); padding:10px 12px; display:flex; gap:8px; justify-content:flex-end; }
+  .fr { display:flex; gap:10px; padding:9px 0; border-bottom:1px solid var(--line); font-size:.92rem; }
+  .fr .k { width:96px; flex-shrink:0; color:var(--muted); }
+  .fr .v { flex:1; min-width:0; }
+  .fr .v a { color:var(--pri); text-decoration:none; }
+  h3 { font-size:.8rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:14px 0 4px; }
+  .diff { border:1px solid var(--line); border-radius:10px; overflow:hidden; font-size:.88rem; }
+  .diff .d { padding:8px 10px; border-bottom:1px solid var(--line); }
+  .diff .d:last-child { border-bottom:0; }
+  .diff .f { color:var(--muted); font-size:.78rem; margin-bottom:3px; }
+  .diff .o { background:var(--old); text-decoration:line-through; padding:1px 4px; border-radius:4px; }
+  .diff .n { background:var(--new); padding:1px 4px; border-radius:4px; }
+  .diff .arrow { color:var(--muted); margin:0 4px; }
+  .refs { display:flex; flex-wrap:wrap; gap:6px; }
+  .note { font-size:.8rem; color:var(--muted); margin-top:8px; }
+  /* desktop */
+  .desk { width:1100px; max-width:100%; background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .desk .nav { padding:10px 20px; }
+  .desk .body { padding:16px 20px; }
+  .filters { display:grid; grid-template-columns:repeat(6, 1fr); gap:8px; margin-bottom:12px; }
+  .grid { display:grid; grid-template-columns:150px 230px 1fr 190px 90px; font-size:.88rem; }
+  .grid > div { padding:9px 8px; border-bottom:1px solid var(--line); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .grid .h { font-weight:600; color:var(--muted); font-size:.78rem; text-transform:uppercase; }
+  .legend { max-width:1500px; margin:0 auto; padding:0 16px 40px; color:var(--muted); font-size:.85rem; }
+  .legend li { margin:4px 0; }
+</style>
+</head>
+<body>
+<header class="doc">
+  <h1>Journal d'audit – maquette (phone d'abord, 390 px)</h1>
+  <p>Maquette statique, données fictives. Module réservé aux administrateurs de la plateforme (rôle <code>admin</code>) :
+    nouvelle carte « Journal d'audit » dans Administration, page <code>/admin/audit</code>. Les autres rôles ne voient ni la carte ni la route (403 côté API).</p>
+</header>
+
+<div class="board">
+
+  <!-- 1. List -->
+  <figure>
+    <figcaption><b>1. Liste.</b> Plus récent d'abord, groupé par jour. Filtres actifs en puces (× pour retirer), bouton Filtres (compteur) et export CSV en icônes. « Plus d'événements » charge la page suivante : pas de défilement interne.</figcaption>
+    <div class="phone">
+      <div class="nav"><a class="back">‹ Administration</a><span class="cur">Journal d'audit</span><span class="menu">☰</span></div>
+      <div class="body">
+        <p class="desc">Qui a fait quoi, quand, sur chaque objet. <span class="help">?</span></p>
+        <div class="toolbar">
+          <div class="chips">
+            <span class="chip on">7 derniers jours <span class="x">×</span></span>
+          </div>
+          <button class="ib" aria-label="Filtres">⚙<span class="count">1</span></button>
+          <button class="ib" aria-label="Exporter en CSV">⇩</button>
+        </div>
+        <div class="day">Aujourd'hui</div>
+        <div class="ev"><div class="ico">🏴</div><div class="grow">
+          <div class="top"><span class="what">Nid marqué détruit</span><span class="time">14:32</span></div>
+          <div class="obj">Nid #128 · Rue Haute 12, Vedrin</div>
+          <div class="who">Pierre Collin <span class="badge">chasseur</span></div></div></div>
+        <div class="ev"><div class="ico">🪤</div><div class="grow">
+          <div class="top"><span class="what">Visite enregistrée</span><span class="time">11:05</span></div>
+          <div class="obj">Piège #57 · 12 frelons asiatiques, nettoyage</div>
+          <div class="who">Anne Bastin</div></div></div>
+        <div class="ev"><div class="ico">🍯</div><div class="grow">
+          <div class="top"><span class="what">Rucher transféré</span><span class="time">09:47</span></div>
+          <div class="obj">Rucher #31 · Marie Dupont → Jean Lambert</div>
+          <div class="who">Sophie Gilson <span class="badge adm">admin</span></div></div></div>
+        <div class="day">Hier</div>
+        <div class="ev"><div class="ico">📊</div><div class="grow">
+          <div class="top"><span class="what">Export téléchargé</span><span class="time">18:20</span></div>
+          <div class="obj">Captures de frelons · CSV · lien email, 3ᵉ téléchargement</div>
+          <div class="who"><i>Sans connexion</i> <span class="badge sys">lien</span></div></div></div>
+        <div class="ev"><div class="ico">✉</div><div class="grow">
+          <div class="top"><span class="what">Invitation expirée</span><span class="time">00:00</span></div>
+          <div class="obj">Vedrin s'abeille · Thomas Henry</div>
+          <div class="who"><i>Système</i> <span class="badge sys">automatique</span></div></div></div>
+        <div class="ev"><div class="ico">▦</div><div class="grow">
+          <div class="top"><span class="what">QR code révoqué</span><span class="time">16:12</span></div>
+          <div class="obj">QR K7F2Q9XB · piège #12</div>
+          <div class="who"><i>Compte supprimé</i> <span class="badge del">3f2a…c81e</span></div></div></div>
+        <button class="btn">Plus d'événements</button>
+      </div>
+    </div>
+  </figure>
+
+  <!-- 2. Filters -->
+  <figure>
+    <figcaption><b>2. Filtres</b> (<code>BottomSheet</code>). Période en segments, domaines en puces, action en <code>select</code> natif (selon les domaines), acteur par recherche de nom ou d'email (Keycloak), source. Le corps défile, pas la liste derrière.</figcaption>
+    <div class="phone">
+      <div class="nav"><a class="back">‹ Administration</a><span class="cur">Journal d'audit</span><span class="menu">☰</span></div>
+      <div class="body">
+        <div class="ev"><div class="ico">🏴</div><div class="grow"><div class="top"><span class="what">Nid marqué détruit</span></div></div></div>
+      </div>
+      <div class="veil"></div>
+      <div class="sheet">
+        <div class="grab"></div>
+        <h2>Filtres <span class="close">×</span></h2>
+        <label class="l">Période</label>
+        <div class="seg"><span>24 h</span><span class="on">7 j</span><span>30 j</span><span>1 an</span><span>Dates</span></div>
+        <label class="l">Domaines</label>
+        <div class="chips">
+          <span class="chip on">🏴 Nids</span><span class="chip">🐝 Frelons</span><span class="chip">🍯 Ruchers</span>
+          <span class="chip on">🪤 Pièges</span><span class="chip">▦ QR codes</span><span class="chip">👥 Groupes</span>
+          <span class="chip">✉ Invitations</span><span class="chip">📊 Exports</span><span class="chip">📚 Référentiels</span>
+        </div>
+        <label class="l">Action</label>
+        <select><option>Toutes les actions (Nids, Pièges)</option></select>
+        <label class="l">Acteur</label>
+        <input value="lamb" aria-label="Nom ou email">
+        <div class="pick"><div>Jean Lambert</div><div>Lucie Lambotte</div></div>
+        <label class="l">Source</label>
+        <div class="seg"><span class="on">Toutes</span><span>En direct</span><span>Reconstituées</span></div>
+        <div class="footer2"><button class="btn">Réinitialiser</button><button class="btn pri">Afficher 42 événements</button></div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- 3. Event detail -->
+  <figure>
+    <figcaption><b>3. Détail d'un événement</b> (<code>AppModal</code>, plein écran sur phone). Construit avec <code>FieldRow</code>. Les changements montrent avant → après. Pied : actions en icônes (historique de l'objet, même requête, même acteur).</figcaption>
+    <div class="phone">
+      <div class="modal-full">
+        <div class="mhead"><h2>Nid marqué détruit</h2><span class="close">×</span></div>
+        <div class="mbody">
+          <div class="fr"><span class="k">Quand</span><span class="v">jeudi 9 octobre 2026, 14:32:05</span></div>
+          <div class="fr"><span class="k">Qui</span><span class="v">Pierre Collin <span class="badge">chasseur</span></span></div>
+          <div class="fr"><span class="k">Objet</span><span class="v"><a>🏴 Nid #128</a> · Rue Haute 12, Vedrin</span></div>
+          <div class="fr"><span class="k">Source</span><span class="v">Application</span></div>
+          <h3>Changements</h3>
+          <div class="diff">
+            <div class="d"><div class="f">Détruit</div><span class="o">non</span><span class="arrow">→</span><span class="n">oui</span></div>
+            <div class="d"><div class="f">Date de destruction</div><span class="o">—</span><span class="arrow">→</span><span class="n">09/10/2026 14:32</span></div>
+            <div class="d"><div class="f">Commentaires</div><span class="o">—</span><span class="arrow">→</span><span class="n">Détruit au perchoir, 2ᵉ passage</span></div>
+          </div>
+          <h3>Concerne</h3>
+          <div class="refs"><span class="chip">🏴 Nid #128</span></div>
+        </div>
+        <div class="mfoot">
+          <button class="ib" aria-label="Historique de l'objet">🕘</button>
+          <button class="ib" aria-label="Actions de cette personne">👤</button>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- 4. Deleted object -->
+  <figure>
+    <figcaption><b>4. Suppression.</b> L'objet n'existe plus : le journal montre son dernier état, seule trace qui en reste. Le lien vers l'objet devient son historique.</figcaption>
+    <div class="phone">
+      <div class="modal-full">
+        <div class="mhead"><h2>Piège supprimé</h2><span class="close">×</span></div>
+        <div class="mbody">
+          <div class="fr"><span class="k">Quand</span><span class="v">mardi 7 octobre 2026, 08:15:40</span></div>
+          <div class="fr"><span class="k">Qui</span><span class="v">Marie Dupont</span></div>
+          <div class="fr"><span class="k">Objet</span><span class="v"><a>🪤 Piège #57</a> <span class="badge del">supprimé</span></span></div>
+          <h3>État au moment de la suppression</h3>
+          <div class="fr"><span class="k">Type</span><span class="v">Bouteille artisanale</span></div>
+          <div class="fr"><span class="k">Adresse</span><span class="v">Chemin des Ruches 4, Vedrin</span></div>
+          <div class="fr"><span class="k">Installé le</span><span class="v">14/03/2026</span></div>
+          <div class="fr"><span class="k">Propriétaire</span><span class="v">Marie Dupont</span></div>
+          <div class="fr"><span class="k">Délégué à</span><span class="v">Vedrin s'abeille</span></div>
+          <div class="fr"><span class="k">Journal</span><span class="v">23 entrées · 187 frelons capturés</span></div>
+          <div class="fr"><span class="k">Commentaires</span><span class="v">sous le noyer</span></div>
+          <h3>Concerne</h3>
+          <div class="refs"><span class="chip">🪤 Piège #57</span><span class="chip">👥 Vedrin s'abeille</span></div>
+        </div>
+        <div class="mfoot">
+          <button class="ib" aria-label="Historique de l'objet">🕘</button>
+          <button class="ib" aria-label="Actions de cette personne">👤</button>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- 5. Object history -->
+  <figure>
+    <figcaption><b>5. Historique d'un objet.</b> Ouvert par l'icône 🕘 d'une fiche (nid, rucher, piège) pour un admin, ou depuis un détail : la liste filtrée sur l'objet (journal, QR codes, délégation compris). Les événements reconstitués lors de la mise en service sont marqués.</figcaption>
+    <div class="phone">
+      <div class="nav"><a class="back">‹ Piège #12</a><span class="cur">Historique</span><span class="menu">☰</span></div>
+      <div class="body">
+        <div class="toolbar">
+          <div class="chips"><span class="chip on">🪤 Piège #12 <span class="x">×</span></span></div>
+          <button class="ib" aria-label="Filtres">⚙<span class="count">1</span></button>
+          <button class="ib" aria-label="Exporter en CSV">⇩</button>
+        </div>
+        <div class="day">Octobre 2026</div>
+        <div class="ev"><div class="ico">▦</div><div class="grow">
+          <div class="top"><span class="what">QR code associé (remplace K7F2…)</span><span class="time">08/10</span></div>
+          <div class="obj">QR M3PA8Z1C</div>
+          <div class="who">Anne Bastin</div></div></div>
+        <div class="ev"><div class="ico">🪤</div><div class="grow">
+          <div class="top"><span class="what">Délégué à un groupe</span><span class="time">02/10</span></div>
+          <div class="obj">Aucun → Vedrin s'abeille · visible du groupe</div>
+          <div class="who">Anne Bastin</div></div></div>
+        <div class="ev"><div class="ico">🪤</div><div class="grow">
+          <div class="top"><span class="what">Entrée corrigée</span><span class="time">01/10</span></div>
+          <div class="obj">Inspection du 30/09 · commentaire</div>
+          <div class="who">Jean Lambert</div></div></div>
+        <div class="day">Septembre 2026 et avant</div>
+        <div class="ev"><div class="ico">🪤</div><div class="grow">
+          <div class="top"><span class="what">Visite enregistrée</span><span class="time">28/09</span></div>
+          <div class="obj">3 entrées</div>
+          <div class="who">Anne Bastin <span class="badge bf">reconstitué</span></div></div></div>
+        <div class="ev"><div class="ico">🪤</div><div class="grow">
+          <div class="top"><span class="what">Piège créé</span><span class="time">14/03</span></div>
+          <div class="obj">Installation</div>
+          <div class="who">Marie Dupont <span class="badge bf">reconstitué</span></div></div></div>
+        <p class="note">Avant le 9 octobre 2026, seuls les faits datés ont été reconstitués <span class="help">?</span></p>
+      </div>
+    </div>
+  </figure>
+
+  <!-- 6. Admin index card -->
+  <figure>
+    <figcaption><b>6. Point d'entrée.</b> Carte dans Administration (admins de plateforme seulement), et icône 🕘 « Historique » dans la barre d'actions des fiches nid, rucher et piège (admins seulement).</figcaption>
+    <div class="phone">
+      <div class="nav"><a class="back">‹ Accueil</a><span class="cur">Administration</span><span class="menu">☰</span></div>
+      <div class="body">
+        <p class="desc">Référentiels, groupes et outils de la plateforme.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div style="border:1px solid var(--line);border-radius:12px;padding:10px"><b>🎯 Types de pièges</b><div class="sub" style="font-size:.8rem;color:var(--muted)">Ajoutez, illustrez ou retirez…</div></div>
+          <div style="border:1px solid var(--line);border-radius:12px;padding:10px"><b>🐛 Espèces</b><div style="font-size:.8rem;color:var(--muted)">Tenez à jour les espèces…</div></div>
+          <div style="border:1px solid var(--line);border-radius:12px;padding:10px"><b>🗄 Archivage</b><div style="font-size:.8rem;color:var(--muted)">Archivez les données…</div></div>
+          <div style="border:1px solid var(--line);border-radius:12px;padding:10px"><b>👥 Groupes</b><div style="font-size:.8rem;color:var(--muted)">Gérez les membres…</div></div>
+          <div style="border:1px solid var(--line);border-radius:12px;padding:10px"><b>▦ QR Codes</b><div style="font-size:.8rem;color:var(--muted)">Imprimez, suivez, révoquez…</div></div>
+          <div style="border:2px solid var(--pri);border-radius:12px;padding:10px"><b>🕘 Journal d'audit</b><div style="font-size:.8rem;color:var(--muted)">Retrouvez qui a fait quoi, quand, sur chaque objet.</div></div>
+        </div>
+        <h3>Fiche d'un piège (admin)</h3>
+        <div style="border:1px solid var(--line);border-radius:12px;padding:10px">
+          <b>🪤 Piège #12</b>
+          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+            <button class="ib" aria-label="Modifier">✎</button><button class="ib" aria-label="Photo">📷</button>
+            <button class="ib" aria-label="Délégation">👥</button><button class="ib" aria-label="QR code">▦</button>
+            <button class="ib" aria-label="Historique" style="border-color:var(--pri)">🕘</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- 7. Desktop -->
+  <figure style="flex-basis:100%">
+    <figcaption style="max-width:none"><b>7. Bureau (≥ lg).</b> Même page : filtres en ligne au-dessus de la liste, colonnes ; un clic ouvre le même détail (<code>AppModal</code> centré).</figcaption>
+    <div class="desk">
+      <div class="nav"><a class="back">Accueil › Administration ›</a><span class="cur">Journal d'audit</span><span class="menu">☰</span></div>
+      <div class="body">
+        <div class="filters">
+          <select><option>7 derniers jours</option></select>
+          <select><option>Domaines : Nids, Pièges</option></select>
+          <select><option>Toutes les actions</option></select>
+          <input placeholder="Acteur (nom ou email)">
+          <input placeholder="Objet (n° ou type:n°)">
+          <input placeholder="Texte dans les détails">
+        </div>
+        <div class="grid">
+          <div class="h">Quand</div><div class="h">Action</div><div class="h">Objet</div><div class="h">Qui</div><div class="h">Source</div>
+          <div>09/10/2026 14:32</div><div>🏴 Nid marqué détruit</div><div>Nid #128 · Rue Haute 12, Vedrin</div><div>Pierre Collin</div><div>App</div>
+          <div>09/10/2026 11:05</div><div>🪤 Visite enregistrée</div><div>Piège #57 · 12 frelons asiatiques, nettoyage</div><div>Anne Bastin</div><div>App</div>
+          <div>09/10/2026 09:47</div><div>🍯 Rucher transféré</div><div>Rucher #31 · Marie Dupont → Jean Lambert</div><div>Sophie Gilson <span class="badge adm">admin</span></div><div>App</div>
+          <div>08/10/2026 18:20</div><div>📊 Export téléchargé</div><div>Captures de frelons · CSV · lien email</div><div><i>Sans connexion</i></div><div>Lien</div>
+          <div>08/10/2026 00:00</div><div>✉ Invitation expirée</div><div>Vedrin s'abeille · Thomas Henry</div><div><i>Système</i></div><div>Système</div>
+        </div>
+        <button class="btn" style="max-width:260px;margin-left:auto;margin-right:auto">Plus d'événements</button>
+      </div>
+    </div>
+  </figure>
+</div>
+
+<div class="legend">
+  <b>Notes</b>
+  <ul>
+    <li>Libellés en français dans le frontend, à partir du code d'action (<code>nest.destroyed</code> → « Nid marqué détruit ») et des <code>changes</code> ; rien n'est stocké en texte.</li>
+    <li>L'objet (« Nid #128 · Rue Haute 12 ») vient des données de l'événement, sans appel supplémentaire ; pour un objet supprimé, de son dernier état enregistré.</li>
+    <li>Noms résolus dans Keycloak à la lecture ; un compte supprimé s'affiche « Compte supprimé » avec son GUID abrégé. Le badge de rôle n'apparaît que pour un rôle utile à la lecture (admin, ou rôle métier quand l'action en dépend).</li>
+    <li>Badges : <span class="badge adm">admin</span> agissait comme admin · <span class="badge sys">automatique</span>/<span class="badge sys">lien</span> sans personne connectée · <span class="badge bf">reconstitué</span> rattrapage à la mise en service · <span class="badge del">supprimé</span> objet ou compte disparu.</li>
+    <li>Export CSV : filtres en cours, 50 000 lignes au plus ; l'export est lui-même journalisé.</li>
+    <li>Conservation 1 an : l'aide (?) de la page le rappelle.</li>
+  </ul>
+</div>
+</body>
+</html>

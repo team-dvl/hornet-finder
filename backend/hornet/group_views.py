@@ -24,6 +24,7 @@ from rest_framework.exceptions import NotFound, PermissionDenied, ValidationErro
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 
+from audit import recorder as audit
 from hornet_finder_api import utils as keycloak
 from hornet_finder_api.authentication import HasAnyRole, JWTBearerAuthentication
 from hornet_finder_api.roles import ADMIN, BEEKEEPER, TRAPPER
@@ -187,6 +188,9 @@ class GroupViewSet(viewsets.GenericViewSet):
         if guid in roster.direct_ids:
             _keycloak(keycloak.remove_user_from_group, guid, roster.group['id'])
         logger.info("Member %s removed from %s by %s", guid, group_path, request.user.guid)
+        audit.record(request, 'group.member_removed', ('group', group_path),
+                     label=keycloak.group_display_name(roster.group),
+                     changes={'member': guid, 'was_admin': is_admin}, refs=[audit.ref('user', guid)])
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def _platform_only(self, request):
@@ -212,6 +216,9 @@ class GroupViewSet(viewsets.GenericViewSet):
             return _conflict('no_admin_group', "Ce groupe n'a pas de sous-groupe « admin » dans Keycloak.")
         _keycloak(keycloak.add_user_to_group, guid, roster.admin_group['id'])
         logger.info("Member %s named administrator of %s by %s", guid, group_path, request.user.guid)
+        audit.record(request, 'group.admin_named', ('group', group_path),
+                     label=keycloak.group_display_name(roster.group),
+                     changes={'member': guid}, refs=[audit.ref('user', guid)])
         return Response({'guid': guid, 'is_admin': True})
 
     @extend_schema(request=None, responses={200: None})
@@ -236,4 +243,7 @@ class GroupViewSet(viewsets.GenericViewSet):
             _keycloak(keycloak.add_user_to_group, guid, roster.group['id'])
         _keycloak(keycloak.remove_user_from_group, guid, roster.admin_group['id'])
         logger.info("Administrator %s of %s dismissed by %s", guid, group_path, request.user.guid)
+        audit.record(request, 'group.admin_dismissed', ('group', group_path),
+                     label=keycloak.group_display_name(roster.group),
+                     changes={'member': guid}, refs=[audit.ref('user', guid)])
         return Response({'guid': guid, 'is_admin': False})
