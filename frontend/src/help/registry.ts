@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 import type { DocModuleId } from './anchors';
+import AdminDoc from './AdminDoc';
 import ApiariesDoc from './ApiariesDoc';
 import NestsDoc from './NestsDoc';
 import StatsDoc from './StatsDoc';
@@ -15,4 +16,5 @@ export const DOC_PAGES: Record<DocModuleId, ComponentType> = {
   traps: TrapsDoc,
   apiaries: ApiariesDoc,
   stats: StatsDoc,
+  admin: AdminDoc,
 };

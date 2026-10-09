@@ -109,11 +109,12 @@ The emails use the layout of the Keycloak email theme (`auth/themes/velutina/ema
 
 Business actions (reports, edits, deletions, hand-overs, sharings, delegations, journal entries, QR codes, group memberships, invitations, statistics exports and their downloads) recorded by the `audit` app, in the transaction of the change, append-only (a database trigger refuses `UPDATE`, and `DELETE` outside the retention purge). Platform admins only, read-only. See `doc/AUDIT_TRAIL.md`.
 
-- `GET /api/audit/events/` - Events newest first, cursor-paginated (`cursor`, `page_size` ≤ 200). Filters: `since`, `until` (date, included, or date-time), `actor` (GUIDs), `action`, `domain` (comma-separated), `ref` (`trap:42`, `group:/beekeepers/x`…: every event concerning it), `source` (`api`, `system`, `backfill`), `q` (text in the details). Each event carries `actor_name` (Keycloak, cached 10 minutes, never stored) and `actor_deleted`
+- `GET /api/audit/events/` - Events newest first, cursor-paginated (`cursor`, `page_size` ≤ 200). Filters: `since`, `until` (date, included, or date-time), `actor` (GUIDs), `action`, `domain` (comma-separated), `ref` (`trap:42`, `group:/beekeepers/x`…: every event concerning it), `source` (`api`, `system`, `backfill`), `request` (events of one request), `q` (text in the details). Each event carries `actor_name` (Keycloak, cached 10 minutes, never stored), `actor_deleted` and `people` (`{guid: {name, deleted}}` for every person it names)
 - `GET /api/audit/events/{id}/` - One event
 - `GET /api/audit/events/catalogue/` - Action codes with their domain, domains, sources and `retention_days`
 - `GET /api/audit/events/actors/?q=` - Up to 10 accounts matching a name or an email, to filter on an actor
-- `GET /api/audit/events/export/` - The filtered events as CSV (`;`, UTF-8 with BOM, at most 50 000 rows); the export is itself recorded
+- `POST /api/audit/events/export-link/` - Signed link (`url`, `filename`, valid 15 minutes) to the CSV of the events matching `filters` (same names as the list)
+- `GET /api/audit/export/{token}/` - The CSV behind a link (`;`, UTF-8 with BOM, at most 50 000 rows). No JWT: the signature stands for the admin who asked for it, recorded as the author of the export (`audit.exported`)
 
 ### Documentation
 

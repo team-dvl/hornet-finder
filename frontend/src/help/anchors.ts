@@ -9,6 +9,7 @@ export const DOC_SECTIONS = {
   traps: ['manager', 'placing', 'qr-code', 'journal', 'delegation', 'permissions'],
   apiaries: ['manager', 'adding', 'sharing', 'permissions'],
   stats: ['catches', 'species', 'trap-types', 'ranking', 'view', 'coverage', 'periods', 'scope', 'export'],
+  admin: ['qr-codes', 'groups', 'referentials', 'archiving', 'audit'],
 } as const;
 
 export type DocModuleId = keyof typeof DOC_SECTIONS;

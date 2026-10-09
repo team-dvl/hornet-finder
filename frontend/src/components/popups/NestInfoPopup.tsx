@@ -4,6 +4,7 @@ import { useAuth } from 'react-oidc-context';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { Nest, NestPhoto, deleteNest, archiveNest, deleteNestPhoto, selectNestById } from '../../store/slices/nestsSlice';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
+import { useHistoryAction } from '../../hooks/useHistoryAction';
 import { ConfirmationModal } from '../modals';
 import { AuthImage, ClampedText } from '../common';
 import { NearbyApiaries, NestFormModal, NestPhotos } from '../nests';
@@ -28,6 +29,7 @@ export default function NestInfoPopup({ show, onHide, nest, onAddAtLocation }: N
   const dispatch = useAppDispatch();
   const auth = useAuth();
   const { canArchiveNest } = useUserPermissions();
+  const historyAction = useHistoryAction();
   const [sub, setSub] = useState<SubDialog | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -45,6 +47,7 @@ export default function NestInfoPopup({ show, onHide, nest, onAddAtLocation }: N
   const mayArchive = auth.isAuthenticated && canArchiveNest() && !current.archived;
   const canAddHere = auth.isAuthenticated && onAddAtLocation;
   const photos = current.photos ?? [];
+  const history = historyAction(`nest:${nestId}`, `Nid #${nestId}`);
 
   const closeSub = () => {
     setSub(null);
@@ -117,7 +120,7 @@ export default function NestInfoPopup({ show, onHide, nest, onAddAtLocation }: N
 
         {permissions?.nearby_apiaries && show && sub === null && <NearbyApiaries nestId={nestId} />}
 
-        {(mayEdit || canAddHere || mayArchive || mayDelete) && (
+        {(mayEdit || canAddHere || mayArchive || mayDelete || history) && (
           <SheetActions
             className="mt-3"
             more={[
@@ -127,6 +130,7 @@ export default function NestInfoPopup({ show, onHide, nest, onAddAtLocation }: N
                 label: 'Ajouter à cette position',
                 onClick: () => onAddAtLocation(current.latitude, current.longitude),
               },
+              history,
               mayArchive && { icon: ACTION_ICONS.archive, label: 'Archiver', tone: 'warning', onClick: () => setSub({ kind: 'archive' }) },
               mayDelete && { icon: ACTION_ICONS.delete, label: 'Supprimer', tone: 'danger', onClick: () => setSub({ kind: 'delete' }) },
             ]}

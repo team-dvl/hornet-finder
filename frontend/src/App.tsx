@@ -19,6 +19,8 @@ import { ADMIN, APP_ROLES, BEEKEEPER, TRAPPER } from './utils/roles';
 const StatsIndex = lazy(() => import('./pages/stats/StatsIndex'));
 const StatDetail = lazy(() => import('./pages/stats/StatDetail'));
 const ExportJob = lazy(() => import('./pages/stats/ExportJob'));
+// Platform admins only: kept out of everyone else's bundle
+const AuditTrail = lazy(() => import('./pages/admin/AuditTrail'));
 const pageFallback = <div className="text-center py-5"><Spinner animation="border" /></div>;
 
 function App() {
@@ -135,6 +137,10 @@ function App() {
       />
       {/* Former address of the invitations page */}
       <Route path="/admin/invitations" element={<Navigate to="/admin/group" replace />} />
+      <Route
+        path="/admin/audit"
+        element={<RequireRole roles={[ADMIN]}><Suspense fallback={pageFallback}><AuditTrail /></Suspense></RequireRole>}
+      />
       <Route
         path="/admin/tags"
         element={<RequireRole roles={[TRAPPER, BEEKEEPER, ADMIN]}><TagsAdmin /></RequireRole>}

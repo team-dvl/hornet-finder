@@ -79,6 +79,13 @@ const SECTIONS: AdminSection[] = [
     to: '/admin/tags',
     roles: [ADMIN],
   },
+  {
+    title: "Journal d'audit",
+    description: 'Retrouvez qui a fait quoi, quand, sur chaque objet.',
+    icon: 'bi-clock-history',
+    to: '/admin/audit',
+    roles: [ADMIN],
+  },
   ...(import.meta.env.DEV
     ? [{
       title: 'Internal mail server',

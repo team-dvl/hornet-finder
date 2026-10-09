@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react';
 import { Hornet, updateHornetDuration, updateHornetColors, deleteHornet, archiveHornet } from '../../store/store';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
+import { useHistoryAction } from '../../hooks/useHistoryAction';
 import { useAuth } from 'react-oidc-context';
 import { ColorSelector, HelpTip } from '../common';
 import { AppModal, FieldRow, IconButton, SheetActions } from '../ui';
@@ -25,6 +26,7 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation,
   const dispatch = useAppDispatch();
   const { canEditHornet, canDeleteHornet, canArchiveHornet, accessToken } = useUserPermissions();
   const auth = useAuth();
+  const historyAction = useHistoryAction();
   
   // Récupérer les données mises à jour depuis le store Redux
   const hornets = useAppSelector(state => state.hornets.hornets);
@@ -155,6 +157,7 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation,
   const confirming = showDeleteModal || showArchiveModal;
   const canDelete = auth.isAuthenticated && canDeleteHornet(currentHornet);
   const canArchive = auth.isAuthenticated && canArchiveHornet() && !currentHornet.archived;
+  const history = currentHornet.id ? historyAction(`hornet:${currentHornet.id}`, `Frelon #${currentHornet.id}`) : false;
 
   return (
     <>
@@ -265,7 +268,7 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation,
           )}
         </div>
 
-        {(canDelete || canArchive || (auth.isAuthenticated && onAddAtLocation)) && (
+        {(canDelete || canArchive || history || (auth.isAuthenticated && onAddAtLocation)) && (
           <SheetActions
             className="mt-3"
             more={[
@@ -274,6 +277,7 @@ export default function HornetInfoPopup({ show, onHide, hornet, onAddAtLocation,
                 label: 'Ajouter à cette position',
                 onClick: () => onAddAtLocation(currentHornet.latitude, currentHornet.longitude),
               },
+              history,
               canArchive && { icon: ACTION_ICONS.archive, label: 'Archiver', tone: 'warning', onClick: () => setShowArchiveModal(true) },
               canDelete && { icon: ACTION_ICONS.delete, label: 'Supprimer', tone: 'danger', onClick: () => setShowDeleteModal(true) },
             ]}

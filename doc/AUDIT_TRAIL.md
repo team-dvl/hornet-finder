@@ -1,8 +1,7 @@
 # Audit trail
 
-Statut : backend **implémenté** (`backend/audit/`) ; module d'administration
-frontend en maquette (`doc/mockups/audit-trail.html`), à valider avant
-implémentation.
+Statut : **implémenté**, backend (`backend/audit/`) et module d'administration
+(`frontend/src/pages/admin/AuditTrail.tsx`, maquette `doc/mockups/audit-trail.html`).
 
 Le journal d'audit enregistre les actions « business » faites sur les entités
 de la plateforme : qui a fait quoi, quand, sur quel objet, et ce qui a changé.
@@ -90,7 +89,7 @@ ouvre le fichier, n'est jamais gardé, ni l'adresse email.
 Voir `backend/README.md`, section *Audit trail* : `GET /api/audit/events/`
 (filtres `since`, `until`, `actor`, `action`, `domain`, `ref`, `source`, `q`,
 pagination par curseur), `…/{id}/`, `…/catalogue/`, `…/actors/?q=`,
-`…/export/` (CSV).
+`…/export-link/` puis `/api/audit/export/{jeton}/` (CSV, lien signé de 15 min).
 
 ## Rattrapage des données existantes
 
@@ -116,11 +115,43 @@ changements de propriétaire, partages, délégations, destructions de nids
 (`destroyed_at` est une date métier saisie, pas celle de l'action),
 référentiels, membres de groupes, téléchargements passés.
 
+## Module d'administration
+
+`/admin/audit`, carte « Journal d'audit » d'Administration, admins de plateforme
+seulement (page chargée à la demande, hors du bundle des autres rôles).
+
+- Liste du plus récent au plus ancien, groupée par jour, « Plus d'événements »
+  pour la page suivante (curseur). Les filtres actifs sont des puces à retirer.
+- Filtres (`BottomSheet`, appliqués au fil du choix) : période (24 h, 7 jours,
+  30 jours, tout, dates), domaines, action, personne (recherche Keycloak par nom
+  ou email), source, texte dans les détails. Ils vivent dans l'adresse :
+  `/admin/audit?ref=trap:12` est l'historique du piège 12, Retour rend les
+  filtres précédents.
+- Détail (`AppModal`) : quand, qui (et ses rôles), objet et libellé, source,
+  changements avant → après, état au moment d'une suppression, objets
+  concernés (chacun ouvre son historique). Pied : historique de l'objet, actions
+  de la même personne, même requête.
+- Icône 🕘 « Historique » dans les actions des fiches nid, frelon, rucher et
+  piège (admins), via `useHistoryAction`.
+- Export CSV par lien signé de 15 minutes, ouvert sans session (une app iOS
+  installée ignore les téléchargements de blob), comme les exports
+  statistiques.
+- Aide en ligne : module Administration, section `admin#audit`, lisible par
+  tous : chacun peut savoir ce qui est enregistré, qui le voit et combien de
+  temps.
+
 ## Pour ajouter un endpoint qui écrit
 
-1. Ajouter le code d'action dans `audit/actions.py` (et son libellé dans le
-   frontend).
+1. Ajouter le code d'action dans `audit/actions.py` et son libellé français
+   dans `frontend/src/utils/auditLabels.ts` (`ACTION_LABELS`) ; un nouveau champ
+   métier dans `FIELDS` (`audit/recorder.py`) et `FIELD_LABELS` ; un champ qui
+   contient le GUID d'une personne dans les deux `PERSON_FIELDS`.
 2. Dans la vue, dans la transaction de la modification :
    `audit.record(request, 'x.verbe', obj, changes=…, refs=…)`, ou
    `with audit.track(request, 'x.updated', obj): …` pour une mise à jour.
+   Jamais par signaux (ni `queryset.update()`, ni `bulk_create`, ni Keycloak ne
+   les déclenchent). Ni email, ni adresse IP, ni jeton, ni nom de personne dans
+   un événement.
 3. Déclarer l'endpoint dans `AUDITED` (`audit/tests.py`) et tester l'événement.
+4. Si le périmètre change, garder vraie la section `admin#audit` de l'aide
+   (`frontend/src/help/AdminDoc.tsx`).

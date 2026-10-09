@@ -27,13 +27,17 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   (Esri World Imagery, remembered on the device). The nginx CSP now allows
   `server.arcgisonline.com` for images: nginx must be reloaded (see
   `doc/prod-migrations/0022-satellite-basemap-csp.md`).
-- Audit trail (backend): every business action (reports, edits, deletions,
-  hand-overs, sharings, delegations, trap journal, QR codes, group members,
-  invitations, statistics exports and their downloads) is recorded with its
-  author, time and changes, append-only, kept 1 year (`AUDIT_RETENTION_DAYS`).
-  Read API for platform administrators only (`/api/audit/events/`: filters,
-  object history, CSV export). The last year is rebuilt from the dated facts of
-  the existing data at deployment. See `doc/AUDIT_TRAIL.md`.
+- Audit trail: every business action (reports, edits, deletions, hand-overs,
+  sharings, delegations, trap journal, QR codes, group members, invitations,
+  statistics exports and their downloads) is recorded with its author, time and
+  changes, append-only, kept 1 year (`AUDIT_RETENTION_DAYS`). Platform
+  administrators read it in Administration → "Journal d'audit": list by day,
+  filters (period, domains, action, person, source, text), detail with the
+  changes before → after, history of an object (🕘 "Historique" in the nest,
+  hornet, apiary and trap sheets), of a person or of a request, CSV export. The
+  last year is rebuilt from the dated facts of the existing data at deployment.
+  The help (Administration module, new) tells every user what is recorded, who
+  sees it and for how long. See `doc/AUDIT_TRAIL.md`.
 - Install suggestion: from the second visit, a sheet offers to pin the app on
   the home screen (an "Installer" button on Android, the share-menu steps on
   iOS). Closing it postpones the next suggestion by 30 days; the menu entry

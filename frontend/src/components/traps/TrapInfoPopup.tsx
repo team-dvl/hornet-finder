@@ -7,6 +7,7 @@ import {
   type Trap, type TrapEvent, type TrapEventKind,
 } from '../../store/store';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
+import { useHistoryAction } from '../../hooks/useHistoryAction';
 import { AuthImage, ClampedText } from '../common';
 import { ConfirmationModal } from '../modals';
 import { AppModal, FieldRow, IconButton, SheetActions } from '../ui';
@@ -273,6 +274,7 @@ export default function TrapInfoPopup({
   const auth = useAuth();
   const detailed = useAppSelector(selectSelectedTrap);
   const { canEditTrap, canActOnTrap, isAdmin, userGuid } = useUserPermissions();
+  const historyAction = useHistoryAction();
 
   const [sub, setSub] = useState<SubDialog | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -358,6 +360,7 @@ export default function TrapInfoPopup({
 
   const preview = (url: string) => setSub({ kind: 'photo', url });
   const canAddHere = auth.isAuthenticated && onAddAtLocation;
+  const history = historyAction(`trap:${current.id}`, `Piège #${current.id}`);
 
   return (
     <>
@@ -405,7 +408,7 @@ export default function TrapInfoPopup({
           </div>
         </div>
 
-        {auth.isAuthenticated && (mayAct || mayEdit || canAddHere || onLocate) && (
+        {auth.isAuthenticated && (mayAct || mayEdit || canAddHere || onLocate || history) && (
           <SheetActions
             className="mb-2"
             more={[
@@ -416,6 +419,7 @@ export default function TrapInfoPopup({
                 label: 'Ajouter à cette position',
                 onClick: () => onAddAtLocation(current.latitude, current.longitude),
               },
+              history,
               mayEdit && { icon: ACTION_ICONS.delete, label: 'Supprimer', tone: 'danger', onClick: () => setSub({ kind: 'delete' }) },
             ]}
           >

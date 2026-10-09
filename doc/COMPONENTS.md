@@ -7,6 +7,13 @@ Cette documentation décrit l'organisation des composants React dans le projet H
 ```
 src/
 ├── components/
+│   ├── audit/           # Journal d'audit (admins de plateforme, page pages/admin/AuditTrail.tsx)
+│   │   ├── AuditDomainIcon.tsx
+│   │   ├── AuditEventModal.tsx
+│   │   ├── AuditEventRow.tsx
+│   │   ├── AuditExportSheet.tsx
+│   │   ├── AuditFiltersSheet.tsx
+│   │   └── index.ts
 │   ├── forms/           # Composants de formulaires et sélecteurs
 │   │   ├── AddItemSelector.tsx
 │   │   └── index.ts
@@ -130,6 +137,15 @@ Briques partagées, à utiliser plutôt que les composants Bootstrap bruts :
 - `ConfirmDialog.tsx` : Confirmation courte, qui remplace le dialogue d'origine au lieu de s'y empiler
 - `FieldRow.tsx` : Ligne « libellé — valeur » d'une fiche
 - `IconButton.tsx` : Bouton réduit à son icône sur téléphone, libellé en `aria-label` et infobulle
+
+### `/components/audit/`
+Journal d'audit, réservé aux admins de plateforme (page `pages/admin/AuditTrail.tsx`, chargée à la demande, route `/admin/audit`) :
+- `AuditEventRow.tsx` : une ligne de la liste (action, objet, auteur, heure), qui ouvre le détail
+- `AuditEventModal.tsx` : détail en `AppModal` (changements avant → après, état d'un objet supprimé, objets concernés) et liens vers l'historique de l'objet, de la personne ou de la requête
+- `AuditFiltersSheet.tsx` : filtres en `BottomSheet`, appliqués au fil des choix et gardés dans l'adresse (`utils/auditFilters.ts`)
+- `AuditExportSheet.tsx` : lien signé du CSV, préparé à l'ouverture (comme les exports statistiques)
+- Libellés français des actions, objets et champs : `utils/auditLabels.ts` ; appels à l'API : `utils/auditApi.ts`
+- Entrée « Historique » des fiches (nid, frelon, rucher, piège) : `hooks/useHistoryAction.ts`
 
 ### `/components/stats/`
 Module Statistiques (pages dans `pages/stats/`, chargées à la demande) :

@@ -12,6 +12,7 @@ const ADMIN_SECTIONS: Record<string, string> = {
   archiving: 'Archivage',
   tags: 'QR Codes',
   group: 'Groupe',
+  audit: "Journal d'audit",
 };
 
 /** Statistics with a page, for the breadcrumb trail (short names). */

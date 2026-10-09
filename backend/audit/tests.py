@@ -560,17 +560,45 @@ class ReadApiTests(ApiTestCase):
         self.assertIn('trap', data['domains'])
         self.assertEqual(data['retention_days'], 365)
 
-    def test_csv_export_is_itself_recorded(self):
+    def test_csv_export_through_a_signed_link_is_itself_recorded(self):
         self._record(self.owner_user, 'nest.reported', ('nest', 1), changes={'address': 'Rue Haute'})
-        response = self.as_user(self.admin_user).get('/api/audit/events/export/?domain=nest')
+        self._record(self.owner_user, 'trap.updated', ('trap', 2))
+        client = self.as_user(self.admin_user)
+        self.assertEqual(client.post('/api/audit/events/export-link/', {'filters': {'actor': 'nope'}},
+                                     format='json').status_code, 400)
+        link = client.post('/api/audit/events/export-link/',
+                           {'filters': {'domain': 'nest', 'unknown': 'x'}}, format='json').data
+        self.assertTrue(link['filename'].endswith('.csv'))
+        # Opened without a session, as the browser of a home-screen app does
+        response = APIClient().get(link['url'])
         self.assertEqual(response.status_code, 200)
         text = b''.join(response.streaming_content).decode('utf-8')
-        rows = list(csv.reader(io.StringIO(text.lstrip('﻿')), delimiter=';'))
+        rows = list(csv.reader(io.StringIO(text.lstrip('\ufeff')), delimiter=';'))
         self.assertEqual(rows[0][:2], ['occurred_at', 'action'])
-        self.assertEqual(rows[1][1], 'nest.reported')
+        self.assertEqual([row[1] for row in rows[1:]], ['nest.reported'])
         self.assertIn('Rue Haute', rows[1][-1])
         [exported] = _events('audit.exported')
         self.assertEqual(exported.changes, {'filters': {'domain': 'nest'}, 'rows': 1})
+        self.assertEqual(exported.actor, self.admin_guid)
+
+        self.assertEqual(APIClient().get('/api/audit/export/forged/').status_code, 404)
+        self.assertEqual(self.as_user(self.owner_user).post(
+            '/api/audit/events/export-link/', {}, format='json').status_code, 403)
+
+    def test_same_request_and_people_named(self):
+        request = type('R', (), {'user': self.admin_user})()
+        first = recorder.record(request, 'trap.owner_changed', ('trap', 8),
+                                changes={'owner': [str(self.owner_guid), str(self.member_guid)]})
+        recorder.record(request, 'tag.revoked', ('tag', 3))
+        self._record(self.admin_user, 'tag.revoked', ('tag', 4))
+        client = self.as_user(self.admin_user)
+        rows = client.get(f'/api/audit/events/?request={first.request_id}').data['results']
+        self.assertEqual([row['target_id'] for row in rows], ['3', '8'])
+        people = rows[1]['people']
+        self.assertEqual(set(people), {str(self.admin_guid), str(self.owner_guid), str(self.member_guid)})
+        self.assertTrue(people[str(self.member_guid)]['deleted'])
+        self.assertEqual(people[str(self.owner_guid)]['name'], f'Name {str(self.owner_guid)[:4]}')
+        self.assertEqual(client.get('/api/audit/events/?request=x').status_code, 400)
 
 
 # -- rebuilding the past ------------------------------------------------------

@@ -38,4 +38,5 @@ export const ACTION_ICONS = {
   help: 'info-circle',
   docs: 'book',
   search: 'search',
+  history: 'clock-history',
 } as const;
