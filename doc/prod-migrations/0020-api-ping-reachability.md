@@ -1,4 +1,4 @@
-status: pending
+status: applied (2026-10-09)
 
 # Bandeau « Serveur injoignable » et sonde `/api/ping` (`main` → `devel`)
 
