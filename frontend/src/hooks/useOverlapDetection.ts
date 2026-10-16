@@ -60,7 +60,7 @@ export function nestToMapObject(nest: Nest): MapObject {
     data: nest,
     symbol: nest.destroyed ? '💀' : '🏴',
     title: `Nid #${nest.id || 'N/A'}`,
-    subtitle: nest.destroyed ? 'Détruit' : 'Actif'
+    subtitle: nest.destroyed ? 'Neutralisé' : 'Actif'
   };
 }
 

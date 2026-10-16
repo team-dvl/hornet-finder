@@ -1337,8 +1337,8 @@
         }
       ],
       "defaultClientScopes": [
-        "service_account",
         "web-origins",
+        "service_account",
         "acr",
         "roles",
         "profile",
@@ -3667,6 +3667,7 @@
   "attributes": {
     "cibaBackchannelTokenDeliveryMode": "poll",
     "cibaAuthRequestedUserHint": "login_hint",
+    "acr.uri.map": "{}",
     "clientOfflineSessionMaxLifespan": "0",
     "oauth2DevicePollingInterval": "5",
     "clientSessionIdleTimeout": "0",
@@ -3690,7 +3691,7 @@
     "darkMode": "false"
   },
   "keycloakVersion": "26.8.0",
-  "userManagedAccessAllowed": true,
+  "userManagedAccessAllowed": false,
   "organizationsEnabled": false,
   "verifiableCredentialsEnabled": false,
   "adminPermissionsEnabled": false,

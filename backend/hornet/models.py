@@ -44,6 +44,9 @@ class User(models.Model):
     # Profile photo uploaded in the app. Its public URL is also written to the
     # Keycloak `picture` attribute, so the account console and the tokens show it.
     avatar = models.ImageField(upload_to=avatar_upload_path, null=True, blank=True)
+    # Notification kinds the user turned on or off against their default,
+    # `{kind: bool}`; a kind absent follows its default (see hornet/notification_kinds.py)
+    notification_prefs = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
         return str(self.guid)
@@ -93,18 +96,85 @@ class Hornet(GeolocatedModel):
     archived_at = models.DateTimeField(null=True, blank=True)
 
 class Nest(GeolocatedModel):
+    """
+    A nest of Asian hornets, for one season: a nest is never reoccupied.
+
+    Its status is the outcome of its journal (`NestEvent`, see
+    `recompute_status`): reported, confirmed by a visit, destroyed, rejected
+    (another species, or not found) or abandoned (found empty, or left
+    untreated past the winter). `destroyed` and `destroyed_at` follow the
+    status, for the public map, the statistics and the clients that know
+    nothing else.
+    """
+
+    STATUS_REPORTED = 'reported'
+    STATUS_CONFIRMED = 'confirmed'
+    STATUS_DESTROYED = 'destroyed'
+    STATUS_REJECTED = 'rejected'
+    STATUS_ABANDONED = 'abandoned'
+    STATUS_CHOICES = [
+        (STATUS_REPORTED, 'Reported'),
+        (STATUS_CONFIRMED, 'Confirmed'),
+        (STATUS_DESTROYED, 'Destroyed'),
+        (STATUS_REJECTED, 'Rejected'),
+        (STATUS_ABANDONED, 'Abandoned'),
+    ]
+    # Still waiting for something: a visit or a destruction
+    OPEN_STATUSES = (STATUS_REPORTED, STATUS_CONFIRMED)
+
+    TYPE_PRIMARY = 'primary'
+    TYPE_SECONDARY = 'secondary'
+    TYPE_CHOICES = [(TYPE_PRIMARY, 'Primary'), (TYPE_SECONDARY, 'Secondary')]
+    # Estimated from the ground: classes, not measures
+    HEIGHT_CHOICES = [('0-2', '< 2 m'), ('2-5', '2-5 m'), ('5-10', '5-10 m'), ('10-20', '10-20 m'),
+                      ('20+', '> 20 m')]
+    SIZE_CHOICES = [('0-10', '< 10 cm'), ('10-30', '10-30 cm'), ('30-50', '30-50 cm'), ('50+', '> 50 cm')]
+
     id = models.AutoField(primary_key=True)
     public_place = models.BooleanField(default=False)
     address = models.CharField(max_length=255, blank=True, default='')  # Allow empty address
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_REPORTED, db_index=True)
     destroyed = models.BooleanField(default=False)
-    # When the nest was neutralised: set by the server when `destroyed` turns
-    # true, or given by whoever records it later. Only an admin turns it back.
+    # When the nest was neutralised: the date of its destruction event
     destroyed_at = models.DateTimeField(null=True, blank=True)
+    nest_type = models.CharField(max_length=16, choices=TYPE_CHOICES, blank=True, default='')
+    height_class = models.CharField(max_length=8, choices=HEIGHT_CHOICES, blank=True, default='')
+    size_class = models.CharField(max_length=8, choices=SIZE_CHOICES, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL)
     comments = models.TextField(null=True, blank=True)
+    # For the coordinators only (and the reporter): how to call the reporter back, and
+    # what they want the coordinators alone to read. Never in the public list
+    contact_phone = models.CharField(max_length=32, blank=True, default='')
+    private_comments = models.TextField(blank=True, default='')
+    # Time of the latest event of the journal
+    last_event_at = models.DateTimeField(null=True, blank=True)
     archived = models.BooleanField(default=False)
     archived_at = models.DateTimeField(null=True, blank=True)
+
+    def recompute_status(self, save=True):
+        """
+        Derive the status from the journal, oldest event first: each event
+        that tells something about the nest sets it. Only the first report
+        counts (a later one is someone else reporting the same nest).
+        """
+        status, destroyed_at, last = None, None, None
+        for event in self.events.order_by('performed_at', 'id'):
+            last = event.performed_at
+            outcome = NestEvent.STATUS_OF.get((event.kind, event.outcome)) or NestEvent.STATUS_OF.get(
+                (event.kind, None))
+            if event.kind == NestEvent.KIND_REPORT and status is not None:
+                continue
+            if outcome:
+                status = outcome
+                destroyed_at = (event.performed_at if outcome == self.STATUS_DESTROYED
+                                and not event.details.get('date_unknown') else None)
+        self.status = status or self.STATUS_REPORTED
+        self.destroyed = self.status == self.STATUS_DESTROYED
+        self.destroyed_at = destroyed_at if self.destroyed else None
+        self.last_event_at = last
+        if save:
+            self.save(update_fields=['status', 'destroyed', 'destroyed_at', 'last_event_at'])
 
 
 def nest_photo_path(instance, filename):
@@ -113,11 +183,110 @@ def nest_photo_path(instance, filename):
     return f"nests/{instance.nest_id}/{uuid.uuid4().hex}.jpg"
 
 
+class NestEvent(models.Model):
+    """
+    One entry of the journal of a nest: its report, a verification (`visit`:
+    a decision on the photos, a call with the reporter or a look on the spot), its destruction,
+    the end of its season. The status of the nest follows (`Nest.recompute_status`).
+
+    `alerted_at` is when the notifications this event calls for were sent (see
+    hornet/nest_alerts.py); NULL while they are pending, set at creation for
+    the events that notify nobody.
+    """
+
+    KIND_REPORT = 'report'
+    KIND_VISIT = 'visit'
+    KIND_DESTRUCTION = 'destruction'
+    KIND_SEASON_END = 'season_end'
+    KIND_REACTIVATION = 'reactivation'
+    KIND_CHOICES = [
+        (KIND_REPORT, 'Report'),
+        (KIND_VISIT, 'Visit'),
+        (KIND_DESTRUCTION, 'Destruction'),
+        (KIND_SEASON_END, 'End of the season'),
+        (KIND_REACTIVATION, 'Reactivation'),
+    ]
+
+    # Outcome of a visit, or state of the nest at its report
+    OUTCOME_ACTIVE = 'active'
+    OUTCOME_EMPTY = 'empty'
+    OUTCOME_OTHER_SPECIES = 'other_species'
+    OUTCOME_NOT_FOUND = 'not_found'
+    OUTCOME_UNKNOWN = 'unknown'
+    VISIT_OUTCOMES = (OUTCOME_ACTIVE, OUTCOME_EMPTY, OUTCOME_OTHER_SPECIES, OUTCOME_NOT_FOUND)
+    REPORT_STATES = (OUTCOME_ACTIVE, OUTCOME_EMPTY, OUTCOME_UNKNOWN)
+
+    # Who destroyed the nest. FixMyStreet: the destroyers the Walloon Region
+    # trains, subsidises and assigns to zones, reached through its platform
+    ACTOR_CHOICES = [
+        ('fixmystreet', 'FixMyStreet'),
+        ('company', 'Private company'),
+        ('firefighters', 'Firefighters'),
+        ('municipality', 'Municipality'),
+        ('other', 'Other'),
+        ('unknown', 'Unknown'),
+    ]
+    # How the nest was reached or dealt with; several at once (no product is tracked)
+    MEANS = ('pole', 'lift', 'removed', 'other')
+    # What a verification relied on: there is not always someone on the spot
+    BASES = ('photos', 'call', 'on_site')
+
+    # (kind, outcome) -> status of the nest; (kind, None) for any outcome
+    STATUS_OF = {
+        (KIND_REPORT, OUTCOME_EMPTY): Nest.STATUS_ABANDONED,
+        (KIND_REPORT, None): Nest.STATUS_REPORTED,
+        (KIND_VISIT, OUTCOME_ACTIVE): Nest.STATUS_CONFIRMED,
+        (KIND_VISIT, OUTCOME_EMPTY): Nest.STATUS_ABANDONED,
+        (KIND_VISIT, OUTCOME_OTHER_SPECIES): Nest.STATUS_REJECTED,
+        (KIND_VISIT, OUTCOME_NOT_FOUND): Nest.STATUS_REJECTED,
+        (KIND_DESTRUCTION, None): Nest.STATUS_DESTROYED,
+        (KIND_SEASON_END, None): Nest.STATUS_ABANDONED,
+        (KIND_REACTIVATION, None): Nest.STATUS_REPORTED,
+    }
+
+    id = models.AutoField(primary_key=True)
+    nest = models.ForeignKey(Nest, on_delete=models.CASCADE, related_name='events')
+    kind = models.CharField(max_length=16, choices=KIND_CHOICES)
+    performed_at = models.DateTimeField()
+    performed_by = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL,
+                                     related_name='nest_events')
+    outcome = models.CharField(max_length=16, blank=True, default='')
+    actor = models.CharField(max_length=16, choices=ACTOR_CHOICES, blank=True, default='')
+    fixmystreet_ref = models.CharField(max_length=32, blank=True, default='')
+    means = models.JSONField(default=list, blank=True)
+    # What a verification noted (type, height, size, as it was then) and relied on (`basis`)
+    details = models.JSONField(default=dict, blank=True)
+    comments = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    alerted_at = models.DateTimeField(null=True, blank=True, db_index=True)
+
+    class Meta:
+        ordering = ['-performed_at', '-id']
+
+    def __str__(self):
+        return f"{self.kind} on nest {self.nest_id}"
+
+
+class NestAlert(models.Model):
+    """Who was notified of a nest event, and how: one notification per event and person."""
+
+    event = models.ForeignKey(NestEvent, on_delete=models.CASCADE, related_name='alerts')
+    user = models.ForeignKey('User', on_delete=models.CASCADE, related_name='nest_alerts')
+    kind = models.CharField(max_length=32)
+    sent_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['event', 'user'], name='nestalert_once')]
+
+
 class NestPhoto(models.Model):
     """A photo of a nest, taken when it is reported or added later."""
 
     id = models.AutoField(primary_key=True)
     nest = models.ForeignKey(Nest, on_delete=models.CASCADE, related_name='photos')
+    # The visit or destruction the photo was taken at; NULL for the report or added later
+    event = models.ForeignKey(NestEvent, null=True, blank=True, on_delete=models.SET_NULL,
+                              related_name='photos')
     image = models.ImageField(upload_to=nest_photo_path)
     thumbnail = models.ImageField(upload_to=nest_photo_path, null=True, blank=True)
     uploaded_by = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL,
@@ -239,6 +408,10 @@ class TrapType(models.Model):
     # trap...): a reading counts what the trap holds and says whether it was
     # emptied. Otherwise (butterfly net...) every reading takes everything out.
     accumulates = models.BooleanField(default=False)
+    # Reminders to the owners (see hornet/reminders.py): a reading every so many
+    # days, a renewal of the attractant every so many days; null for none
+    reading_interval_days = models.PositiveSmallIntegerField(null=True, blank=True)
+    refill_interval_days = models.PositiveSmallIntegerField(null=True, blank=True)
 
     class Meta:
         ordering = ['sort_order', 'name']
@@ -761,3 +934,102 @@ class StatExportJob(models.Model):
 
     def __str__(self):
         return f"Export {self.statistic} ({self.created_at:%Y-%m-%d %H:%M})"
+
+
+class PushSubscription(models.Model):
+    """
+    A browser (or installed PWA) that agreed to receive Web Push messages for a
+    user. One user may have several (phone, desktop); the `endpoint` identifies
+    the browser at its push service (FCM, Mozilla, Apple) and is unique. The
+    keys encrypt the payload for that browser only.
+    """
+
+    user = models.ForeignKey('User', on_delete=models.CASCADE, related_name='push_subscriptions')
+    endpoint = models.TextField(unique=True)
+    p256dh = models.CharField(max_length=255)
+    auth = models.CharField(max_length=255)
+    # Short readable client ("iOS · Safari"), derived from the user agent when subscribing
+    device = models.CharField(max_length=64, blank=True, default='')
+    installed = models.BooleanField(default=False)  # subscribed from the installed PWA
+    created_at = models.DateTimeField(auto_now_add=True)
+    # Last time the app was opened on this device (it registers again at each launch):
+    # a device left unused for PUSH_DEVICE_IDLE_DAYS is forgotten (push.purge_expired)
+    last_seen_at = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f'{self.user_id} · {self.device}'
+
+
+class PushNotification(models.Model):
+    """
+    One message sent: by an administrator to a group or to one of its members,
+    by someone to their own devices (test), or by the system (trap reminders,
+    `sender` null). The text is kept so the diagnostics can show what went out,
+    and the rows of the last hour limit how many messages a sender may send.
+    """
+
+    HOURLY_LIMIT = 10
+    TITLE_MAX = 60
+    BODY_MAX = 200
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # Keycloak GUID, not a foreign key: outlives the account; null for the system
+    sender = models.UUIDField(null=True, blank=True, db_index=True)
+    # One of hornet.notification_kinds (or `test`)
+    kind = models.CharField(max_length=32, default='group_message')
+    group_path = models.CharField(max_length=255, blank=True, default='')
+    recipient = models.UUIDField(null=True, blank=True)  # set for a message to one person
+    # The trap a reminder is about (null for a summary or a message)
+    trap = models.ForeignKey('Trap', null=True, blank=True, on_delete=models.SET_NULL,
+                             related_name='notifications')
+    title = models.CharField(max_length=TITLE_MAX)
+    body = models.CharField(max_length=BODY_MAX)
+    # Where a tap on the notification leads, in the app
+    url = models.CharField(max_length=255, blank=True, default='')
+    recipients_count = models.PositiveIntegerField(default=0)  # people reached by the roster
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+
+class PushDelivery(models.Model):
+    """
+    The attempt to push one notification to one device. `status` is the HTTP
+    code answered by the push service (201 accepted; 404/410 the subscription
+    is gone), 0 when it could not be reached. `received_at` is set by the
+    device itself when its service worker shows the message, which measures
+    the delay end to end. Its `id` travels in the payload and is the only
+    credential of the acknowledgement: the service worker has no session.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    notification = models.ForeignKey(PushNotification, on_delete=models.CASCADE, related_name='deliveries')
+    # Null once the subscription is purged; `device` and `installed` stay, so the diagnostics remain readable
+    subscription = models.ForeignKey('PushSubscription', null=True, blank=True, on_delete=models.SET_NULL,
+                                     related_name='deliveries')
+    device = models.CharField(max_length=64, blank=True, default='')
+    installed = models.BooleanField(default=False)
+    user = models.UUIDField(db_index=True)
+    status = models.PositiveSmallIntegerField(null=True, blank=True)  # null while not sent
+    error = models.CharField(max_length=200, blank=True, default='')
+    sent_at = models.DateTimeField(null=True, blank=True)
+    received_at = models.DateTimeField(null=True, blank=True)
+
+
+class TrapReminder(models.Model):
+    """
+    Where the reminders of one trap stand, for one kind (reading, attractant):
+    the date the delay counts from, and how many reminders went out since. A
+    new reading, refill or installation moves the date and starts afresh. See
+    hornet/reminders.py.
+    """
+
+    trap = models.ForeignKey(Trap, on_delete=models.CASCADE, related_name='reminders')
+    kind = models.CharField(max_length=32)
+    reference_on = models.DateField()
+    sent_count = models.PositiveSmallIntegerField(default=0)
+    last_sent_on = models.DateField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['trap', 'kind'], name='trapreminder_trap_kind')]

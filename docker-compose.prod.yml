@@ -42,7 +42,7 @@ services:
     build: ./backend
     container_name: hornet-finder-api
     image: hornet-finder-api
-    environment:
+    environment: &api-environment
       - DEBUG=${DEBUG}
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
       - HOST=${HOST}
@@ -56,6 +56,12 @@ services:
       - TAG_HMAC_ACTIVE_INDEX=${TAG_HMAC_ACTIVE_INDEX}
       - TAG_SITE_ID=${TAG_SITE_ID}
       - AUDIT_RETENTION_DAYS=${AUDIT_RETENTION_DAYS:-365}
+      # Web Push (empty: notifications off); `manage.py generate_vapid_keys`
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY:-}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY:-}
+      - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:contact@velutina.ovh}
+      - PUSH_HISTORY_DAYS=${PUSH_HISTORY_DAYS:-90}
+      - PUSH_DEVICE_IDLE_DAYS=${PUSH_DEVICE_IDLE_DAYS:-183}
       - KC_INTERNAL_URL=http://hornet-finder-keycloak:8080/
       - KC_REALM=hornet-finder
       # OVH MX Plan: implicit TLS on 465, authenticated with a full mailbox
@@ -72,6 +78,19 @@ services:
     depends_on:
       - hornet-finder-api-db
       - hornet-finder-keycloak
+
+  # Periodic jobs (trap reminders): the API image, running `manage.py
+  # run_scheduler` instead of gunicorn (the image entrypoint always starts
+  # gunicorn, hence the entrypoint override). Reads the same environment.
+  hornet-finder-scheduler:
+    build: ./backend
+    container_name: hornet-finder-scheduler
+    image: hornet-finder-scheduler
+    entrypoint: ["python", "manage.py", "run_scheduler"]
+    environment: *api-environment
+    depends_on:
+      - hornet-finder-api-db
+      - hornet-finder-api
 
   hornet-finder-keycloak-db:
     image: postgres:18.6

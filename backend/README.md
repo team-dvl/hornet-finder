@@ -29,9 +29,14 @@ A RESTful API built with Django and Django REST Framework for managing hornet de
 - `GET|PUT|PATCH|DELETE /api/hornets/{id}/` - Retrieve, update, or delete a specific hornet
 - `GET|POST /api/nests/` - List all nests (hunters, beekeepers, admins) or report a new nest (every role)
 - `GET /api/nests/my/` - The nests the requester reported, with the filters of the list (what a trapper sees besides the destroyed ones)
-- `GET|POST /api/nests/` also takes `multipart/form-data`: up to 10 `photos` files with the report (resized to 1600 px, plus a 320 px thumbnail). Every nest in the list carries its `photos` (`url`, `thumbnail_url`, private media) and `permissions` (`update`, `photos`, `reactivate`, `delete`, `nearby_apiaries`) for the requester. The reporter (`created_by`) is always the requester, never a field
-- `GET|DELETE /api/nests/{id}/` - Retrieve or delete a nest (platform admins)
-- `PUT|PATCH /api/nests/{id}/` - Update a nest: platform admins and administrators of the nest hunters (`/hunters/admin`). `destroyed_at` is set when `destroyed` turns true (now, unless a date is given, never in the future) and kept afterwards; a destroyed nest turns back to active (`destroyed: false`, date cleared) through a platform admin only, otherwise 400
+- `GET|POST /api/nests/` also takes `multipart/form-data`: up to 10 `photos` files with the report (resized to 1600 px, plus a 320 px thumbnail), `state` (`active`, `empty`: recorded as abandoned, `unknown`) and `height_class`. Every nest in the list carries its `status`, its `photos` (`url`, `thumbnail_url`, private media) and `permissions` (`update`, `photos`, `reactivate`, `delete`, `nearby_apiaries`, `visit`, `destroy`) for the requester. The reporter (`created_by`) is always the requester, never a field. `contact_phone` (8 to 15 digits, `+`, spaces and `./()-` allowed) and `private_comments` are given with the report and changed by the update; they are returned to the nest coordinators and to the reporter only (never in a list read by others, nor in the public list), `contact_phone` is left out of the audit trail and erased on 1 March, at the end of the nest's season
+- `GET /api/nests/{id}/` - One nest with its journal (`events`, newest first), for whoever may read it (every-nest roles and its reporter; the authors of the entries are named only to the former). `DELETE` (platform admins)
+- `POST /api/nests/{id}/events/` - Record a verification (`kind=visit`, on the spot or not; `outcome`: `active`, `empty`, `other_species`, `not_found`; `basis`: `photos`, `call`, `on_site`, several; `nest_type`, `height_class`, `size_class`; coordinators), a destruction (`kind=destruction`, `performed_at`, `actor`: `fixmystreet`, `company`, `firefighters`, `municipality`, `other`, `unknown`, `fixmystreet_ref`, `means`: `pole`, `lift`, `removed`, `other`, several; coordinators and the reporter, once) or a reactivation (`kind=reactivation`, platform admins, on a destroyed, rejected or abandoned nest), with `comments` and `photos` files. The `status` of the nest (`reported`, `confirmed`, `destroyed`, `rejected`, `abandoned`) follows its journal; `destroyed` and `destroyed_at` follow the status. Returns the nest
+- `DELETE /api/nests/{id}/events/{event_id}/` - Remove an entry (not the report): coordinators, and the author of a destruction they declared; the status is recomputed
+- `GET /api/nests/managed/` - The nests of the season, paginated: `show=all|mine` (a trapper always gets theirs), `status` (comma separated, `open` = reported and confirmed), `q` (number, address, comment), `ordering` (`-created_at`, `created_at`, `-last_event_at`, `last_event_at`)
+- `GET /api/pending/` - What waits for the requester, by module, for the badges of the landing tiles and of the menu: `{"traps": n, "nests": n}` (traps: reminders due today on one's own traps; nests: to verify and to destroy for the coordinators, active nests within 1 km of one's apiaries). Same rules as `traps/due/` and `nests/todo/` (`hornet/pending.py`)
+- `GET /api/nests/todo/` - What waits for the requester: `to_verify` and `confirmed` (coordinators), `near_apiaries` (active nests within 1 km of the requester's apiaries), `mine` (own reports of the season)
+- `PUT|PATCH /api/nests/{id}/` - Update a nest (place, address, comments, `contact_phone`, `private_comments`, position, `nest_type`, `height_class`, `size_class`): platform admins and administrators of the nest hunters (`/hunters/admin`). Kept for older clients: `destroyed: true` (with `destroyed_at`, never in the future) records a destruction in the journal, `destroyed: false` a reactivation (platform admins only, otherwise 400)
 - `POST /api/nests/{id}/photos/` - Add photos (`photos` files, up to 10), same rights as the update; returns the nest
 - `DELETE /api/nests/{id}/photos/{photo_id}/` - Remove a photo, same rights; returns the nest
 - `GET /api/nests/{id}/nearby-apiaries/` - AFSCA numbers of the apiaries within 1 km of the nest, `["9.005.577.599", …]`, each once, sorted by number; apiaries without a number are left out. No distance and no order by distance: they would locate the apiaries. Same rights as the update (apiaries are private)
@@ -105,6 +110,24 @@ The emails use the layout of the Keycloak email theme (`auth/themes/velutina/ema
 - `GET /api/me/group-invitations/` - Pending invitations of the caller
 - `POST /api/me/group-invitations/{id}/accept/`, `POST /api/me/group-invitations/{id}/decline/` - Answer one; the new membership shows in the next token
 
+### Trap reminders
+
+Owners are reminded of a reading, or a renewal of the attractant, by the delays of the trap type (`reading_interval_days`, `refill_interval_days` on `/api/trap-types/`); see `hornet/reminders.py` and `doc/NOTIFICATIONS.md`. The `scheduler` service (`manage.py run_scheduler`) sends them; `manage.py send_trap_reminders [--dry-run] [--now ISO]` runs one pass by hand. The scheduler also purges the notification history and the unused devices (`PUSH_HISTORY_DAYS`, `PUSH_DEVICE_IDLE_DAYS`).
+
+- `GET /api/traps/due/?days=1` - What the caller's own traps wait for, one row per trap and kind: `kind` (`trap_reading`, `trap_refill`), `trap`, `interval_days`, `last_on` (last reading or refill, else the installation, `from_installation`), `due_on`, `days_late` (negative: due within `days` days, 0 to 7). Most overdue first
+
+### Push notifications
+
+Web Push to the devices of users (installed PWA or browser), sent by group administrators and platform admins; see `hornet/push.py` and `hornet/push_views.py`. VAPID keys (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, from `manage.py generate_vapid_keys`) are required: without them `config` answers `enabled: false` and `subscribe`, `send` and `test` answer 503. Sending runs in a background thread after the request; each device gets a `PushDelivery` with the push service's answer, and its service worker acknowledges the display.
+
+- `GET /api/push/config/` - `enabled` and the `public_key` a browser subscribes with
+- `GET|POST|DELETE /api/push/subscriptions/` - The caller's devices; `POST` takes the browser's subscription (`endpoint`, `keys.p256dh`, `keys.auth`) and `installed`; `DELETE ?endpoint=` or `?id=` forgets one. A subscription of a push service that answers 404 or 410 is purged
+- `POST /api/push/test/` - A notification to the caller's own devices (one per 30 s). Errors carry a `code`: `no_device` (409), `too_soon` (429)
+- `POST /api/push/send/` - `group_path`, `title` (≤ 60), `body` (≤ 200), and optionally `guid` for one member. Same rights as the roster of the group (`/api/groups/members/`): administrators of the group, platform admins anywhere (`/trappers` holds every account). The sender is never addressed. At most 10 per hour per sender. Answers 202 with `recipients`, `reached` (with a device) and `devices`. Errors carry a `code`: `no_recipient` (409), `rate_limited` (429)
+- `POST /api/push/ack/{delivery id}/` - No session: the device tells its service worker showed the message; the unguessable delivery id (in the payload) is the credential
+- `GET|PUT /api/push/preferences/` - The kinds of notifications (`trap_reading`, `trap_refill`, `group_message`, `platform_message`) and whether the caller receives each, for every device; `PUT {"kind": false}` turns one off (only what is off is stored). `send` skips those who turned its kind off (`platform_message` from a platform admin, `group_message` otherwise) and answers their number as `muted`
+- `GET /api/push/deliveries/` - Platform admins: the last 100 deliveries (device, push service status, seconds until the device acknowledged)
+
 ### Audit trail
 
 Business actions (reports, edits, deletions, hand-overs, sharings, delegations, journal entries, QR codes, group memberships, invitations, statistics exports and their downloads) recorded by the `audit` app, in the transaction of the change, append-only (a database trigger refuses `UPDATE`, and `DELETE` outside the retention purge). Platform admins only, read-only. See `doc/AUDIT_TRAIL.md`.
@@ -135,7 +158,8 @@ Business actions (reports, edits, deletions, hand-overs, sharings, delegations, 
 - Location (latitude, longitude, PostGIS point)
 - Public/private place indicator
 - Address information
-- Destruction status and date (kept once destroyed; only an admin reactivates)
+- Status from its journal (`NestEvent`: report, visit, destruction, end of season, reactivation): reported, confirmed, destroyed (with its date), rejected, abandoned; only an admin reactivates
+- Type (primary, secondary), estimated height and size, by classes
 - Creation timestamp and author
 - Comments
 - Photos (`NestPhoto`, files under `nests/<nest id>/`, served by the media view to who sees every nest and to the reporter)
@@ -158,6 +182,7 @@ The application requires several environment variables to be configured. These a
 - `TAG_HMAC_KEYS`, `TAG_HMAC_ACTIVE_INDEX`, `TAG_SITE_ID` - Signing keys of the QR tags, the key new tags are signed with, and the site identifier (see `.env.example` for rotation)
 - `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USE_SSL` / `EMAIL_USE_TLS`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL` - Outgoing email. Dev: Mailpit, no TLS nor authentication. Prod: OVH MX Plan, `ssl0.ovh.net:465` with implicit TLS and a full mailbox address as user (only the user and password come from `.env`); without `EMAIL_HOST` nothing is sent and the statistics email link is not offered
 - `AUDIT_RETENTION_DAYS` - Days the audit trail keeps an event (default 365); older events are purged at most once a day, or by `manage.py audit_purge`
+- `PUSH_HISTORY_DAYS`, `PUSH_DEVICE_IDLE_DAYS` - Days the history of sent notifications is kept (default 90), and days after which a device on which the app was not opened is forgotten (default 183); purged by the scheduler at each pass, or by `manage.py purge_push_history [--dry-run]`
 
 Refer to the main project's [docker-compose.yml](../docker-compose.yml) file for the complete list of required environment variables.
 

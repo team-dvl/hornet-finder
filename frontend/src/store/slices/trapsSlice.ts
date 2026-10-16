@@ -25,6 +25,10 @@ export interface TrapType {
   apiary_bound: boolean;
   /** Catches pile up between emptyings: a reading counts what the trap holds and says if it was emptied */
   accumulates: boolean;
+  /** Reminders to the owners: a reading every so many days; null for none */
+  reading_interval_days: number | null;
+  /** Reminders to the owners: a renewal of the attractant every so many days; null for none */
+  refill_interval_days: number | null;
   photo_url: string | null;
   photo_thumbnail_url: string | null;
   /** Number of traps using this type; only returned to admins listing the referential */
@@ -112,6 +116,8 @@ export interface Trap {
   photo_thumbnail_url: string | null;
   trap_type: {
     id?: number; slug: string; name: string; apiary_bound?: boolean; accumulates?: boolean;
+    /** Delay between two readings, set per type for the reminders; null for none */
+    reading_interval_days?: number | null;
     photo_thumbnail_url?: string | null;
   };
   /** Left in the trap by the last reading; null once emptied. Absent from the public representation */
@@ -226,8 +232,9 @@ const initialState: TrapsState = {
 function trapFormData(values: Partial<TrapFormValues>): FormData {
   const form = new FormData();
   Object.entries(values).forEach(([key, value]) => {
-    if (value === undefined || value === null || key === 'photo') return;
-    form.append(key, String(value));
+    if (value === undefined || key === 'photo') return;
+    // An empty field clears a nullable value (the API reads '' as null in a form)
+    form.append(key, value === null ? '' : String(value));
   });
   if (values.photo) {
     form.append('photo', values.photo);
@@ -541,6 +548,8 @@ export interface TrapTypeFormValues {
   sort_order?: number;
   apiary_bound?: boolean;
   accumulates?: boolean;
+  reading_interval_days?: number | null;
+  refill_interval_days?: number | null;
   photo?: File | null;
 }
 

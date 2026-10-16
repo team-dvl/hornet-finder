@@ -69,9 +69,11 @@ export default function AdminDoc() {
         </h5>
         <p>
           Chaque action faite dans l&apos;application est enregistrée : signalement, modification ou
-          suppression d&apos;un nid, d&apos;un frelon, d&apos;un rucher ou d&apos;un piège, relevés et
+          suppression d&apos;un nid, d&apos;un frelon, d&apos;un rucher ou d&apos;un piège, visites et
+          destructions des nids (et le passage des nids non traités à « abandonné » en fin de saison), relevés et
           entrées du journal des pièges, partages, délégations et transferts, QR Codes, membres et
-          invitations des groupes, exports de statistiques et leurs téléchargements. Le journal
+          invitations des groupes, notifications envoyées à un groupe ou à un membre (le titre et le nombre
+          de destinataires, jamais le texte), exports de statistiques et leurs téléchargements. Le journal
           retient qui a agi, quand, sur quel objet, et ce qui a changé (avant → après).
         </p>
         <p>

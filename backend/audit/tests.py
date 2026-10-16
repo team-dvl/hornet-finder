@@ -52,6 +52,8 @@ AUDITED = {
     ('nest', 'bulk_archive', 'post'): 'nest.bulk_archived',
     ('nest', 'add_photos', 'post'): 'nest.photo_added',
     ('nest', 'delete_photo', 'delete'): 'nest.photo_removed',
+    ('nest', 'events', 'post'): 'nest.visited / nest.destroyed / nest.reactivated',
+    ('nest', 'delete_event', 'delete'): 'nest.event_deleted',
     ('apiary', 'create', 'post'): 'apiary.created',
     ('apiary', 'update', 'put'): 'apiary.updated',
     ('apiary', 'partial_update', 'patch'): 'apiary.updated',
@@ -91,6 +93,7 @@ AUDITED = {
     ('group', 'member', 'delete'): 'group.member_removed',
     ('group', 'member_admin', 'put'): 'group.admin_named',
     ('group', 'dismiss_admin', 'delete'): 'group.admin_dismissed',
+    ('push', 'send', 'post'): 'notification.sent',
     ('group-invitation', 'create', 'post'): 'invitation.sent',
     ('group-invitation', 'remind', 'post'): 'invitation.reminded',
     ('group-invitation', 'destroy', 'delete'): 'invitation.cancelled',
@@ -99,6 +102,11 @@ AUDITED = {
 }
 
 NOT_AUDITED = {
+    ('push', 'subscribe', 'post'): "a device's own subscription, not a business action",
+    ('push', 'unsubscribe', 'delete'): "a device's own subscription, not a business action",
+    ('push', 'test', 'post'): "a message to oneself",
+    ('push', 'ack', 'post'): "a device's receipt, sent by the service worker",
+    ('push', 'set_preferences', 'put'): "a personal setting, not a business action",
     ('tag', 'sheet', 'post'): "signs a link to print existing tags: a read",
     ('tagadmin', 'sheet', 'post'): "signs a link to print existing tags: a read",
 }
@@ -106,6 +114,7 @@ NOT_AUDITED = {
 # Views outside the routers, by URL name
 PLAIN_VIEWS = {
     'media': "read",
+    'pending': "read",
     'my-avatar': "the user's own profile photo, not a business action",
     'tag-sheet-pdf': "read",
     'stats-catalogue': "read",

@@ -14,6 +14,7 @@ export default function MapPage() {
   const viewMode = isMapViewMode(requested) ? requested : 'map';
   const trapId = Number(params.get('trap')) || null;
   const apiaryId = Number(params.get('apiary')) || null;
+  const nestId = Number(params.get('nest')) || null;
 
   return (
     <>
@@ -23,6 +24,7 @@ export default function MapPage() {
           preset={viewMode}
           focusTrapId={trapId}
           focusApiaryId={apiaryId}
+          focusNestId={nestId}
           returnTo={safeReturnPath(params.get('from'))}
         />
       </div>

@@ -24,7 +24,7 @@ export function labelStep(count: number, width: number, minGap = 44): number {
 export const CHART = {
   primary: '#2a78d6',
   primaryStrong: '#1b5aa6',
-  band: '#d6e5f7',
+  band: 'color-mix(in srgb, #2a78d6 20%, transparent)',
   previous: '#6f6e69',
   grid: 'var(--bs-border-color-translucent)',
   text: 'var(--bs-secondary-color)',

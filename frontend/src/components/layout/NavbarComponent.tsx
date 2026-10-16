@@ -1,4 +1,4 @@
-import { Navbar, Nav, Button, Container, Spinner, Breadcrumb } from 'react-bootstrap';
+import { Navbar, Nav, Button, Container, Spinner, Breadcrumb, Badge } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
@@ -15,14 +15,18 @@ import { signInFromCurrentPage } from '../../utils/authRedirect';
 import { getBreadcrumbs } from '../../utils/breadcrumbs';
 import { visibleModules } from '../../config/modules';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
+import { usePendingCounts } from '../../hooks/usePendingCounts';
 import { UserAvatar } from '../common';
 import { useAvatarUrl } from '../../hooks/useAvatarUrl';
 import { APP_VERSION, IS_RELEASE } from '../../utils/version';
+import { releasePushDevice } from '../../hooks/usePushRebind';
 import { openInstallSheet, useInstallState } from '../../utils/installPrompt';
 import { openHelp } from '../../help/helpStore';
 import { ACTION_ICONS } from '../../utils/icons';
 import ReachabilityBanner from './ReachabilityBanner';
 import InstallSheet from './InstallSheet';
+import PushPromptSheet from './PushPromptSheet';
+import ThemeSheet from './ThemeSheet';
 
 const SITE_NAME = `Velutina${import.meta.env.DEV ? ' DEV' : ''}`;
 
@@ -37,8 +41,12 @@ export default function NavbarComponent() {
   const crumbs = getBreadcrumbs(location.pathname);
   const { roles } = useUserPermissions();
   const modules = visibleModules(roles).filter((module) => module.path);
+  // What waits in each module: a count on its menu entry, a dot on the menu button
+  const pending = usePendingCounts();
+  const waiting = modules.reduce((total, module) => total + (pending[module.id] ?? 0), 0);
   const { available: installAvailable } = useInstallState();
   const [showUserModal, setShowUserModal] = useState(false);
+  const [showTheme, setShowTheme] = useState(false);
   const avatarUrl = useAvatarUrl();
   const dispatch = useAppDispatch();
   const userId = auth.user?.profile.sub;
@@ -82,7 +90,6 @@ export default function NavbarComponent() {
   return (
     <Navbar
       ref={navbarRef}
-      variant="light"
       expand="lg"
       fixed="top"
       className={`shadow-sm navbar-transparent ${expanded ? 'navbar-opaque' : ''}`}
@@ -138,13 +145,26 @@ export default function NavbarComponent() {
           )}
         </div>
 
-        <Navbar.Toggle aria-controls="basic-navbar-nav" aria-label="Menu" className="flex-shrink-0" />
+        <Navbar.Toggle
+          aria-controls="basic-navbar-nav"
+          // `label`, not `aria-label`: react-bootstrap sets the latter from it
+          label={waiting ? `Menu, ${waiting} en attente` : 'Menu'}
+          className="flex-shrink-0 position-relative"
+        >
+          <span className="navbar-toggler-icon" />
+          {waiting > 0 && <span className="navbar-pending-dot" aria-hidden="true" />}
+        </Navbar.Toggle>
         <Navbar.Collapse id="basic-navbar-nav">
           <Nav className="me-auto">
             {modules.map((module) => (
-              <Nav.Link key={module.id} as={NavLink} to={module.path!} onClick={close} className="navbar-module-link">
+              <Nav.Link key={module.id} as={NavLink} to={module.landing ?? module.path!} onClick={close} className="navbar-module-link">
                 <i className={`bi ${module.icon} me-2 d-lg-none module-icon`} data-tone={module.tone} aria-hidden="true" />
                 {module.shortTitle}
+                {(pending[module.id] ?? 0) > 0 && (
+                  <Badge pill bg="danger" className="ms-2" aria-label={`${pending[module.id]} en attente`}>
+                    {pending[module.id]}
+                  </Badge>
+                )}
               </Nav.Link>
             ))}
             <Nav.Link
@@ -158,6 +178,18 @@ export default function NavbarComponent() {
             >
               <i className={`bi bi-${ACTION_ICONS.docs} me-2 d-lg-none module-icon`} data-tone="plain" aria-hidden="true" />
               Aide
+            </Nav.Link>
+            <Nav.Link
+              as="button"
+              type="button"
+              onClick={() => {
+                close();
+                setShowTheme(true);
+              }}
+              className="navbar-module-link text-start"
+            >
+              <i className={`bi bi-${ACTION_ICONS.appearance} me-2 d-lg-none module-icon`} data-tone="plain" aria-hidden="true" />
+              Apparence
             </Nav.Link>
             {installAvailable && (
               <Nav.Link
@@ -205,9 +237,9 @@ export default function NavbarComponent() {
                 </Button>
                 <Button
                   variant="outline-secondary"
-                  onClick={() => void auth.signoutRedirect(
+                  onClick={() => void releasePushDevice().then(() => auth.signoutRedirect(
                     { post_logout_redirect_uri: window.location.origin }
-                  )}
+                  ))}
                   className="icon-button ms-auto"
                   aria-label="Déconnexion"
                   title="Déconnexion"
@@ -233,7 +265,9 @@ export default function NavbarComponent() {
       />
 
       <ReachabilityBanner />
+      <ThemeSheet show={showTheme} onHide={() => setShowTheme(false)} />
       <InstallSheet signedIn={auth.isAuthenticated} />
+      <PushPromptSheet signedIn={auth.isAuthenticated} />
     </Navbar>
   );
 }

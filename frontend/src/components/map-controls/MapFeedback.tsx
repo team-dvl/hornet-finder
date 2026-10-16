@@ -9,7 +9,7 @@ export function LoadingIndicator({ loading }: LoadingIndicatorProps) {
   
   return (
     <div className="position-absolute top-50 start-50 translate-middle" style={{ zIndex: 1001 }}>
-      <div className="d-flex align-items-center bg-white p-3 rounded shadow">
+      <div className="d-flex align-items-center bg-body p-3 rounded shadow">
         <Spinner animation="border" size="sm" className="me-2" />
         <span>Chargement des données...</span>
       </div>

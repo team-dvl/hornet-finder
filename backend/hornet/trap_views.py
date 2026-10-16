@@ -21,6 +21,7 @@ from hornet_finder_api.authentication import HasAnyRole, JWTBearerAuthentication
 from hornet_finder_api.roles import APP_ROLES, BEEKEEPER, TRAPPER
 from audit import recorder as audit
 
+from . import reminders
 from . import trap_permissions as perms
 from .invitation_views import BEEKEEPERS_ROOT, _sort_key
 from .images import delete_files as _delete_files, store_photo as _store_photo
@@ -407,6 +408,40 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         # Owners repeat across a page: resolve each display name once
         serializer = TrapSerializer(page, many=True, context={'user_summaries': {}})
         return paginator.get_paginated_response(serializer.data)
+
+    @extend_schema(
+        parameters=[OpenApiParameter(name='days', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY,
+                                     required=False,
+                                     description="Also what falls due within this many days (0-7, default 1)")],
+        responses={200: None},
+    )
+    @action(detail=False, methods=['get'])
+    def due(self, request):
+        """
+        What the caller's own traps are waiting for: a reading or a renewal of the
+        attractant, by the delays of their type (see `hornet/reminders.py`). One
+        row per trap and kind: `kind` (`trap_reading`, `trap_refill`), `trap`,
+        `interval_days`, `last_on` (last reading or refill, else the installation,
+        `from_installation`), `due_on` and `days_late` (negative: not yet due).
+        Most overdue first.
+        """
+        try:
+            days = min(7, max(0, int(request.query_params.get('days', 1))))
+        except ValueError:
+            raise DRFValidationError({'days': "Expected a number of days."})
+        today = timezone.localdate()
+        guid = getattr(request.user, 'guid', None)
+        items = reminders.due_for(self.queryset.filter(owner__guid=guid), today, days)
+        traps = TrapSerializer([item.trap for item in items], many=True, context={'user_summaries': {}}).data
+        return Response([{
+            'kind': item.kind,
+            'trap': trap,
+            'interval_days': item.interval_days,
+            'last_on': item.last_on,
+            'from_installation': item.from_installation,
+            'due_on': item.due_on,
+            'days_late': item.days_late(today),
+        } for item, trap in zip(items, traps)])
 
     def retrieve(self, request, *args, **kwargs):
         trap = self.get_object()

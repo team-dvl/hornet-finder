@@ -18,4 +18,5 @@ fi
 
 python manage.py collectstatic --noinput
 
-gunicorn hornet_finder_api.wsgi:application --bind 0.0.0.0:8000 --access-logfile -
+# exec: gunicorn replaces bash as PID 1 and receives SIGTERM (graceful stop)
+exec gunicorn hornet_finder_api.wsgi:application --bind 0.0.0.0:8000 --access-logfile -

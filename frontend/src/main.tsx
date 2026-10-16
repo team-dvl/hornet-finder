@@ -9,12 +9,18 @@ import App from './App'
 import { userManager } from './utils/oidc'
 import { ErrorBoundary } from './components/common'
 import { RootErrorFallback } from './components/layout'
+import { applyPlatformLook } from './utils/pwa'
+import { initTheme } from './utils/theme'
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
 // Nettoyer l'URL après connexion réussie
 const onSigninCallback = () => {
   window.history.replaceState({}, document.title, window.location.pathname);
 };
+
+// Native-looking switches (iOS or Material), see App.css
+applyPlatformLook();
+initTheme();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

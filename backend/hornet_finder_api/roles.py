@@ -6,9 +6,9 @@ Keycloak group, see `doc/KEYCLOAK_USERS_GROUPS.md`).
 """
 
 ADMIN = 'admin'
-# Beekeepers: apiaries, their traps, and hornet sightings at the hives
+# Beekeepers: apiaries and their traps
 BEEKEEPER = 'beekeeper'
-# Nest hunters: hornet sightings and releases, every nest
+# Nest hunters (trained, hence in /hunters): hornet sightings and releases, every nest
 HUNTER = 'hunter'
 # Trap campaign: traps and their QR codes; the default role of a new account
 TRAPPER = 'trapper'

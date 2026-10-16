@@ -90,6 +90,9 @@ resolve_service_name() {
         "nginx"|"proxy")
             echo "nginx"
             ;;
+        "scheduler"|"cron")
+            echo "hornet-finder${suffix}-scheduler"
+            ;;
         "api-db"|"db"|"database")
             echo "hornet-finder${suffix}-api-db"
             ;;

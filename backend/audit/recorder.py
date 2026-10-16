@@ -29,6 +29,7 @@ TYPES = {
     'hornet': 'hornet',
     'nest': 'nest',
     'nestphoto': 'nest_photo',
+    'nestevent': 'nest_event',
     'apiary': 'apiary',
     'trap': 'trap',
     'trapevent': 'trap_event',
@@ -42,19 +43,22 @@ TYPES = {
 }
 
 # Business fields kept in snapshots and diffs; technical ones (`point`,
-# `updated_at`, derived counters, thumbnails) are left out
+# `updated_at`, derived counters, thumbnails) are left out, and so is a
+# person's phone number (`Nest.contact_phone`), like an email
 FIELDS = {
     'hornet': ['latitude', 'longitude', 'direction', 'duration', 'mark_color_1', 'mark_color_2',
                'linked_nest', 'created_by', 'archived'],
-    'nest': ['latitude', 'longitude', 'address', 'public_place', 'destroyed', 'destroyed_at',
-             'comments', 'created_by', 'archived'],
+    'nest': ['latitude', 'longitude', 'address', 'public_place', 'status', 'destroyed', 'destroyed_at',
+             'nest_type', 'height_class', 'size_class', 'comments', 'private_comments', 'created_by',
+             'archived'],
     'apiary': ['latitude', 'longitude', 'address', 'infestation_level', 'afsca_number', 'comments',
                'owner', 'photo'],
     'trap': ['latitude', 'longitude', 'address', 'trap_type', 'installed_at', 'active', 'visibility',
              'group', 'owner', 'comments', 'photo'],
     'trap_event': ['trap', 'kind', 'performed_at', 'performed_by', 'species', 'observed_quantity',
                    'quantity', 'emptied', 'left_quantity', 'bycatch_counted', 'batch', 'comments'],
-    'trap_type': ['slug', 'name', 'description', 'sort_order', 'apiary_bound', 'accumulates', 'photo'],
+    'trap_type': ['slug', 'name', 'description', 'sort_order', 'apiary_bound', 'accumulates',
+                  'reading_interval_days', 'refill_interval_days', 'photo'],
     'species': ['slug', 'name', 'scientific_name', 'wikipedia_url', 'photo_credit', 'photo_source_url',
                 'sort_order', 'photo'],
     'tag': ['key_index', 'trap', 'generated_by', 'associated_by', 'revoked_by'],

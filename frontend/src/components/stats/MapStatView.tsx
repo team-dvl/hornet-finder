@@ -89,6 +89,7 @@ export default function MapStatView({ statId, params, onParams, onState }: MapSt
         >
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            className="tiles-themable"
             maxZoom={19}
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           />

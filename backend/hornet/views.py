@@ -4,19 +4,24 @@ from django.contrib.gis.db.models.functions import Distance
 from django.utils import timezone
 
 from django.db import transaction
+from django.db.models import Q
 
 from rest_framework import viewsets
 from rest_framework.decorators import action, api_view
-from rest_framework.exceptions import PermissionDenied, ValidationError as DRFValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError as DRFValidationError
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from . import nest_permissions as nest_perms
+from . import pending
 from .images import delete_files, store_photo
-from .models import Apiary, Hornet, Nest, NestPhoto, User
+from .models import Apiary, Hornet, Nest, NestEvent, NestPhoto, User
 from .stats.periods import PeriodError, resolve_archive_period
-from .serializers import HornetSerializer, NestSerializer, PublicNestSerializer
+from .serializers import (
+    HornetSerializer, NestEventInputSerializer, NestSerializer, PublicHornetSerializer, PublicNestSerializer,
+)
 from hornet_finder_api.authentication import JWTBearerAuthentication, HasAnyRole
 from hornet_finder_api.roles import ADMIN, APP_ROLES, BEEKEEPER, HUNTER
 from audit import recorder as audit
@@ -180,7 +185,10 @@ class HornetViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelVie
             return error_response
         
         queryset = self.apply_archive_year_filters(queryset, request)
-        serializer = self.get_serializer(queryset, many=True)
+        # The reporter's name is personal data: shown to the roles that see every nest with its author,
+        # not to anonymous visitors nor to trappers
+        serializer_class = HornetSerializer if nest_perms.sees_all_nests(request) else PublicHornetSerializer
+        serializer = serializer_class(queryset, many=True, context=self.get_serializer_context())
         return Response(serializer.data)
 
     @extend_schema(
@@ -194,7 +202,8 @@ class HornetViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelVie
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
-    # No need permission to create a hornet, but only beekeepers and admins can list, and only admins can retrieve, update, partial_update and destroy them
+    # Anyone may list the sightings (without their author unless the role sees every nest); only nest hunters
+    # (trained, hence members of /hunters) and admins record them; only admins retrieve, update, archive and delete
     def get_authenticators(self): # This method is used here because we can not use the @authentication_classes decorator on the herited actions
         # list, create, retrieve, update, partial_update, destroy are the names of the actions that are automatically created by the ModelViewSet
         # Each action corresponds to a method in the viewset, e.g. list corresponds to the GET /hornets/ endpoint.
@@ -206,9 +215,9 @@ class HornetViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelVie
 
     def get_permissions(self): # This method is used here because we can not use the @permission_classes decorator on the herited actions
         # Allow public access to list action (viewing hornets)
-        # Sightings and releases are the work of nest hunters, and of beekeepers at their hives
+        # Sightings and releases are the work of the (trained) nest hunters
         if hasattr(self, 'action') and self.action in ('create', 'my'):
-            return [HasAnyRole([HUNTER, BEEKEEPER, ADMIN])]
+            return [HasAnyRole([HUNTER, ADMIN])]
         elif hasattr(self, 'action') and self.action in ['retrieve', 'update', 'partial_update', 'destroy', 'archive', 'archive_candidates', 'bulk_archive']:
             return [HasAnyRole(['admin'])]
         return super().get_permissions()
@@ -243,10 +252,40 @@ PHOTOS_REQUEST_SCHEMA = {
 }
 
 
+# Orderings of the nest list of the module (`?ordering=`)
+NEST_ORDERINGS = ('-created_at', 'created_at', '-last_event_at', 'last_event_at', '-id', 'id')
+# Longest section of "À traiter": the rest is in the list
+TODO_SECTION_MAX = 100
+
+
+class NestPagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = 'page_size'
+    max_page_size = 200
+
+
 class NestViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewSet):
     queryset = Nest.objects.select_related('created_by').prefetch_related('photos')
     serializer_class = NestSerializer
     parser_classes = [MultiPartParser, FormParser, JSONParser]
+    # Actions answering one nest with its journal
+    JOURNAL_ACTIONS = ('retrieve', 'create', 'update', 'partial_update', 'events', 'delete_event',
+                       'add_photos', 'delete_photo')
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['with_events'] = getattr(self, 'action', None) in self.JOURNAL_ACTIONS
+        return context
+
+    def _readable(self, pk):
+        """The nest `pk` if the requester may see it in full; 404 otherwise, as if it did not exist."""
+        nest = self.get_queryset().prefetch_related('events__performed_by', 'events__photos').filter(pk=pk).first()
+        if nest is None or not nest_perms.can_read_nest(self.request, nest):
+            raise NotFound("Nid introuvable.")
+        return nest
+
+    def retrieve(self, request, *args, **kwargs):
+        return Response(self.get_serializer(self._readable(kwargs['pk'])).data)
 
     @geographic_list_schema() # The permissions and authentication for this action are handled in the get_authenticators and get_permissions methods
     def list(self, request, *args, **kwargs):
@@ -302,6 +341,7 @@ class NestViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewS
             return super().get_permissions()
         if hasattr(self, 'action') and self.action in (
             'create', 'my', 'update', 'partial_update', 'add_photos', 'delete_photo', 'nearby_apiaries',
+            'retrieve', 'events', 'delete_event', 'managed', 'todo',
         ):
             return [HasAnyRole(list(APP_ROLES))]
         if hasattr(self, 'action') and self.action == 'list':
@@ -317,12 +357,12 @@ class NestViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewS
             )
         return uploaded
 
-    def _store_photos(self, nest, uploaded, user):
+    def _store_photos(self, nest, uploaded, user, event=None):
         """Store the photos of a nest. Files already written are removed if one is rejected."""
         stored = []
         try:
             for upload in uploaded:
-                photo = NestPhoto(nest=nest, uploaded_by=user)
+                photo = NestPhoto(nest=nest, uploaded_by=user, event=event)
                 store_photo(photo, 'image', 'thumbnail', upload)
                 stored.append(photo)
                 photo.save()
@@ -332,31 +372,198 @@ class NestViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewS
             raise
 
     def _fresh(self, nest):
-        """The nest reloaded with its photos, for the response."""
-        return self.get_queryset().get(pk=nest.pk)
+        """The nest reloaded with its photos (and journal), for the response."""
+        return self.get_queryset().prefetch_related('events__performed_by', 'events__photos').get(pk=nest.pk)
+
+    def _requester(self):
+        return User.objects.filter(guid=getattr(self.request.user, 'guid', None)).first()
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         uploaded = self._uploaded_photos()
-        user = User.objects.filter(guid=getattr(request.user, 'guid', None)).first()
+        user = self._requester()
+        state = serializer.validated_data.pop('state', NestEvent.OUTCOME_UNKNOWN)
+        # Clients before the journal may report a nest already destroyed
+        destroyed = serializer.validated_data.pop('destroyed', False)
+        destroyed_at = serializer.validated_data.pop('destroyed_at', None)
         with transaction.atomic():
-            nest = serializer.save(created_by=user)
+            nest = serializer.save(created_by=user, destroyed=False, destroyed_at=None)
+            NestEvent.objects.create(nest=nest, kind=NestEvent.KIND_REPORT, performed_at=nest.created_at,
+                                     performed_by=user, outcome=state)
+            if destroyed:
+                NestEvent.objects.create(nest=nest, kind=NestEvent.KIND_DESTRUCTION, actor='unknown',
+                                         performed_at=destroyed_at or nest.created_at, performed_by=user)
+            nest.recompute_status()
             self._store_photos(nest, uploaded, user)
             audit.record(request, 'nest.reported', nest,
-                         changes={**audit.snapshot(nest), 'photos': len(uploaded)})
+                         changes={**audit.snapshot(nest), 'state': state, 'photos': len(uploaded)})
         return Response(self.get_serializer(self._fresh(nest)).data, status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
         nest = self.get_object()
         if not nest_perms.can_edit_nest(request, nest):
             raise PermissionDenied("You do not have permission to update this nest.")
+        was_destroyed, was_destroyed_at = nest.destroyed, nest.destroyed_at
         with audit.track(request, 'nest.updated', nest,
                          resolve=lambda changes: audit.flip_action('nest', changes, None)):
             response = super().update(request, *args, **kwargs)
+            self._journal_destroyed_flag(Nest.objects.get(pk=nest.pk), was_destroyed, was_destroyed_at)
         # Photos are managed through their own actions, the response shows them all
         response.data = self.get_serializer(self._fresh(nest)).data
         return response
+
+    def _journal_destroyed_flag(self, nest, was_destroyed, was_destroyed_at):
+        """
+        `destroyed` and `destroyed_at` set through PATCH (clients before the
+        journal): written to the journal, which the status follows.
+        """
+        if nest.destroyed == was_destroyed and nest.destroyed_at == was_destroyed_at:
+            return
+        user = self._requester()
+        if nest.destroyed and not was_destroyed:
+            NestEvent.objects.create(nest=nest, kind=NestEvent.KIND_DESTRUCTION, actor='unknown',
+                                     performed_at=nest.destroyed_at or timezone.now(), performed_by=user)
+        elif was_destroyed and not nest.destroyed:
+            NestEvent.objects.create(nest=nest, kind=NestEvent.KIND_REACTIVATION, performed_at=timezone.now(),
+                                     performed_by=user, alerted_at=timezone.now())
+        else:
+            # A new date for the destruction already recorded
+            last = nest.events.filter(kind=NestEvent.KIND_DESTRUCTION).order_by('-performed_at', '-id').first()
+            if last and nest.destroyed_at:
+                last.performed_at = nest.destroyed_at
+                last.details = {k: v for k, v in last.details.items() if k != 'date_unknown'}
+                last.save(update_fields=['performed_at', 'details'])
+        nest.recompute_status()
+
+    # --- Journal ---------------------------------------------------------------
+
+    @extend_schema(request=NestEventInputSerializer, responses={201: NestSerializer})
+    @action(detail=True, methods=['post'], url_path='events')
+    def events(self, request, pk=None):
+        """
+        Record a verification (`kind=visit`: on the spot or not, from the photos
+        or a call with the reporter; `outcome`: active, empty, other_species,
+        not_found; `basis`; `nest_type`, `height_class`, `size_class`), a destruction (`performed_at`,
+        `actor`, `fixmystreet_ref`, `means`) or a reactivation (admins), with
+        `comments` and `photos` files. The status of the nest follows.
+        """
+        nest = self._readable(pk)
+        data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+        if hasattr(data, 'pop'):
+            data.pop('photos', None)
+        entry = NestEventInputSerializer(data=data)
+        entry.is_valid(raise_exception=True)
+        values = entry.validated_data
+        kind = values['kind']
+        if kind == NestEvent.KIND_VISIT and not nest_perms.can_visit_nest(request, nest):
+            raise PermissionDenied("Seuls les coordinateurs enregistrent une vérification, et pas sur un nid neutralisé.")
+        if kind == NestEvent.KIND_DESTRUCTION and not nest_perms.can_record_destruction(request, nest):
+            raise PermissionDenied("Ce nid est déjà neutralisé, ou vous ne pouvez pas enregistrer sa neutralisation.")
+        if kind == NestEvent.KIND_REACTIVATION and (
+                not nest_perms.can_reactivate_nest(request) or nest.status in Nest.OPEN_STATUSES):
+            raise PermissionDenied("Seul un administrateur réactive un nid neutralisé, écarté ou abandonné.")
+        uploaded = self._uploaded_photos()
+        user = self._requester()
+        known = {field: values.pop(field) for field in ('nest_type', 'height_class', 'size_class')
+                 if values.get(field)}
+        basis = values.pop('basis', None)
+        details = {**known, **({'basis': basis} if basis else {})}
+        action_code = {NestEvent.KIND_VISIT: 'nest.visited', NestEvent.KIND_DESTRUCTION: 'nest.destroyed',
+                       NestEvent.KIND_REACTIVATION: 'nest.reactivated'}[kind]
+        with audit.track(request, action_code, nest) as tracked:
+            event = NestEvent.objects.create(
+                nest=nest, kind=kind, performed_at=values.pop('performed_at', None) or timezone.now(),
+                performed_by=user, details=details, **{k: v for k, v in values.items() if k != 'kind'},
+                # A reactivation tells nobody; the others may (see nest_alerts.py)
+                alerted_at=timezone.now() if kind == NestEvent.KIND_REACTIVATION else None,
+            )
+            if known:
+                # What the verification found becomes what is known of the nest
+                Nest.objects.filter(pk=nest.pk).update(**known)
+            nest.recompute_status()
+            self._store_photos(nest, uploaded, user, event=event)
+            tracked.extra = {'event': event.pk, 'kind': kind, 'outcome': event.outcome, 'basis': basis or [],
+                             'actor': event.actor, 'means': event.means, 'photos': len(uploaded)}
+            tracked.refs = [audit.ref('nest_event', event.pk)]
+        return Response(self.get_serializer(self._fresh(nest)).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(request=None, responses={200: NestSerializer})
+    @action(detail=True, methods=['delete'], url_path=r'events/(?P<event_id>\d+)')
+    def delete_event(self, request, pk=None, event_id=None):
+        """Remove an entry of the journal (not the report); the status of the nest follows."""
+        nest = self._readable(pk)
+        event = nest.events.filter(pk=event_id).first()
+        if event is None:
+            raise NotFound("Entrée du journal introuvable.")
+        if not nest_perms.can_delete_event(request, event):
+            raise PermissionDenied("Vous ne pouvez pas supprimer cette entrée du journal.")
+        with audit.track(request, 'nest.event_deleted', nest) as tracked:
+            tracked.extra = {'event': {'id': event.pk, 'kind': event.kind, 'outcome': event.outcome,
+                                       'performed_at': audit.json_value(event.performed_at),
+                                       'performed_by': audit.json_value(event.performed_by_id),
+                                       'actor': event.actor, 'means': event.means, 'comments': event.comments}}
+            tracked.refs = [audit.ref('nest_event', event.pk)]
+            event.delete()
+            nest.recompute_status()
+        return Response(self.get_serializer(self._fresh(nest)).data)
+
+    # --- Lists of the module ----------------------------------------------------
+
+    def _season(self, queryset):
+        """The season under way (current year, not archived), unless `year`/`archived` say otherwise."""
+        return self.apply_archive_year_filters(queryset, self.request)
+
+    def _mine(self, queryset):
+        return queryset.filter(created_by__guid=getattr(self.request.user, 'guid', None))
+
+    @extend_schema(parameters=[
+        OpenApiParameter(name='show', type=OpenApiTypes.STR, enum=['all', 'mine'],
+                         description="`all` (those who see every nest) or `mine`"),
+        OpenApiParameter(name='status', type=OpenApiTypes.STR,
+                         description="Statuses, comma separated (`open` = reported and confirmed)"),
+        OpenApiParameter(name='q', type=OpenApiTypes.STR, description="Number, address or comment"),
+        OpenApiParameter(name='ordering', type=OpenApiTypes.STR, enum=[*NEST_ORDERINGS]),
+        OpenApiParameter(name='page', type=OpenApiTypes.INT),
+        OpenApiParameter(name='page_size', type=OpenApiTypes.INT),
+    ])
+    @action(detail=False, methods=['get'])
+    def managed(self, request):
+        """The nests of the season as a list to search and filter, paginated."""
+        params = request.query_params
+        queryset = self._season(self.get_queryset())
+        if params.get('show') == 'mine' or not nest_perms.sees_all_nests(request):
+            queryset = self._mine(queryset)
+        statuses = set()
+        for value in (params.get('status') or '').split(','):
+            value = value.strip()
+            if value == 'open':
+                statuses.update(Nest.OPEN_STATUSES)
+            elif value in dict(Nest.STATUS_CHOICES):
+                statuses.add(value)
+        if statuses:
+            queryset = queryset.filter(status__in=statuses)
+        search = (params.get('q') or '').strip().lstrip('#')
+        if search:
+            match = Q(address__icontains=search) | Q(comments__icontains=search)
+            if search.isdigit():
+                match |= Q(pk=int(search))
+            queryset = queryset.filter(match)
+        ordering = params.get('ordering') if params.get('ordering') in NEST_ORDERINGS else '-created_at'
+        queryset = queryset.order_by(ordering, '-id')
+        paginator = NestPagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        return paginator.get_paginated_response(self.get_serializer(page, many=True).data)
+
+    @extend_schema(responses={200: OpenApiResponse(
+        description="Sections of nests waiting for the requester: `to_verify`, `confirmed` (coordinators), "
+                    "`near_apiaries` (owners of apiaries, active nests within 1 km), `mine` (own reports)")})
+    @action(detail=False, methods=['get'])
+    def todo(self, request):
+        """What the season holds for the requester, by section; the sections that do not concern them are left out."""
+        sections = pending.nest_todo(request, self._season(self.get_queryset()))
+        return Response({name: self.get_serializer(queryset[:TODO_SECTION_MAX], many=True).data
+                         for name, queryset in sections.items()})
 
     def destroy(self, request, *args, **kwargs):
         nest = self.get_object()

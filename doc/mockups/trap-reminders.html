@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette – Rappels des pièges et réglages des notifications</title>
+<style>
+  :root { --bg:#f1f3f5; --card:#fff; --ink:#212529; --muted:#6c757d; --line:#dee2e6;
+          --pri:#b8860b; --pri-ink:#fff; --danger:#c0392b; --ok:#2e7d32; --warn:#b26a00; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14171a; --card:#1e2226; --ink:#e9ecef; --muted:#9aa3ab; --line:#343a40; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.4 system-ui,sans-serif; }
+  h1 { font-size:1.25rem; margin:0; }
+  header.doc { padding:16px; max-width:1500px; margin:auto; }
+  header.doc p { color:var(--muted); margin:.25rem 0 0; }
+  .board { display:flex; flex-wrap:wrap; gap:24px; padding:0 16px 32px; max-width:1500px; margin:auto; }
+  figure { margin:0; }
+  figcaption { font-size:.85rem; color:var(--muted); margin:0 0 8px; max-width:390px; }
+  figcaption b { color:var(--ink); }
+  .phone { width:390px; height:760px; background:var(--card); border:1px solid var(--line);
+           border-radius:28px; overflow:hidden; position:relative; display:flex; flex-direction:column; }
+  .nav { display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid var(--line); min-height:48px; }
+  .nav .back { color:var(--pri); text-decoration:none; white-space:nowrap; }
+  .nav .cur { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .nav .menu { margin-left:auto; font-size:1.25rem; }
+  .body { flex:1; overflow:hidden; padding:12px; }
+  .desc { color:var(--muted); font-size:.9rem; margin:0 0 10px; }
+  .seg { display:flex; border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:12px; }
+  .seg span { flex:1; text-align:center; padding:10px 4px; min-height:44px; font-size:.9rem; }
+  .seg span.on { background:var(--pri); color:var(--pri-ink); font-weight:600; }
+  .seg small { opacity:.85; }
+  .row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); min-height:56px; }
+  .row:last-child { border-bottom:0; }
+  .av { width:36px; height:36px; border-radius:50%; background:var(--line); display:grid; place-items:center;
+        font-weight:600; flex-shrink:0; }
+  .grow { flex:1; min-width:0; }
+  .name { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sub { font-size:.8rem; color:var(--muted); }
+  .badge { font-size:.72rem; padding:2px 8px; border-radius:99px; border:1px solid var(--line); white-space:nowrap; }
+  .badge.adm { background:var(--pri); color:var(--pri-ink); border-color:var(--pri); }
+  .badge.warn { color:var(--warn); border-color:var(--warn); }
+  .ib { width:44px; height:44px; border:1px solid var(--line); border-radius:10px; display:grid; place-items:center;
+        background:transparent; color:var(--ink); flex-shrink:0; }
+  .btn { display:block; width:100%; min-height:44px; padding:10px; border-radius:10px; border:1px solid var(--line);
+         background:transparent; color:var(--ink); text-align:center; font-size:1rem; margin-top:8px; }
+  .btn.pri { background:var(--pri); color:var(--pri-ink); border-color:var(--pri); font-weight:600; }
+  .btn.danger { color:var(--danger); border-color:var(--danger); }
+  .btn.solid-danger { background:var(--danger); color:#fff; border-color:var(--danger); font-weight:600; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+  .chip { padding:8px 12px; min-height:44px; border:1px solid var(--line); border-radius:99px; display:flex; align-items:center; font-size:.9rem; }
+  .chip.on { background:var(--pri); color:var(--pri-ink); border-color:var(--pri); }
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px; }
+  .stats div { border:1px solid var(--line); border-radius:10px; padding:8px; text-align:center; }
+  .stats b { display:block; font-size:1.25rem; }
+  .stats span { font-size:.75rem; color:var(--muted); }
+  input, select { width:100%; min-height:44px; font-size:16px; padding:8px 10px; border:1px solid var(--line);
+                  border-radius:10px; background:var(--card); color:var(--ink); }
+  .veil { position:absolute; inset:0; background:rgba(0,0,0,.45); }
+  .sheet { position:absolute; left:0; right:0; bottom:0; background:var(--card); border-radius:18px 18px 0 0;
+           padding:16px 12px 20px; box-shadow:0 -4px 20px rgba(0,0,0,.25); }
+  .sheet h2 { font-size:1.05rem; margin:0 0 2px; }
+  .modal { position:absolute; left:16px; right:16px; top:210px; background:var(--card); border-radius:14px; padding:16px; }
+  .modal h2 { font-size:1.05rem; margin:0 0 8px; }
+  .modal p { margin:0 0 6px; font-size:.92rem; }
+  .log { font-size:.85rem; }
+  .log .row { min-height:48px; }
+  .help { display:inline-grid; place-items:center; width:20px; height:20px; border-radius:50%; border:1px solid var(--muted);
+          font-size:.7rem; color:var(--muted); margin-left:6px; }
+  .legend { max-width:1500px; margin:0 auto; padding:0 16px 40px; color:var(--muted); font-size:.85rem; }
+  .alert-ok { background:#e8f5e9; color:#1b5e20; border:1px solid #c8e6c9; border-radius:10px; padding:10px 12px; margin:0 0 12px; font-size:.92rem; }
+  .field { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); min-height:48px; }
+  .field .l { color:var(--muted); font-size:.85rem; }
+  .switch { width:46px; height:26px; border-radius:99px; background:var(--pri); position:relative; flex-shrink:0; }
+  .switch::after { content:""; position:absolute; right:3px; top:3px; width:20px; height:20px; border-radius:50%; background:#fff; }
+  .switch.off { background:#ced4da; } .switch.off::after { right:auto; left:3px; }
+  .full { position:absolute; inset:0; background:var(--card); display:flex; flex-direction:column; }
+  .full .hd { display:flex; align-items:center; padding:12px; border-bottom:1px solid var(--line); font-weight:600; }
+  .full .hd span:last-child { margin-left:auto; font-size:1.3rem; font-weight:400; }
+  .full .bd { flex:1; padding:12px; }
+  .full .ft { padding:12px; border-top:1px solid var(--line); }
+  label { display:block; font-size:.9rem; margin:0 0 4px; }
+  textarea { width:100%; font:16px system-ui; padding:8px 10px; border:1px solid var(--line); border-radius:10px; background:var(--card); color:var(--ink); min-height:110px; }
+  .count { text-align:right; font-size:.8rem; color:var(--muted); }
+  .lock { background:linear-gradient(160deg,#2b3a55,#1a2233); color:#fff; border-radius:28px; width:390px; height:780px; padding:60px 14px 14px; position:relative; overflow:hidden; }
+  .lock .time { text-align:center; font-size:3.4rem; font-weight:300; margin-bottom:6px; }
+  .lock .date { text-align:center; opacity:.8; margin-bottom:44px; }
+  .notif { background:rgba(255,255,255,.18); backdrop-filter:blur(8px); border-radius:18px; padding:12px; display:flex; gap:10px; margin-bottom:10px; }
+  .notif .ic, .home .ic { width:38px; height:38px; border-radius:9px; background:var(--pri); display:grid; place-items:center; font-weight:700; flex-shrink:0; position:relative; color:#fff; }
+  .notif b { display:block; } .notif small { opacity:.75; margin-left:auto; }
+  .home { background:linear-gradient(160deg,#3b5b78,#1f2d3d); color:#fff; border-radius:28px; width:390px; height:780px; padding:70px 30px; position:relative; }
+  .home .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:26px 10px; text-align:center; font-size:.7rem; }
+  .home .ic { width:58px; height:58px; border-radius:14px; margin:0 auto 4px; font-size:1.6rem; }
+  .home .dot { position:absolute; top:-6px; right:-6px; min-width:22px; height:22px; border-radius:99px; background:#e53935; font-size:.8rem; display:grid; place-items:center; padding:0 5px; border:2px solid transparent; }
+  .home .ic.plain { background:rgba(255,255,255,.25); }
+  .tag { display:inline-block; font-size:.72rem; padding:2px 8px; border-radius:99px; background:#fff3cd; color:#7a5b00; border:1px solid #ffe69c; }
+  .ok { color:#1b5e20; border-color:#1b5e20; } .bad { color:var(--danger); border-color:var(--danger); }
+
+  .tabs { display:flex; border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:12px; }
+  .tabs span { flex:1; text-align:center; padding:10px 4px; min-height:44px; display:flex; align-items:center; justify-content:center; gap:6px; }
+  .tabs span.on { background:var(--pri); color:var(--pri-ink); font-weight:600; }
+  .cnt { background:#e53935; color:#fff; border-radius:99px; font-size:.72rem; padding:1px 7px; font-weight:700; }
+  .tabs .on .cnt { background:#fff; color:var(--pri); }
+  .due { padding:10px 0; border-bottom:1px solid var(--line); display:flex; gap:10px; align-items:center; }
+  .due .ico { width:40px; height:40px; border-radius:10px; background:var(--line); display:grid; place-items:center; font-size:1.2rem; flex-shrink:0; }
+  .late { color:var(--danger); font-size:.82rem; font-weight:600; } .soon { color:var(--warn); font-size:.82rem; }
+  .btn.sm { width:auto; margin:0; padding:8px 12px; min-height:44px; display:flex; align-items:center; gap:6px; white-space:nowrap; }
+  h3.sec { font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:14px 0 6px; font-weight:600; }
+  .card { border:1px solid var(--line); border-radius:12px; padding:0 12px; margin-bottom:6px; }
+  .trow { display:flex; align-items:center; gap:10px; min-height:56px; padding:8px 0; border-bottom:1px solid var(--line); }
+  .trow:last-child { border-bottom:0; }
+  .trow .ic { width:32px; text-align:center; font-size:1.25rem; flex-shrink:0; }
+  .sw-ios { width:51px; height:31px; border-radius:16px; background:#e9e9ea; position:relative; flex-shrink:0; transition:.2s; }
+  .sw-ios::after { content:""; position:absolute; top:2px; left:2px; width:27px; height:27px; border-radius:50%; background:#fff; box-shadow:0 3px 8px rgba(0,0,0,.15), 0 1px 1px rgba(0,0,0,.16); }
+  .sw-ios.on { background:#34c759; } .sw-ios.on::after { left:22px; }
+  .sw-md { width:52px; height:32px; border-radius:16px; background:#e7e0ec; border:2px solid #79747e; box-sizing:border-box; position:relative; flex-shrink:0; }
+  .sw-md::after { content:""; position:absolute; top:6px; left:6px; width:16px; height:16px; border-radius:50%; background:#79747e; }
+  .sw-md.on { background:var(--pri); border-color:var(--pri); }
+  .sw-md.on::after { top:2px; left:22px; width:24px; height:24px; background:#fff; }
+  .sw-md.on::before { content:"✓"; position:absolute; top:3px; left:27px; z-index:1; font-size:.8rem; font-weight:700; color:var(--pri); }
+  .tile { border:1px solid var(--line); border-radius:14px; padding:12px; min-height:96px; position:relative; }
+  .tile b { display:block; margin-top:6px; } .tile small { color:var(--muted); font-size:.72rem; }
+  .tiles { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .newtag { position:absolute; top:8px; right:8px; font-size:.65rem; padding:1px 7px; border-radius:99px; background:#fff3cd; color:#7a5b00; border:1px solid #ffe69c; }
+  .tile .cnt { position:absolute; top:8px; right:8px; }
+  .note { font-size:.8rem; color:var(--muted); }
+  .unit { display:flex; align-items:center; gap:8px; } .unit input { width:90px; text-align:center; } .unit span { color:var(--muted); }
+</style>
+</head>
+<body>
+<header class="doc">
+  <h1>Rappels des pièges et réglages des notifications – maquette (phone d'abord, 390 px)</h1>
+  <p>Maquette statique, aucune donnée réelle ; numéros, noms, adresses et <b>délais</b> sont des exemples inventés. Écrans : la vue « À relever » et la gestion sous deux boutons du module Pièges (1-2), le module « Notifications » avec l'interrupteur de chaque plateforme (3-4, 5), la notification reçue (6), le réglage des délais par type de piège (7), la première demande d'autorisation (8), l'avertissement avant de couper des messages (9), remiser et remettre en service (10).</p>
+</header>
+<div class="board">
+
+  <figure>
+    <figcaption><b>1. Pièges → À relever.</b> Premier bouton du module, ouvert par défaut ; la pastille compte les rappels dus. Une ligne par piège <i>et</i> par sorte de rappel (relevé, attractif), comme les notifications. « Relever » ouvre le formulaire de relevé existant.</figcaption>
+    <div class="phone"><div class="nav"><a class="back">‹ Accueil</a><span class="cur">Pièges</span><span class="menu">☰</span></div>
+      <div class="body"><div class="tabs"><span class="on">À relever <b class="cnt">3</b></span><span>Gérer</span></div>
+        <h3 class="sec" style="margin-top:0">En retard</h3>
+        <div class="due"><div class="ico">🪤</div><div class="grow"><div class="name">#12 · Harpe électrique</div><div class="sub">Dernier relevé il y a 5 j · tous les 2 j</div><div class="late">En retard de 3 j</div></div><button class="btn sm pri">Relever</button></div>
+        <div class="due"><div class="ico">🧪</div><div class="grow"><div class="name">#8 · Fataltrap</div><div class="sub">Dernière recharge il y a 15 j · tous les 14 j</div><div class="late">En retard de 1 j</div></div><button class="btn sm pri">Recharger</button></div>
+        <h3 class="sec">Aujourd'hui</h3>
+        <div class="due"><div class="ico">🪤</div><div class="grow"><div class="name">#8 · Fataltrap</div><div class="sub">Dernier relevé il y a 5 j · tous les 5 j</div><div class="soon">À faire aujourd'hui</div></div><button class="btn sm pri">Relever</button></div>
+        <h3 class="sec">Bientôt</h3>
+        <div class="due"><div class="ico">🪤</div><div class="grow"><div class="name">#3 · Filet à papillons</div><div class="sub">Relevé à faire demain</div></div></div>
+        <p class="note" style="margin-top:14px">Les pièges remisés ou sans rappel configuré n'apparaissent pas.</p>
+      </div>
+    </div>
+  </figure>
+
+  <figure>
+    <figcaption><b>2. Pièges → Gérer.</b> La gestion actuelle (portée, recherche, filtres, liste) passe derrière le second bouton, telle quelle. Le tri « Relevé le plus ancien » et le seuil fixe de 7 jours laissent la place aux délais par type.</figcaption>
+    <div class="phone"><div class="nav"><a class="back">‹ Accueil</a><span class="cur">Pièges</span><span class="menu">☰</span></div>
+      <div class="body"><div class="tabs"><span>À relever <b class="cnt">3</b></span><span class="on">Gérer</span></div>
+        <div style="display:flex;gap:8px;margin-bottom:10px"><button class="btn sm pri" style="flex:1;justify-content:center">▣ Scanner</button><button class="ib">＋</button></div>
+        <div class="seg"><span class="on">Mes pièges</span><span>Délégués</span></div>
+        <input placeholder="Rechercher un piège" aria-label="Recherche">
+        <div class="row"><div class="av">🪤</div><div class="grow"><div class="name">#12 Harpe électrique</div><div class="sub">Rue des Tilleuls · relevé il y a 5 j</div></div><button class="ib">⋯</button></div>
+        <div class="row"><div class="av">🪤</div><div class="grow"><div class="name">#8 Fataltrap</div><div class="sub">Chemin du Moulin · relevé il y a 5 j</div></div><button class="ib">⋯</button></div>
+        <div class="row"><div class="av">🪤</div><div class="grow"><div class="name">#3 Filet à papillons</div><div class="sub">Place du Centre · relevé hier</div></div><button class="ib">⋯</button></div>
+      </div>
+    </div>
+  </figure>
+
+  <figure>
+    <figcaption><b>3. Module « Notifications » – iPhone.</b> Les interrupteurs ont la forme d'iOS (51 × 31 px, vert, curseur blanc). Toute la ligne se touche (≥ 44 px). « Cet appareil » règle l'appareil ; les lignes du dessous règlent le compte, pour tous ses appareils.</figcaption>
+    <div class="phone"><div class="nav"><a class="back">‹ Accueil</a><span class="cur">Notifications</span><span class="menu">☰</span></div><div class="body">
+      <h3 class="sec" style="margin-top:2px">Sur cet appareil</h3>
+      <div class="card"><div class="trow"><div class="ic">📱</div><div class="grow"><div class="name" style="font-weight:500">Cet appareil</div><div class="sub">iPhone · Safari · installée</div></div><span class="sw-ios on"></span></div><div class="trow"><div class="ic">🔔</div><div class="grow"><div class="name" style="font-weight:500">Envoyer un essai</div></div><button class="ib" aria-label="Essai">›</button></div></div>
+      <h3 class="sec">Me prévenir pour</h3>
+      <div class="card"><div class="trow"><div class="ic">🪤</div><div class="grow"><div class="name" style="font-weight:500">Rappels de relevé <span class="help">?</span></div><div class="sub">9 h · dimanche 10 h</div></div><span class="sw-ios on"></span></div><div class="trow"><div class="ic">🧪</div><div class="grow"><div class="name" style="font-weight:500">Rappels d'attractif <span class="help">?</span></div><div class="sub">9 h · dimanche 10 h</div></div><span class="sw-ios"></span></div><div class="trow"><div class="ic">👥</div><div class="grow"><div class="name" style="font-weight:500">Messages de mon groupe <span class="help">?</span></div></div><span class="sw-ios on"></span></div><div class="trow"><div class="ic">📣</div><div class="grow"><div class="name" style="font-weight:500">Messages de la plateforme <span class="help">?</span></div></div><span class="sw-ios on"></span></div></div>
+    </div></div>
+  </figure>
+
+  <figure>
+    <figcaption><b>4. Le même écran – Android.</b> Interrupteur Material (52 × 32 px, coche dans le curseur, couleur de l'application). Même composant, deux habillages choisis selon la plateforme ; l'élément reste un <code>input type=checkbox role=switch</code> (lecteur d'écran, clavier).</figcaption>
+    <div class="phone"><div class="nav"><a class="back">‹ Accueil</a><span class="cur">Notifications</span><span class="menu">☰</span></div><div class="body">
+      <h3 class="sec" style="margin-top:2px">Sur cet appareil</h3>
+      <div class="card"><div class="trow"><div class="ic">📱</div><div class="grow"><div class="name" style="font-weight:500">Cet appareil</div><div class="sub">Android · Chrome</div></div><span class="sw-md on"></span></div><div class="trow"><div class="ic">🔔</div><div class="grow"><div class="name" style="font-weight:500">Envoyer un essai</div></div><button class="ib" aria-label="Essai">›</button></div></div>
+      <h3 class="sec">Me prévenir pour</h3>
+      <div class="card"><div class="trow"><div class="ic">🪤</div><div class="grow"><div class="name" style="font-weight:500">Rappels de relevé <span class="help">?</span></div><div class="sub">9 h · dimanche 10 h</div></div><span class="sw-md on"></span></div><div class="trow"><div class="ic">🧪</div><div class="grow"><div class="name" style="font-weight:500">Rappels d'attractif <span class="help">?</span></div><div class="sub">9 h · dimanche 10 h</div></div><span class="sw-md on"></span></div><div class="trow"><div class="ic">👥</div><div class="grow"><div class="name" style="font-weight:500">Messages de mon groupe <span class="help">?</span></div></div><span class="sw-md"></span></div><div class="trow"><div class="ic">📣</div><div class="grow"><div class="name" style="font-weight:500">Messages de la plateforme <span class="help">?</span></div></div><span class="sw-md on"></span></div></div>
+    </div></div>
+  </figure>
+
+  <figure>
+    <figcaption><b>5. Où trouver le module.</b> Nouvelle tuile « Notifications » à côté de « Mon compte » (qui mène à Keycloak). La tuile Pièges reprend le nombre de rappels dus.</figcaption>
+    <div class="phone"><div class="nav"><a class="back">‹ </a><span class="cur">Velutina</span><span class="menu">☰</span></div>
+      <div class="body"><div class="tiles">
+        <div class="tile">🗺️<b>Carte</b><small>Pièges, nids, ruchers</small></div>
+        <div class="tile">📍<b>Recherche des nids</b><small>Observations, nids</small></div>
+        <div class="tile">🪤<b>Gestion des pièges</b><small>Vos pièges et captures</small><span class="cnt">3</span></div>
+        <div class="tile">⬢<b>Gestion des ruchers</b><small>Vos ruchers</small></div>
+        <div class="tile">📊<b>Statistiques</b><small>Captures, efficacité</small></div>
+        <div class="tile">⚙️<b>Administration</b><small>Référentiels, outils</small></div>
+        <div class="tile" style="border-color:var(--pri)">🔔<b>Notifications</b><small>Rappels et messages</small><span class="newtag">nouveau</span></div>
+        <div class="tile">👤<b>Mon compte</b><small>Mot de passe, connexions</small></div>
+      </div></div>
+    </div>
+  </figure>
+
+  <figure>
+    <figcaption><b>6. La notification reçue.</b> Une par piège et par sorte de rappel, à 9 h (10 h le dimanche). Rien d'autre que le numéro, le type et un délai : le texte se lit écran verrouillé, pas d'adresse. Toucher ouvre « À relever » sur ce piège.</figcaption>
+    <div class="lock">
+      <div class="time">9:00</div><div class="date">mardi 20 octobre</div>
+      <div class="notif"><div class="ic">V</div><div style="flex:1"><div style="display:flex"><b>Relevé à faire</b><small>9:00</small></div>Piège #12 (Harpe électrique) : dernier relevé il y a 5 jours.</div></div>
+      <div class="notif"><div class="ic">V</div><div style="flex:1"><div style="display:flex"><b>Attractif à renouveler</b><small>9:00</small></div>Piège #8 (Fataltrap) : dernière recharge il y a 15 jours.</div></div>
+      <div class="notif"><div class="ic">V</div><div style="flex:1"><div style="display:flex"><b>Relevé à faire</b><small>9:00</small></div>Piège #8 (Fataltrap) : dernier relevé il y a 5 jours.</div></div>
+    </div>
+  </figure>
+
+  <figure>
+    <figcaption><b>7. Administration → Types de pièges.</b> Deux champs par type, facultatifs : un champ vide veut dire « pas de rappel ». Champs numériques (<code>inputMode=numeric</code>), unité « jours » à côté.</figcaption>
+    <div class="phone"><div class="full">
+      <div class="hd"><span>Fataltrap</span><span>×</span></div>
+      <div class="bd">
+        <label>Nom</label><input value="Fataltrap" aria-label="Nom">
+        <h3 class="sec">Rappels aux propriétaires</h3>
+        <label>Relevé tous les <span class="help">?</span></label>
+        <div class="unit"><input inputmode="numeric" value="5" aria-label="Relevé"><span>jours</span></div>
+        <div style="height:12px"></div>
+        <label>Renouvellement de l'attractif tous les <span class="help">?</span></label>
+        <div class="unit"><input inputmode="numeric" value="14" aria-label="Attractif"><span>jours</span></div>
+      </div>
+      <div class="ft"><button class="btn pri" style="margin:0">Enregistrer</button></div>
+    </div></div>
+  </figure>
+
+  <figure>
+    <figcaption><b>8. Première demande, au démarrage.</b> Un volet (<code>BottomSheet</code>) qui s'ouvre une seule fois par appareil, pas sur un autre dialogue, et jamais avant la 2<sup>e</sup> ou 3<sup>e</sup> visite ni le même jour que la suggestion d'installation. « Activer » est le geste qui déclenche la demande du système (obligatoire sur iPhone). « Plus tard » repousse de 30 jours, « Ne plus demander » arrête. Sur iPhone hors écran d'accueil, c'est la suggestion d'installation qui passe d'abord.</figcaption>
+    <div class="phone"><div class="nav"><a class="back">‹ Accueil</a><span class="cur">Pièges</span><span class="menu">☰</span></div><div class="body"><div class="tabs"><span class="on">À relever <b class="cnt">3</b></span><span>Gérer</span></div>
+        <div class="due"><div class="ico">🪤</div><div class="grow"><div class="name">#12 · Harpe électrique</div><div class="sub">Dernier relevé il y a 5 j · tous les 2 j</div><div class="late">En retard de 3 j</div></div><button class="btn sm pri">Relever</button></div>
+        <div class="due"><div class="ico">🧪</div><div class="grow"><div class="name">#8 · Fataltrap</div><div class="sub">Dernière recharge il y a 15 j</div><div class="late">En retard de 1 j</div></div><button class="btn sm pri">Recharger</button></div></div>
+      <div class="veil"></div>
+      <div class="sheet">
+        <div class="row" style="border:0;padding-bottom:0"><div class="av" style="background:var(--pri);color:#fff">🔔</div><div class="grow"><h2 style="margin:0">Recevoir les rappels ? <span class="help">?</span></h2><div class="sub">Un message quand un piège est à relever.</div></div></div>
+        <button class="btn pri" style="margin-top:14px">🔔 Activer</button>
+        <button class="btn">Plus tard</button>
+        <button class="btn" style="border:0;color:var(--muted)">Ne plus demander</button>
+      </div>
+    </div>
+  </figure>
+
+  <figure>
+    <figcaption><b>9. Couper des messages : un avertissement.</b> L'interrupteur reste allumé tant que la personne n'a pas confirmé. S'applique aux deux sortes de messages d'administrateur ; couper les rappels de pièges se fait sans avertissement (la vue « À relever » reste).</figcaption>
+    <div class="phone"><div class="nav"><a class="back">‹ Accueil</a><span class="cur">Notifications</span><span class="menu">☰</span></div>
+      <div class="body"><h3 class="sec" style="margin-top:2px">Me prévenir pour</h3>
+        <div class="card">
+          <div class="trow"><div class="ic">🪤</div><div class="grow"><div class="name" style="font-weight:500">Rappels de relevé <span class="help">?</span></div></div><span class="sw-ios on"></span></div>
+          <div class="trow"><div class="ic">👥</div><div class="grow"><div class="name" style="font-weight:500">Messages de mon groupe <span class="help">?</span></div></div><span class="sw-ios on"></span></div>
+          <div class="trow"><div class="ic">📣</div><div class="grow"><div class="name" style="font-weight:500">Messages de la plateforme <span class="help">?</span></div></div><span class="sw-ios on"></span></div>
+        </div></div>
+      <div class="veil"></div>
+      <div class="modal">
+        <h2>Ne plus recevoir les messages de la plateforme ?</h2>
+        <p>Les administrateurs s'en servent pour des consignes ou des changements qui peuvent vous concerner. Vous pourrez les réactiver ici à tout moment.</p>
+        <button class="btn" style="background:#b26a00;color:#fff;border-color:#b26a00;font-weight:600">Ne plus recevoir</button>
+        <button class="btn">Annuler</button>
+      </div>
+    </div>
+  </figure>
+
+  <figure>
+    <figcaption><b>10. Remiser et remettre en service.</b> Ces deux actions existent déjà comme entrées du journal (« Retrait » et « Installation »), mais cachées dans le formulaire d'entrée. Je propose deux actions directes dans le menu d'un piège : « Remiser » pour un piège en service, « Remettre en service » pour un piège remisé (l'installation repart d'un état vide et relance les deux délais). Un piège remisé n'a plus de rappel.</figcaption>
+    <div class="phone"><div class="nav"><a class="back">‹ Accueil</a><span class="cur">Pièges</span><span class="menu">☰</span></div>
+      <div class="body"><div class="tabs"><span>À relever <b class="cnt">3</b></span><span class="on">Gérer</span></div>
+        <div class="row"><div class="av">🪤</div><div class="grow"><div class="name">#8 Fataltrap</div><div class="sub">Chemin du Moulin · relevé il y a 5 j</div></div><button class="ib">⋯</button></div>
+        <div class="row" style="opacity:.6"><div class="av">🪤</div><div class="grow"><div class="name">#5 Harpe électrique <span class="badge">Remisé</span></div><div class="sub">Rue du Four · relevé le 2 nov.</div></div><button class="ib">⋯</button></div>
+      </div>
+      <div class="veil"></div>
+      <div class="sheet">
+        <div class="row" style="border:0"><div class="av">🪤</div><div class="grow"><h2>#8 · Fataltrap</h2><div class="sub">En service</div></div></div>
+        <button class="btn">🐝 Relever</button>
+        <button class="btn">🧪 Recharger</button>
+        <button class="btn">✏️ Modifier</button>
+        <button class="btn" style="color:var(--warn);border-color:var(--warn)">📦 Remiser</button>
+        <div class="sub" style="margin-top:8px">Piège remisé : « 📌 Remettre en service » à la place.</div>
+      </div>
+    </div>
+  </figure>
+
+</div>
+<div class="legend">
+  Composants réutilisés : <code>PageHeader</code>, <code>HelpTip</code>, <code>AppModal</code>, <code>ModuleCard</code>, <code>FieldRow</code>. Nouveau : un composant <code>Switch</code> (habillage iOS ou Material). Les explications (horaires, ce que coupe chaque interrupteur) vont dans les <code>HelpTip</code> « ? ».
+</div>
+</body>
+</html>

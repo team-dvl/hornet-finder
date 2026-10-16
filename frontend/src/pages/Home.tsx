@@ -6,6 +6,7 @@ import { ModuleCard, PendingInvitations } from '../components/home';
 import { visibleModules } from '../config/modules';
 import { accountConsoleUrl, signInFromCurrentPage } from '../utils/authRedirect';
 import { useUserPermissions } from '../hooks/useUserPermissions';
+import { usePendingCounts } from '../hooks/usePendingCounts';
 
 /** App icon, the dev one (purple, "DEV" band) on the dev server, as for the installed PWA. */
 const APP_ICON = import.meta.env.VITE_APP_ICON;
@@ -15,6 +16,8 @@ export default function Home() {
   const auth = useAuth();
   const { roles } = useUserPermissions();
   const modules = visibleModules(roles);
+  // What waits for the user, counted on the tile of each module
+  const pending = usePendingCounts();
 
   return (
     <PageLayout>
@@ -60,8 +63,9 @@ export default function Home() {
                 description={module.description}
                 icon={module.icon}
                 tone={module.tone}
-                to={module.path}
+                to={module.landing ?? module.path}
                 badge={module.badge}
+                count={pending[module.id]}
               />
             )
           ))}
@@ -71,7 +75,7 @@ export default function Home() {
           <div className="text-muted mb-1">
             Une initiative de <b>Vedrin s'abeille</b> pour la protection de la biodiversité locale
           </div>
-          <Link to="/privacy-policy" className="text-muted me-3">Politique de confidentialité</Link>
+          <Link to="/privacy-policy" className="text-muted me-3">Confidentialité et cookies</Link>
           <Link to="/data-deletion" className="text-muted">Suppression des données</Link>
         </footer>
       </Container>

@@ -6,6 +6,8 @@ import {
   fetchMembers, groupErrorOf, removeMember, setMemberAdmin, type GroupMember,
 } from '../../utils/groupsApi';
 import { TRAPPERS_ROOT } from '../../utils/groups';
+import type { SentSummary } from '../../utils/pushApi';
+import NotifyDialog from './NotifyDialog';
 
 const PAGE_SIZE = 10;
 
@@ -42,6 +44,8 @@ export default function MembersPanel({ groupPath, groupName, isPlatformAdmin }: 
   const [page, setPage] = useState(0);
 
   const [selected, setSelected] = useState<GroupMember | null>(null);
+  // Who the notification dialog writes to: a member, or the whole group (`member: null`)
+  const [notifying, setNotifying] = useState<{ member: GroupMember | null } | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -77,6 +81,14 @@ export default function MembersPanel({ groupPath, groupName, isPlatformAdmin }: 
     setSelected(null);
     setActionError(null);
     setPending({ kind, member });
+  };
+
+  const notifySent = (summary: SentSummary) => {
+    setNotifying(null);
+    const people = (count: number) => `${count} personne${count > 1 ? 's' : ''}`;
+    setNotice(summary.reached === 0
+      ? `Notification enregistrée, mais personne n'a d'appareil abonné (${people(summary.recipients)}).`
+      : `Notification envoyée à ${people(summary.reached)} sur ${summary.recipients} (${summary.devices} appareil${summary.devices > 1 ? 's' : ''}).`);
   };
 
   const confirm = async () => {
@@ -135,7 +147,8 @@ export default function MembersPanel({ groupPath, groupName, isPlatformAdmin }: 
 
   return (
     <section>
-      <h2 className="h5 d-flex align-items-center mb-3">
+      <div className="d-flex align-items-center justify-content-between gap-2 mb-3">
+      <h2 className="h5 d-flex align-items-center mb-0">
         Membres ({members.length})
         {trappers ? (
           <HelpTip id="members-help" title="Piégeurs">
@@ -150,6 +163,14 @@ export default function MembersPanel({ groupPath, groupName, isPlatformAdmin }: 
           </HelpTip>
         )}
       </h2>
+        <IconButton
+          variant="outline-primary"
+          icon="bell"
+          label="Notifier le groupe"
+          disabled={members.every((member) => member.is_self)}
+          onClick={() => setNotifying({ member: null })}
+        />
+      </div>
 
       {notice && <Alert variant="success" dismissible onClose={() => setNotice(null)}>{notice}</Alert>}
       {isPlatformAdmin && !hasAdminGroup && (
@@ -167,7 +188,7 @@ export default function MembersPanel({ groupPath, groupName, isPlatformAdmin }: 
               {member.is_self && <div className="small text-muted">vous</div>}
             </div>
             {member.is_admin && <Badge bg="primary" className="flex-shrink-0">Admin</Badge>}
-            {canManage(member, isPlatformAdmin, trappers) && (
+            {!member.is_self && (
               <IconButton
                 variant="outline-secondary"
                 icon="three-dots"
@@ -193,6 +214,9 @@ export default function MembersPanel({ groupPath, groupName, isPlatformAdmin }: 
       <BottomSheet show={selected !== null} onHide={() => setSelected(null)} title={selected?.name ?? 'Compte sans nom'}>
         {selected && (
           <div className="d-grid gap-2">
+            <Button variant="outline-primary" onClick={() => { setNotifying({ member: selected }); setSelected(null); }}>
+              <i className="bi bi-bell me-2" aria-hidden="true" />Notifier
+            </Button>
             {isPlatformAdmin && hasAdminGroup && !selected.is_admin && (
               <Button variant="outline-primary" onClick={() => ask('name', selected)}>
                 <i className="bi bi-shield-plus me-2" aria-hidden="true" />Nommer administrateur
@@ -203,12 +227,23 @@ export default function MembersPanel({ groupPath, groupName, isPlatformAdmin }: 
                 <i className="bi bi-shield-minus me-2" aria-hidden="true" />Retirer les droits d'administrateur
               </Button>
             )}
-            <Button variant="outline-danger" onClick={() => ask('remove', selected)}>
-              <i className="bi bi-person-dash me-2" aria-hidden="true" />Retirer du groupe
-            </Button>
+            {canManage(selected, isPlatformAdmin, trappers) && (
+              <Button variant="outline-danger" onClick={() => ask('remove', selected)}>
+                <i className="bi bi-person-dash me-2" aria-hidden="true" />Retirer du groupe
+              </Button>
+            )}
           </div>
         )}
       </BottomSheet>
+
+      <NotifyDialog
+        show={notifying !== null}
+        onHide={() => setNotifying(null)}
+        groupPath={groupPath}
+        groupName={groupName}
+        member={notifying?.member ?? undefined}
+        onSent={notifySent}
+      />
 
       {confirmation && (
         <ConfirmDialog

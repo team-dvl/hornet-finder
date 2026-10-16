@@ -6,6 +6,7 @@
  * scroll sideways, and nothing visible in an open dialog or sheet may stick
  * out of the screen. Findings are printed as WARN lines.
  */
+const crypto = require('crypto');
 const { webkit, chromium, devices } = require('playwright');
 
 const BASE = process.env.BASE_URL;
@@ -21,7 +22,43 @@ const DEVICES = {
   galaxy: { engine: chromium, profile: { ...devices['Galaxy S9+'], viewport: { width: 360, height: 740 } } },
 };
 
+/**
+ * TOTP code of the test admin (RFC 6238: base32 secret, HmacSHA1, 6 digits,
+ * 30 s, the realm OTP policy). Keycloak refuses a code it already accepted, so
+ * this waits for a window later than the last one used, by the API token
+ * request of ui-shots.sh first (KC_TOTP_USED_STEP) and by each login after it.
+ */
+let lastOtpStep = Number(process.env.KC_TOTP_USED_STEP || 0);
+const nextOtp = async () => {
+  while (Math.floor(Date.now() / 30000) <= lastOtpStep) {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  const step = Math.floor(Date.now() / 30000);
+  lastOtpStep = step;
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let bits = '';
+  for (const c of process.env.KC_TOTP_SECRET.replace(/[\s=]/g, '').toUpperCase()) {
+    bits += alphabet.indexOf(c).toString(2).padStart(5, '0');
+  }
+  const key = Buffer.from(bits.match(/.{8}/g).map((b) => parseInt(b, 2)));
+  const counter = Buffer.alloc(8);
+  counter.writeBigUInt64BE(BigInt(step));
+  const digest = crypto.createHmac('sha1', key).update(counter).digest();
+  const offset = digest[digest.length - 1] & 15;
+  const code = (digest.readUInt32BE(offset) & 0x7fffffff) % 1000000;
+  return String(code).padStart(6, '0');
+};
+
+// Step filter (ui-shots.sh -s / -x): substrings of step labels. The sign-in
+// always runs, the other steps need the page the previous ones left open
+const ONLY = (process.env.STEPS || '').split(/\s+/).filter(Boolean);
+const SKIP = (process.env.SKIP || '').split(/\s+/).filter(Boolean);
+const wanted = (label) => label === 'login'
+  || ((!ONLY.length || ONLY.some((p) => label.includes(p))) && !SKIP.some((p) => label.includes(p)));
+let ranSteps = 0;
+
 let warnings = 0;
+let failures = 0;
 
 /** A 64x64 orange PNG, the photo given to the file inputs */
 const SAMPLE_PHOTO = Buffer.from(
@@ -31,7 +68,12 @@ const SAMPLE_PHOTO = Buffer.from(
 
 async function walk(name) {
   const { engine, profile } = DEVICES[name];
-  const browser = await engine.launch();
+  // Behind an HTTPS proxy that re-signs TLS (Claude Code web), Chromium needs
+  // the proxy and does not trust its CA (no certutil in the image)
+  const proxy = process.env.PROXY_SERVER;
+  const browser = await engine.launch(proxy
+    ? { proxy: { server: proxy }, ...(engine === chromium ? { args: ['--ignore-certificate-errors'] } : {}) }
+    : {});
   const context = await browser.newContext({
     ...profile,
     geolocation: { latitude: LAT, longitude: LNG },
@@ -41,6 +83,20 @@ async function walk(name) {
   });
   const page = await context.newPage();
   let index = 0;
+
+  // Requests that fail or answer >= 400, by host: a blocked host (tiles behind
+  // a filtering proxy, say) otherwise only shows up as empty screens
+  const netErrors = new Map();
+  const noteNetError = (url, reason) => {
+    const host = new URL(url).host;
+    const entry = netErrors.get(host) || { count: 0, reason };
+    entry.count += 1;
+    netErrors.set(host, entry);
+  };
+  page.on('requestfailed', (request) => noteNetError(request.url(), request.failure()?.errorText || 'failed'));
+  page.on('response', (response) => {
+    if (response.status() >= 400) noteNetError(response.url(), `HTTP ${response.status()}`);
+  });
 
   const overflow = () => page.evaluate(() => {
     const width = window.innerWidth;
@@ -77,10 +133,22 @@ async function walk(name) {
     const problems = await overflow();
     problems.forEach((problem) => { warnings += 1; console.log(`WARN ${file}: ${problem}`); });
   };
+  /** Waits for what a page loads to be done (no spinner left), then `floor` ms for the render, instead of a fixed delay */
+  const settled = async (floor = 300) => {
+    await page.locator('.spinner-border:visible').first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
+    await page.waitForTimeout(floor);
+  };
+  const shotSettled = async (label, floor) => {
+    await settled(floor);
+    await shot(label, 0);
+  };
   const step = async (label, action) => {
+    if (!wanted(label)) return;
+    if (label !== 'login') ranSteps += 1;
     try {
       await action();
     } catch (error) {
+      failures += 1;
       console.log(`FAIL ${name} ${label}: ${String(error).split('\n')[0]}`);
     }
   };
@@ -127,6 +195,8 @@ async function walk(name) {
   });
 
   await step('login', async () => {
+    // home-anon opens the home page; without it (step filter) open it here
+    if (!page.url().startsWith(BASE)) await open('/');
     await tap(page.getByText('Se connecter'));
     await page.fill('input[name=username]', process.env.KC_USER);
     // Identifier-first flow: the password comes on a second screen
@@ -135,6 +205,10 @@ async function walk(name) {
       await page.waitForSelector('input[name=password]');
     }
     await page.fill('input[name=password]', process.env.KC_PASS);
+    await page.locator('#kc-login').click();
+    // mfa-required (admin role): the second factor comes on its own screen
+    await page.waitForSelector('input[name=otp]', { timeout: 10000 });
+    await page.fill('input[name=otp]', await nextOtp());
     await page.locator('#kc-login').click();
     await page.waitForURL(`${BASE}/**`);
     await page.waitForLoadState('networkidle');
@@ -171,6 +245,16 @@ async function walk(name) {
     await escape();
   });
 
+  // Position sheet: the device's position or an address (a real Nominatim search, one request)
+  await step('position-sheet', async () => {
+    await tap(page.locator('[aria-label="Position"]'));
+    await shot('map-position');
+    await tap(page.locator('.bottom-sheet input'));
+    await page.locator('.bottom-sheet input').fill('rue de Bruxelles Namur');
+    await shot('map-position-search', 2500);
+    await escape();
+  });
+
   /** Tap the fixture traps on the map: through their cluster first when they are grouped */
   const tapFixtureTrap = async (label) => {
     if (await page.locator('.map-cluster').count()) {
@@ -194,6 +278,11 @@ async function walk(name) {
 
   // Trap manager, narrowed to the fixtures (their comment) so real traps never get in the way
   const FIXTURE_TRAPS = '/traps?q=ui-shots&active=all';
+  /** Runs a secondary action of an object sheet: they sit behind its "⋯" button (SheetActions) */
+  const sheetMenu = async (label) => {
+    await tap(page.locator('.modal.show [aria-label="Autres actions"]'));
+    await tap(page.locator(`.sheet-menu-item:has-text("${label}")`));
+  };
   const openFixtureSheet = async () => {
     if (!page.url().includes('/traps')) {
       await open(FIXTURE_TRAPS);
@@ -266,7 +355,7 @@ async function walk(name) {
 
   await step('trap-edit', async () => {
     if (!(await page.locator('.modal.show').count())) await openFixtureSheet();
-    await tap(page.locator('.modal.show [aria-label="Modifier"], .modal.show button:has-text("Modifier")'));
+    await sheetMenu('Modifier');
     await shot('trap-edit', 1500);
     await scrollDown();
     await shot('trap-edit-bottom', 400);
@@ -276,7 +365,7 @@ async function walk(name) {
 
   await step('trap-delete', async () => {
     if (!(await page.locator('.modal.show').count())) await openFixtureSheet();
-    await tap(page.locator('.modal.show [aria-label="Supprimer"], .modal.show button:has-text("Supprimer")'));
+    await sheetMenu('Supprimer');
     await shot('trap-delete-confirm', 1200);
     await tap(page.locator('.modal.show button:has-text("Annuler")'));
     await escape();
@@ -292,8 +381,20 @@ async function walk(name) {
     await shot('trap-locate-back', 1500);
   });
 
-  await step('nests-map', async () => {
+  // The nest manager: what waits for an action ("À traiter"), then the season's list
+  await step('nests-todo', async () => {
     await open('/nests');
+    await shot('nests-todo', 2000);
+  });
+
+  await step('nests-list', async () => {
+    await open('/nests/list');
+    await shot('nests-list', 2000);
+  });
+
+  // The markers and the add button live on the map page, no longer on /nests
+  await step('nests-map', async () => {
+    await open('/map');
     await shot('nests-map', 2500);
   });
 
@@ -306,6 +407,11 @@ async function walk(name) {
   });
 
   await step('hornet-sheet', async () => {
+    // The overview hides the hornet sightings: switch them on from the layers sheet
+    await tap(page.locator('[aria-label="Couches"]'));
+    if (!(await page.locator('#layer-hornets').isChecked())) await tap(page.locator('label[for="layer-hornets"]'));
+    await escape();
+    await page.waitForTimeout(1500);
     await tapAt(...(await markerAt('.hornet-icon')));
     await shot('hornet-sheet', 1500);
     await scrollDown();
@@ -358,7 +464,7 @@ async function walk(name) {
   });
 
   await step('apiary-edit', async () => {
-    await tap(page.locator('.modal.show [aria-label="Modifier"]'));
+    await sheetMenu('Modifier');
     await shot('apiary-edit', 1200);
     await scrollDown();
     await shot('apiary-edit-bottom', 400);
@@ -395,35 +501,35 @@ async function walk(name) {
   // list and chart view (the export sheet is opened, nothing is emailed)
   await step('stats', async () => {
     await open('/stats');
-    await shot('stats', 1500);
+    await shotSettled('stats', 300);
     await open('/stats/traps-catches');
-    await shot('stats-catches', 2500);
+    await shotSettled('stats-catches', 300);
     await scrollDown();
     await shot('stats-catches-bottom', 400);
     await tap(page.locator('[aria-label="Filtres"]').first());
     await shot('stats-filters', 800);
     await escape();
     await tap(page.locator('[aria-label="Exporter"]').first());
-    await shot('stats-export', 1500);
+    await shotSettled('stats-export', 500);
     await escape();
     await open('/stats/traps-catches?view=chart');
-    await shot('stats-catches-chart', 2500);
+    await shotSettled('stats-catches-chart', 600);
     await open('/stats/traps-species');
-    await shot('stats-species', 2500);
+    await shotSettled('stats-species', 300);
     await open('/stats/traps-species?view=chart');
-    await shot('stats-species-chart', 2500);
+    await shotSettled('stats-species-chart', 600);
     await open('/stats/trap-types');
-    await shot('stats-trap-types', 2500);
+    await shotSettled('stats-trap-types', 300);
     await open('/stats/trap-types?view=chart');
-    await shot('stats-trap-types-chart', 2500);
+    await shotSettled('stats-trap-types-chart', 600);
     await open('/stats/traps-ranking');
-    await shot('stats-ranking', 2500);
+    await shotSettled('stats-ranking', 300);
     await open('/stats/traps-ranking?view=chart');
-    await shot('stats-ranking-chart', 2500);
+    await shotSettled('stats-ranking-chart', 600);
     await open('/stats/traps-coverage');
-    await shot('stats-coverage', 3500);
+    await shotSettled('stats-coverage', 1500);
     await open('/stats/traps-pressure');
-    await shot('stats-pressure', 3500);
+    await shotSettled('stats-pressure', 1500);
   });
 
   for (const [path, label] of [
@@ -460,8 +566,11 @@ async function walk(name) {
   });
 
   await step('account-console', async () => {
-    await page.goto(`${BASE.replace('://', '://auth.')}/realms/hornet-finder-dev/account`, { waitUntil: 'networkidle' });
-    await shot('account-console', 2500);
+    // The console is a single-page app that never goes network-idle: wait for the page, then let it render
+    await page.goto(`${BASE.replace('://', '://auth.')}/realms/hornet-finder-dev/account`, { waitUntil: 'load' });
+    // It renders after a silent SSO round trip (a few seconds)
+    await page.getByText('Informations personnelles').first().waitFor({ timeout: 20000 });
+    await shot('account-console', 800);
   });
 
   await step('admin-menu', async () => {
@@ -470,6 +579,7 @@ async function walk(name) {
     await shot('admin-trap-types-menu');
   });
 
+  netErrors.forEach((entry, host) => console.log(`NET ${name} ${host}: ${entry.count} request(s), ${entry.reason}`));
   await browser.close();
 }
 
@@ -483,5 +593,10 @@ async function walk(name) {
     console.log(`== ${name}`);
     await walk(name);
   }
-  console.log(`${warnings} overflow warning(s)`);
+  if (ONLY.length && !ranSteps) {
+    failures += 1;
+    console.log(`FAIL no step matches "${ONLY.join(' ')}": use a substring of a step label (see the screenshot names)`);
+  }
+  console.log(`${warnings} overflow warning(s), ${failures} failed step(s)`);
+  if (failures) process.exitCode = 1;
 })();

@@ -1,0 +1,781 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Refonte du module Nids</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Layout: a reading column for the proposal, then a wrapping board of 390 px phone frames.
+     Palette: the app's neutrals, the nest tone (red) as accent, one colour per nest status. */
+  :root {
+    --bg:#f3f2f1; --card:#ffffff; --ink:#22201f; --muted:#6b6663; --line:#e0dcd9; --soft:#f7f5f4;
+    --pri:#c62f3e; --pri-ink:#ffffff; --pri-soft:#fbe9eb;
+    --st-reported:#c62f3e; --st-confirmed:#c2410c; --st-destroyed:#3f4a56;
+    --st-rejected:#8a8580; --st-abandoned:#8a8580;
+    --warn:#a15c00; --warn-soft:#fff4e0; --ok:#1e7a46; --ok-soft:#e6f4ec;
+    --map-a:#e7eedf; --map-b:#d9e4cf; --road:#ffffff; --veil:rgba(20,16,14,.45);
+    --lock-a:#2b3a55; --lock-b:#1a2233; --lock-ink:#ffffff; --glass:rgba(255,255,255,.17);
+    --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:#151413; --card:#1f1d1c; --ink:#ece8e5; --muted:#a39d98; --line:#3a3633; --soft:#262322;
+      --pri:#e05463; --pri-ink:#ffffff; --pri-soft:#3a1d21;
+      --st-reported:#e05463; --st-confirmed:#f07a3c; --st-destroyed:#a7b3bf;
+      --st-rejected:#8f8984; --st-abandoned:#8f8984;
+      --warn:#f0a945; --warn-soft:#3a2c14; --ok:#5cc58a; --ok-soft:#173226;
+      --map-a:#27302a; --map-b:#2e382f; --road:#454d47; --veil:rgba(0,0,0,.6);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:#151413; --card:#1f1d1c; --ink:#ece8e5; --muted:#a39d98; --line:#3a3633; --soft:#262322;
+    --pri:#e05463; --pri-ink:#ffffff; --pri-soft:#3a1d21;
+    --st-reported:#e05463; --st-confirmed:#f07a3c; --st-destroyed:#a7b3bf;
+    --st-rejected:#8f8984; --st-abandoned:#8f8984;
+    --warn:#f0a945; --warn-soft:#3a2c14; --ok:#5cc58a; --ok-soft:#173226;
+    --map-a:#27302a; --map-b:#2e382f; --road:#454d47; --veil:rgba(0,0,0,.6);
+    color-scheme: dark;
+  }
+
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+         padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); }
+  .page { max-width:1260px; margin:0 auto; padding-block:24px 48px; }
+  .prose { max-width:760px; }
+  h1 { font-size:1.75rem; line-height:1.2; margin:0 0 8px; text-wrap:balance; }
+  h2.part { font-size:1.3rem; margin:44px 0 10px; text-wrap:balance; display:flex; align-items:baseline; gap:10px; }
+  h2.part .n { font:600 .8rem var(--mono); color:var(--pri); letter-spacing:.04em; }
+  h3 { font-size:1.02rem; margin:22px 0 6px; }
+  p { margin:0 0 10px; }
+  ul { margin:0 0 10px; padding-left:20px; } li { margin:3px 0; }
+  code { font:.86em var(--mono); background:var(--soft); border:1px solid var(--line); border-radius:5px; padding:0 4px; overflow-wrap:anywhere; }
+  .lead { color:var(--muted); font-size:1.05rem; max-width:760px; }
+  .meta { font-size:.85rem; color:var(--muted); margin-top:6px; }
+  .toc { display:flex; flex-wrap:wrap; gap:6px; margin:18px 0 0; padding:0; list-style:none; }
+  .toc a { display:inline-block; padding:6px 12px; border:1px solid var(--line); border-radius:99px; color:var(--ink);
+           text-decoration:none; font-size:.88rem; background:var(--card); }
+  .toc a:hover, .toc a:focus-visible { border-color:var(--pri); color:var(--pri); outline:none; }
+  .scroll { overflow-x:auto; margin:8px 0 14px; border:1px solid var(--line); border-radius:10px; background:var(--card); }
+  table { border-collapse:collapse; width:100%; font-size:.9rem; }
+  th, td { text-align:left; vertical-align:top; padding:8px 10px; border-bottom:1px solid var(--line); }
+  th { font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:600; background:var(--soft); }
+  tr:last-child td { border-bottom:0; }
+  td.c, th.c { text-align:center; }
+  .yes { color:var(--ok); font-weight:700; } .no { color:var(--muted); } .new { color:var(--pri); font-weight:700; } .ask { color:var(--warn); font-weight:700; }
+  .callout { border-left:3px solid var(--pri); background:var(--card); padding:10px 14px; border-radius:0 10px 10px 0; margin:12px 0; font-size:.95rem; }
+  .callout.warn { border-left-color:var(--warn); }
+  .changes { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 16px; margin:16px 0 0; font-size:.93rem; }
+  .changes h3 { margin:0 0 6px; }
+  .changes li { margin:4px 0; }
+
+  /* Status pills, shared by the proposal and the phones */
+  .pill { display:inline-flex; align-items:center; gap:5px; font-size:.74rem; font-weight:600; padding:2px 9px; border-radius:99px;
+          border:1px solid currentColor; white-space:nowrap; line-height:1.5; }
+  .pill::before { content:""; width:7px; height:7px; border-radius:50%; background:currentColor; }
+  .s-reported { color:var(--st-reported); } .s-confirmed { color:var(--st-confirmed); }
+  .s-destroyed { color:var(--st-destroyed); } .s-rejected { color:var(--st-rejected); } .s-abandoned { color:var(--st-abandoned); }
+
+  /* Lifecycle */
+  .flow { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:12px 0 6px; }
+  .flow .arrow { color:var(--muted); font-size:.85rem; }
+  .st { display:flex; flex-direction:column; gap:2px; padding:8px 12px; border-radius:10px; background:var(--card);
+        border:1px solid var(--line); border-top:3px solid currentColor; min-width:0; }
+  .st b { font-size:.95rem; } .st small { color:var(--muted); font-size:.8rem; }
+  .exits { display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:8px; margin:6px 0 12px; }
+
+  /* Phone board */
+  .board { display:flex; flex-wrap:wrap; gap:28px 24px; margin-top:16px; }
+  figure { margin:0; width:min(390px, 100%); min-width:0; }
+  figcaption { font-size:.86rem; color:var(--muted); margin:0 0 8px; }
+  figcaption b { color:var(--ink); }
+  .phone { width:100%; height:780px; background:var(--card); border:1px solid var(--line); border-radius:28px; overflow:hidden;
+           position:relative; display:flex; flex-direction:column; font-size:15px; }
+  .nav { display:flex; align-items:center; gap:8px; padding:10px 14px; border-bottom:1px solid var(--line); min-height:50px; flex-shrink:0; }
+  .nav .back { color:var(--pri); white-space:nowrap; }
+  .nav .cur { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .nav .menu { margin-left:auto; font-size:1.25rem; }
+  .body { flex:1; overflow:hidden; padding:12px; }
+  .bar { display:flex; gap:8px; margin-bottom:10px; }
+  .btn { display:flex; align-items:center; justify-content:center; gap:6px; width:100%; min-height:44px; padding:9px 12px;
+         border-radius:10px; border:1px solid var(--line); background:transparent; color:var(--ink); font:inherit; margin-top:8px; text-align:center; }
+  .btn.pri { background:var(--pri); color:var(--pri-ink); border-color:var(--pri); font-weight:600; }
+  .btn.sm { width:auto; margin:0; padding:8px 12px; white-space:nowrap; flex-shrink:0; font-size:.9rem; }
+  .btn.left { justify-content:flex-start; }
+  .ib { width:44px; height:44px; border:1px solid var(--line); border-radius:10px; display:grid; place-items:center;
+        background:transparent; color:var(--ink); flex-shrink:0; font-size:1.05rem; }
+  .tabs { display:flex; border:1px solid var(--pri); border-radius:10px; overflow:hidden; margin-bottom:10px; }
+  .tabs span { flex:1; text-align:center; padding:10px 4px; min-height:44px; display:flex; align-items:center; justify-content:center; gap:6px; color:var(--pri); }
+  .tabs span.on { background:var(--pri); color:var(--pri-ink); font-weight:600; }
+  .cnt { background:var(--pri); color:var(--pri-ink); border-radius:99px; font-size:.72rem; padding:1px 7px; font-weight:700; }
+  .tabs .on .cnt { background:var(--pri-ink); color:var(--pri); }
+  .seg { display:flex; border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:8px; }
+  .seg span { flex:1; text-align:center; padding:9px 4px; min-height:44px; font-size:.86rem; display:flex; align-items:center; justify-content:center; }
+  .seg span.on { background:var(--soft); font-weight:600; box-shadow:inset 0 -2px 0 var(--pri); }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+  .chip { padding:6px 12px; min-height:40px; border:1px solid var(--line); border-radius:99px; display:flex; align-items:center; font-size:.86rem; }
+  .chip.on { background:var(--pri); color:var(--pri-ink); border-color:var(--pri); }
+  .chip.check.on::before { content:"✓ "; white-space:pre; }
+  .input { width:100%; min-height:44px; font-size:16px; padding:9px 10px; border:1px solid var(--line); border-radius:10px;
+           background:var(--card); color:var(--muted); display:flex; align-items:center; }
+  .input.val { color:var(--ink); }
+  .sec { font-size:.74rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:14px 0 4px; font-weight:600;
+         display:flex; justify-content:space-between; gap:8px; }
+  .sec:first-child { margin-top:2px; }
+  .row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--line); min-height:58px; }
+  .row:last-child { border-bottom:0; }
+  .thumb { width:44px; height:44px; border-radius:9px; flex-shrink:0; display:grid; place-items:center; font-size:.8rem;
+           background:repeating-linear-gradient(135deg, var(--soft) 0 6px, var(--line) 6px 7px); color:var(--muted); font-weight:600; }
+  .grow { flex:1; min-width:0; }
+  .name { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sub { font-size:.8rem; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sub.multi { white-space:normal; }
+  .flag { font-size:.76rem; color:var(--warn); font-weight:600; }
+  .count { font-size:.82rem; color:var(--muted); margin:2px 0 4px; }
+  .help { display:inline-grid; place-items:center; width:20px; height:20px; border-radius:50%; border:1px solid var(--muted);
+          font-size:.7rem; color:var(--muted); margin-left:6px; font-weight:400; vertical-align:middle; }
+  .full { position:absolute; inset:0; background:var(--card); display:flex; flex-direction:column; }
+  .full .hd { display:flex; align-items:center; gap:8px; padding:12px 14px; border-bottom:1px solid var(--line); min-height:52px; flex-shrink:0; }
+  .full .hd .t { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .full .hd .x { margin-left:auto; font-size:1.4rem; line-height:1; color:var(--muted); }
+  .full .bd { flex:1; padding:12px 14px; overflow:hidden; }
+  .full .ft { padding:12px 14px; border-top:1px solid var(--line); flex-shrink:0; }
+  .full .ft .btn { margin:0; }
+  .lbl { font-size:.86rem; margin:12px 0 6px; font-weight:600; display:flex; align-items:center; }
+  .lbl:first-child { margin-top:0; }
+  .lbl .opt { font-weight:400; color:var(--muted); margin-left:6px; }
+  .field { display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid var(--line); font-size:.9rem; }
+  .field .l { color:var(--muted); white-space:nowrap; }
+  .field .v { text-align:right; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .photos { display:flex; gap:6px; margin-bottom:10px; }
+  .photos .thumb { width:72px; height:72px; }
+  .photos .add { border:1px dashed var(--muted); background:transparent; font-size:1.2rem; }
+  .steps { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; margin:4px 0 10px; }
+  .steps div { text-align:center; font-size:.72rem; color:var(--muted); }
+  .steps div::before { content:""; display:block; height:5px; border-radius:3px; background:var(--line); margin-bottom:4px; }
+  .steps .d1::before { background:var(--st-reported); } .steps .d2::before { background:var(--st-confirmed); }
+  .steps .d1, .steps .d2 { color:var(--ink); }
+  .log { font-size:.86rem; }
+  .log .ev { display:flex; gap:10px; padding:7px 0; border-bottom:1px solid var(--line); }
+  .log .ev:last-child { border-bottom:0; }
+  .log .ic { width:24px; text-align:center; flex-shrink:0; }
+  .alert { border-radius:10px; padding:10px 12px; margin:0 0 10px; font-size:.88rem; border:1px solid; }
+  .alert.warn { background:var(--warn-soft); color:var(--ink); border-color:var(--warn); }
+  .alert .acts { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .alert .acts .btn { width:auto; margin:0; min-height:40px; font-size:.86rem; background:var(--card); }
+  .drop { border:1.5px dashed var(--muted); border-radius:12px; min-height:56px; display:flex; align-items:center; justify-content:center;
+          gap:8px; color:var(--muted); font-size:.92rem; }
+  .textarea { min-height:64px; align-items:flex-start; }
+  .note { font-size:.8rem; color:var(--muted); margin-top:8px; }
+  .veil { position:absolute; inset:0; background:var(--veil); }
+  .sheet { position:absolute; left:0; right:0; bottom:0; background:var(--card); border-radius:18px 18px 0 0;
+           padding:8px 14px 20px; box-shadow:0 -4px 20px rgba(0,0,0,.25); }
+  .sheet .grip { width:40px; height:5px; border-radius:3px; background:var(--line); margin:0 auto 10px; }
+  .sheet h4 { margin:0; font-size:1.02rem; }
+  .sheet .btn { margin-top:6px; }
+  .mini { display:flex; align-items:center; gap:4px; font-size:.74rem; margin-top:3px; flex-wrap:wrap; }
+  .mini i { font-style:normal; width:22px; height:4px; border-radius:2px; background:var(--line); display:inline-block; }
+  .mini i.on { background:currentColor; }
+  .mini span { color:var(--muted); }
+  .sw { width:51px; height:31px; border-radius:16px; background:var(--line); position:relative; flex-shrink:0; }
+  .sw::after { content:""; position:absolute; top:2px; left:2px; width:27px; height:27px; border-radius:50%; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,.2); }
+  .sw.on { background:#34c759; } .sw.on::after { left:22px; }
+  .card { border:1px solid var(--line); border-radius:12px; padding:0 12px; }
+  .trow { display:flex; align-items:center; gap:10px; min-height:58px; padding:8px 0; border-bottom:1px solid var(--line); }
+  .trow:last-child { border-bottom:0; }
+  .trow .ic { width:28px; text-align:center; font-size:1.15rem; flex-shrink:0; }
+  .badge-new { font-size:.66rem; padding:1px 7px; border-radius:99px; background:var(--pri-soft); color:var(--pri); border:1px solid var(--pri); font-weight:600; text-transform:none; letter-spacing:0; }
+  .cmp { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+  .cmp > div { border:1px solid var(--line); border-radius:12px; padding:8px; min-width:0; font-size:.84rem; }
+  .cmp > div.keep { border-color:var(--pri); box-shadow:inset 0 0 0 1px var(--pri); }
+  .cmp .thumb { width:100%; height:70px; margin-bottom:6px; }
+  .cmp b { display:block; }
+
+  /* Lock screen */
+  .lock { width:100%; height:780px; border-radius:28px; padding:48px 12px 12px; position:relative; overflow:hidden;
+          background:linear-gradient(160deg, var(--lock-a), var(--lock-b)); color:var(--lock-ink); }
+  .lock .time { text-align:center; font-size:3.2rem; font-weight:300; line-height:1.1; }
+  .lock .date { text-align:center; opacity:.8; margin-bottom:22px; }
+  .notif { background:var(--glass); border-radius:18px; padding:10px 12px; display:flex; gap:10px; margin-bottom:8px; font-size:.85rem; line-height:1.33; }
+  .notif .ap { width:34px; height:34px; border-radius:9px; background:#c62f3e; display:grid; place-items:center; font-weight:700; flex-shrink:0; }
+  .notif .top { display:flex; gap:8px; } .notif .top b { flex:1; min-width:0; } .notif small { opacity:.7; white-space:nowrap; }
+  .notif .who { font-size:.68rem; opacity:.7; text-transform:uppercase; letter-spacing:.04em; margin-top:2px; }
+
+  /* Pseudo map */
+  .map { position:absolute; inset:50px 0 0 0; overflow:hidden;
+         background:
+           linear-gradient(28deg, transparent 47%, var(--road) 47% 50%, transparent 50%),
+           linear-gradient(115deg, transparent 60%, var(--road) 60% 62%, transparent 62%),
+           linear-gradient(170deg, transparent 30%, var(--road) 30% 31.5%, transparent 31.5%),
+           radial-gradient(circle at 70% 25%, var(--map-b) 0 18%, transparent 18.5%),
+           radial-gradient(circle at 20% 70%, var(--map-b) 0 22%, transparent 22.5%),
+           var(--map-a); }
+  .mk { position:absolute; width:30px; height:30px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); border:2px solid #fff;
+        box-shadow:0 2px 5px rgba(0,0,0,.3); }
+  .mk.sel { box-shadow:0 0 0 6px color-mix(in srgb, currentColor 30%, transparent), 0 2px 5px rgba(0,0,0,.3); }
+  .mk.reported { background:var(--st-reported); color:var(--st-reported); } .mk.confirmed { background:var(--st-confirmed); color:var(--st-confirmed); }
+  .mk.destroyed { background:var(--st-destroyed); color:var(--st-destroyed); opacity:.75; }
+  .fab { position:absolute; right:14px; width:48px; height:48px; border-radius:50%; background:var(--card); border:1px solid var(--line);
+         display:grid; place-items:center; box-shadow:0 2px 8px rgba(0,0,0,.2); font-size:1.15rem; }
+  .fab.pri { background:var(--pri); color:var(--pri-ink); border-color:var(--pri); font-size:1.5rem; }
+  .backbar { position:absolute; left:12px; top:62px; background:var(--card); border:1px solid var(--line); border-radius:99px;
+             padding:8px 14px; font-size:.9rem; color:var(--pri); box-shadow:0 2px 8px rgba(0,0,0,.15); }
+  .legend { position:absolute; left:12px; bottom:14px; background:var(--card); border:1px solid var(--line); border-radius:12px;
+            padding:8px 10px; display:grid; gap:3px; font-size:.75rem; }
+  .legend .pill { border:0; padding:0; }
+
+  .q { list-style:none; padding:0; counter-reset:q; }
+  .q li { counter-increment:q; display:grid; grid-template-columns:28px 1fr; gap:4px 8px; padding:10px 0; border-bottom:1px solid var(--line); }
+  .q li::before { content:counter(q); font:600 .8rem var(--mono); color:var(--pri-ink); background:var(--pri); width:22px; height:22px;
+                  border-radius:50%; display:grid; place-items:center; margin-top:2px; }
+  .q li:last-child { border-bottom:0; }
+  .lots { display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:10px; margin:10px 0; }
+  .lot { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px; min-width:0; }
+  .lot h3 { margin:0 0 6px; } .lot .size { font:.8rem var(--mono); color:var(--muted); margin-top:6px; }
+  .lot ul { font-size:.9rem; }
+  a { color:var(--pri); }
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="prose">
+  <h1>Refonte du module Nids</h1>
+  <p class="lead">Proposition et maquettes, téléphone d'abord (390 px). Le module reprend ce qui marche dans le module Pièges : une vue de ce qui attend une action, une liste qu'on trie et filtre, une fiche avec un journal, une délégation aux associations d'apiculteurs. Les apiculteurs, les responsables d'associations, les coordinateurs et la personne qui a signalé sont prévenus de ce qui les concerne.</p>
+  <p class="meta">Version 3, 15 octobre 2026 : les quatre questions de la version 2 sont tranchées · maquettes statiques ; numéros, noms, communes et dates sont inventés.</p>
+  <ul class="toc">
+    <li><a href="#v2">Changements</a></li>
+    <li><a href="#constat">Aujourd'hui</a></li>
+    <li><a href="#proposition">Proposition</a></li>
+    <li><a href="#cycle">Cycle de vie</a></li>
+    <li><a href="#delegation">Délégation</a></li>
+    <li><a href="#droits">Droits</a></li>
+    <li><a href="#alertes">Notifications</a></li>
+    <li><a href="#doublons">Doublons</a></li>
+    <li><a href="#maquettes">Maquettes</a></li>
+    <li><a href="#technique">Données et API</a></li>
+    <li><a href="#lots">Étapes</a></li>
+    <li><a href="#questions">Décisions</a></li>
+  </ul>
+  <div class="changes" id="v2">
+    <h3>Ce qui change depuis la version 1</h3>
+    <ul>
+      <li>Plus de planification ni de contrôle : Signalé → Confirmé → Détruit, plus Écarté et Abandonné.</li>
+      <li>Une saison à la fois : la liste et la carte montrent l'année en cours, l'historique passe par l'archivage. Un nid non détruit passe « Abandonné » après l'hiver.</li>
+      <li>Un nid vide (abandonné) se signale tel quel.</li>
+      <li>La délégation va aux associations d'apiculteurs, comme pour les pièges ; dans l'association, un membre s'en charge ou l'administrateur le lui confie.</li>
+      <li>Visite : coordinateurs (et administrateurs de l'association déléguée). Destruction : les mêmes, plus la personne qui a signalé.</li>
+      <li>Notifications : apiculteurs sur choix explicite, propriétaires des ruchers à moins de 1 km, responsables d'association, suivi pour la personne qui a signalé. Envoi à 9 h (10 h le dimanche), comme les rappels de pièges.</li>
+      <li>Destruction : « FixMyStreet » parmi les intervenants, moyens à choix multiples, pas de produit.</li>
+      <li>Type primaire ou secondaire pré-choisi d'après la date.</li>
+      <li>Doublons détaillés : rejoindre un signalement existant, fusion par un coordinateur.</li>
+    </ul>
+  </div>
+</header>
+
+<section id="constat" class="prose">
+  <h2 class="part"><span class="n">01</span>Aujourd'hui</h2>
+  <ul>
+    <li><code>/nests</code> n'est que la carte plein écran. Pas de liste, pas de recherche, pas de tri.</li>
+    <li>Un nid a deux états : <code>destroyed</code> vrai ou faux. On ne sait pas s'il a été vérifié, qui s'en occupe, ni par qui il a été détruit.</li>
+    <li>Pas de journal du nid. Le seul historique est le journal d'audit, lisible par les administrateurs de la plateforme seulement.</li>
+    <li>Personne n'est prévenu d'un signalement, et la personne qui a signalé ne sait pas ce qu'il devient ni ne peut dire que le nid a été détruit.</li>
+  </ul>
+</section>
+
+<section id="proposition" class="prose">
+  <h2 class="part"><span class="n">02</span>Proposition</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Module Pièges (existant)</th><th>Module Nids (proposé)</th></tr></thead>
+    <tbody>
+      <tr><td>Onglet « À relever », ouvert par défaut</td><td>Onglet « À traiter », ouvert par défaut : ce qui attend une action de la personne, selon son rôle. La carte n'est plus la page d'arrivée.</td></tr>
+      <tr><td>Onglet « Gérer » : portée, recherche, filtres, tri</td><td>Onglet « Nids » : la saison en cours, portée <i>Tous</i> / <i>Mes signalements</i> / <i>Mon association</i>, statuts en puces</td></tr>
+      <tr><td>Fiche avec journal</td><td>Fiche avec étapes et journal (signalement, visite, délégation, prise en charge, destruction)</td></tr>
+      <tr><td>Délégation à une association d'apiculteurs</td><td>La même, puis prise en charge par un membre (volontaire ou désigné)</td></tr>
+      <tr><td>Rappels au propriétaire</td><td>Notifications aux apiculteurs, responsables, coordinateurs et à la personne qui a signalé</td></tr>
+      <tr><td>Localiser et Déplacer via la carte</td><td>Localiser et Déplacer (<code>nest</code>, <code>nest-move</code>), avec retour à la liste</td></tr>
+      <tr><td>Bouton principal « Scanner »</td><td>Bouton principal « Signaler », icône « Carte » à côté</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="cycle" class="prose">
+  <h2 class="part"><span class="n">03</span>Cycle de vie d'un nid</h2>
+  <p>Le statut est le résultat du dernier événement du journal, stocké aussi sur le nid (<code>status</code>) pour filtrer. <code>destroyed</code> et <code>destroyed_at</code> restent, recalculés : la carte publique, les statistiques et les versions déjà installées continuent de fonctionner.</p>
+  <div class="flow" role="list" aria-label="Statuts principaux">
+    <div class="st s-reported" role="listitem"><b>Signalé</b><small>à la création</small></div><span class="arrow" aria-hidden="true">→ visite →</span>
+    <div class="st s-confirmed" role="listitem"><b>Confirmé</b><small>nid actif de V. velutina</small></div><span class="arrow" aria-hidden="true">→</span>
+    <div class="st s-destroyed" role="listitem"><b>Détruit</b><small>date, intervenant, moyens</small></div>
+  </div>
+  <div class="exits">
+    <div class="st s-rejected"><b>Écarté</b><small>Autre espèce (frelon européen, guêpes…) ou introuvable. Caché de la carte, gardé dans la liste et les statistiques.</small></div>
+    <div class="st s-abandoned"><b>Abandonné</b><small>Nid vide : signalé ou trouvé vide à la visite, ou pas détruit à la fin de l'hiver.</small></div>
+  </div>
+  <ul>
+    <li>Une destruction s'enregistre depuis <i>Signalé</i> ou <i>Confirmé</i> : la personne qui a signalé n'attend pas une visite pour dire que le nid a été détruit.</li>
+    <li><b>Une saison à la fois.</b> Un nid sert une seule saison et n'est jamais réoccupé. La liste et la carte montrent l'année en cours, comme le filtre actuel de l'API (<code>year</code> par défaut à l'année courante, archivés exclus). Les saisons passées restent dans l'archivage (<i>Administration → Archivage</i>) à titre historique. Plus de sélecteur d'année dans la liste.</li>
+    <li><b>Abandon après l'hiver.</b> Le 1<sup>er</sup> mars (réglable), le service planifié passe en <i>Abandonné</i> les nids de la saison précédente encore <i>Signalés</i> ou <i>Confirmés</i>, avec une entrée « Fin de saison » au journal. Aucune notification.</li>
+    <li><b>Nid vide signalé.</b> Au signalement, « État du nid » : <i>Actif</i>, <i>Vide</i> ou <i>Je ne sais pas</i>. Un nid vide part directement en <i>Abandonné</i> : il compte pour la carte de la saison mais ne déclenche aucune alerte aux apiculteurs. C'est surtout l'hiver, quand les feuilles tombent, qu'on découvre les nids de la saison passée.</li>
+    <li><b>Primaire ou secondaire</b>, pré-choisi d'après la date du signalement, modifiable : février à mai → primaire (la reine fondatrice bâtit seule, nid petit, souvent bas et abrité) ; juillet à décembre → secondaire (plus grand, souvent haut) ; juin → rien de pré-choisi.</li>
+    <li>Hauteur et taille par classes (<i>&lt; 2 m, 2–5 m, 5–10 m, 10–20 m, &gt; 20 m</i> ; <i>&lt; 10 cm, 10–30 cm, 30–50 cm, &gt; 50 cm</i>). Une hauteur estimée depuis le sol se trompe facilement de 30 à 50 % ; les classes ne prétendent pas mieux.</li>
+  </ul>
+</section>
+
+<section id="delegation" class="prose">
+  <h2 class="part"><span class="n">04</span>Délégation aux associations</h2>
+  <p><b>Ce qui existe.</b> Il n'y a pas de structure par groupe propre aux nids. Les groupes sont ceux de Keycloak : <code>/beekeepers/&lt;association&gt;</code> avec son sous-groupe <code>admin</code>, ses membres invités et sa liste de membres (<i>Administration → Mon groupe</i>) ; <code>/hunters</code> et <code>/trappers</code> sont plats. Côté API, <code>BeekeeperGroup</code> représente une association ; les pièges y sont délégués par <code>Trap.group</code>. Un nid n'est rattaché à aucun groupe.</p>
+  <p><b>Ce que je propose.</b> Réutiliser cette structure telle quelle : <code>Nest.group</code> (une association) et <code>Nest.assignee</code> (une personne).</p>
+  <ul>
+    <li>Un coordinateur délègue le nid à une association. La liste propose d'abord les associations qui ont un rucher à moins de 1 km du nid.</li>
+    <li>Dans l'association, un membre clique « Je m'en charge », ou un administrateur de l'association le confie à un membre. Un seul responsable à la fois ; « Je ne m'en charge plus » le rend à l'association.</li>
+    <li>La délégation se retire ou change d'association (coordinateurs). Les nids non délégués restent aux coordinateurs.</li>
+    <li>Les administrateurs de l'association déléguée agissent comme coordinateurs pour ce nid (visite, destruction), comme ils agissent sur les pièges délégués.</li>
+  </ul>
+</section>
+
+<section id="droits" class="prose">
+  <h2 class="part"><span class="n">05</span>Qui fait quoi</h2>
+  <p>« Coordinateur » : administrateur de la plateforme ou membre de <code>/hunters/admin</code>. En rouge, ce qui est nouveau.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Action</th><th class="c">A signalé le nid</th><th class="c">Membre de l'asso. déléguée</th><th class="c">Admin de l'asso. déléguée</th><th class="c">Coordinateur</th><th class="c">Admin plateforme</th></tr></thead>
+    <tbody>
+      <tr><td>Signaler un nid, ou rejoindre un signalement existant</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+      <tr><td>Déclarer la destruction</td><td class="c new">✓</td><td class="c new">s'il en est chargé</td><td class="c new">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+      <tr><td>Visite : confirmer, écarter, nid vide</td><td class="c no">–</td><td class="c no">–</td><td class="c new">✓</td><td class="c new">✓</td><td class="c new">✓</td></tr>
+      <tr><td>Déléguer à une association</td><td class="c no">–</td><td class="c no">–</td><td class="c no">–</td><td class="c new">✓</td><td class="c new">✓</td></tr>
+      <tr><td>Se charger du nid</td><td class="c no">–</td><td class="c new">✓</td><td class="c new">✓</td><td class="c no">–</td><td class="c no">–</td></tr>
+      <tr><td>Le confier à un membre</td><td class="c no">–</td><td class="c no">–</td><td class="c new">✓</td><td class="c no">–</td><td class="c new">✓</td></tr>
+      <tr><td>Modifier les champs, déplacer, photos</td><td class="c no">–</td><td class="c no">–</td><td class="c no">–</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+      <tr><td>Fusionner des doublons</td><td class="c no">–</td><td class="c no">–</td><td class="c no">–</td><td class="c new">✓</td><td class="c new">✓</td></tr>
+      <tr><td>Réactiver, archiver, supprimer</td><td class="c no">–</td><td class="c no">–</td><td class="c no">–</td><td class="c no">–</td><td class="c yes">✓</td></tr>
+    </tbody>
+  </table></div>
+  <p>Voir les nids ne change pas : apiculteurs, chasseurs et administrateurs voient tous les nids ; un piégeur voit les nids détruits et les siens. Les simples chasseurs n'enregistrent ni visite ni destruction.</p>
+</section>
+
+<section id="alertes" class="prose">
+  <h2 class="part"><span class="n">06</span>Notifications</h2>
+  <p>Quatre sortes, chacune avec son interrupteur dans le module <i>Notifications</i>, montré seulement aux personnes concernées. Une seule notification par nid et par personne : si quelqu'un est concerné à plusieurs titres, le texte le plus précis l'emporte (« près de votre rucher » plutôt que « nouveau nid »).</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Sorte</th><th>Qui</th><th>Quand</th><th>Par défaut</th></tr></thead>
+    <tbody>
+      <tr><td><b>Tous les nouveaux nids</b></td><td>Apiculteurs (rôle <code>beekeeper</code>)</td><td>Chaque nouveau nid actif</td><td><b>Coupé</b> : choix explicite</td></tr>
+      <tr><td><b>Tous les nouveaux nids</b> (même interrupteur)</td><td>Coordinateurs (<code>/hunters/admin</code>) et administrateurs de la plateforme</td><td>Chaque nouveau nid, vide compris</td><td>Activé</td></tr>
+      <tr><td><b>Nids près de mes ruchers</b></td><td>Propriétaires des ruchers à moins de 1 km, et administrateurs des associations qui partagent l'un de ces ruchers</td><td>Nouveau nid actif à moins de 1 km</td><td>Activé</td></tr>
+      <tr><td><b>Nids confiés</b></td><td>Administrateurs de l'association, puis le membre à qui le nid est confié</td><td>Délégation ; attribution (pas quand on s'en charge soi-même)</td><td>Activé</td></tr>
+      <tr><td><b>Suivi de mes signalements</b></td><td>La personne qui a signalé, et celles qui ont rejoint le signalement</td><td>Confirmé, écarté, détruit</td><td>Activé</td></tr>
+    </tbody>
+  </table></div>
+  <ul>
+    <li><b>Heure : la règle des pièges.</b> Fenêtre d'envoi de 9 h (10 h le dimanche) à 20 h, heure de Bruxelles. Un nid signalé pendant la fenêtre part au passage suivant du service planifié (10 minutes au plus) ; un nid signalé hors fenêtre attend l'ouverture suivante. La nuit donne donc un récapitulatif à 9 h.</li>
+    <li>À partir de 3 nids pour la même personne dans un même passage, un récapitulatif : « 3 nouveaux nids signalés · Champion, Bouge, Jambes. »</li>
+    <li>Écran verrouillé : numéro, commune, lieu public ou privé, nombre de photos. Jamais l'adresse complète ni un nom. La commune est lue dans l'adresse (code postal à 4 chiffres et localité) ; sinon rien.</li>
+    <li>Personne n'est prévenu de sa propre action. Toucher ouvre la fiche du nid dans « À traiter ». Les envois ne vont pas au journal d'audit (action du système, comme les rappels) ; les actions des personnes y vont.</li>
+    <li>« Tous les nouveaux nids » est coupé par défaut pour les apiculteurs : aujourd'hui toutes les sortes sont activées par défaut et seul ce qui est coupé est enregistré. Il faut un défaut par sorte et par rôle, et enregistrer aussi <code>true</code> quand un apiculteur l'active.</li>
+  </ul>
+  <div class="callout warn">
+    <b>Volume : à mesurer.</b> Je n'ai pas accès aux données de prod. Un apiculteur qui active « Tous les nouveaux nids » reçoit tout le volume de la région ; le récapitulatif évite une rafale à 9 h. Mesure à faire en prod :
+    <code>Nest.objects.filter(created_at__year=2025).annotate(w=TruncWeek('created_at')).values('w').annotate(n=Count('id')).order_by('w')</code>
+  </div>
+</section>
+
+<section id="doublons" class="prose">
+  <h2 class="part"><span class="n">07</span>Doublons</h2>
+  <p>Un nid visible depuis la rue est souvent signalé plusieurs fois. Trois mécanismes, du plus simple au plus rare :</p>
+  <ul>
+    <li><b>Au signalement, pour qui voit tous les nids</b> (apiculteurs, chasseurs, coordinateurs) : si un nid de la saison est connu à moins de 50 m, un avertissement le montre. « C'est le même nid » ajoute un signalement à ce nid (entrée au journal, photos comprises) au lieu d'en créer un ; la personne suit alors ce nid. « C'est un autre nid » crée le nid normalement. 50 m couvre l'erreur du GPS du téléphone (5 à 20 m en extérieur) et la distance d'où l'on voit un nid haut (10 à 30 m).</li>
+    <li><b>Pour un piégeur</b>, qui ne voit pas les nids actifs : rien ne lui est montré. Le serveur fait la même recherche, crée le nid et le marque <code>duplicate_of</code>.</li>
+    <li><b>Chez les coordinateurs</b>, « À traiter » liste les doublons possibles. « Fusionner » garde le nid choisi (le plus ancien par défaut) et y déplace photos, journal, observations de frelons liées et personnes qui suivent ; l'autre disparaît, l'audit garde son instantané (<code>nest.merged</code>). « Pas un doublon » retire la marque.</li>
+  </ul>
+</section>
+
+<section id="maquettes">
+  <div class="prose">
+    <h2 class="part"><span class="n">08</span>Maquettes</h2>
+    <p>Composants existants réutilisés : <code>PageHeader</code>, <code>AppModal</code>, <code>BottomSheet</code>, <code>FieldRow</code>, <code>SheetActions</code>, <code>IconButton</code>, <code>HelpTip</code>, <code>PhotoInput</code>, <code>AddressSearch</code>. Un seul dialogue à la fois ; « Retour » ferme le dialogue ouvert.</p>
+  </div>
+  <div class="board">
+
+    <figure>
+      <figcaption><b>1. À traiter (coordinateur).</b> Page d'arrivée du module. La pastille compte ce qui attend une action : à vérifier, doublons, à déléguer.</figcaption>
+      <div class="phone"><div class="nav"><span class="back">‹ Accueil</span><span class="cur">Nids</span><span class="menu">☰</span></div>
+        <div class="body">
+          <div class="bar"><span class="btn pri" style="margin:0;flex:1">＋ Signaler</span><span class="ib" aria-label="Carte">🗺</span></div>
+          <div class="tabs"><span class="on">À traiter <b class="cnt">4</b></span><span>Nids</span></div>
+          <div class="sec"><span>À vérifier</span><span>1</span></div>
+          <div class="row"><div class="thumb">▧</div><div class="grow"><div class="name">#128 · Vedrin</div><div class="sub">il y a 2 h · privé · 2 photos</div></div><span class="btn sm">Visite</span></div>
+          <div class="sec"><span>Doublons possibles</span><span>1</span></div>
+          <div class="row"><div class="thumb">▧</div><div class="grow"><div class="name">#127 · Champion</div><div class="flag">à 35 m de #118</div></div><span class="btn sm">Comparer</span></div>
+          <div class="sec"><span>Confirmés, à déléguer</span><span>2</span></div>
+          <div class="row"><div class="thumb">▧</div><div class="grow"><div class="name">#121 · Bouge</div><div class="sub">confirmé il y a 3 j · secondaire · 10–20 m</div></div><span class="btn sm">Déléguer</span></div>
+          <div class="row"><div class="thumb">▧</div><div class="grow"><div class="name">#120 · Erpent</div><div class="sub">confirmé il y a 4 j · secondaire · 5–10 m</div></div><span class="btn sm">Déléguer</span></div>
+          <div class="sec"><span>Délégués, en attente</span><span>2</span></div>
+          <div class="row"><div class="thumb">▧</div><div class="grow"><div class="name">#119 · Namur</div><div class="sub">Abeilles de Vedrin · Marc D. · depuis 6 j</div></div><span class="ib" aria-label="Ouvrir">›</span></div>
+          <div class="row"><div class="thumb">▧</div><div class="grow"><div class="name">#116 · Jambes</div><div class="sub">Rucher-école de Jambes · personne · 2 j</div></div><span class="ib" aria-label="Ouvrir">›</span></div>
+        </div>
+      </div>
+    </figure>
+
+    <figure>
+      <figcaption><b>2. À traiter (administrateur d'association).</b> Les nids délégués à son association. « Confier » ouvre la liste des membres ; un simple membre voit les mêmes lignes avec « Je m'en charge », et les nids dont il est chargé avec « Détruit ? ».</figcaption>
+      <div class="phone"><div class="nav"><span class="back">‹ Accueil</span><span class="cur">Nids</span><span class="menu">☰</span></div>
+        <div class="body">
+          <div class="bar"><span class="btn pri" style="margin:0;flex:1">＋ Signaler</span><span class="ib" aria-label="Carte">🗺</span></div>
+          <div class="tabs"><span class="on">À traiter <b class="cnt">2</b></span><span>Nids</span></div>
+          <div class="sec"><span>Délégués aux Abeilles de Vedrin</span><span>2</span></div>
+          <div class="row"><div class="thumb">▧</div><div class="grow"><div class="name">#121 · Bouge</div><div class="sub">délégué hier · personne n'en est chargé</div></div><span class="btn sm">Confier</span></div>
+          <div class="row"><div class="thumb">▧</div><div class="grow"><div class="name">#124 · Vedrin</div><div class="sub">délégué aujourd'hui · personne</div></div><span class="btn sm">Confier</span></div>
+          <div class="sec"><span>Pris en charge</span><span>2</span></div>
+          <div class="row"><div class="thumb">▧</div><div class="grow"><div class="name">#119 · Namur</div><div class="sub">Marc D. · depuis 6 j</div></div><span class="ib" aria-label="Ouvrir">›</span></div>
+          <div class="row"><div class="thumb">▧</div><div class="grow"><div class="name">#117 · Vedrin</div><div class="sub">moi · depuis 3 j</div></div><span class="btn sm">Détruit ?</span></div>
+          <div class="sec"><span>Près de mes ruchers</span><span>1</span></div>
+          <div class="row"><div class="thumb">▧</div><div class="grow"><div class="name">#128 · Vedrin</div><div class="sub">signalé il y a 2 h · pas encore vérifié</div></div><span class="pill s-reported">Signalé</span></div>
+        </div>
+      </div>
+    </figure>
+
+    <figure>
+      <figcaption><b>3. Nids : la liste de la saison.</b> Portée, recherche, statuts en puces (plusieurs à la fois), tri dans le menu ⋯. Pas de sélecteur d'année : les saisons passées sont dans l'archivage.</figcaption>
+      <div class="phone"><div class="nav"><span class="back">‹ Accueil</span><span class="cur">Nids</span><span class="menu">☰</span></div>
+        <div class="body">
+          <div class="bar"><span class="btn pri" style="margin:0;flex:1">＋ Signaler</span><span class="ib" aria-label="Carte">🗺</span></div>
+          <div class="tabs"><span>À traiter <b class="cnt">4</b></span><span class="on">Nids</span></div>
+          <div class="seg"><span class="on">Tous</span><span>Mes signalements</span><span>Mon association</span></div>
+          <div class="bar"><span class="input" style="flex:1">Rechercher (n°, adresse)</span><span class="ib" aria-label="Filtres et tri">⋯</span></div>
+          <div class="chips"><span class="chip on">En cours</span><span class="chip">Détruits</span><span class="chip">Écartés</span><span class="chip">Abandonnés</span></div>
+          <div class="count">Saison 2026 · 24 nids · du plus récent</div>
+          <div class="row"><div class="grow"><div class="name">#128 · Rue des Tilleuls, Vedrin</div><div class="sub">14 oct. · privé · non délégué</div></div><span class="pill s-reported">Signalé</span><span class="ib" aria-label="Actions">⋯</span></div>
+          <div class="row"><div class="grow"><div class="name">#121 · Chemin du Moulin, Bouge</div><div class="sub">11 oct. · Abeilles de Vedrin</div></div><span class="pill s-confirmed">Confirmé</span><span class="ib" aria-label="Actions">⋯</span></div>
+          <div class="row"><div class="grow"><div class="name">#119 · Bd Isabelle, Namur</div><div class="sub">9 oct. · Marc D.</div></div><span class="pill s-confirmed">Confirmé</span><span class="ib" aria-label="Actions">⋯</span></div>
+          <div class="row"><div class="grow"><div class="name">#112 · Rue de Dave, Jambes</div><div class="sub">3 oct. · détruit le 10 oct.</div></div><span class="pill s-destroyed">Détruit</span><span class="ib" aria-label="Actions">⋯</span></div>
+        </div>
+      </div>
+    </figure>
+
+    <figure>
+      <figcaption><b>4. Fiche d'un nid.</b> Photos, trois étapes, champs, puis l'action qui fait avancer le nid pour la personne qui regarde (ici un membre de l'association déléguée). Le journal dit qui a fait quoi.</figcaption>
+      <div class="phone"><div class="full">
+        <div class="hd"><span>🏴</span><span class="t">Nid #121</span><span class="pill s-confirmed">Confirmé</span><span class="x">×</span></div>
+        <div class="bd">
+          <div class="photos"><div class="thumb">▧</div><div class="thumb">▧</div><div class="thumb">▧</div><div class="thumb add">＋</div></div>
+          <div class="steps"><div class="d1">Signalé<br>11 oct.</div><div class="d2">Confirmé<br>12 oct.</div><div>Détruit</div></div>
+          <div class="field"><span class="l">Type</span><span class="v">Secondaire</span></div>
+          <div class="field"><span class="l">Hauteur · taille</span><span class="v">10–20 m · 30–50 cm</span></div>
+          <div class="field"><span class="l">Lieu</span><span class="v">Privé</span></div>
+          <div class="field"><span class="l">Délégué à</span><span class="v">Abeilles de Vedrin</span></div>
+          <div class="field"><span class="l">Pris en charge par</span><span class="v">personne</span></div>
+          <div class="sub multi" style="margin:8px 0">⌖ Chemin du Moulin 14, 5004 Bouge</div>
+          <div class="bar"><span class="btn pri" style="margin:0;flex:1">🙋 Je m'en charge</span><span class="ib" aria-label="Localiser">⌖</span><span class="ib" aria-label="Plus">⋯</span></div>
+          <div class="sec">Journal</div>
+          <div class="log">
+            <div class="ev"><span class="ic">👥</span><div class="grow"><b>Délégué aux Abeilles de Vedrin</b><div class="sub">13 oct. · Anne C., coordinatrice</div></div></div>
+            <div class="ev"><span class="ic">🔍</span><div class="grow"><b>Visite : nid actif</b><div class="sub">12 oct. · Anne C. · secondaire, dans un chêne</div></div></div>
+            <div class="ev"><span class="ic">🏴</span><div class="grow"><b>Signalement</b><div class="sub">11 oct. · Julie M. · 2 photos</div></div></div>
+          </div>
+        </div>
+      </div></div>
+    </figure>
+
+    <figure>
+      <figcaption><b>5. Menu d'un nid (coordinateur).</b> <code>BottomSheet</code> ouvert par ⋯ ; seules les actions permises apparaissent, d'après <code>permissions</code> renvoyé par l'API.</figcaption>
+      <div class="phone"><div class="nav"><span class="back">‹ Accueil</span><span class="cur">Nids</span><span class="menu">☰</span></div>
+        <div class="body">
+          <div class="tabs"><span>À traiter <b class="cnt">4</b></span><span class="on">Nids</span></div>
+          <div class="row"><div class="grow"><div class="name">#121 · Chemin du Moulin, Bouge</div><div class="sub">11 oct. · non délégué</div></div><span class="pill s-confirmed">Confirmé</span></div>
+        </div>
+        <div class="veil"></div>
+        <div class="sheet"><div class="grip"></div>
+          <div class="row" style="border:0;min-height:0;padding-top:0"><div class="grow"><h4>Nid #121</h4><div class="sub">Confirmé · non délégué</div></div></div>
+          <span class="btn left">👥 Déléguer à une association</span>
+          <span class="btn left">✅ Enregistrer la destruction</span>
+          <span class="btn left">🔍 Nouvelle visite</span>
+          <span class="btn left">⌖ Localiser</span>
+          <span class="btn left">✏️ Modifier</span>
+          <span class="btn left">↔ Déplacer</span>
+          <span class="btn left">⧉ Fusionner avec un autre nid</span>
+          <span class="btn left">🕘 Historique</span>
+        </div>
+      </div>
+    </figure>
+
+    <figure>
+      <figcaption><b>6. Déléguer.</b> Les associations qui ont un rucher à moins de 1 km du nid d'abord, puis les autres. Leurs administrateurs sont prévenus (« Nids confiés »).</figcaption>
+      <div class="phone"><div class="nav"><span class="back">‹ Accueil</span><span class="cur">Nids</span><span class="menu">☰</span></div>
+        <div class="body"><div class="tabs"><span class="on">À traiter <b class="cnt">4</b></span><span>Nids</span></div></div>
+        <div class="veil"></div>
+        <div class="sheet"><div class="grip"></div>
+          <h4>Déléguer le nid #121</h4>
+          <div class="sec">Ruchers à moins de 1 km</div>
+          <div class="row"><div class="thumb" style="border-radius:50%">AV</div><div class="grow"><div class="name">Abeilles de Vedrin</div><div class="sub">2 ruchers proches · 3 nids en cours</div></div></div>
+          <div class="row"><div class="thumb" style="border-radius:50%">RN</div><div class="grow"><div class="name">Rucher namurois</div><div class="sub">1 rucher proche · 1 nid en cours</div></div></div>
+          <div class="sec">Autres associations</div>
+          <div class="row"><div class="thumb" style="border-radius:50%">RJ</div><div class="grow"><div class="name">Rucher-école de Jambes</div><div class="sub">2 nids en cours</div></div></div>
+          <div class="row"><div class="thumb" style="border-radius:50%">AG</div><div class="grow"><div class="name">Apis Gembloux</div><div class="sub">aucun nid en cours</div></div></div>
+        </div>
+      </div>
+    </figure>
+
+    <figure>
+      <figcaption><b>7. Confier à un membre</b> (administrateur d'association). Les membres de l'association, avec le nombre de nids dont ils sont chargés. La personne choisie est prévenue.</figcaption>
+      <div class="phone"><div class="nav"><span class="back">‹ Accueil</span><span class="cur">Nids</span><span class="menu">☰</span></div>
+        <div class="body"><div class="tabs"><span class="on">À traiter <b class="cnt">2</b></span><span>Nids</span></div></div>
+        <div class="veil"></div>
+        <div class="sheet"><div class="grip"></div>
+          <h4>Confier le nid #121</h4>
+          <div class="sub" style="margin-bottom:6px">Abeilles de Vedrin</div>
+          <div class="input" style="margin-bottom:6px">Chercher un membre</div>
+          <div class="row"><div class="thumb" style="border-radius:50%">PL</div><div class="grow"><div class="name">Moi</div><div class="sub">1 nid en charge</div></div></div>
+          <div class="row"><div class="thumb" style="border-radius:50%">MD</div><div class="grow"><div class="name">Marc D.</div><div class="sub">1 nid en charge</div></div></div>
+          <div class="row"><div class="thumb" style="border-radius:50%">LV</div><div class="grow"><div class="name">Lucie V.</div><div class="sub">aucun nid en charge</div></div></div>
+          <div class="row"><div class="thumb" style="border-radius:50%">TB</div><div class="grow"><div class="name">Thomas B.</div><div class="sub">2 nids en charge</div></div></div>
+        </div>
+      </div>
+    </figure>
+
+    <figure>
+      <figcaption><b>8. Visite.</b> Le résultat d'abord ; les champs n'apparaissent que pour un nid actif. Le type est pré-choisi d'après la date du signalement (octobre : secondaire). La personne qui a signalé est prévenue d'une confirmation ou d'un rejet.</figcaption>
+      <div class="phone"><div class="full">
+        <div class="hd"><span>🔍</span><span class="t">Visite du nid #128</span><span class="x">×</span></div>
+        <div class="bd">
+          <div class="lbl">Résultat</div>
+          <div class="chips"><span class="chip on">Nid actif</span><span class="chip">Nid vide</span><span class="chip">Autre espèce</span><span class="chip">Introuvable</span></div>
+          <div class="lbl">Type de nid <span class="help">?</span></div>
+          <div class="seg" style="margin:0"><span>Primaire</span><span class="on">Secondaire</span><span>Je ne sais pas</span></div>
+          <div class="note" style="margin-top:4px">Pré-choisi : signalé en octobre.</div>
+          <div class="lbl">Hauteur estimée</div>
+          <div class="chips"><span class="chip">&lt; 2 m</span><span class="chip">2–5 m</span><span class="chip on">5–10 m</span><span class="chip">10–20 m</span><span class="chip">&gt; 20 m</span></div>
+          <div class="lbl">Taille estimée</div>
+          <div class="chips"><span class="chip">&lt; 10 cm</span><span class="chip">10–30 cm</span><span class="chip on">30–50 cm</span><span class="chip">&gt; 50 cm</span></div>
+          <div class="lbl">Photos <span class="opt">facultatif</span></div>
+          <div class="drop">📷 Ajouter</div>
+          <div class="lbl">Commentaire</div>
+          <div class="input textarea val">Accès par le jardin du voisin</div>
+        </div>
+        <div class="ft"><span class="btn pri">✓ Enregistrer</span></div>
+      </div></div>
+    </figure>
+
+    <figure>
+      <figcaption><b>9. Destruction (coordinateur, association).</b> Intervenant à choix unique, moyens à choix multiples (la perche et le retrait du nid vont souvent ensemble), pas de produit. Le n° FixMyStreet relie le nid au dossier de la Région.</figcaption>
+      <div class="phone"><div class="full">
+        <div class="hd"><span>✅</span><span class="t">Destruction du nid #121</span><span class="x">×</span></div>
+        <div class="bd">
+          <div class="lbl">Date</div>
+          <div class="input val">15/10/2026</div>
+          <div class="lbl">Par</div>
+          <div class="chips"><span class="chip on">FixMyStreet</span><span class="chip">Entreprise privée</span><span class="chip">Pompiers</span><span class="chip">Commune</span><span class="chip">Autre</span></div>
+          <div class="lbl">N° FixMyStreet <span class="opt">facultatif</span></div>
+          <div class="input" style="font-family:var(--mono)">ex. 123456</div>
+          <div class="lbl">Moyens <span class="opt">plusieurs possibles</span></div>
+          <div class="chips"><span class="chip check on">Perche</span><span class="chip check">Nacelle</span><span class="chip check on">Nid retiré</span><span class="chip check">Autre</span></div>
+          <div class="lbl">Photo <span class="opt">facultatif</span></div>
+          <div class="drop">📷 Ajouter</div>
+          <p class="note">La personne qui a signalé ce nid sera prévenue.</p>
+        </div>
+        <div class="ft"><span class="btn pri">✓ Enregistrer</span></div>
+      </div></div>
+    </figure>
+
+    <figure>
+      <figcaption><b>10. Signaler : où est le nid ?</b> La position du téléphone avec sa précision, la carte avec le réticule, ou une adresse (la recherche d'adresse des pièges).</figcaption>
+      <div class="phone"><div class="nav"><span class="back">‹ Accueil</span><span class="cur">Nids</span><span class="menu">☰</span></div>
+        <div class="body">
+          <div class="bar"><span class="btn pri" style="margin:0;flex:1">＋ Signaler</span><span class="ib">🗺</span></div>
+          <div class="tabs"><span class="on">À traiter <b class="cnt">2</b></span><span>Nids</span></div>
+        </div>
+        <div class="veil"></div>
+        <div class="sheet"><div class="grip"></div>
+          <h4>Où est le nid ?</h4>
+          <div class="sub multi" style="margin-bottom:6px">Placez-le où se trouve le nid, pas où vous êtes si vous le voyez de loin.</div>
+          <span class="btn left pri">⌖ Ma position <span style="margin-left:auto;font-weight:400;opacity:.85">± 8 m</span></span>
+          <span class="btn left">🗺 Choisir sur la carte</span>
+          <span class="btn left">🔎 Une adresse</span>
+        </div>
+      </div>
+    </figure>
+
+    <figure>
+      <figcaption><b>11. Signaler : le formulaire.</b> Un nid connu à moins de 50 m est montré à qui voit tous les nids ; « C'est le même nid » rejoint ce signalement au lieu d'en créer un. « État du nid : Vide » enregistre un nid abandonné, sans alerte aux apiculteurs.</figcaption>
+      <div class="phone"><div class="full">
+        <div class="hd"><span>🏴</span><span class="t">Signaler un nid</span><span class="x">×</span></div>
+        <div class="bd">
+          <div class="alert warn"><b>Un nid est déjà signalé à 35 m</b> : #118, confirmé il y a 3 jours.
+            <div class="acts"><span class="btn">C'est le même nid</span><span class="btn">C'est un autre nid</span></div></div>
+          <div class="lbl">Photos <span class="help">?</span></div>
+          <div class="drop">📷 Prendre ou choisir des photos</div>
+          <div class="lbl">État du nid <span class="help">?</span></div>
+          <div class="seg" style="margin:0"><span class="on">Actif</span><span>Vide</span><span>Je ne sais pas</span></div>
+          <div class="lbl">Lieu</div>
+          <div class="seg" style="margin:0"><span class="on">Privé</span><span>Public (parc, rue…)</span></div>
+          <div class="lbl">Hauteur estimée <span class="opt">facultatif</span></div>
+          <div class="chips"><span class="chip">&lt; 2 m</span><span class="chip">2–5 m</span><span class="chip">5–10 m</span><span class="chip on">10–20 m</span><span class="chip">&gt; 20 m</span></div>
+          <div class="lbl">Adresse</div>
+          <div class="input val">Rue de Hemptinne 3, 5020 Vedrin</div>
+        </div>
+        <div class="ft"><span class="btn pri">🏴 Signaler</span></div>
+      </div></div>
+    </figure>
+
+    <figure>
+      <figcaption><b>12. Mes signalements (piégeur).</b> Pour qui ne traite pas les nids, l'onglet « À traiter » devient « Mes signalements ». Chaque nid montre où il en est ; « Détruit ? » est là tant qu'il ne l'est pas.</figcaption>
+      <div class="phone"><div class="nav"><span class="back">‹ Accueil</span><span class="cur">Nids</span><span class="menu">☰</span></div>
+        <div class="body">
+          <div class="bar"><span class="btn pri" style="margin:0;flex:1">＋ Signaler</span><span class="ib">🗺</span></div>
+          <div class="sec"><span>Mes signalements · saison 2026</span><span>4</span></div>
+          <div class="row"><div class="thumb">▧</div><div class="grow"><div class="name">#128 · Vedrin</div><div class="mini s-reported"><i class="on"></i><i></i><i></i> <span>en attente de visite</span></div></div><span class="btn sm">Détruit ?</span></div>
+          <div class="row"><div class="thumb">▧</div><div class="grow"><div class="name">#121 · Bouge</div><div class="mini s-confirmed"><i class="on"></i><i class="on"></i><i></i> <span>une association s'en occupe</span></div></div><span class="btn sm">Détruit ?</span></div>
+          <div class="row"><div class="thumb">▧</div><div class="grow"><div class="name">#112 · Jambes</div><div class="mini s-destroyed"><i class="on"></i><i class="on"></i><i class="on"></i> <span>détruit le 10 oct.</span></div></div><span class="pill s-destroyed">Détruit</span></div>
+          <div class="row"><div class="thumb">▧</div><div class="grow"><div class="name">#105 · Erpent</div><div class="sub">autre espèce : frelon européen</div></div><span class="pill s-rejected">Écarté</span></div>
+        </div>
+      </div>
+    </figure>
+
+    <figure>
+      <figcaption><b>13. « Détruit ? » : la personne qui a signalé.</b> Un formulaire court : date et intervenant ; le reste est facultatif. Le nid passe <i>Détruit</i> ; le journal dit qui l'a déclaré, un coordinateur peut corriger.</figcaption>
+      <div class="phone"><div class="nav"><span class="back">‹ Accueil</span><span class="cur">Nids</span><span class="menu">☰</span></div>
+        <div class="body">
+          <div class="sec"><span>Mes signalements · saison 2026</span><span>4</span></div>
+          <div class="row"><div class="thumb">▧</div><div class="grow"><div class="name">#128 · Vedrin</div><div class="sub">en attente de visite</div></div></div>
+        </div>
+        <div class="veil"></div>
+        <div class="sheet"><div class="grip"></div>
+          <h4>Le nid #128 a été détruit ?</h4>
+          <div class="lbl" style="margin-top:12px">Quand</div>
+          <div class="input val">14/10/2026</div>
+          <div class="lbl">Par</div>
+          <div class="chips"><span class="chip on">FixMyStreet</span><span class="chip">Entreprise privée</span><span class="chip">Pompiers</span><span class="chip">Commune</span><span class="chip">Je ne sais pas</span></div>
+          <div class="lbl">Photo <span class="opt">facultatif</span></div>
+          <div class="drop">📷 Ajouter</div>
+          <span class="btn pri" style="margin-top:12px">✓ Oui, il a été détruit</span>
+        </div>
+      </div>
+    </figure>
+
+    <figure>
+      <figcaption><b>14. Fusionner deux signalements.</b> Ouvert depuis « Doublons possibles ». Le nid gardé est entouré (le plus ancien par défaut, un toucher change le choix) ; ce qui se passe est écrit avant de confirmer.</figcaption>
+      <div class="phone"><div class="full">
+        <div class="hd"><span>⧉</span><span class="t">Doublon possible</span><span class="x">×</span></div>
+        <div class="bd">
+          <div class="cmp">
+            <div class="keep"><div class="thumb">▧</div><b>#118 · garder</b><span class="pill s-confirmed">Confirmé</span><div class="sub">12 oct. · 3 photos</div><div class="sub">Julie M.</div></div>
+            <div><div class="thumb">▧</div><b>#127</b><span class="pill s-reported">Signalé</span><div class="sub">13 oct. · 1 photo</div><div class="sub">Pierre L.</div></div>
+          </div>
+          <div class="field"><span class="l">Distance</span><span class="v">35 m</span></div>
+          <div class="field"><span class="l">Lieu</span><span class="v">public · public</span></div>
+          <div class="field"><span class="l">Hauteur</span><span class="v">10–20 m · non dite</span></div>
+          <p class="note" style="font-size:.86rem;color:var(--ink)">La photo et le journal de #127 rejoignent #118. Pierre L. suivra #118. #127 disparaît des listes ; l'historique garde sa trace.</p>
+        </div>
+        <div class="ft" style="display:flex;gap:8px"><span class="btn" style="margin:0">Pas un doublon</span><span class="btn pri" style="margin:0">⧉ Fusionner</span></div>
+      </div></div>
+    </figure>
+
+    <figure>
+      <figcaption><b>15. Les notifications reçues.</b> Jeudi, 9 h : ouverture de la fenêtre, ce qui est arrivé la nuit part ensemble. La commune, jamais l'adresse.</figcaption>
+      <div class="lock">
+        <div class="time">9:00</div><div class="date">jeudi 15 octobre</div>
+        <div class="notif"><div class="ap">V</div><div class="grow"><div class="top"><b>Nid près de votre rucher</b><small>9:00</small></div>Nid #128 signalé à Vedrin, à moins de 1 km de votre rucher « Verger ».<div class="who">propriétaire de rucher</div></div></div>
+        <div class="notif"><div class="ap">V</div><div class="grow"><div class="top"><b>Nid près d'un rucher de votre association</b><small>9:00</small></div>Nid #128 à Vedrin, à moins de 1 km d'un rucher des Abeilles de Vedrin.<div class="who">administrateur d'association</div></div></div>
+        <div class="notif"><div class="ap">V</div><div class="grow"><div class="top"><b>3 nouveaux nids signalés</b><small>9:00</small></div>Vedrin, Champion, Jambes.<div class="who">coordinateur, ou apiculteur qui l'a choisi</div></div></div>
+        <div class="notif"><div class="ap">V</div><div class="grow"><div class="top"><b>Nid délégué à votre association</b><small>hier</small></div>Nid #121 à Bouge · confirmé · 10–20 m.<div class="who">administrateur d'association</div></div></div>
+        <div class="notif"><div class="ap">V</div><div class="grow"><div class="top"><b>Un nid vous est confié</b><small>hier</small></div>Nid #121 à Bouge, par les Abeilles de Vedrin.<div class="who">membre de l'association</div></div></div>
+        <div class="notif"><div class="ap">V</div><div class="grow"><div class="top"><b>Votre signalement a avancé</b><small>hier</small></div>Le nid #112 a été détruit le 10 oct. Merci !<div class="who">personne qui a signalé</div></div></div>
+      </div>
+    </figure>
+
+    <figure>
+      <figcaption><b>16. Module Notifications (apiculteur).</b> « Tous les nouveaux nids » est coupé tant que l'apiculteur ne l'active pas ; les autres lignes sont activées. Un coordinateur voit la première ligne activée ; un piégeur ne voit que « Suivi de mes signalements ».</figcaption>
+      <div class="phone"><div class="nav"><span class="back">‹ Accueil</span><span class="cur">Notifications</span><span class="menu">☰</span></div>
+        <div class="body">
+          <div class="sec">Sur cet appareil</div>
+          <div class="card"><div class="trow"><div class="ic">📱</div><div class="grow"><div class="name" style="font-weight:500">Cet appareil</div><div class="sub">Android · Chrome</div></div><span class="sw on"></span></div></div>
+          <div class="sec"><span>Nids</span><span class="badge-new">nouveau</span></div>
+          <div class="card">
+            <div class="trow"><div class="ic">🏴</div><div class="grow"><div class="name" style="font-weight:500">Tous les nouveaux nids <span class="help">?</span></div><div class="sub">9 h, 10 h le dimanche</div></div><span class="sw"></span></div>
+            <div class="trow"><div class="ic">🍯</div><div class="grow"><div class="name" style="font-weight:500">Nids près de mes ruchers <span class="help">?</span></div><div class="sub">à moins de 1 km</div></div><span class="sw on"></span></div>
+            <div class="trow"><div class="ic">👥</div><div class="grow"><div class="name" style="font-weight:500">Nids confiés <span class="help">?</span></div></div><span class="sw on"></span></div>
+            <div class="trow"><div class="ic">📍</div><div class="grow"><div class="name" style="font-weight:500">Suivi de mes signalements <span class="help">?</span></div></div><span class="sw on"></span></div>
+          </div>
+          <div class="sec">Pièges</div>
+          <div class="card">
+            <div class="trow"><div class="ic">🪤</div><div class="grow"><div class="name" style="font-weight:500">Rappels de relevé</div></div><span class="sw on"></span></div>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+    <figure>
+      <figcaption><b>17. Localiser.</b> La carte en mode <code>nest</code>, centrée sur le nid, « ‹ Nids » ramène à la liste. Saison en cours seulement ; repères à la couleur du statut, écartés et abandonnés cachés par défaut.</figcaption>
+      <div class="phone"><div class="nav"><span class="back">‹ Accueil</span><span class="cur">Carte</span><span class="menu">☰</span></div>
+        <div class="map" aria-hidden="true">
+          <span class="mk reported" style="left:22%;top:20%"></span>
+          <span class="mk confirmed sel" style="left:48%;top:42%"></span>
+          <span class="mk confirmed" style="left:70%;top:30%"></span>
+          <span class="mk destroyed" style="left:30%;top:60%"></span>
+          <span class="mk destroyed" style="left:62%;top:66%"></span>
+          <span class="mk reported" style="left:80%;top:52%"></span>
+        </div>
+        <span class="backbar">‹ Nids</span>
+        <span class="fab" style="bottom:136px">⌖</span>
+        <span class="fab" style="bottom:80px">◫</span>
+        <span class="fab pri" style="bottom:20px">＋</span>
+        <div class="legend">
+          <span class="pill s-reported">Signalé</span>
+          <span class="pill s-confirmed">Confirmé</span>
+          <span class="pill s-destroyed">Détruit</span>
+        </div>
+      </div>
+    </figure>
+
+  </div>
+</section>
+
+<section id="technique" class="prose">
+  <h2 class="part"><span class="n">09</span>Données et API</h2>
+  <h3>Modèle</h3>
+  <ul>
+    <li><code>Nest</code> : <code>status</code> (<code>reported</code>, <code>confirmed</code>, <code>destroyed</code>, <code>rejected</code>, <code>abandoned</code>, indexé), <code>group</code> (FK <code>BeekeeperGroup</code>, comme <code>Trap.group</code>), <code>assignee</code> (FK <code>User</code>), <code>nest_type</code>, <code>height_class</code>, <code>size_class</code>, <code>duplicate_of</code> (FK <code>Nest</code>), <code>last_event_at</code>. <code>destroyed</code> et <code>destroyed_at</code> restent, recalculés.</li>
+    <li><code>NestEvent</code>, sur le modèle de <code>TrapEvent</code> : <code>kind</code> (<code>report</code>, <code>visit</code>, <code>destruction</code>, <code>delegation</code>, <code>assignment</code>, <code>merge</code>, <code>season_end</code>, <code>reactivation</code>, <code>note</code>), <code>performed_at</code>, <code>performed_by</code>, <code>outcome</code> (<code>active</code>, <code>empty</code>, <code>other_species</code>, <code>not_found</code>), <code>actor</code> (<code>fixmystreet</code>, <code>company</code>, <code>firefighters</code>, <code>municipality</code>, <code>other</code>, <code>unknown</code>), <code>fixmystreet_ref</code>, <code>means</code> (liste : <code>pole</code>, <code>lift</code>, <code>removed</code>, <code>other</code>), <code>comments</code>. Les personnes qui suivent un nid sont les auteurs de ses <code>report</code> : pas de table de plus. <code>NestPhoto.event</code> facultatif.</li>
+    <li><code>NestAlert</code> : (nid, personne) unique, <code>kind</code>, <code>sent_at</code> : une notification par nid et par personne, passage idempotent.</li>
+    <li>Migration de données : un <code>report</code> par nid ; une <code>destruction</code> par nid détruit (<code>actor=unknown</code>) ; les nids non détruits des saisons passées passent <code>abandoned</code>.</li>
+  </ul>
+  <h3>API</h3>
+  <ul>
+    <li><code>GET /api/nests/managed/</code> (portée <code>show=all|mine|group</code>, statut, recherche, tri, pagination, saison courante) et <code>GET /api/nests/todo/</code>.</li>
+    <li><code>POST /api/nests/&lt;id&gt;/events/</code> (visite, destruction), <code>POST /api/nests/&lt;id&gt;/delegation/</code>, <code>POST /api/nests/&lt;id&gt;/assign/</code>, <code>POST /api/nests/&lt;id&gt;/merge/</code>, <code>POST /api/nests/&lt;id&gt;/join/</code> (rejoindre un signalement).</li>
+    <li><code>permissions</code> du sérialiseur : <code>visit</code>, <code>destroy</code>, <code>delegate</code>, <code>take</code>, <code>assign</code>, <code>merge</code>, <code>move</code>, en plus de l'existant.</li>
+  </ul>
+  <h3>Ce que le reste du code demande</h3>
+  <ul>
+    <li>Audit : <code>nest.visited</code>, <code>nest.delegated</code>, <code>nest.assigned</code>, <code>nest.joined</code>, <code>nest.merged</code>, <code>nest.event_deleted</code> dans <code>audit/actions.py</code> et <code>ACTION_LABELS</code> (<code>nest.destroyed</code> existe) ; nouveaux champs dans <code>FIELDS</code> et <code>FIELD_LABELS</code> ; <code>assignee</code> dans <code>PERSON_FIELDS</code>.</li>
+    <li>Notifications : quatre sortes dans <code>notification_kinds.py</code>, avec un défaut par sorte et par rôle ; une tâche dans <code>run_scheduler</code> qui reprend la fenêtre de <code>reminders.py</code> ; <code>manage.py send_nest_alerts --dry-run</code>. Propriétaires des ruchers : <code>Apiary.owner</code> dans un rayon de 1 km ; associations : <code>ApiaryGroupPermission</code>.</li>
+    <li>Aide : <code>NestsDoc</code> réécrite et <code>anchors.ts</code> ; <code>AdminDoc</code> pour les nouvelles actions tracées.</li>
+    <li>Prod : pas de changement Keycloak ; les migrations passent avec <code>./deploy.sh</code>.</li>
+  </ul>
+</section>
+
+<section id="lots" class="prose">
+  <h2 class="part"><span class="n">10</span>Étapes</h2>
+  <p>Repère : les rappels de pièges ont fait environ 1 800 lignes (830 côté API, 980 côté interface). Estimations dans cette unité, tests compris, marge large.</p>
+</section>
+<div class="lots">
+  <div class="lot"><h3>Lot 1 · socle et notifications</h3><ul><li>Statuts, journal, migration, abandon après l'hiver</li><li>Fiche, liste de la saison, « Mes signalements », « Détruit ? » de la personne qui a signalé, nid vide</li><li>Visite et destruction (coordinateurs)</li><li>Notifications : nouveaux nids, près de mes ruchers, suivi</li></ul><div class="size">≈ 2 500 à 4 000 lignes</div></div>
+  <div class="lot"><h3>Lot 2 · associations</h3><ul><li>Onglet « À traiter » selon le rôle</li><li>Délégation, « Je m'en charge », « Confier »</li><li>Notification « Nids confiés »</li><li>Déplacer sur la carte (<code>nest-move</code>)</li></ul><div class="size">≈ 1 500 à 2 500 lignes</div></div>
+  <div class="lot"><h3>Lot 3 · doublons</h3><ul><li>Avertissement à 50 m, « C'est le même nid »</li><li>Marque <code>duplicate_of</code>, comparaison et fusion</li></ul><div class="size">≈ 800 à 1 500 lignes</div></div>
+</div>
+
+<section id="questions" class="prose">
+  <h2 class="part"><span class="n">11</span>Décisions</h2>
+  <p>Les quatre questions de la version 2, validées le 15 octobre 2026 :</p>
+  <ol class="q">
+    <li><div><b>Membre chargé d'un nid</b> : il déclare la destruction, comme la personne qui a signalé. La visite reste aux coordinateurs et aux administrateurs de l'association déléguée.</div></li>
+    <li><div><b>Fenêtre d'envoi</b> : de 9 h (10 h le dimanche) à 20 h, heure de Bruxelles. Ce qui arrive la nuit part à l'ouverture ; en journée, au passage suivant (10 minutes au plus).</div></li>
+    <li><div><b>Abandon après l'hiver</b> : le 1<sup>er</sup> mars, réglable.</div></li>
+    <li><div><b>Nid vide</b> : seuls les coordinateurs sont prévenus, pas les apiculteurs.</div></li>
+  </ol>
+</section>
+
+</div>
+</body>
+</html>

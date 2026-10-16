@@ -31,7 +31,7 @@ function StatusBadge({ object }: { object: MapObject }) {
   }
   if (object.type === MapObjectType.NEST && object.data) {
     const destroyed = (object.data as Nest).destroyed;
-    return <Badge bg={destroyed ? 'secondary' : 'danger'}>{destroyed ? 'Détruit' : 'Actif'}</Badge>;
+    return <Badge bg={destroyed ? 'secondary' : 'danger'}>{destroyed ? 'Neutralisé' : 'Actif'}</Badge>;
   }
   return null;
 }

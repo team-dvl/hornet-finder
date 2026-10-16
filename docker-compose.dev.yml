@@ -42,7 +42,7 @@ services:
     build: ./backend
     container_name: hornet-finder-dev-api
     image: hornet-finder-dev-api
-    environment:
+    environment: &api-environment
       - DEBUG=True
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
       - HOST=dev.velutina.ovh
@@ -56,6 +56,12 @@ services:
       - TAG_HMAC_ACTIVE_INDEX=${TAG_HMAC_ACTIVE_INDEX}
       - TAG_SITE_ID=${TAG_SITE_ID}
       - AUDIT_RETENTION_DAYS=${AUDIT_RETENTION_DAYS:-365}
+      # Web Push (empty: notifications off); `manage.py generate_vapid_keys`
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY:-}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY:-}
+      - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:contact@velutina.ovh}
+      - PUSH_HISTORY_DAYS=${PUSH_HISTORY_DAYS:-90}
+      - PUSH_DEVICE_IDLE_DAYS=${PUSH_DEVICE_IDLE_DAYS:-183}
       - KC_INTERNAL_URL=http://hornet-finder-dev-keycloak:8080/
       - KC_REALM=hornet-finder-dev
       - EMAIL_HOST=hornet-finder-dev-mailpit
@@ -67,6 +73,19 @@ services:
     depends_on:
       - hornet-finder-dev-api-db
       - hornet-finder-dev-keycloak
+
+  # Periodic jobs (trap reminders): the API image, running `manage.py
+  # run_scheduler` instead of gunicorn (the image entrypoint always starts
+  # gunicorn, hence the entrypoint override). Reads the same environment.
+  hornet-finder-dev-scheduler:
+    build: ./backend
+    container_name: hornet-finder-dev-scheduler
+    image: hornet-finder-dev-scheduler
+    entrypoint: ["python", "manage.py", "run_scheduler"]
+    environment: *api-environment
+    depends_on:
+      - hornet-finder-dev-api-db
+      - hornet-finder-dev-api
 
   # Database Keycloak pour DEV
   hornet-finder-dev-keycloak-db:
@@ -100,6 +119,10 @@ services:
   nginx:
     image: nginx:1.29.0
     container_name: hornet-finder-dev-nginx
+    # The image stops on SIGQUIT (graceful: waits for every open connection). Dev keeps
+    # websockets open (Vite HMR, Mailpit events) while a tab is open, so the wait ran into
+    # the 10 s SIGKILL. SIGTERM is nginx's fast shutdown: connections are closed at once.
+    stop_signal: SIGTERM
     ports:
       - "${BIND_IP:-0.0.0.0}:${PROXY_PORT:-80}:80"
       - "${BIND_IP:-0.0.0.0}:${PROXY_SSL_PORT:-443}:443"

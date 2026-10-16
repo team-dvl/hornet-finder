@@ -51,27 +51,9 @@ export const useUserPermissions = () => {
   const userEmail = profile?.email;
   const userGuid = profile?.sub;
 
-  // Fonction utilitaire pour comparer created_by (objet)
-  function isOwner(created_by: { guid: string; display_name: string }): boolean {
-    if (!created_by || !userGuid) return false;
-    return created_by.guid === userGuid;
-  }
-
-  // Fonction pour vérifier si l'utilisateur peut éditer un frelon
-  const canEditHornet = useCallback((hornet: Hornet) => {
-    if (!hornet || !userGuid || !isSignedIn) return false;
-    if (isAdmin) return true;
-    if (!hornet.created_by) return false;
-    return isOwner(hornet.created_by);
-  }, [isAdmin, userGuid, isSignedIn]);
-
-  // Fonction pour vérifier si l'utilisateur peut supprimer un frelon
-  const canDeleteHornet = useCallback((hornet: Hornet) => {
-    if (!hornet || !userGuid || !isSignedIn) return false;
-    if (isAdmin) return true;
-    if (!hornet.created_by) return false;
-    return isOwner(hornet.created_by);
-  }, [isAdmin, userGuid, isSignedIn]);
+  // Modifier ou supprimer un frelon : administrateurs seulement, comme côté backend
+  const canEditHornet = useCallback((hornet: Hornet) => Boolean(hornet) && isSignedIn && isAdmin, [isAdmin, isSignedIn]);
+  const canDeleteHornet = useCallback((hornet: Hornet) => Boolean(hornet) && isSignedIn && isAdmin, [isAdmin, isSignedIn]);
 
   // Les droits sur un nid (modifier, photos, supprimer) viennent du backend : `nest.permissions`
 
@@ -79,9 +61,9 @@ export const useUserPermissions = () => {
   const canArchiveHornet = useCallback(() => isAdmin, [isAdmin]);
   const canArchiveNest = useCallback(() => isAdmin, [isAdmin]);
 
-  // Observations et lâchers de frelons : chasseurs de nids, apiculteurs (au rucher), admins
+  // Observations et lâchers de frelons : chasseurs de nids (formés, donc membres de /hunters) et admins
   const canAddHornet = useMemo(
-    () => isSignedIn && [HUNTER, BEEKEEPER, ADMIN].some((role) => roles.includes(role)),
+    () => isSignedIn && [HUNTER, ADMIN].some((role) => roles.includes(role)),
     [roles, isSignedIn]
   );
 

@@ -84,7 +84,7 @@ export default function NearestNestsSheet({ show, onHide, onSelect }: NearestNes
                 )}
               </span>
               <Badge bg={nest.destroyed ? 'secondary' : 'danger'} className="flex-shrink-0 fw-normal">
-                {nest.destroyed ? 'Détruit' : 'Actif'}
+                {nest.destroyed ? 'Neutralisé' : 'Actif'}
               </Badge>
               <i className="bi bi-chevron-right text-muted flex-shrink-0" aria-hidden="true" />
             </ListGroup.Item>

@@ -95,8 +95,15 @@ export default defineConfig(({ mode }) => {
       },
       VitePWA({
         registerType: 'autoUpdate',
+        // The worker is written by hand (src/sw.ts): caching as before, plus Web Push
+        strategies: 'injectManifest',
+        srcDir: 'src',
+        filename: 'sw.ts',
         devOptions: {
           enabled: true,
+          type: 'module',
+          // The dev worker caches index.html but none of the modules Vite serves
+          navigateFallback: 'index.html',
         },
         // The manifest icons carry a ?v= hash, so they are listed here to be precached
         includeAssets: [
@@ -104,43 +111,12 @@ export default defineConfig(({ mode }) => {
           ...['', '-maskable'].flatMap((m) => ['192x192', '512x512'].map((s) => `icons/pwa${iconSuffix}${m}-${s}.png`)),
         ],
         includeManifestIcons: false,
-        workbox: {
-          // Configuration pour améliorer la persistance des données
-          clientsClaim: true,
-          skipWaiting: true,
-          // The ?v= content hash of the icon URLs still hits their precached copy
-          ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^v$/],
-          // Never the SPA shell for the dev catch-all mailbox (Mailpit behind
-          // nginx), nor for the API: a printing sheet opens as a page (PDF)
-          navigateFallbackDenylist: [/^\/mail\//, /^\/api\//],
-          // Stratégies de cache pour les ressources d'authentification
-          runtimeCaching: [
-            {
-              urlPattern: ({ request, url }) =>
-                request.destination === 'document'
-                && !url.pathname.startsWith('/mail/') && !url.pathname.startsWith('/api/'),
-              handler: 'NetworkFirst',
-              options: {
-                cacheName: 'pages-cache',
-                networkTimeoutSeconds: 3,
-                cacheableResponse: {
-                  statuses: [0, 200],
-                },
-              },
-            },
-            {
-              // Pattern dynamique pour les requêtes auth basé sur l'URL Keycloak
-              urlPattern: ({ url }) => url.toString().startsWith(keycloakUrl.replace(/\/$/, '')),
-              handler: 'NetworkOnly', // Les requêtes auth ne doivent pas être cachées
-            },
-        ],
-      },
       manifest: {
         name: 'Velutina',
         short_name: 'Velutina',
         description: 'Application de signalement des nids de frelons asiatiques',
-        theme_color: '#ffffff',
-        background_color: '#ffffff',
+        theme_color: '#1f1b16',
+        background_color: '#f6f3ee',
         display: 'standalone',
         orientation: 'portrait-primary',
         start_url: '/',

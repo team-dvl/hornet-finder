@@ -15,6 +15,8 @@ export interface AddressSuggestion {
   displayName: string;
   latitude: number;
   longitude: number;
+  /** Extent of the place (a street, a village), as [[south, west], [north, east]] */
+  bounds?: [[number, number], [number, number]];
 }
 
 /** Address of a position, or an empty string when the lookup fails. */
@@ -39,13 +41,18 @@ export async function searchAddress(query: string, limit = 5): Promise<AddressSu
       params: { format: 'json', q: query, limit, countrycodes: COUNTRY_CODES },
       headers: { 'Accept-Language': 'fr' },
     });
-    return (response.data as Array<{ display_name: string; lat: string; lon: string }>).map(
-      (item) => ({
+    type Item = { display_name: string; lat: string; lon: string; boundingbox?: string[] };
+    return (response.data as Item[]).map((item) => {
+      // Nominatim gives the extent as [south, north, west, east]
+      const [south, north, west, east] = (item.boundingbox ?? []).map(parseFloat);
+      const hasBounds = [south, north, west, east].every(Number.isFinite);
+      return {
         displayName: item.display_name,
         latitude: parseFloat(item.lat),
         longitude: parseFloat(item.lon),
-      })
-    );
+        ...(hasBounds && { bounds: [[south, west], [north, east]] as AddressSuggestion['bounds'] }),
+      };
+    });
   } catch {
     console.warn("La recherche d'adresse a échoué");
     return [];

@@ -2,19 +2,22 @@ import { useState } from 'react';
 import { ListGroup } from 'react-bootstrap';
 import { BottomSheet } from '../ui';
 import { OBJECT_ICONS } from '../../utils/icons';
+import type { CrosshairSource } from './LocateButton';
 
 interface AddActionsButtonProps {
   /** Hornet seen from here: position and compass direction */
   onQuickHornetCapture?: () => void;
   onAddTrap?: () => void;
   onScanTag?: () => void;
+  /** Where the crosshair was placed from: the additions go there */
+  crosshair?: CrosshairSource | null;
 }
 
 /**
  * The "+" map button: the additions that do not start from a point of the
  * map (a tap on the map offers the others, at that point).
  */
-export default function AddActionsButton({ onQuickHornetCapture, onAddTrap, onScanTag }: AddActionsButtonProps) {
+export default function AddActionsButton({ onQuickHornetCapture, onAddTrap, onScanTag, crosshair = null }: AddActionsButtonProps) {
   const [open, setOpen] = useState(false);
   const run = (action: () => void) => () => {
     setOpen(false);
@@ -24,11 +27,14 @@ export default function AddActionsButton({ onQuickHornetCapture, onAddTrap, onSc
   const actions = [
     onQuickHornetCapture && {
       key: 'hornet', icon: <span aria-hidden="true">{OBJECT_ICONS.hornet}</span>, label: 'Frelon vu d\'ici',
-      hint: 'Ma position et la direction de vol à la boussole', onClick: onQuickHornetCapture,
+      hint: crosshair === 'address'
+        ? 'Au viseur, direction de vol à la boussole'
+        : 'Ma position et la direction de vol à la boussole',
+      onClick: onQuickHornetCapture,
     },
     onAddTrap && {
       key: 'trap', icon: <span aria-hidden="true">{OBJECT_ICONS.trap}</span>, label: 'Piège',
-      hint: 'Par son adresse', onClick: onAddTrap,
+      hint: crosshair ? 'Au viseur' : 'Par son adresse', onClick: onAddTrap,
     },
     onScanTag && {
       key: 'scan', icon: <i className="bi bi-qr-code-scan" aria-hidden="true" />, label: 'Scanner un QR Code',

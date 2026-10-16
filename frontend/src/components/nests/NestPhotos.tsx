@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Spinner } from 'react-bootstrap';
 import { useAppDispatch } from '../../store/hooks';
-import { addNestPhotos, type NestPhoto } from '../../store/store';
+import { addNestPhotos, type Nest, type NestPhoto } from '../../store/store';
 import { AuthImage } from '../common';
 import { resizeImage } from '../../utils/imageResize';
 
@@ -13,10 +13,12 @@ interface NestPhotosProps {
   /** Opens a photo full size, where it can also be removed */
   onOpen: (photo: NestPhoto) => void;
   onError: (message: string | null) => void;
+  /** The nest as it is once the photos are added */
+  onChanged?: (nest: Nest) => void;
 }
 
 /** Thumbnails of a nest's photos, with a tile to add some (camera on a phone). */
-export default function NestPhotos({ nestId, photos, canAdd, onOpen, onError }: NestPhotosProps) {
+export default function NestPhotos({ nestId, photos, canAdd, onOpen, onError, onChanged }: NestPhotosProps) {
   const dispatch = useAppDispatch();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -31,7 +33,8 @@ export default function NestPhotos({ nestId, photos, canAdd, onOpen, onError }: 
     onError(null);
     try {
       const resized = await Promise.all(selected.map((file) => resizeImage(file)));
-      await dispatch(addNestPhotos({ id: nestId, photos: resized })).unwrap();
+      const nest = await dispatch(addNestPhotos({ id: nestId, photos: resized })).unwrap();
+      onChanged?.(nest);
     } catch (uploadError) {
       onError(typeof uploadError === 'string' ? uploadError : "Les photos n'ont pas pu être ajoutées");
     } finally {

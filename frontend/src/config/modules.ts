@@ -7,7 +7,7 @@ import { APP_ROLES, BEEKEEPER, ADMIN } from '../utils/roles';
  * those realm roles (see `visibleModules` below); the route itself is guarded
  * by RequireRole.
  */
-export type ModuleId = 'map' | 'nests' | 'traps' | 'apiaries' | 'stats' | 'admin' | 'account';
+export type ModuleId = 'map' | 'nests' | 'traps' | 'apiaries' | 'stats' | 'admin' | 'notifications' | 'account';
 
 /**
  * Colour family of a module's icon: the field modules take the colour of what
@@ -27,6 +27,8 @@ export interface ModuleDefinition {
   tone: ModuleTone;
   /** Internal route. Absent for modules resolved at runtime (account console). */
   path?: string;
+  /** Where the tile and the menu lead, when it is not `path` (a sub-page of the module) */
+  landing?: string;
   badge?: string;
   requiredRoles?: string[];
 }
@@ -43,9 +45,9 @@ export const MODULES: ModuleDefinition[] = [
   },
   {
     id: 'nests',
-    title: 'Recherche des nids',
+    title: 'Gestion des nids',
     shortTitle: 'Nids',
-    description: 'Cartographiez les observations de frelons, les nids et les ruchers.',
+    description: "Signalez un nid et suivez-le jusqu'à sa neutralisation.",
     icon: 'bi-geo-alt-fill',
     tone: 'nest',
     path: '/nests',
@@ -58,6 +60,8 @@ export const MODULES: ModuleDefinition[] = [
     icon: 'bi-bullseye',
     tone: 'trap',
     path: '/traps',
+    // What waits for a visit comes first; the management list is the other tab
+    landing: '/traps/due',
   },
   {
     id: 'apiaries',
@@ -91,6 +95,16 @@ export const MODULES: ModuleDefinition[] = [
     requiredRoles: APP_ROLES,
   },
   {
+    id: 'notifications',
+    title: 'Notifications',
+    shortTitle: 'Notifications',
+    description: 'Choisissez les rappels et les messages que vous recevez, et sur quels appareils.',
+    icon: 'bi-bell',
+    tone: 'plain',
+    path: '/notifications',
+    requiredRoles: APP_ROLES,
+  },
+  {
     id: 'account',
     title: 'Mon compte',
     shortTitle: 'Compte',
@@ -114,7 +128,8 @@ export function visibleModules(roles: string[]): ModuleDefinition[] {
  * admin can use is not named to others.
  */
 export function documentedModules(roles: string[]): ModuleDefinition[] {
-  return visibleModules(roles).filter((m) => m.id !== 'account' && m.id !== 'map');
+  // The notification settings explain themselves (help tips); reminders are in the traps help
+  return visibleModules(roles).filter((m) => m.id !== 'account' && m.id !== 'map' && m.id !== 'notifications');
 }
 
 export function findModule(id: string): ModuleDefinition | undefined {

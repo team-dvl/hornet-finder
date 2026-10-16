@@ -15,6 +15,8 @@ export default function AddressSearch({ label = 'Rechercher une adresse', onSele
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [searching, setSearching] = useState(false);
+  // Query whose search came back empty (no match, or Nominatim unreachable)
+  const [noMatch, setNoMatch] = useState<string | null>(null);
   const timer = useRef<number | undefined>(undefined);
 
   useEffect(() => {
@@ -22,7 +24,9 @@ export default function AddressSearch({ label = 'Rechercher une adresse', onSele
     if (query.trim().length < 3) return;
     timer.current = window.setTimeout(async () => {
       setSearching(true);
-      setSuggestions(await searchAddress(query));
+      const found = await searchAddress(query);
+      setSuggestions(found);
+      setNoMatch(found.length === 0 ? query : null);
       setSearching(false);
     }, DEBOUNCE_MS);
     return () => window.clearTimeout(timer.current);
@@ -44,6 +48,7 @@ export default function AddressSearch({ label = 'Rechercher une adresse', onSele
           placeholder="rue, numéro, commune…"
           onChange={(event) => {
             setQuery(event.target.value);
+            setNoMatch(null);
             // Stale suggestions must not survive a new query
             if (suggestions.length > 0) setSuggestions([]);
           }}
@@ -57,7 +62,7 @@ export default function AddressSearch({ label = 'Rechercher une adresse', onSele
         )}
       </div>
       {suggestions.length > 0 && (
-        <ListGroup className="mt-1" style={{ maxHeight: 180, overflowY: 'auto' }}>
+        <ListGroup className="mt-1">
           {suggestions.map((suggestion) => (
             <ListGroup.Item
               key={`${suggestion.latitude}-${suggestion.longitude}`}
@@ -69,6 +74,9 @@ export default function AddressSearch({ label = 'Rechercher une adresse', onSele
             </ListGroup.Item>
           ))}
         </ListGroup>
+      )}
+      {noMatch && (
+        <div className="small text-muted mt-1">Aucune adresse trouvée</div>
       )}
     </Form.Group>
   );

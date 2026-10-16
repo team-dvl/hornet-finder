@@ -37,6 +37,27 @@ def _make_nest(year, archived=False, **kwargs):
     return Nest.objects.get(pk=nest.pk)
 
 
+class ObservationsRetentionTests(TestCase):
+    def _aged(self, model, years, archived):
+        obj = _make_hornet(timezone.now().year) if model is Hornet else _make_nest(timezone.now().year)
+        model.objects.filter(pk=obj.pk).update(
+            created_at=timezone.now() - timedelta(days=365 * years + 5), archived=archived)
+        return obj.pk
+
+    def test_only_archived_observations_past_five_years_are_deleted(self):
+        from . import retention
+        old_hornet, old_nest = self._aged(Hornet, 5, True), self._aged(Nest, 5, True)
+        young_hornet, young_nest = self._aged(Hornet, 4, True), self._aged(Nest, 4, True)
+        open_hornet, open_nest = self._aged(Hornet, 6, False), self._aged(Nest, 6, False)
+        self.assertEqual(retention.purge_archived(dry_run=True), {'hornets': 1, 'nests': 1})
+        self.assertTrue(Hornet.objects.filter(pk=old_hornet).exists())
+        self.assertEqual(retention.purge_archived(), {'hornets': 1, 'nests': 1})
+        self.assertFalse(Hornet.objects.filter(pk=old_hornet).exists())
+        self.assertFalse(Nest.objects.filter(pk=old_nest).exists())
+        for model, pk in ((Hornet, young_hornet), (Nest, young_nest), (Hornet, open_hornet), (Nest, open_nest)):
+            self.assertTrue(model.objects.filter(pk=pk).exists())
+
+
 class HornetArchiveFilterTests(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
@@ -3105,6 +3126,46 @@ class TradeSeparationTests(TestCase):
         force_authenticate(request, user=self.hunter_user)
         self.assertEqual(HornetViewSet.as_view({'post': 'create'})(request).status_code, 201)
 
+    def test_destroyed_nests_on_private_ground_are_public_without_address_nor_comments(self):
+        private = _make_nest(timezone.now().year)
+        private.destroyed, private.public_place = True, False
+        private.address, private.comments = '1 rue Privée', 'chez M. X'
+        private.save()
+        request = self.factory.get('/nests/destroyed/?lat=50.5&lon=4.5&radius=5')
+        response = NestViewSet.as_view({'get': 'destroyed'})(request)
+        item = next(i for i in response.data if i['id'] == private.id)
+        self.assertEqual((item['address'], item['comments']), ('', ''))
+
+    def test_a_beekeeper_cannot_record_a_hornet(self):
+        request = self.factory.post('/hornets/', {'latitude': 50.5, 'longitude': 4.5, 'direction': 90})
+        force_authenticate(request, user=FakeTrapUser(['beekeeper'], uuid_module.uuid4()))
+        self.assertEqual(HornetViewSet.as_view({'post': 'create'})(request).status_code, 403)
+
+    def _hornets(self, user=None):
+        hornet = _make_hornet(timezone.now().year)
+        hornet.created_by = self.trapper
+        hornet.save()
+        request = self.factory.get('/hornets/?lat=50.5&lon=4.5&radius=5')
+        if user is not None:
+            force_authenticate(request, user=user)
+        response = HornetViewSet.as_view({'get': 'list'})(request)
+        self.assertEqual(response.status_code, 200)
+        return response.data
+
+    def test_anonymous_visitors_and_trappers_do_not_see_who_reported_a_hornet(self):
+        for user in (None, self.trapper_user):
+            data = self._hornets(user)
+            self.assertTrue(data)
+            for item in data:
+                self.assertNotIn('created_by', item)
+                self.assertNotIn('linked_nest', item)
+
+    def test_a_hunter_sees_who_reported_a_hornet(self):
+        with patch('hornet.serializers.get_user_display_name', return_value='Tester'):
+            data = self._hornets(self.hunter_user)
+        self.assertTrue(data)
+        self.assertTrue(all('created_by' in item for item in data))
+
     def test_a_trapper_reports_a_nest(self):
         request = self.factory.post('/nests/', {'latitude': 50.5, 'longitude': 4.5})
         force_authenticate(request, user=self.trapper_user)
@@ -3297,7 +3358,7 @@ class NestManagementTests(TestCase):
                               self.coordinator_user)
         self.assertEqual(response.data[0]['permissions'], {
             'update': True, 'photos': True, 'reactivate': False, 'delete': False,
-            'nearby_apiaries': True,
+            'nearby_apiaries': True, 'visit': True, 'destroy': True,
         })
         response = self._call('get', '/nests/?lat=50.5&lon=4.5&radius=5', {'get': 'list'},
                               self.hunter_user)

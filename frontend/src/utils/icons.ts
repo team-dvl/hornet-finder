@@ -30,6 +30,9 @@ export const ACTION_ICONS = {
   layers: 'layers',
   compass: 'compass',
   catch: 'bug',
+  refill: 'droplet-half',
+  shelve: 'box-seam',
+  unshelve: 'box-arrow-up',
   action: 'clipboard-check',
   save: 'check-lg',
   back: 'arrow-left',
@@ -39,4 +42,5 @@ export const ACTION_ICONS = {
   docs: 'book',
   search: 'search',
   history: 'clock-history',
+  appearance: 'palette',
 } as const;

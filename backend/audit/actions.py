@@ -19,6 +19,9 @@ ACTIONS = {
     'nest.updated': "Nest updated",
     'nest.destroyed': "Nest marked destroyed",
     'nest.reactivated': "Nest marked active again",
+    'nest.visited': "Nest visited",
+    'nest.event_deleted': "Nest journal entry removed",
+    'nest.season_ended': "Nests left untreated marked abandoned at the end of the season",
     'nest.deleted': "Nest deleted",
     'nest.photo_added': "Nest photos added",
     'nest.photo_removed': "Nest photo removed",
@@ -66,6 +69,7 @@ ACTIONS = {
     'group.member_removed': "Member removed from a group",
     'group.admin_named': "Group administrator named",
     'group.admin_dismissed': "Group administrator dismissed",
+    'notification.sent': "Push notification sent to a group or a member",
     # Invitations
     'invitation.sent': "Group invitation sent",
     'invitation.reminded': "Group invitation reminder sent",

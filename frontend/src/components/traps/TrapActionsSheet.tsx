@@ -14,15 +14,23 @@ interface TrapActionsSheetProps {
   onMove: (trap: Trap) => void;
   onEdit: (trap: Trap) => void;
   onDelete: (trap: Trap) => void;
+  /** Owner or member of the group in charge: shelve the trap, or put it back in service */
+  canAct?: boolean;
+  onServiceChange?: (trap: Trap) => void;
 }
 
 /** The less frequent actions of a row of the trap manager, in a bottom sheet. */
 export default function TrapActionsSheet({
-  trap, onHide, canEdit, onOpen, onLocate, onMove, onEdit, onDelete,
+  trap, onHide, canEdit, onOpen, onLocate, onMove, onEdit, onDelete, canAct = false, onServiceChange,
 }: TrapActionsSheetProps) {
   const actions = trap ? [
     { key: 'open', icon: ACTION_ICONS.sheet, label: 'Fiche et journal', onClick: () => onOpen(trap) },
     { key: 'locate', icon: ACTION_ICONS.showOnMap, label: 'Voir sur la carte', onClick: () => onLocate(trap) },
+    // Out of service, a trap has no reminder: the way to stop them for the winter
+    ...(canAct && onServiceChange ? [trap.active
+      ? { key: 'shelve', icon: ACTION_ICONS.shelve, label: 'Remiser', onClick: () => onServiceChange(trap) }
+      : { key: 'unshelve', icon: ACTION_ICONS.unshelve, label: 'Remettre en service', onClick: () => onServiceChange(trap) },
+    ] : []),
     ...(canEdit ? [
       { key: 'move', icon: ACTION_ICONS.move, label: 'Déplacer', onClick: () => onMove(trap) },
       { key: 'edit', icon: ACTION_ICONS.edit, label: 'Modifier', onClick: () => onEdit(trap) },

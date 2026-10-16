@@ -1,10 +1,11 @@
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css'
+import './styles/theme.css'
 import { Container, Alert, Spinner } from 'react-bootstrap'
 import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from 'react-oidc-context';
-import { Home, MapPage, Nests, Traps, Apiaries, AdminIndex, TrapTypesAdmin, SpeciesAdmin, TagsAdmin, ArchivingAdmin, GroupAdmin, PrivacyPolicy, DataDeletion, Invitations } from './pages';
+import { Home, MapPage, Nests, Traps, Apiaries, AdminIndex, TrapTypesAdmin, SpeciesAdmin, TagsAdmin, ArchivingAdmin, GroupAdmin, NotificationsAdmin, Notifications, PrivacyPolicy, DataDeletion, Invitations } from './pages';
 import { ErrorBoundary, RequireRole } from './components/common';
 import { PageErrorFallback } from './components/layout';
 import DocsRedirect from './help/DocsRedirect';
@@ -13,6 +14,8 @@ import { initIOSViewportFix } from './utils/iosViewportFix';
 import { useUrlCleaner } from './utils/urlCleaner';
 import { useSessionGuard } from './hooks/useSessionGuard';
 import { useReachabilityMonitor } from './hooks/useReachability';
+import { usePushBadgeReset, usePushRebind } from './hooks/usePushRebind';
+import { useNotificationClicks } from './hooks/useNotificationClicks';
 import { ADMIN, APP_ROLES, BEEKEEPER, TRAPPER } from './utils/roles';
 
 // The statistics are loaded on demand: they stay out of the first load of the PWA
@@ -35,6 +38,13 @@ function App() {
 
   // Probes whether the server is reachable (banner under the navbar)
   useReachabilityMonitor();
+
+  // The notifications of this device follow whoever is signed in
+  usePushRebind(auth.isAuthenticated);
+  // The icon badge counts what arrived while the app was away
+  usePushBadgeReset();
+  // A tap on a notification while the app is open leads to its page
+  useNotificationClicks();
 
   // Initialiser la correction iOS pour le viewport
   useEffect(() => {
@@ -91,6 +101,7 @@ function App() {
       <Route path="/" element={<Home />} />
       <Route path="/map" element={<MapPage />} />
       <Route path="/nests" element={<Nests />} />
+      <Route path="/nests/list" element={<Nests />} />
       <Route
         path="/apiaries"
         element={<RequireRole roles={['beekeeper', 'admin']}><Apiaries /></RequireRole>}
@@ -98,6 +109,8 @@ function App() {
       {/* One trap manager for these paths, so resolving a tag or scanning returns to /traps without remounting it */}
       <Route element={<Traps />}>
         <Route path="/traps" element={null} />
+        {/* First tab of the module: what the user's traps wait for (reminders) */}
+        <Route path="/traps/due" element={null} />
         <Route path="/tag/:tagValue" element={null} />
         {/* Shortcut of the installed app (long press on its icon): opens the scanner */}
         <Route path="/scan" element={null} />
@@ -132,6 +145,10 @@ function App() {
         element={<RequireRole roles={['admin']}><ArchivingAdmin /></RequireRole>}
       />
       <Route
+        path="/admin/notifications"
+        element={<RequireRole roles={['admin']}><NotificationsAdmin /></RequireRole>}
+      />
+      <Route
         path="/admin/group"
         element={<RequireRole roles={[BEEKEEPER, TRAPPER, ADMIN]}><GroupAdmin /></RequireRole>}
       />
@@ -147,6 +164,7 @@ function App() {
       />
       {/* Link of the invitation emails: signs in first, then lists the invitations */}
       <Route path="/invitations" element={<Invitations />} />
+      <Route path="/notifications" element={<RequireRole roles={APP_ROLES}><Notifications /></RequireRole>} />
       {/* An emailed export link: opens without signing in */}
       <Route path="/export/:token" element={<Suspense fallback={pageFallback}><ExportJob /></Suspense>} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />

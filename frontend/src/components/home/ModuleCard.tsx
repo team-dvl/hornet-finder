@@ -15,18 +15,23 @@ interface ModuleCardProps {
   href?: string;
   onClick?: () => void;
   badge?: string;
+  /** Number of things waiting for the user in the module, shown as a red count in the corner (`utils/pending.ts`) */
+  count?: number;
 }
 
 /**
  * Clickable tile of the landing page menu. Rendered as a router Link,
  * a plain anchor or a button depending on which of `to`/`href`/`onClick` is set.
  */
-export default function ModuleCard({ title, description, icon, tone, to, href, onClick, badge }: ModuleCardProps) {
+export default function ModuleCard({ title, description, icon, tone, to, href, onClick, badge, count }: ModuleCardProps) {
   const className = 'h-100 shadow-sm text-decoration-none text-body module-card';
   // The description is hidden on a phone; it stays as a tooltip
 
   const body = (
     <Card.Body className="text-center d-flex flex-column p-2 p-sm-3">
+      {count ? (
+        <Badge pill bg="danger" className="module-card-count" aria-label={`${count} en attente`}>{count}</Badge>
+      ) : null}
       <i className={`bi ${icon} fs-1 module-icon`} data-tone={tone} aria-hidden="true" />
       <Card.Title as="h5" className="mt-1 mt-sm-2 mb-0 mb-sm-2 module-card-title">
         {title}

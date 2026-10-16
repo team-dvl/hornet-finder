@@ -70,11 +70,13 @@ sa délégation) ou « à l'association X » en une requête.
 | `tag` | `batch_generated`, `associated` (avec le tag remplacé), `revoked` |
 | `trap_type`, `species` | `created`, `updated`, `deleted` ; `species.reordered` |
 | `group` | `member_removed`, `admin_named`, `admin_dismissed` |
+| `notification` | `sent` (notification push à un groupe ou à un membre ; le titre et les effectifs, jamais le texte) |
 | `invitation` | `sent` (avec `notified`), `reminded`, `cancelled`, `accepted`, `declined`, `expired` (système, daté de la fin de validité) |
 | `stats` | `export_link`, `export_emailed`, `export_downloaded` |
 | `audit` | `exported` (export CSV du journal) |
 
 Hors périmètre : lectures, tentatives refusées (dans les logs), photo de profil,
+rappels des pièges (envoyés par le système, chaque jour), préférences de notification,
 effets techniques (recalcul des captures), synchronisation de `group_paths`,
 commandes de gestion (`sync_group_names`, `fetch_species_photos`).
 

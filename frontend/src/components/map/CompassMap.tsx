@@ -156,6 +156,7 @@ export default function CompassMap() {
         <MapClickHandler />
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          className="tiles-themable"
         />
         {markerPosition && (
           <Marker position={markerPosition}>

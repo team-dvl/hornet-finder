@@ -4,7 +4,7 @@ import { Spinner } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 import L, { Map } from 'leaflet';
-import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowApiaryCircles, selectShowHornets, selectShowReturnZones, selectBasemap, selectShowNests, initializeGeolocation, selectMapCenter, selectZoom, selectGeolocationError, setGeolocationError, setIsAdmin, selectTraps, selectShowTraps, selectMovingTrapId, setShowTraps, setShowNests, setShowApiaries, setShowHornets, startMovingTrap, stopMovingTrap, updateTrap, fetchTrapDetail, fetchApiaryDetail } from '../../store/store';
+import { useAppDispatch, useAppSelector, selectShowApiaries, selectShowApiaryCircles, selectShowHornets, selectShowReturnZones, selectBasemap, selectShowNests, initializeGeolocation, selectMapCenter, selectZoom, selectGeolocationError, setGeolocationError, setIsAdmin, selectTraps, selectShowTraps, selectMovingTrapId, setShowTraps, setShowNests, setShowApiaries, setShowHornets, startMovingTrap, stopMovingTrap, updateTrap, fetchTrapDetail, fetchApiaryDetail, fetchNestDetail } from '../../store/store';
 import { selectFilteredHornets } from '../../store/slices/hornetsSlice';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { useMapDataFetching } from '../../hooks/useMapDataFetching';
@@ -22,6 +22,7 @@ import ApiaryCircle from './ApiaryCircle';
 import NestMarker from '../markers/NestMarker';
 import TrapMarker from '../markers/TrapMarker';
 import MapControlsContainer from '../map-controls';
+import type { CrosshairSource } from '../map-controls/LocateButton';
 import MapEventHandler from './MapEventHandler';
 import HornetInfoPopup from '../popups/HornetInfoPopup';
 import HornetReturnZoneInfoPopup from '../popups/HornetReturnZoneInfoPopup';
@@ -40,6 +41,7 @@ import MarkerClusterGroup from './MarkerClusterGroup';
 import { useSmartClickHandlers } from '../../hooks/useSmartClickHandlers';
 import { useMapModals, type MapPoint } from '../../hooks/useMapModals';
 import { MAP_VIEW_MODES, type MapViewMode } from './viewModes';
+import { isMapStatus } from '../../utils/nestStatus';
 import { ACTION_ICONS } from '../../utils/icons';
 import { MapObject } from './types';
 import MapAnalysisLayer from '../stats/MapAnalysisLayer';
@@ -104,12 +106,14 @@ interface InteractiveMapProps {
   focusTrapId?: number | null;
   /** Apiary to centre on and highlight, for the view modes that focus one */
   focusApiaryId?: number | null;
+  /** Nest to centre on, for the view mode that focuses one; its sheet opens */
+  focusNestId?: number | null;
   /** Page of the caller, reached by the back button (and after a move) */
   returnTo?: string;
 }
 
 export default function InteractiveMap({
-  preset = 'nests', focusTrapId = null, focusApiaryId = null, returnTo,
+  preset = 'nests', focusTrapId = null, focusApiaryId = null, focusNestId = null, returnTo,
 }: InteractiveMapProps) {
   const viewMode = MAP_VIEW_MODES[preset];
   const dispatch = useAppDispatch();
@@ -148,6 +152,11 @@ export default function InteractiveMap({
   const [showCompassCapture, setShowCompassCapture] = useState(false);
   const [showGeolocationSpinner, setShowGeolocationSpinner] = useState(false);
   const [compassCapturedPosition, setCompassCapturedPosition] = useState<MapPoint | null>(null);
+  // The sighting is recorded at the crosshair (placed at an address), not at a GPS fix
+  const [compassFixedPosition, setCompassFixedPosition] = useState(false);
+  // Crosshair placed from the position sheet: where the "+" additions go. Kept
+  // apart from `coordinates`, which follows the map centre on every move
+  const [crosshair, setCrosshair] = useState<{ point: MapPoint; source: CrosshairSource } | null>(null);
 
   // Position en attente pendant un déplacement de piège (avant validation)
   const [pendingTrapPosition, setPendingTrapPosition] = useState<MapPoint | null>(null);
@@ -274,6 +283,25 @@ export default function InteractiveMap({
     return () => { cancelled = true; };
   }, [focusedApiaryId, preset, leafletMap, auth.isLoading, dispatch]);
 
+  // Focused nest (view mode `nest`): centre on it and open its sheet
+  const focusedNestId = viewMode.focusNest ? focusNestId : null;
+  useEffect(() => {
+    if (!focusedNestId || !leafletMap || auth.isLoading) return;
+    const key = `${preset}:nest:${focusedNestId}`;
+    if (focusApplied.current === key) return;
+    focusApplied.current = key;
+    let cancelled = false;
+    dispatch(fetchNestDetail(focusedNestId)).unwrap()
+      .then((nest) => {
+        if (cancelled) return;
+        leafletMap.setView([nest.latitude, nest.longitude], Math.max(leafletMap.getZoom(), 17));
+        openModal({ kind: 'nest', nest });
+      })
+      .catch(() => { if (!cancelled) setFocusError("Ce nid est introuvable, ou vous n'y avez pas accès."); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusedNestId, preset, leafletMap, auth.isLoading, dispatch]);
+
   // A move started by the caller ends by going back to it
   const backToCaller = viewMode.moveTrap && returnTo ? returnTo : null;
   const endMove = (trapId: number | null) => {
@@ -336,7 +364,7 @@ export default function InteractiveMap({
       const position = marker.getLatLng();
       const className = marker.options.icon?.options.className ?? '';
       if (className.includes('trap-icon')) traps.filter((trap) => at(trap, position)).forEach((trap) => add(trapToMapObject(trap)));
-      if (className.includes('nest-icon')) nests.filter((nest) => at(nest, position)).forEach((nest) => add(nestToMapObject(nest)));
+      if (className.includes('nest-icon')) nests.filter((nest) => isMapStatus(nest.status) && at(nest, position)).forEach((nest) => add(nestToMapObject(nest)));
       if (className.includes('apiary-icon')) apiaries.filter((apiary) => at(apiary, position)).forEach((apiary) => add(apiaryToMapObject(apiary)));
     });
     return objects;
@@ -411,7 +439,7 @@ export default function InteractiveMap({
   const selectorPosition = (lat?: number, lng?: number): MapPoint => {
     const current = modalOfKind('item-selector')?.position;
     if (lat !== undefined && lng !== undefined) return { lat, lng };
-    return current ?? { lat: coordinates[0], lng: coordinates[1] };
+    return current ?? crosshair?.point ?? { lat: coordinates[0], lng: coordinates[1] };
   };
 
   const handleSelectHornet = (lat?: number, lng?: number) => {
@@ -511,8 +539,12 @@ export default function InteractiveMap({
       return;
     }
 
-    // Obtenir la position actuelle pour la capture
-    if (navigator.geolocation) {
+    // A crosshair placed at an address is where the hornet was seen: no GPS fix
+    const atAddress = crosshair?.source === 'address';
+    setCompassFixedPosition(atAddress);
+    if (atAddress) {
+      setCompassCapturedPosition(crosshair.point);
+    } else if (navigator.geolocation) {
       // Afficher le spinner de géolocalisation
       setShowGeolocationSpinner(true);
       
@@ -586,7 +618,8 @@ export default function InteractiveMap({
       >
         <MapControlsContainer 
           error={error}
-          onLocationUpdate={setCoordinates}
+          onLocationUpdate={(point, source) => setCrosshair({ point: { lat: point[0], lng: point[1] }, source })}
+          crosshair={crosshair?.source ?? null}
           onErrorUpdate={() => {}} // Les erreurs sont maintenant gérées par Redux
           showApiariesButton={auth.isAuthenticated && (isAdmin || canAddApiary)}
           showNestsButton={true} // Tous les utilisateurs peuvent voir les nids (détruits pour non-authentifiés, tous pour authentifiés)
@@ -594,9 +627,10 @@ export default function InteractiveMap({
           onShowNearestNests={canSeeAllNests ? () => openModal({ kind: 'nearest-nests' }) : undefined}
           onQuickHornetCapture={handleQuickHornetCapture}
           onAddTrap={canAddTrap && showTraps
-            ? () => openModal({ kind: 'add-trap', position: null })
+            ? () => openModal({ kind: 'add-trap', position: crosshair?.point ?? null })
             : undefined}
           onScanTag={auth.isAuthenticated && showTraps ? openScanner : undefined}
+          raised={movingTrapId !== null}
         />
         <MapRefHandler onMapReady={handleMapReady} />
         <MapEventHandler />
@@ -604,6 +638,7 @@ export default function InteractiveMap({
         <TileLayer
           key={basemap}
           url={BASEMAPS[basemap].url}
+          className={basemap === 'plan' ? 'tiles-themable' : undefined}
           maxZoom={MAX_ZOOM}
           maxNativeZoom={MAX_NATIVE_ZOOM}
           attribution={BASEMAPS[basemap].attribution}
@@ -642,7 +677,7 @@ export default function InteractiveMap({
               onClick={(item) => (spiderOpen.current ? handleApiaryClick(item) : handleSmartApiaryClick(item))}
             />
           ))}
-          {showNests && nests.map((nest, index) => (
+          {showNests && nests.filter((nest) => isMapStatus(nest.status)).map((nest, index) => (
             <NestMarker
               key={`nest-${nest.id || index}`}
               nest={nest}
@@ -691,7 +726,7 @@ export default function InteractiveMap({
 
       {/* Barre de validation du déplacement d'un piège */}
       {movingTrapId !== null && (
-        <div className="map-bottom-bar p-2 bg-white rounded shadow d-flex align-items-center gap-2">
+        <div className="map-bottom-bar p-2 bg-body rounded shadow d-flex align-items-center gap-2">
           <span className="small px-1">
             <i className="bi bi-arrows-move me-1" aria-hidden="true" />
             Glissez le piège
@@ -828,6 +863,7 @@ export default function InteractiveMap({
         onCapture={handleCompassDirectionCapture}
         initialLatitude={compassCapturedPosition?.lat}
         initialLongitude={compassCapturedPosition?.lng}
+        fixedPosition={compassFixedPosition}
         showPermissionModal={showCompassPermissionModal}
         onRequestOrientationPermission={handleRequestOrientationPermission}
         onCancelPermissionModal={() => setShowCompassPermissionModal(false)}

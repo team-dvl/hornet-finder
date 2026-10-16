@@ -4,9 +4,9 @@
  */
 
 export const ADMIN = 'admin';
-/** Apiaries, their traps, and hornet sightings at the hives */
+/** Apiaries and their traps */
 export const BEEKEEPER = 'beekeeper';
-/** Nest hunters: hornet sightings and releases, every nest */
+/** Nest hunters (trained, hence in /hunters): hornet sightings and releases, every nest */
 export const HUNTER = 'hunter';
 /** Trap campaign: traps and their QR Codes; the default role of a new account */
 export const TRAPPER = 'trapper';

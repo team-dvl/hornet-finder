@@ -10,3 +10,4 @@ export { default as TrapAddressChangeModal } from './TrapAddressChangeModal';
 export { default as TrapListItem } from './TrapListItem';
 export { default as TrapListToolbar } from './TrapListToolbar';
 export { default as TrapActionsSheet } from './TrapActionsSheet';
+export { default as DueList } from './DueList';

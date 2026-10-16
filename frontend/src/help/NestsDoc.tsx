@@ -1,71 +1,116 @@
-import { Row, Col } from 'react-bootstrap';
-
-/** User documentation of the nest-finding module. */
+/** User documentation of the nests module. */
 export default function NestsDoc() {
   return (
     <>
       <p className="lead text-muted">
-        Rejoignez la communauté citoyenne dans la lutte
-        contre <em><a href="https://fr.wikipedia.org/wiki/Vespa_velutina" target="_blank" rel="noopener">Vespa Velutina</a></em> pour protéger nos pollinisateurs.
+        Signaler les nids de <em><a href="https://fr.wikipedia.org/wiki/Vespa_velutina" target="_blank" rel="noopener">Vespa
+        velutina</a></em> et les suivre jusqu&apos;à leur neutralisation, saison par saison.
       </p>
 
-      <Row className="my-4">
-        <Col md={4} className="text-center mb-3">
-          <div style={{ fontSize: '3rem' }}>🔍</div>
-          <h6 className="mt-2">Observer</h6>
-          <p className="small text-muted">
-            Signalez les frelons asiatiques que vous observez
-          </p>
-        </Col>
-        <Col md={4} className="text-center mb-3">
-          <div style={{ fontSize: '3rem' }}>🗺️</div>
-          <h6 className="mt-2">Cartographier</h6>
-          <p className="small text-muted">
-            Visualisez les zones d'activité sur une carte interactive
-          </p>
-        </Col>
-        <Col md={4} className="text-center mb-3">
-          <div style={{ fontSize: '3rem' }}>⚡</div>
-          <h6 className="mt-2">Agir</h6>
-          <p className="small text-muted">
-            Repérez les nids et informez les apiculteurs locaux pour une destruction rapide
-          </p>
-        </Col>
-      </Row>
-
       <section data-section="who" className="mb-4">
-        <h5 className="text-primary">
-          <span className="me-2">ℹ️</span>
-          Qui peut utiliser ce module ?
-        </h5>
+        <h5 className="text-primary">Qui fait quoi ?</h5>
         <ul className="mb-0">
-          <li><strong>Chasseurs de nids :</strong> observations et lâchers de frelons, tous les nids</li>
-          <li><strong>Coordinateurs des chasseurs :</strong> modification des nids et de leurs photos, numéros AFSCA des ruchers à moins de 1 km</li>
-          <li><strong>Piégeurs :</strong> signalement de nids ; ils voient les nids détruits et les leurs</li>
-          <li><strong>Apiculteurs :</strong> Gestion des ruchers et signalements</li>
-          <li><strong>Administrateurs :</strong> Vue d'ensemble et coordination ; eux seuls réactivent un nid détruit</li>
+          <li><strong>Tout le monde</strong> signale un nid, suit ce qu&apos;il devient et peut signaler qu&apos;il a été neutralisé.</li>
+          <li><strong>Chasseurs de nids, apiculteurs, administrateurs</strong> voient tous les nids ; les piégeurs voient les nids neutralisés et les leurs.</li>
+          <li><strong>Coordinateurs</strong> (administrateurs de la plateforme et coordinateurs des chasseurs) : vérification des nids signalés, neutralisation, modification des nids et de leurs photos, numéros AFSCA des ruchers à moins de 1 km.</li>
+          <li><strong>Administrateurs</strong> : eux seuls réactivent un nid neutralisé, écarté ou abandonné, l&apos;archivent ou le suppriment.</li>
+        </ul>
+      </section>
+
+      <section data-section="module" className="mb-4">
+        <h5 className="text-primary">Le module</h5>
+        <p>
+          Il montre la saison en cours : un nid ne sert qu&apos;une saison et n&apos;est jamais réoccupé. Les saisons
+          passées restent dans l&apos;archivage, à titre historique.
+        </p>
+        <ul className="mb-0">
+          <li><strong>À traiter</strong> : ce qui attend une action de votre part. Les nids à vérifier et ceux à neutraliser (coordinateurs), les nids actifs à moins de 1 km de vos ruchers, vos signalements pas encore neutralisés.</li>
+          <li><strong>Nids</strong> : tous les nids de la saison, à rechercher (numéro, adresse) et filtrer par statut.</li>
+          <li><strong>Mes signalements</strong> : pour qui ne voit pas tous les nids, ses propres signalements et où ils en sont.</li>
+          <li>L&apos;icône <i className="bi bi-map" aria-hidden="true" /> <em>Carte</em> ouvre la carte des nids ; <em>Voir sur la carte</em> la centre sur un nid, avec un bouton de retour à la liste.</li>
         </ul>
       </section>
 
       <section data-section="report" className="mb-4">
         <h5 className="text-primary">Signaler un nid</h5>
-        <p className="mb-0">
-          Un signalement peut être accompagné d'une ou plusieurs photos. Quand un nid est
-          neutralisé, sa date de destruction est retenue ; il ne peut plus être réactivé,
-          sauf par un administrateur.
+        <p>
+          <em>Signaler</em> demande d&apos;abord où est le nid : la position de l&apos;appareil, un point choisi sur la
+          carte, ou une adresse. Placez-le où se trouve le nid, pas où vous êtes si vous le voyez de loin.
         </p>
-        <p className="mb-0 mt-2">
-          Chasseurs, apiculteurs et administrateurs trouvent dans <em>Couches → Nids les plus
-          proches</em> les nids de l&apos;année à 5 km au plus de leur position, du plus proche au
-          plus éloigné, avec leur distance à vol d&apos;oiseau.
+        <p>
+          Une photo nette permet de confirmer l&apos;espèce. Indiquez l&apos;<strong>état du nid</strong> : actif
+          (des frelons entrent et sortent), vide (abandonné, par exemple un nid de l&apos;an passé découvert quand les
+          feuilles tombent) ou inconnu. Un nid vide est enregistré comme abandonné. La hauteur, estimée depuis le sol,
+          se donne par classes : une estimation à l&apos;œil se trompe facilement d&apos;un tiers.
+        </p>
+        <p>
+          Un <strong>téléphone</strong> et un <strong>commentaire pour les coordinateurs</strong>, facultatifs, ne
+          sont lus que par les coordinateurs (et par vous) : ils servent à vous rappeler pour vérifier le nid sans
+          passer sur place. Le commentaire ordinaire, lui, peut apparaître sur la carte publique une fois le nid
+          neutralisé, si le lieu est public.
+        </p>
+        <p className="mb-0">
+          Les nids de l&apos;année à 5 km au plus de votre position sont aussi listés sur la carte, dans
+          <em> Couches → Nids les plus proches</em>, avec leur distance à vol d&apos;oiseau (pour qui voit tous les nids).
+        </p>
+      </section>
+
+      <section data-section="status" className="mb-4">
+        <h5 className="text-primary">Où en est un nid</h5>
+        <p>
+          La <strong>vérification</strong> ne demande pas toujours un passage sur place : la décision peut se prendre
+          sur les photos du signalement et après un échange, souvent par téléphone, avec la personne qui l&apos;a fait.
+          Le coordinateur note sur quoi elle repose (photos, échange avec le signaleur, sur place).
+        </p>
+        <ul>
+          <li><strong>Signalé</strong> : en attente d&apos;une vérification.</li>
+          <li><strong>Confirmé</strong> : un coordinateur a vérifié qu&apos;il s&apos;agit d&apos;un nid actif de frelons asiatiques. Il relève alors le type (primaire ou secondaire), la hauteur et la taille.</li>
+          <li><strong>Neutralisé</strong> : sa neutralisation (destruction) est enregistrée, avec sa date.</li>
+          <li><strong>Écarté</strong> : autre espèce (frelon européen, guêpes…) ou introuvable. Il n&apos;est plus montré sur la carte.</li>
+          <li><strong>Abandonné</strong> : trouvé vide, ou pas neutralisé à la fin de l&apos;hiver : le 1<sup>er</sup> mars, les nids de la saison précédente encore signalés ou confirmés passent abandonnés.</li>
+        </ul>
+        <p className="mb-0">
+          Le type est pré-choisi d&apos;après la date du signalement : de février à mai, un nid est en général
+          <em> primaire</em> (bâti par la reine fondatrice, petit, souvent bas et abrité) ; à partir de juillet,
+          <em> secondaire</em> (plus grand, souvent haut). Chaque vérification, neutralisation ou fin de saison s&apos;inscrit au
+          journal du nid, sur sa fiche ; un coordinateur peut en supprimer une entrée, le statut suit.
+        </p>
+      </section>
+
+      <section data-section="destruction" className="mb-4">
+        <h5 className="text-primary">Neutralisation</h5>
+        <p>
+          Un coordinateur l&apos;enregistre (<em>Neutraliser</em>) : la date, qui l&apos;a faite et par quels moyens
+          (perche, nacelle, nid retiré, plusieurs à la fois). La personne qui a signalé le nid peut aussi la signaler
+          (<em>Signaler neutralisé</em>) : c&apos;est souvent elle qui le sait la première. Elle peut retirer son
+          signalement.
+        </p>
+        <p className="mb-0">
+          <strong>FixMyStreet</strong> : la Région wallonne subventionne des destructeurs formés, attribués par zone,
+          qu&apos;on sollicite par sa plateforme. Le numéro de la demande relie le nid au dossier.
+        </p>
+      </section>
+
+      <section data-section="alerts" className="mb-4">
+        <h5 className="text-primary">Notifications</h5>
+        <p>Chacun les règle dans le module <em>Notifications</em> :</p>
+        <ul>
+          <li><strong>Tous les nouveaux nids</strong> : activé d&apos;office pour les coordinateurs et les administrateurs ; un apiculteur l&apos;active s&apos;il le souhaite. Un nid signalé vide ne prévient que les coordinateurs.</li>
+          <li><strong>Nids près de mes ruchers</strong> : un nid actif à moins de 1 km d&apos;un de vos ruchers, ou d&apos;un rucher partagé avec l&apos;association que vous administrez.</li>
+          <li><strong>Suivi de mes signalements</strong> : confirmé, écarté, trouvé vide ou neutralisé.</li>
+        </ul>
+        <p className="mb-0">
+          Elles partent de 9 h (10 h le dimanche) à 20 h ; ce qui arrive la nuit est annoncé à l&apos;ouverture, et à
+          partir de trois nouveaux nids en même temps, un seul message les regroupe. Le texte se lit sur l&apos;écran
+          verrouillé : le numéro du nid et la commune, jamais l&apos;adresse ni un nom.
         </p>
       </section>
 
       <section data-section="access">
         <h5 className="text-primary">Accès</h5>
         <p className="mb-0">
-          La consultation de la carte est libre ; le signalement nécessite une authentification
-          pour garantir la qualité des données.
+          La carte des nids neutralisés est publique ; le signalement nécessite une connexion, pour garantir la qualité
+          des données.
           <br />
           Apiculteurs : contactez-nous via <a href="mailto:vedrinsabeille@gmail.com">vedrin.sabeille@gmail.com</a> pour un accès privilégié.
         </p>

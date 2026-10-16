@@ -1,23 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Container, Spinner } from 'react-bootstrap';
+import { Alert, Badge, Button, ButtonGroup, Container, Spinner } from 'react-bootstrap';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 import { PageHeader, PageLayout } from '../components/layout';
 import { mapUrl } from '../components/map/viewModes';
 import { ConfirmationModal } from '../components/modals';
 import {
-  TrapActionsSheet, TrapEventModal, TrapFormModal, TrapInfoPopup, TrapListItem, TrapListToolbar,
+  DueList, TrapActionsSheet, TrapEventModal, TrapFormModal, TrapInfoPopup, TrapListItem, TrapListToolbar,
 } from '../components/traps';
 import { TagAssociateModal, TagScannerModal } from '../components/tags';
-import { IconButton } from '../components/ui';
+import { ConfirmDialog, IconButton } from '../components/ui';
 import { useTagDeepLink } from '../hooks/useTagDeepLink';
 import { useUserPermissions } from '../hooks/useUserPermissions';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
-  deleteTrap, fetchManagedTraps, fetchTrapDetail, fetchTrapTypes, selectManagedTraps, selectMapCenter,
+  addTrapEvent, deleteTrap, fetchManagedTraps, fetchTrapDetail, fetchTrapTypes, selectManagedTraps, selectMapCenter,
   selectTrapTypes,
-  type ManagedTrapsQuery, type Trap, type TrapOrdering, type TrapScope,
+  type ManagedTrapsQuery, type Trap, type TrapEventKind, type TrapOrdering, type TrapScope,
 } from '../store/store';
+import { fetchDue, type DueItem } from '../utils/dueApi';
+import { refreshPending } from '../utils/pending';
 import { signInFromCurrentPage } from '../utils/authRedirect';
 import { ACTION_ICONS } from '../utils/icons';
 import { isBeekeeperGroup, memberGroups } from '../utils/groups';
@@ -25,6 +27,8 @@ import { currentPosition } from '../utils/position';
 import type { TagResolution } from '../utils/tagsApi';
 
 const LIST_PATH = '/traps';
+/** The other tab of the module: what the user's traps wait for (reminders) */
+const DUE_PATH = '/traps/due';
 
 const ORDERINGS: TrapOrdering[] = [
   'last_event_at', '-last_event_at', 'hornet_catch_count', '-hornet_catch_count',
@@ -47,6 +51,10 @@ const urlKey = (key: string) => (key === 'scope' ? 'show' : key);
  * Also the landing of `/tag/<value>` (printed QR codes, captured by the
  * installed app), `/scan` (shortcut of the installed app) and
  * `/traps?trap=<id>` (link to a trap, e.g. from the QR Codes administration).
+ *
+ * `/traps/due` is the first tab of the module: what the user's own traps wait
+ * for (a reading, the attractant), by the delays of their type; a reminder
+ * notification leads there, `?trap=<id>` bringing its trap into view.
  */
 export default function Traps() {
   const dispatch = useAppDispatch();
@@ -134,10 +142,57 @@ export default function Traps() {
 
   const loadMore = () => dispatch(fetchManagedTraps({ query, page: managed.page + 1 }));
 
+  // --- What the traps wait for (first tab, count on both) ----------------------
+  const onDue = location.pathname === DUE_PATH;
+  const dueHighlight = onDue ? Number(new URLSearchParams(location.search).get('trap')) || null : null;
+  const [due, setDue] = useState<DueItem[] | null>(null);
+  const [dueError, setDueError] = useState<string | null>(null);
+  const [dueVersion, setDueVersion] = useState(0);
+  const refreshDue = () => {
+    setDueVersion((version) => version + 1);
+    refreshPending();
+  };
+  useEffect(() => {
+    if (!auth.isAuthenticated) return;
+    let cancelled = false;
+    fetchDue(1)
+      .then((items) => { if (!cancelled) { setDue(items); setDueError(null); } })
+      .catch(() => { if (!cancelled) setDueError('Les rappels ne sont pas disponibles pour le moment.'); });
+    return () => { cancelled = true; };
+  }, [auth.isAuthenticated, dueVersion]);
+  const dueCount = due?.filter((item) => item.days_late >= 0).length ?? 0;
+
+  const changeService = async () => {
+    if (!serviceChange) return;
+    setChangingService(true);
+    setServiceError(null);
+    try {
+      await dispatch(addTrapEvent({
+        trapId: serviceChange.trap.id, kind: serviceChange.kind, performed_at: new Date().toISOString(),
+      })).unwrap();
+      setServiceChange(null);
+      reload();
+      refreshDue();
+    } catch (error) {
+      setServiceError(error as string);
+    } finally {
+      setChangingService(false);
+    }
+  };
+
   // --- Dialogs (one at a time) -----------------------------------------------
   const [sheetTrap, setSheetTrap] = useState<Trap | null>(null);
   const [actionsTrap, setActionsTrap] = useState<Trap | null>(null);
   const [recordTrap, setRecordTrap] = useState<Trap | null>(null);
+  const [recordKind, setRecordKind] = useState<TrapEventKind>('catch');
+  const record = (trap: Trap, kind: TrapEventKind = 'catch') => {
+    setRecordKind(kind);
+    setRecordTrap(trap);
+  };
+  // Shelving a trap (out of service, no reminder) or putting it back in service
+  const [serviceChange, setServiceChange] = useState<{ trap: Trap; kind: 'removal' | 'installation' } | null>(null);
+  const [changingService, setChangingService] = useState(false);
+  const [serviceError, setServiceError] = useState<string | null>(null);
   const [editTrap, setEditTrap] = useState<Trap | null>(null);
   const [deletingTrap, setDeletingTrap] = useState<Trap | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -207,7 +262,7 @@ export default function Traps() {
     } else {
       setAssociating({ value, short: resolution.short });
     }
-  }, []);
+  }, [setSheetTrap]);
 
   const { needsSignIn: tagNeedsSignIn, resolving: resolvingTag } = useTagDeepLink({
     onResolved: handleTagResolved,
@@ -276,6 +331,50 @@ export default function Traps() {
           </Alert>
         ) : (
           <>
+            <ButtonGroup className="d-flex mb-3" role="tablist" aria-label="Vue">
+              <Button
+                onClick={() => navigate(DUE_PATH)}
+                role="tab"
+                aria-selected={onDue}
+                variant={onDue ? 'primary' : 'outline-primary'}
+              >
+                À relever
+                {dueCount > 0 && (
+                  <Badge pill bg={onDue ? 'light' : 'danger'} text={onDue ? 'dark' : undefined} className="ms-2">
+                    {dueCount}
+                  </Badge>
+                )}
+              </Button>
+              <Button
+                onClick={() => navigate(listPath)}
+                role="tab"
+                aria-selected={!onDue}
+                variant={onDue ? 'outline-primary' : 'primary'}
+              >
+                Gérer
+              </Button>
+            </ButtonGroup>
+          </>
+        )}
+
+        {auth.isAuthenticated && onDue && (
+          <>
+            {dueError && <Alert variant="warning">{dueError}</Alert>}
+            {!due && !dueError && <Spinner animation="border" role="status" />}
+            {due && (
+              <DueList
+                items={due}
+                highlight={dueHighlight}
+                onOpen={(trap) => setSheetTrap(trap)}
+                onRead={(trap) => record(trap, 'catch')}
+                onRefill={(trap) => record(trap, 'refill')}
+              />
+            )}
+          </>
+        )}
+
+        {auth.isAuthenticated && !onDue && (
+          <>
             <TrapListToolbar
               query={query}
               onChange={updateQuery}
@@ -315,7 +414,7 @@ export default function Traps() {
                   canAct={canActOnTrap(trap)}
                   onOpen={setSheetTrap}
                   onLocate={locate}
-                  onRecord={setRecordTrap}
+                  onRecord={record}
                   onMore={setActionsTrap}
                 />
               ))}
@@ -369,10 +468,39 @@ export default function Traps() {
         onMove={(trap) => { setActionsTrap(null); move(trap); }}
         onEdit={(trap) => { setActionsTrap(null); setEditTrap(trap); }}
         onDelete={(trap) => { setActionsTrap(null); setDeleteError(null); setDeletingTrap(trap); }}
+        canAct={actionsTrap ? canActOnTrap(actionsTrap) : false}
+        onServiceChange={(trap) => {
+          setActionsTrap(null);
+          setServiceError(null);
+          setServiceChange({ trap, kind: trap.active ? 'removal' : 'installation' });
+        }}
       />
 
+      {serviceChange && (
+        <ConfirmDialog
+          show
+          onHide={() => setServiceChange(null)}
+          onConfirm={() => void changeService()}
+          title={serviceChange.kind === 'removal'
+            ? `Remiser le piège #${serviceChange.trap.id} ?`
+            : `Remettre le piège #${serviceChange.trap.id} en service ?`}
+          message={serviceChange.kind === 'removal'
+            ? "Il n'aura plus de rappel et apparaîtra en gris sur la carte, jusqu'à sa remise en service."
+            : "Il repart vide, à aujourd'hui : les délais de relevé et d'attractif recommencent."}
+          confirmLabel={serviceChange.kind === 'removal' ? 'Remiser' : 'Remettre en service'}
+          confirmIcon={serviceChange.kind === 'removal' ? ACTION_ICONS.shelve : ACTION_ICONS.unshelve}
+          variant={serviceChange.kind === 'removal' ? 'warning' : 'primary'}
+          busy={changingService}
+          error={serviceError}
+        />
+      )}
+
       {recordTrap && (
-        <TrapEventModal onHide={() => setRecordTrap(null)} trap={recordTrap} initialKind="catch" />
+        <TrapEventModal
+          onHide={() => { setRecordTrap(null); refreshDue(); }}
+          trap={recordTrap}
+          initialKind={recordKind}
+        />
       )}
 
       {editTrap && <TrapFormModal onHide={() => setEditTrap(null)} trap={editTrap} />}

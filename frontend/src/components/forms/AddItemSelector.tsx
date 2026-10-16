@@ -67,8 +67,8 @@ export default function AddItemSelector({
   };
 
   const choices = [
-    { allowed: canAddHornet, icon: OBJECT_ICONS.hornet, label: 'Frelon', hint: "Signaler l'observation d'un frelon et sa direction de vol", onClick: handleSelectHornet },
     { allowed: canAddNest, icon: OBJECT_ICONS.nest, label: 'Nid', hint: 'Signaler un nid de frelons asiatiques', onClick: handleSelectNest },
+    { allowed: canAddHornet, icon: OBJECT_ICONS.hornet, label: 'Frelon', hint: "Observation d'un frelon et sa direction de vol (chasseurs de nids)", onClick: handleSelectHornet },
     { allowed: canAddApiary, icon: OBJECT_ICONS.apiary, label: 'Rucher', hint: "Enregistrer un rucher et son niveau d'infestation", onClick: handleSelectApiary },
     { allowed: canAddTrap, icon: OBJECT_ICONS.trap, label: 'Piège', hint: 'Installer un piège et suivre ses captures', onClick: handleSelectTrap },
   ].filter((choice) => choice.allowed);

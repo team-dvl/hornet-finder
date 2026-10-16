@@ -16,6 +16,7 @@ set -u
 SCRIPT_DIR="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 set -a; . ./.env; set +a
+. ./lib/kc-test.sh
 
 if [[ "${APP_ENV:-}" != "dev" ]]; then
     echo "This script only runs against the development environment (APP_ENV=dev)." >&2
@@ -29,34 +30,11 @@ BASE="https://${HOST}/api"
 # Beekeeper association of t-owner, t-member and t-groupadmin (admin subgroup):
 # the only kind of group a trap can be delegated to
 GROUP="/beekeepers/bkp-group-c"
-AUTH="https://${KC_HOSTNAME}/realms/hornet-finder-dev/protocol/openid-connect/token"
 PASS=0; FAIL=0
 OUT="$(mktemp)"; trap 'rm -f "$OUT"' EXIT
 
-# Current TOTP code of KC_TEST_TOTP_SECRET (base32, HmacSHA1, 6 digits, 30 s:
-# the realm OTP policy), for t-admin whose admin role requires a second factor
-totp() {
-  python3 -c "
-import base64, hashlib, hmac, os, struct, time
-secret = os.environ['KC_TEST_TOTP_SECRET'].replace(' ', '').upper()
-key = base64.b32decode(secret + '=' * (-len(secret) % 8))
-digest = hmac.new(key, struct.pack('>Q', int(time.time()) // 30), hashlib.sha1).digest()
-offset = digest[-1] & 15
-print('%06d' % ((struct.unpack('>I', digest[offset:offset + 4])[0] & 0x7fffffff) % 10**6))"
-}
-
 # token <user> [otp]: access token of <user>@example.invalid; `otp` adds the TOTP code
-token() {
-  local extra=()
-  if [[ "${2:-}" == "otp" ]]; then
-    [[ -n "${KC_TEST_TOTP_SECRET:-}" ]] || { echo "KC_TEST_TOTP_SECRET is missing from .env: $1 has an OTP." >&2; return 1; }
-    extra=(-d "totp=$(totp)")
-  fi
-  curl -sk -X POST "$AUTH" -d "client_id=$KC_TEST_CLIENT_ID" --data-urlencode "client_secret=$KC_TEST_CLIENT_SECRET" \
-    -d "username=$1@example.invalid" --data-urlencode "password=$KC_TEST_USER_PASSWORD" "${extra[@]}" \
-    -d "grant_type=password" -d "scope=openid membership" \
-    | python3 -c "import sys,json;print(json.load(sys.stdin)['access_token'])"
-}
+token() { kc_test_token "$1@example.invalid" "${2:-}"; }
 
 # call <expected> <label> <method> <path> [curl args...]
 call() {

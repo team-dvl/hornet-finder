@@ -6,3 +6,4 @@ export { default as IconButton } from './IconButton';
 export { default as SheetActions } from './SheetActions';
 export type { SheetAction } from './SheetActions';
 export { default as BackToTop } from './BackToTop';
+export { default as Switch } from './Switch';

@@ -50,6 +50,13 @@ const SECTIONS: AdminSection[] = [
     roles: [ADMIN],
   },
   {
+    title: 'Notifications',
+    description: 'Suivez les notifications envoyées, appareil par appareil.',
+    icon: 'bi-bell',
+    to: '/admin/notifications',
+    roles: [ADMIN],
+  },
+  {
     title: 'Mon groupe',
     description: 'Gérez les membres et les invitations de votre association.',
     icon: 'bi-people',

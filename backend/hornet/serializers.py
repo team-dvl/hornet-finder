@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import timedelta
 from typing import Optional
 from django.db.models import Max
@@ -10,7 +11,7 @@ from .afsca import AFSCA_DIGITS, AFSCA_FORMAT, normalize_afsca
 from . import nest_permissions as nest_perms
 from .trap_permissions import is_publicly_visible
 from .models import (
-    Apiary, Hornet, Nest, NestPhoto, Species, Trap, TrapEvent, TrapPhoto, TrapType, User,
+    Apiary, Hornet, Nest, NestEvent, NestPhoto, Species, Trap, TrapEvent, TrapPhoto, TrapType, User,
     HORNET_SPECIES_SLUG, unique_slug,
 )
 from hornet_finder_api.utils import user_exists, get_user_display_name
@@ -83,6 +84,19 @@ class HornetSerializer(GPSValidationMixin, serializers.ModelSerializer):
 
 
 
+class PublicHornetSerializer(serializers.ModelSerializer):
+    """
+    Sighting as seen by those who may not know who reported it: anonymous
+    visitors and trappers. No author, no link to a nest.
+    """
+
+    class Meta:
+        model = Hornet
+        fields = ['id', 'longitude', 'latitude', 'direction', 'duration', 'mark_color_1', 'mark_color_2',
+                  'created_at', 'archived', 'archived_at']
+        read_only_fields = fields
+
+
 class NestPhotoSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
     thumbnail_url = serializers.SerializerMethodField()
@@ -101,16 +115,83 @@ class NestPhotoSerializer(serializers.ModelSerializer):
 
 # A phone's clock may run slightly ahead of the server's
 DESTROYED_AT_CLOCK_SKEW = timedelta(minutes=5)
+# A phone number as people type it: digits, an optional leading +, spaces and the usual separators;
+# 8 to 15 digits (E.164 allows 15; a Belgian number has 9 after its 0)
+PHONE_PATTERN = re.compile(r'^\+?[0-9 ./()-]+$')
+
+
+class NestEventSerializer(serializers.ModelSerializer):
+    """An entry of the journal of a nest, as shown on its sheet."""
+    photos = NestPhotoSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = NestEvent
+        fields = ['id', 'kind', 'performed_at', 'performed_by', 'outcome', 'actor', 'fixmystreet_ref',
+                  'means', 'details', 'comments', 'photos']
+        read_only_fields = fields
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        # Who did what is for those who see every nest; a reporter sees what happened to theirs
+        named = request is not None and nest_perms.sees_all_nests(request)
+        data['performed_by'] = user_summary(instance.performed_by) if named else None
+        data['can_delete'] = request is not None and nest_perms.can_delete_event(request, instance)
+        return data
+
+
+class NestEventInputSerializer(serializers.Serializer):
+    """What a verification (`visit`), a destruction or a reactivation carries (POST /nests/<id>/events/)."""
+    kind = serializers.ChoiceField(choices=[NestEvent.KIND_VISIT, NestEvent.KIND_DESTRUCTION,
+                                            NestEvent.KIND_REACTIVATION])
+    performed_at = serializers.DateTimeField(required=False)
+    outcome = serializers.ChoiceField(choices=NestEvent.VISIT_OUTCOMES, required=False)
+    basis = serializers.ListField(child=serializers.ChoiceField(choices=NestEvent.BASES), required=False)
+    nest_type = serializers.ChoiceField(choices=Nest.TYPE_CHOICES, required=False, allow_blank=True)
+    height_class = serializers.ChoiceField(choices=Nest.HEIGHT_CHOICES, required=False, allow_blank=True)
+    size_class = serializers.ChoiceField(choices=Nest.SIZE_CHOICES, required=False, allow_blank=True)
+    actor = serializers.ChoiceField(choices=NestEvent.ACTOR_CHOICES, required=False)
+    fixmystreet_ref = serializers.CharField(max_length=32, required=False, allow_blank=True)
+    means = serializers.ListField(child=serializers.ChoiceField(choices=NestEvent.MEANS), required=False)
+    comments = serializers.CharField(required=False, allow_blank=True, max_length=2000)
+
+    def validate_performed_at(self, value):
+        if value > timezone.now() + DESTROYED_AT_CLOCK_SKEW:
+            raise serializers.ValidationError("La date ne peut pas être dans le futur.")
+        return value
+
+    def validate(self, attrs):
+        kind = attrs['kind']
+        if kind == NestEvent.KIND_VISIT and not attrs.get('outcome'):
+            raise serializers.ValidationError({'outcome': "Le résultat de la vérification est requis."})
+        if kind != NestEvent.KIND_VISIT:
+            for field in ('outcome', 'basis', 'nest_type', 'height_class', 'size_class'):
+                attrs.pop(field, None)
+        else:
+            attrs['basis'] = sorted(set(attrs.get('basis') or []))
+        if kind != NestEvent.KIND_DESTRUCTION:
+            for field in ('actor', 'fixmystreet_ref', 'means'):
+                attrs.pop(field, None)
+        else:
+            attrs.setdefault('actor', 'unknown')
+            attrs['means'] = sorted(set(attrs.get('means') or []))
+        return attrs
 
 
 class NestSerializer(GPSValidationMixin, serializers.ModelSerializer):
     photos = NestPhotoSerializer(many=True, read_only=True)
+    # At the report only: what the reporter saw (an empty nest is recorded as abandoned)
+    state = serializers.ChoiceField(choices=NestEvent.REPORT_STATES, write_only=True, required=False)
 
     class Meta:
         model = Nest
-        fields = ['id', 'longitude', 'latitude', 'public_place', 'address', 'destroyed', 'destroyed_at', 'created_at', 'created_by', 'comments', 'archived', 'archived_at', 'photos']
-        # The reporter is the requester, set by the view: never a form field
-        read_only_fields = ['id', 'created_at', 'created_by', 'archived', 'archived_at']
+        fields = ['id', 'longitude', 'latitude', 'public_place', 'address', 'status', 'destroyed', 'destroyed_at',
+                  'nest_type', 'height_class', 'size_class', 'created_at', 'created_by', 'comments',
+                  'contact_phone', 'private_comments', 'last_event_at', 'archived', 'archived_at', 'photos',
+                  'state']
+        # The reporter is the requester, set by the view: never a form field. The
+        # status follows the journal (POST /nests/<id>/events/)
+        read_only_fields = ['id', 'status', 'created_at', 'created_by', 'last_event_at', 'archived', 'archived_at']
     
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -125,6 +206,9 @@ class NestSerializer(GPSValidationMixin, serializers.ModelSerializer):
             data['created_by'] = None
         # What the requester may do, so the UI does not have to redo the rules
         request = self.context.get('request')
+        if request is None or not nest_perms.can_see_contact(request, instance):
+            data.pop('contact_phone', None)
+            data.pop('private_comments', None)
         if request is not None:
             data['permissions'] = {
                 'update': nest_perms.can_edit_nest(request, instance),
@@ -132,7 +216,12 @@ class NestSerializer(GPSValidationMixin, serializers.ModelSerializer):
                 'reactivate': nest_perms.can_reactivate_nest(request),
                 'delete': nest_perms.can_delete_nest(request),
                 'nearby_apiaries': nest_perms.can_see_nearby_apiaries(request),
+                'visit': nest_perms.can_visit_nest(request, instance),
+                'destroy': nest_perms.can_record_destruction(request, instance),
             }
+            # The journal comes with one nest, not with a list
+            if self.context.get('with_events'):
+                data['events'] = NestEventSerializer(instance.events.all(), many=True, context=self.context).data
         return data
 
     def validate_address(self, value: str) -> str:
@@ -144,6 +233,18 @@ class NestSerializer(GPSValidationMixin, serializers.ModelSerializer):
             raise serializers.ValidationError("Address must be 255 characters or less.")
         
         return value
+
+    def validate_contact_phone(self, value: str) -> str:
+        value = (value or '').strip()
+        if not value:
+            return ''
+        digits = sum(char.isdigit() for char in value)
+        if not PHONE_PATTERN.match(value) or not 8 <= digits <= 15:
+            raise serializers.ValidationError("Numéro de téléphone non valide.")
+        return value
+
+    def validate_private_comments(self, value: str) -> str:
+        return (value or '').strip()
 
     def validate_destroyed_at(self, value):
         if value is not None and value > timezone.now() + DESTROYED_AT_CLOCK_SKEW:
@@ -179,12 +280,20 @@ class NestSerializer(GPSValidationMixin, serializers.ModelSerializer):
 class PublicNestSerializer(GPSValidationMixin, serializers.ModelSerializer):
     """
     Serializer for public access to destroyed nests.
-    Excludes sensitive information like created_by.
+    Excludes sensitive information like created_by. The address and the comments of a
+    nest on private ground (a garden) are left out: they may identify the occupants.
     """
     class Meta:
         model = Nest
         fields = ['id', 'longitude', 'latitude', 'public_place', 'address', 'destroyed', 'destroyed_at', 'created_at', 'comments', 'archived', 'archived_at']
         read_only_fields = ['id', 'created_at', 'archived', 'archived_at']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if not instance.public_place:
+            data['address'] = ''
+            data['comments'] = ''
+        return data
 
 class ApiarySerializer(GPSValidationMixin, serializers.ModelSerializer):
     photo_url = serializers.SerializerMethodField()
@@ -275,7 +384,12 @@ class TrapTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrapType
         fields = ['id', 'slug', 'name', 'description', 'sort_order', 'apiary_bound',
-                  'accumulates', 'photo_url', 'photo_thumbnail_url', 'trap_count']
+                  'accumulates', 'reading_interval_days', 'refill_interval_days',
+                  'photo_url', 'photo_thumbnail_url', 'trap_count']
+        extra_kwargs = {
+            'reading_interval_days': {'min_value': 1, 'max_value': 365},
+            'refill_interval_days': {'min_value': 1, 'max_value': 365},
+        }
         # The slug is internal identity, derived from the name on creation and
         # frozen afterwards: an administrator names a trap type, they do not
         # invent an identifier for it.
@@ -595,6 +709,7 @@ class TrapSerializer(GPSValidationMixin, serializers.ModelSerializer):
                 'name': instance.trap_type.name,
                 'apiary_bound': instance.trap_type.apiary_bound,
                 'accumulates': instance.trap_type.accumulates,
+                'reading_interval_days': instance.trap_type.reading_interval_days,
                 'photo_thumbnail_url': (
                     instance.trap_type.photo_thumbnail.url
                     if instance.trap_type.photo_thumbnail else None

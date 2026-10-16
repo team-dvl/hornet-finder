@@ -4,3 +4,4 @@ export { default as TagsAdmin } from './TagsAdmin';
 export { default as SpeciesAdmin } from './SpeciesAdmin';
 export { default as ArchivingAdmin } from './ArchivingAdmin';
 export { default as GroupAdmin } from './GroupAdmin';
+export { default as NotificationsAdmin } from './NotificationsAdmin';

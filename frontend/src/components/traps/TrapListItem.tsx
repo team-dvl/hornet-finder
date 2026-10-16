@@ -28,7 +28,9 @@ export default function TrapListItem({
   trap, isMine, canAct, onOpen, onLocate, onRecord, onMore,
 }: TrapListItemProps) {
   const days = daysSince(trap.last_event_at);
-  const overdue = trap.active && (days === null || days > OVERDUE_DAYS);
+  // Late by the delay of its type (the reminders), else by the general threshold
+  const limit = trap.trap_type.reading_interval_days ?? OVERDUE_DAYS;
+  const overdue = trap.active && (days === null || days > limit);
   const thumbnail = trap.photo_thumbnail_url ?? trap.trap_type.photo_thumbnail_url ?? null;
 
   return (

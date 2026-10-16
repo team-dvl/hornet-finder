@@ -5,6 +5,7 @@ import { jwtDecode } from 'jwt-decode';
 import { HelpTip, UserAvatar } from '../common';
 import { AppModal, FieldRow, IconButton } from '../ui';
 import TokenStatusBadge from '../debug/TokenStatusBadge';
+import PushSettings from './PushSettings';
 import { formatDateTime } from '../../utils/format';
 import { accountConsoleUrl } from '../../utils/authRedirect';
 import { ROLE_LABELS, appRoles } from '../../utils/roles';
@@ -146,6 +147,8 @@ export default function UserInfoModal({ show, onHide }: UserInfoModalProps) {
           </span>
         </FieldRow>
       )}
+
+      <PushSettings onNavigate={onHide} />
 
       {/* Technical details, for development only */}
       {import.meta.env.DEV && (

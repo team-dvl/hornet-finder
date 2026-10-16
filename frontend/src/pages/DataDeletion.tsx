@@ -65,7 +65,7 @@ export default function DataDeletion() {
           </section>
 
           <Card className="mb-5">
-            <Card.Header className="bg-primary text-white">
+            <Card.Header className="bg-primary">
               <h3 className="mb-0">Comment faire une demande de suppression</h3>
             </Card.Header>
             <Card.Body>
@@ -74,7 +74,7 @@ export default function DataDeletion() {
                 par email en incluant les informations suivantes :
               </p>
               
-              <div className="bg-light p-3 rounded mb-3">
+              <div className="bg-body-tertiary p-3 rounded mb-3">
                 <strong>Adresse email :</strong> 
                 <a href="mailto:contact@velutina.ovh?subject=Demande de suppression de données - Facebook IDP" className="ms-2">
                   contact@velutina.ovh

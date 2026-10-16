@@ -37,6 +37,8 @@ interface CompassCaptureProps {
   onCapture: (direction: number) => void;
   initialLatitude?: number;
   initialLongitude?: number;
+  /** The sighting is recorded at the initial position (the crosshair), not the device's: no GPS tracking */
+  fixedPosition?: boolean;
   showPermissionModal?: boolean;
   onRequestOrientationPermission?: () => void;
   onCancelPermissionModal?: () => void;
@@ -49,13 +51,14 @@ export default function CompassCapture({
   onCapture, 
   initialLatitude, 
   initialLongitude,
+  fixedPosition = false,
   showPermissionModal = false,
   onRequestOrientationPermission,
   onCancelPermissionModal,
   orientationPermissionGranted = false
 }: CompassCaptureProps) {
-  const [latitude, setLatitude] = useState<number | null>(initialLatitude || null);
-  const [longitude, setLongitude] = useState<number | null>(initialLongitude || null);
+  const [trackedLatitude, setLatitude] = useState<number | null>(initialLatitude || null);
+  const [trackedLongitude, setLongitude] = useState<number | null>(initialLongitude || null);
   const [heading, setHeading] = useState<number | null>(null);
   // const [error, setError] = useState<string | null>(null);
   const [isSupported, setIsSupported] = useState(true);
@@ -87,7 +90,7 @@ export default function CompassCapture({
       // setError(null);
 
       // Démarrer la géolocalisation
-      if (navigator.geolocation) {
+      if (navigator.geolocation && !fixedPosition) {
         watchIdRef.current = navigator.geolocation.watchPosition(
           (position) => {
             setLatitude(position.coords.latitude);
@@ -245,7 +248,7 @@ export default function CompassCapture({
     return () => {
       if (typeof cleanup === 'function') cleanup();
     };
-  }, [show, isSupported, needsOrientationPermission, orientationPermissionGrantedLocal]);
+  }, [show, isSupported, needsOrientationPermission, orientationPermissionGrantedLocal, fixedPosition]);
 
   // Nettoyer lors de la fermeture
   const handleClose = () => {
@@ -267,6 +270,10 @@ export default function CompassCapture({
     }
     onHide();
   };
+
+  // Position the sighting is recorded at: the crosshair, or the GPS fix being tracked
+  const latitude = fixedPosition ? initialLatitude ?? null : trackedLatitude;
+  const longitude = fixedPosition ? initialLongitude ?? null : trackedLongitude;
 
   // Capturer la direction actuelle
   const handleCapture = () => {

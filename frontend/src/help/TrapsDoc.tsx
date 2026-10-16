@@ -38,7 +38,8 @@ export default function TrapsDoc() {
           Le gestionnaire de pièges
         </h5>
         <p>
-          Le module <em>Pièges</em> s'ouvre sur la liste de vos pièges. Trois portées :
+          Le module <em>Pièges</em> s'ouvre sur l'onglet <strong>À relever</strong> (voir ci-dessous) ;
+          l'onglet <strong>Gérer</strong> donne la liste de vos pièges. Trois portées :
           {' '}<strong>Mes pièges</strong> (ceux dont vous êtes propriétaire),
           {' '}<strong>Délégués</strong> (ceux qu'un propriétaire a confiés à l'une de vos associations d'apiculteurs)
           et, pour les administrateurs, <strong>Tous</strong>. Cherchez par numéro, adresse, QR Code
@@ -46,7 +47,8 @@ export default function TrapsDoc() {
         </p>
         <p>
           Le tri par défaut place en tête les pièges relevés il y a le plus longtemps, ceux jamais
-          relevés d'abord ; un relevé de plus de 7 jours est mis en évidence.
+          relevés d'abord ; un piège est mis en évidence quand son dernier relevé dépasse le délai de son
+          type (à défaut, 7 jours).
         </p>
         <p className="mb-0">
           Sur chaque ligne : <strong>📍</strong> ouvre le module <em>Carte</em> centré sur le piège,
@@ -54,7 +56,36 @@ export default function TrapsDoc() {
           la liste telle que vous l'aviez laissée ; le bouton de relevé enregistre une visite
           (propriétaire et membres du groupe délégué) ; le menu <strong>⋮</strong> donne accès à la
           fiche, au déplacement, à la modification et à la suppression (propriétaire ou
-          administrateur). Vos filtres sont conservés dans l'adresse de la page.
+          administrateur), ainsi qu'à <strong>Remiser</strong> ou <strong>Remettre en service</strong>
+          (propriétaire et membres du groupe délégué). Vos filtres sont conservés dans l'adresse de la page.
+        </p>
+      </section>
+
+      <section data-section="reminders" className="mb-4">
+        <h5 className="text-primary">
+          <span className="me-2">⏰</span>
+          À relever et rappels
+        </h5>
+        <p>
+          Chaque type de piège peut fixer deux délais, réglés par les administrateurs : un
+          <strong> relevé</strong> tous les N jours et un <strong>renouvellement de l'attractif</strong> tous
+          les N jours. Le délai de relevé part du dernier relevé (même vide), à défaut de l'installation ; celui
+          de l'attractif part de la dernière recharge, à défaut de l'installation. Une inspection ne compte pas.
+        </p>
+        <p>
+          L'onglet <strong>À relever</strong> liste ce que vos propres pièges attendent : en retard, aujourd'hui,
+          bientôt. <strong>Relever</strong> et <strong>Recharger</strong> ouvrent le formulaire du journal ; la
+          ligne disparaît une fois l'entrée enregistrée. La tuile du module, sur l'accueil, compte ce qui est dû.
+        </p>
+        <p>
+          Si vous avez activé les notifications, un rappel part à <strong>9 h</strong> (<strong>10 h</strong> le
+          dimanche) le jour où un relevé ou une recharge est dû, puis tous les deux jours tant que rien n'est
+          enregistré, trois fois au plus. À partir de trois rappels le même jour, un seul message les regroupe.
+          Le module <em>Notifications</em> permet de couper chaque sorte de rappel.
+        </p>
+        <p className="mb-0">
+          Un piège <strong>remisé</strong> n'a plus de rappel : remisez vos pièges en fin de saison, et
+          remettez-les en service au printemps (les délais repartent de ce jour-là).
         </p>
       </section>
 

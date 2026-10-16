@@ -10,6 +10,118 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-16
+
+### Security
+- Frontend dependencies: `npm audit fix` updates the transitive `brace-expansion` and `source-map-js` (high), `fast-uri` (moderate) and `serialize-javascript` (low) in the lockfile; `npm audit` reports 0 vulnerabilities.
+
+### Changed
+- Frontend dependencies: React and react-dom 19.3.1, `@types/react` and `@types/react-dom` 19.3.0, react-router-dom 7.18.4, Vite 8.3.4.
+- Privacy policy: new article 9 "Cookies et stockage local" (what the site stores, why, how long; no tracking cookie, so no consent banner) and the map services contacted (OpenStreetMap, Esri, Nominatim, ipify) listed in article 5. The home footer link now reads "Confidentialité et cookies".
+
+### Added
+- Nest report: a phone number to call the reporter back and a comment for the coordinators,
+  both optional, read only by the nest coordinators and the reporter, never on the public
+  map. The number stays out of the audit trail and is erased at the end of the season
+  (1 March). Coordinators see it on the nest sheet (tap to call) and can correct both.
+- Pending badges for every module: the nests module now shows, like the traps module, a
+  red count on its landing tile when something waits for the user (nests to verify or to
+  destroy for the coordinators, active nests near one's apiaries). The same counts appear
+  on the menu entries, and a red dot on the menu button. One request serves them all
+  (`GET /api/pending/`), refreshed after a reading or a nest action.
+- Nests module, first part of its redesign (`doc/mockups/nests-redesign.html`): a nest has a
+  journal and a status, reported, confirmed, destroyed, rejected (another species, not
+  found) or abandoned (empty). The module opens on "À traiter" (nests to verify or to destroy
+  for the coordinators, active nests within 1 km of one's apiaries, one's own reports still
+  open) and lists the nests of the season in "Nids" (search, statuses, ordering); a trapper
+  sees their reports and how they stand. The map opens from the header, or on one nest.
+- Nest verification (coordinators: platform admins and `/hunters/admin`), on the spot or
+  not: from the photos, a call with the reporter or a look on the spot, noted as "Sur base
+  de". Outcome active, empty, another species or not found, with the type (pre-chosen from the date: primary from February to
+  May, secondary from July), height and size by classes. Destruction recorded by a
+  coordinator (date, by whom, FixMyStreet included, means: pole, lift, nest removed) or
+  reported by whoever reported the nest ("Signaler neutralisé"). The reporter can also say a nest is
+  empty.
+- Nest notifications, from 9:00 (10:00 on Sundays) to 20:00 like the trap reminders, a
+  summary from 3 at once: "Tous les nouveaux nids" (on for coordinators and admins, a
+  beekeeper turns it on), "Nids près de mes ruchers" (owners of the apiaries within 1 km and
+  administrators of the associations they are shared with), "Suivi de mes signalements"
+  (confirmed, rejected, found empty, destroyed). An empty nest only tells the coordinators.
+- End of the nest season: on 1 March, the nests of the previous season still reported or
+  confirmed become abandoned. Existing nests get their journal at the migration; those of
+  past seasons left untreated become abandoned.
+- Appearance: a dark mode (light, dark, or follow the system, the default) and two themes,
+  Velutina (charcoal and amber, the default) and Forêt (green and ochre), chosen from the
+  "Apparence" entry of the menu. The choice is kept on the device and applies before the first
+  paint. Street maps are darkened in dark mode; the satellite view is unchanged.
+- Trap reminders: each trap type can set a reading delay and an attractant delay (in days).
+  The owner of a trap gets a notification at 9:00 (10:00 on Sundays) the day a reading or
+  a renewal of the attractant is due, then every 2 days, 3 times at most; from 3 reminders
+  at once, a single summary. A shelved trap has none. A scheduler service sends them
+  (prod note 0025).
+- Traps module: it opens on a new "À relever" tab (late, today, soon, with "Relever" and
+  "Recharger"); the landing tile counts what is due.
+- Notifications module: this device on or off with a test, and the kinds of notifications
+  (reading and attractant reminders, group and platform messages) to turn off, with
+  switches that look like the platform's (iOS or Material). A first question about
+  notifications appears once per device, from the second visit.
+- Trap menu: "Remiser" and "Remettre en service".
+- Notifications retention: the history of sent notifications is deleted after 90 days, and
+  a device on which the app was not opened for 6 months stops receiving them (it registers
+  again when the app is opened). The privacy policy says so.
+- Map: the position button now opens a sheet to place the crosshair either at
+  the device's position or at an address (Nominatim search); the map fits the
+  extent of the place found (a house, a street, a village).
+
+### Changed
+- Nests: "neutralisé" instead of "détruit" everywhere in the app, its notifications and its
+  help (status, steps, lists, journal, audit labels). The actions are verbs: "Neutraliser"
+  for a coordinator, "Signaler neutralisé" for the reporter (was "Détruit ?").
+- Nest lists on a phone: a row with a main action puts its buttons under the text, like the
+  traps and apiaries, so the address is no longer cut to a few letters.
+- Recording a hornet sighting is reserved for nest hunters (trained, members of `/hunters`) and
+  admins: beekeepers lose it. Reporting a nest stays open to every role and now comes first in
+  the "Ajouter ici" sheet. Editing or deleting a hornet in the app follows the API: admins only.
+- Nests: the map hides rejected and abandoned nests, and colours the others by status
+  (reported red, confirmed orange, destroyed grey). Editing a nest no longer sets it
+  destroyed: its destruction goes through its journal (the old `destroyed` field of the
+  API still works and is written to the journal).
+- Traps module: the former list is the "Gérer" tab; a trap is highlighted as late after
+  the reading delay of its type (7 days when the type sets none).
+- Profile dialog: the notifications row now leads to the Notifications module.
+- Address search: says when no address matches, and the suggestions no longer
+  scroll inside their own box.
+- Map on a touch screen: the position, layers and add buttons sit at the bottom
+  right, within reach of the thumb ("+" lowest), above the trap move bar when it
+  shows; with a mouse they stay at the top right.
+- Trap type form: the reminder delays are picked from a native list ("Tous
+  les 7 jours", "Aucun rappel"; the wheel on iOS) instead of a number field,
+  with shorter labels; the two switches are settings rows (label, help, switch).
+- Switches: every switch of the app takes the platform's look (iOS or Material),
+  centred on its label, a finger's height.
+
+### Fixed
+- Phone menu: the account row no longer overflows the screen on a narrow phone (320 px,
+  iPhone in zoomed display): the name is truncated and "Déconnexion" stays fully visible.
+- iPhone: a button no longer looks pressed after a tap left the finger over it, which made
+  "À traiter" and "Nids" both look selected on opening the nests module (buttons keep no
+  hover look on touch screens).
+- Desktop menu bar: a module and its pending count stay on one line (the count wrapped below
+  the label and made the bar taller, out of line with "Aide" and "Apparence").
+- The menu button is read "Menu" by screen readers (it was "Toggle navigation").
+- Map: the "+" additions go to the crosshair placed from the position sheet (a trap
+  at the crosshair; a hornet "vu d'ici" at the crosshair when it was placed at an
+  address, otherwise at the GPS position), instead of the map centre or the GPS.
+
+### Security
+- Archived hornet sightings and nests are deleted for good 5 years after they were reported
+  (`OBSERVATIONS_RETENTION_DAYS`, run by the scheduler, `manage.py purge_observations --dry-run`
+  to preview); a nest takes its journal and photos with it. The privacy policy says so.
+- The list of hornet sightings no longer shows who reported them to anonymous visitors nor to
+  trappers (personal data, GDPR); nest hunters, beekeepers and admins still see the author.
+- The public list of destroyed nests no longer carries the address and comments of a nest on
+  private ground. The privacy policy says what is visible without signing in.
+
 ## [1.4.0] - 2026-10-13
 
 ### Security
@@ -23,6 +135,15 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 
 ### Added
 - Release script: `release.sh` now accepts short argument (`-n`) for dry run.
+- Notifications: a group administrator writes a push notification to a member or to the
+  whole group of an association, and a platform admin to anyone (from the members list,
+  "Notifier"). Everyone turns notifications on or off per device in their profile, with a
+  test button; on iPhone and iPad the app must be added to the home screen first (iOS
+  16.4 or later). Platform admins follow the deliveries, device by device, in
+  Administration → Notifications. The app icon shows a badge counting the notifications
+  received since the app was last opened (iPhone and desktop; Android draws its own dot).
+  Needs VAPID keys in `.env` (prod note 0024). The service
+  worker is now written by hand (`injectManifest`).
 - Map: it reopens where you left it (centre and zoom, on this device, for 30 days after
   the last move). Only a drag by hand is remembered, never a locate fix or a jump to an
   object. "Position par défaut" in the layers sheet forgets it and recentres on the
@@ -319,7 +440,8 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   algorithm-confusion flaws were not reachable; `PyJWKClient` redirect handling
   is fixed.
 
-[Unreleased]: https://github.com/team-dvl/hornet-finder/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/team-dvl/hornet-finder/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/team-dvl/hornet-finder/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/team-dvl/hornet-finder/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/team-dvl/hornet-finder/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/team-dvl/hornet-finder/compare/v1.1.0...v1.2.0

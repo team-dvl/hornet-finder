@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { isInstalledPwa } from './pwa';
+import { isInstalledPwa, isIosDevice } from './pwa';
 
 /**
  * Suggestion to pin the app on the home screen.
@@ -66,11 +66,7 @@ function countVisit(): void {
   }
 }
 
-export function isIos(): boolean {
-  const { userAgent, platform, maxTouchPoints } = navigator;
-  // iPadOS reports itself as a Mac, with a touch screen
-  return /iPad|iPhone|iPod/.test(userAgent) || (platform === 'MacIntel' && maxTouchPoints > 1);
-}
+export const isIos = isIosDevice;
 
 function isTouchDevice(): boolean {
   return window.matchMedia('(pointer: coarse)').matches;
@@ -95,6 +91,16 @@ export function shouldAutoOpen(): boolean {
   if (!canInstall(state) || !isTouchDevice()) return false;
   if (readNumber(VISITS_KEY) < MIN_VISITS) return false;
   return Date.now() - readNumber(DISMISSED_KEY) > REPROMPT_DELAY_MS;
+}
+
+/** Sessions of the app counted so far on this device. */
+export function visitCount(): number {
+  return readNumber(VISITS_KEY);
+}
+
+/** Whether the install suggestion was closed less than `ms` ago (or opens by itself now). */
+export function installSheetRecent(ms: number): boolean {
+  return shouldAutoOpen() || state.open || Date.now() - readNumber(DISMISSED_KEY) < ms;
 }
 
 export function openInstallSheet(): void {

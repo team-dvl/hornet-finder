@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { formatDate } from '../utils/format';
 
 /** Date of the last revision of this policy */
-const LAST_UPDATED = '2026-10-09T12:00:00';
+const LAST_UPDATED = '2026-10-16T12:00:00';
 
 export default function PrivacyPolicy() {
   return (
@@ -55,7 +55,9 @@ export default function PrivacyPolicy() {
               <li>Informations de profil (nom, email) fournies par votre fournisseur d'identité (Facebook, Google, etc.)</li>
               <li>Données de géolocalisation des signalements</li>
               <li>Informations techniques relatives aux signalements (photos, descriptions, dates)</li>
+              <li>Si vous le donnez en signalant un nid, un numéro de téléphone pour vous rappeler, lu seulement par les coordinateurs des nids</li>
               <li>Journal des actions faites dans l'application (voir l'article 8)</li>
+              <li>Si vous les activez, l'abonnement de vos appareils aux notifications et les notifications envoyées (voir l'article 7)</li>
             </ul>
           </section>
 
@@ -77,6 +79,21 @@ export default function PrivacyPolicy() {
               (collectivités territoriales, services environnementaux, associations de lutte 
               contre le frelon asiatique) dans le cadre de la mission d'intérêt public de 
               l'application.
+            </p>
+            <p>
+              Sans connexion, la carte montre les nids neutralisés et les observations de frelons 
+              (position, date, direction de vol), jamais le nom de la personne qui les a signalés. 
+              L'adresse et les commentaires d'un nid situé sur un terrain privé ne sont visibles 
+              que des utilisateurs connectés autorisés.
+            </p>
+            <p>
+              Pour afficher la carte, votre appareil contacte directement OpenStreetMap
+              (fond de plan) et, si vous choisissez la vue satellite, Esri (images aériennes).
+              Ces services reçoivent votre adresse IP et la zone de carte consultée. La recherche
+              d'une adresse passe par Nominatim (OpenStreetMap) et ne reçoit que le texte cherché.
+              Si vous ouvrez l'aide « Serveur injoignable », le service ipify est interrogé pour
+              afficher l'adresse IP publique de votre appareil. Nous n'envoyons à ces services
+              aucun identifiant de compte.
             </p>
             <p>
               Nous ne vendons, ne louons ni ne partageons vos données personnelles à des fins 
@@ -108,10 +125,25 @@ export default function PrivacyPolicy() {
               obligations légales et réglementaires applicables.
             </p>
             <p>
-              Les données de signalement peuvent être conservées plus longtemps à des fins 
-              statistiques et de recherche scientifique, après anonymisation.
+              Les observations de frelons et les nids sont conservés pour suivre les saisons. Une 
+              fois archivés par les administrateurs, ils sont supprimés définitivement{' '}
+              <strong>cinq ans</strong> après leur signalement, avec les photos et le journal 
+              d'un nid. Les observations et nids non archivés restent tant qu'ils ne le sont pas.
+            </p>
+            <p>
+              Le numéro de téléphone laissé avec un nid est effacé à la fin de sa saison, le 1<sup>er</sup> mars
+              suivant.
             </p>
             <p>Le journal des actions est conservé un an (article 8).</p>
+            <p>
+              Si vous activez les notifications sur un appareil, nous gardons l'adresse d'envoi que
+              votre navigateur a obtenue de son service de notification (Apple, Google ou Mozilla),
+              les clés qui chiffrent les messages pour cet appareil et son type (par exemple
+              « iOS · Safari »). Cet abonnement est supprimé quand vous désactivez les
+              notifications, quand vous vous déconnectez, ou après six mois sans ouverture de
+              l'application sur cet appareil. Les notifications envoyées (titre, texte, appareils
+              atteints et heure de réception) sont conservées 90 jours.
+            </p>
           </section>
 
           <section className="mb-5">
@@ -149,8 +181,44 @@ export default function PrivacyPolicy() {
             </p>
           </section>
 
+          <section className="mb-5" id="cookies">
+            <h2>9. Cookies et stockage local</h2>
+            <p>
+              L'Application n'utilise <strong>aucun cookie publicitaire, statistique ou de suivi</strong>,
+              et aucun outil de mesure d'audience. Elle ne dépose que ce qui est
+              strictement nécessaire au service que vous demandez. Ces éléments sont dispensés de
+              consentement (directive ePrivacy, art. 5.3) : il n'y a donc pas de bandeau à accepter.
+            </p>
+            <ul>
+              <li>
+                <strong>Connexion</strong> (cookies de <code>auth.velutina.ovh</code> et jetons dans
+                le stockage local de votre navigateur) : vous reconnaître une fois connecté. Durée :
+                jusqu'à 3 jours d'inactivité et 7 jours au maximum, ou jusqu'à votre déconnexion.
+              </li>
+              <li>
+                <strong>Préférences</strong> (stockage local) : thème et mode sombre, fond de carte,
+                dernière vue de la carte. Elles restent sur votre appareil et ne sont jamais envoyées.
+              </li>
+              <li>
+                <strong>Invitations</strong> (stockage local) : se souvenir que vous avez refusé
+                l'installation de l'application ou les notifications, pour ne pas vous les redemander
+                à chaque visite. Elles restent sur votre appareil.
+              </li>
+              <li>
+                <strong>Fonctionnement hors ligne</strong> (cache de l'application) : charger
+                l'application sans réseau.
+              </li>
+            </ul>
+            <p>
+              Vous pouvez effacer ces éléments à tout moment dans les réglages de votre navigateur ;
+              vous serez alors déconnecté et vos préférences reviendront aux valeurs par défaut. Les
+              services de carte cités à l'article 5 peuvent, de leur côté, déposer leurs propres
+              éléments : consultez leurs politiques.
+            </p>
+          </section>
+
           <section className="mb-5">
-            <h2>9. Sécurité des données</h2>
+            <h2>10. Sécurité des données</h2>
             <p>
               Nous mettons en œuvre des mesures techniques et organisationnelles appropriées 
               pour protéger vos données personnelles contre la perte, l'utilisation abusive, 
@@ -159,17 +227,17 @@ export default function PrivacyPolicy() {
           </section>
 
           <section className="mb-5">
-            <h2>10. Transferts internationaux</h2>
+            <h2>11. Transferts internationaux</h2>
             <p>
-              Dans le cadre de l'utilisation de services d'authentification tiers (Facebook, Google), 
-              vos données peuvent être transférées vers des pays situés en dehors de l'Espace 
+              Dans le cadre de l'utilisation de services d'authentification tiers (Facebook, Google)
+              ou de la vue satellite (Esri, États-Unis), vos données peuvent être transférées vers des pays situés en dehors de l'Espace 
               Économique Européen. Ces transferts sont encadrés par des garanties appropriées 
               conformément au RGPD.
             </p>
           </section>
 
           <section className="mb-5">
-            <h2>11. Contact et délégué à la protection des données</h2>
+            <h2>12. Contact et délégué à la protection des données</h2>
             <p>
               Pour toute question relative à cette politique de confidentialité ou pour 
               exercer vos droits RGPD, vous pouvez nous contacter à :
@@ -186,7 +254,7 @@ Vous avez également le droit d'introduire une réclamation auprès de
           </section>
 
           <section className="mb-5">
-            <h2>12. Modifications de cette politique</h2>
+            <h2>13. Modifications de cette politique</h2>
             <p>
               Cette politique de confidentialité peut être mise à jour périodiquement. 
               Les modifications importantes vous seront notifiées via l'application ou 

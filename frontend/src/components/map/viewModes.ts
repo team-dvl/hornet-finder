@@ -8,7 +8,7 @@
  * its URL (`/map?view_mode=...`), which lets another module open the map on an
  * object and come back (see `mapUrl`).
  */
-export type MapViewMode = 'map' | 'nests' | 'apiary' | 'trap' | 'trap-move';
+export type MapViewMode = 'map' | 'nests' | 'nest' | 'apiary' | 'trap' | 'trap-move';
 
 interface LayerSet {
   traps: boolean;
@@ -26,8 +26,14 @@ export interface MapViewModeConfig {
   moveTrap?: boolean;
   /** Centres on the apiary given by `focusApiaryId` and highlights it */
   focusApiary?: boolean;
+  /** Centres on the nest given by `focusNestId` */
+  focusNest?: boolean;
   /** Label of the back button, shown when the caller gave a return path */
   backLabel?: string;
+}
+
+function nestFindingLayers(roles: string[]): LayerSet {
+  return { traps: false, nests: true, apiaries: roles.includes('beekeeper'), hornets: roles.includes('hunter') };
 }
 
 export const MAP_VIEW_MODES: Record<MapViewMode, MapViewModeConfig> = {
@@ -35,8 +41,17 @@ export const MAP_VIEW_MODES: Record<MapViewMode, MapViewModeConfig> = {
   map: {
     layers: (roles) => ({ traps: true, nests: true, apiaries: roles.includes('beekeeper'), hornets: false }),
   },
-  // Nest finding: the layers as the user left them
-  nests: {},
+  // Nest finding, from the nests module: nests, the hunters' sightings, the beekeepers' apiaries
+  nests: {
+    layers: nestFindingLayers,
+    backLabel: 'Nids',
+  },
+  // One nest in its surroundings, reached from the nests module
+  nest: {
+    layers: nestFindingLayers,
+    focusNest: true,
+    backLabel: 'Nids',
+  },
   // One apiary among the others, reached from the apiary manager; the other
   // layers one switch away
   apiary: {
@@ -70,12 +85,13 @@ export function safeReturnPath(value: string | null | undefined): string | undef
 }
 
 /** Link to the map module in a given view mode, e.g. from the trap manager. */
-export function mapUrl({ mode, trap, apiary, from }: {
-  mode: MapViewMode; trap?: number; apiary?: number; from?: string;
+export function mapUrl({ mode, trap, apiary, nest, from }: {
+  mode: MapViewMode; trap?: number; apiary?: number; nest?: number; from?: string;
 }): string {
   const params = new URLSearchParams({ view_mode: mode });
   if (trap !== undefined) params.set('trap', String(trap));
   if (apiary !== undefined) params.set('apiary', String(apiary));
+  if (nest !== undefined) params.set('nest', String(nest));
   const back = safeReturnPath(from);
   if (back) params.set('from', back);
   return `/map?${params}`;

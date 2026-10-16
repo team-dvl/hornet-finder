@@ -4,10 +4,17 @@ import * as L from 'leaflet';
 import { useRef } from 'react';
 import { Nest } from '../../store/slices/nestsSlice';
 
-// Créer une icône personnalisée pour les nids
-const createNestIcon = (destroyed: boolean = false) => {
-  const color = destroyed ? '#6c757d' : '#dc3545'; // Gris si détruit, rouge sinon
-  const symbol = destroyed ? '💀' : '🏴'; // Crâne si détruit, drapeau noir si actif
+// Colour of the marker by status: red reported, orange confirmed, grey destroyed (with a skull)
+const NEST_COLORS: Record<string, string> = {
+  reported: '#dc3545',
+  confirmed: '#e8590c',
+  destroyed: '#6c757d',
+};
+
+const createNestIcon = (nest: Nest) => {
+  const status = nest.status ?? (nest.destroyed ? 'destroyed' : 'reported');
+  const color = NEST_COLORS[status] ?? '#adb5bd';
+  const symbol = status === 'destroyed' ? '💀' : '🏴';
   
   const svg = `
     <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
@@ -43,7 +50,7 @@ export default function NestMarker({ nest, onClick }: NestMarkerProps) {
     <Marker
       ref={markerRef}
       position={[nest.latitude, nest.longitude]}
-      icon={createNestIcon(nest.destroyed)}
+      icon={createNestIcon(nest)}
       zIndexOffset={200} // Nids au-dessus de tout
       eventHandlers={{
         click: handleMarkerClick,
