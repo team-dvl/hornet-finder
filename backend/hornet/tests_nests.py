@@ -353,6 +353,15 @@ class ListTests(NestJournalTestCase):
         self.assertEqual(self.pending(self.reporter_user), 0)
         self.assertEqual(self.pending(self.hunter_user), 0)
 
+    def test_the_nests_badge_counts_a_nest_once(self):
+        # The same reported nest is to verify AND near the coordinator's apiary: one nest, one count
+        Apiary.objects.create(latitude=50.505, longitude=4.5, owner=self.coordinator)
+        todo = self.get(self.coordinator_user, '/nests/todo/', 'todo').data
+        self.assertIn(self.nest.pk, [n['id'] for n in todo['to_verify']])
+        self.assertIn(self.nest.pk, [n['id'] for n in todo['near_apiaries']])
+        distinct = {n['id'] for name in ('to_verify', 'confirmed', 'near_apiaries') for n in todo.get(name, [])}
+        self.assertEqual(self.pending(self.coordinator_user), len(distinct))
+
     def test_todo_of_a_trapper(self):
         response = self.get(self.reporter_user, '/nests/todo/', 'todo')
         self.assertEqual(list(response.data), ['mine'])

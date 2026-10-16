@@ -328,11 +328,16 @@ body {
 }
 
 /* ---- Native-looking switches on dark ---- */
-:root[data-bs-theme='dark'][data-platform='ios'] .form-switch .form-check-input {
-  background-color: #39393d;
+/* Bootstrap's dark rule (`:not(:checked)`) dims the off knob to 25 % white and
+   outranks the platform rules, so the off state is restated with the same
+   weight: opaque white knob, lighter track, hairline edge against the page */
+:root[data-bs-theme='dark'][data-platform='ios'] .form-switch .form-check-input:not(:checked) {
+  background-color: #5a5a60;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 31 31'%3E%3Ccircle cx='15.5' cy='15.5' r='13.5' fill='%23fff'/%3E%3C/svg%3E");
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
 }
 
-:root[data-bs-theme='dark'][data-platform='material'] .form-switch .form-check-input {
+:root[data-bs-theme='dark'][data-platform='material'] .form-switch .form-check-input:not(:checked) {
   border-color: #938f99;
   background-color: #36343b;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Ccircle cx='14' cy='14' r='8' fill='%23938f99'/%3E%3C/svg%3E");

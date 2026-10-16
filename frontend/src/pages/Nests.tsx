@@ -82,7 +82,10 @@ export default function Nests() {
       .catch(() => { if (!cancelled) setTodoError("La liste n'est pas disponible pour le moment."); });
     return () => { cancelled = true; };
   }, [auth.isAuthenticated, version]);
-  const waiting = (todo?.to_verify?.length ?? 0) + (todo?.confirmed?.length ?? 0) + (todo?.near_apiaries?.length ?? 0);
+  // A nest can belong to several sections: it counts once, as in `GET /api/pending/`
+  const waiting = new Set(
+    [...(todo?.to_verify ?? []), ...(todo?.confirmed ?? []), ...(todo?.near_apiaries ?? [])].map((nest) => nest.id),
+  ).size;
 
   // --- The list of the season ---------------------------------------------------
   const params = useMemo(() => new URLSearchParams(onList ? location.search : ''), [onList, location.search]);
@@ -198,11 +201,16 @@ export default function Nests() {
     </div>
   );
 
+  // Each nest is listed once, in the first section (in order of urgency) that holds it
+  const shown = new Set<number | undefined>();
   const sections = todo ? TODO_SECTIONS
     .map((section) => ({
       ...section,
-      items: (todo[section.key] ?? []).filter((nest) => section.key !== 'mine' || isOpenStatus(nest.status)),
+      items: (todo[section.key] ?? [])
+        .filter((nest) => section.key !== 'mine' || isOpenStatus(nest.status))
+        .filter((nest) => !shown.has(nest.id)),
     }))
+    .map((section) => { section.items.forEach((nest) => shown.add(nest.id)); return section; })
     .filter((section) => section.items.length > 0) : [];
 
   return (

@@ -58,7 +58,12 @@ def nest_todo(request, season) -> dict:
 
 def nests(request) -> int:
     sections = nest_todo(request, season_nests())
-    return sum(sections[name].count() for name in NEST_WAITING if name in sections)
+    # A nest can sit in several sections (reported AND near an apiary): it counts once
+    waiting = set()
+    for name in NEST_WAITING:
+        if name in sections:
+            waiting.update(sections[name].values_list('pk', flat=True))
+    return len(waiting)
 
 
 def traps(request) -> int:

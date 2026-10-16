@@ -145,7 +145,7 @@ button.module-card {
   font-size: 1.1rem;
 }
 
-@media (min-width: 992px) {
+@media (min-width: 1200px) {
   .navbar-title {
     flex: 0 1 auto;
     margin-right: 1.5rem;
@@ -206,14 +206,14 @@ button.module-card {
   padding: 0.25rem 0;
 }
 
-@media (min-width: 992px) {
+@media (min-width: 1200px) {
   .navbar-version {
     margin-left: 1rem;
   }
 }
 
 /* Menu opened on a phone: list rows large enough for a finger */
-@media (max-width: 991.98px) {
+@media (max-width: 1199.98px) {
   /* min-width: a flex item of the container, its minimum is that of its unbreakable
      content (avatar, name, "Déconnexion"): wider than a narrow phone, so the name
      never truncated */

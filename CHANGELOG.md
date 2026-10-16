@@ -10,6 +10,13 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-10-16
+
+### Fixed
+- Dark mode, iOS and Android: an off switch was hard to tell from an on one (Bootstrap's dark rule dimmed the off knob). The off state now has an opaque white knob and a lighter track (iOS) or a restated outline (Material), in both palettes.
+- Navbar on a PC: the menu entries, the breadcrumb and the version tag overlapped between 992 and 1200 px wide. The horizontal menu now starts at 1200 px; below it the burger menu is used.
+- Nests: a nest that belongs to several "À traiter" sections (to verify, near one's apiaries, one's own report) was counted once per section in the badges and listed several times. It now counts once and appears once, in the most urgent section.
+
 ## [1.5.0] - 2026-10-16
 
 ### Security
@@ -440,7 +447,8 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   algorithm-confusion flaws were not reachable; `PyJWKClient` redirect handling
   is fixed.
 
-[Unreleased]: https://github.com/team-dvl/hornet-finder/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/team-dvl/hornet-finder/compare/v1.5.1...HEAD
+[1.5.1]: https://github.com/team-dvl/hornet-finder/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/team-dvl/hornet-finder/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/team-dvl/hornet-finder/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/team-dvl/hornet-finder/compare/v1.2.0...v1.3.0

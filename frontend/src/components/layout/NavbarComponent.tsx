@@ -90,7 +90,7 @@ export default function NavbarComponent() {
   return (
     <Navbar
       ref={navbarRef}
-      expand="lg"
+      expand="xl"
       fixed="top"
       className={`shadow-sm navbar-transparent ${expanded ? 'navbar-opaque' : ''}`}
       expanded={expanded}
@@ -158,7 +158,7 @@ export default function NavbarComponent() {
           <Nav className="me-auto">
             {modules.map((module) => (
               <Nav.Link key={module.id} as={NavLink} to={module.landing ?? module.path!} onClick={close} className="navbar-module-link">
-                <i className={`bi ${module.icon} me-2 d-lg-none module-icon`} data-tone={module.tone} aria-hidden="true" />
+                <i className={`bi ${module.icon} me-2 d-xl-none module-icon`} data-tone={module.tone} aria-hidden="true" />
                 {module.shortTitle}
                 {(pending[module.id] ?? 0) > 0 && (
                   <Badge pill bg="danger" className="ms-2" aria-label={`${pending[module.id]} en attente`}>
@@ -176,7 +176,7 @@ export default function NavbarComponent() {
               }}
               className="navbar-module-link text-start"
             >
-              <i className={`bi bi-${ACTION_ICONS.docs} me-2 d-lg-none module-icon`} data-tone="plain" aria-hidden="true" />
+              <i className={`bi bi-${ACTION_ICONS.docs} me-2 d-xl-none module-icon`} data-tone="plain" aria-hidden="true" />
               Aide
             </Nav.Link>
             <Nav.Link
@@ -188,7 +188,7 @@ export default function NavbarComponent() {
               }}
               className="navbar-module-link text-start"
             >
-              <i className={`bi bi-${ACTION_ICONS.appearance} me-2 d-lg-none module-icon`} data-tone="plain" aria-hidden="true" />
+              <i className={`bi bi-${ACTION_ICONS.appearance} me-2 d-xl-none module-icon`} data-tone="plain" aria-hidden="true" />
               Apparence
             </Nav.Link>
             {installAvailable && (
@@ -201,13 +201,13 @@ export default function NavbarComponent() {
                 }}
                 className="navbar-module-link text-start"
               >
-                <i className="bi bi-download me-2 d-lg-none module-icon" aria-hidden="true" />
+                <i className="bi bi-download me-2 d-xl-none module-icon" aria-hidden="true" />
                 Installer l’app
               </Nav.Link>
             )}
           </Nav>
 
-          <Nav className="align-items-lg-center navbar-account">
+          <Nav className="align-items-xl-center navbar-account">
             {!auth.isAuthenticated && (
               <Button
                 variant="primary"
@@ -233,7 +233,7 @@ export default function NavbarComponent() {
                   title="Mon profil"
                 >
                   <UserAvatar url={avatarUrl} size={28} />
-                  <span className="text-truncate d-lg-none d-xl-inline">{auth.user?.profile.name}</span>
+                  <span className="text-truncate d-xl-none d-xxl-inline">{auth.user?.profile.name}</span>
                 </Button>
                 <Button
                   variant="outline-secondary"
@@ -245,7 +245,7 @@ export default function NavbarComponent() {
                   title="Déconnexion"
                 >
                   <i className="bi bi-box-arrow-right" aria-hidden="true" />
-                  <span className="ms-2 d-lg-none">Déconnexion</span>
+                  <span className="ms-2 d-xl-none">Déconnexion</span>
                 </Button>
               </div>
             )}
