@@ -699,6 +699,13 @@ button.module-card {
   margin-bottom: 0;
 }
 
+/* Default width: roomier on a large screen, where 500 px leaves wrapped rows */
+@media (min-width: 992px) {
+  .app-modal-default .modal-dialog {
+    --bs-modal-width: 700px;
+  }
+}
+
 .app-modal-header {
   padding-top: 0.75rem;
   padding-bottom: 0.75rem;

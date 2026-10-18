@@ -17,7 +17,7 @@ interface AppModalProps {
   onSubmit?: (event: FormEvent<HTMLFormElement>) => void;
   /** Bootstrap validation state of that form; when set, the browser's own validation is off */
   validated?: boolean;
-  /** Width from `sm` up; below, the dialog is always full screen */
+  /** Width from `sm` up; below, the dialog is always full screen. Unset: 500 px, 700 px from `lg` (object sheets, forms) */
   size?: 'sm' | 'lg' | 'xl';
   /** A small dialog (confirmation) that stays centred on a phone as well */
   compact?: boolean;
@@ -74,7 +74,7 @@ export default function AppModal({
       size={size}
       fullscreen={compact ? undefined : 'sm-down'}
       backdrop={locked ? 'static' : true}
-      className="app-modal"
+      className={size || compact ? 'app-modal' : 'app-modal app-modal-default'}
     >
       <Modal.Header closeButton closeLabel="Fermer" className="app-modal-header">
         <Modal.Title as="h5" className="app-modal-title">

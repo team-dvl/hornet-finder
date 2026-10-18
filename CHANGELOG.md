@@ -10,6 +10,9 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 
 ## [Unreleased]
 
+### Changed
+- Dialogs on a large screen (object sheets such as a nest, forms): 700 px wide from 992 px instead of 500 px. Confirmations and phone layout unchanged.
+
 ## [1.5.1] - 2026-10-16
 
 ### Fixed
