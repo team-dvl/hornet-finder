@@ -29,6 +29,7 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 - Dark mode, iOS and Android: an off switch was hard to tell from an on one (Bootstrap's dark rule dimmed the off knob). The off state now has an opaque white knob and a lighter track (iOS) or a restated outline (Material), in both palettes.
 - Navbar on a PC: the menu entries, the breadcrumb and the version tag overlapped between 992 and 1200 px wide. The horizontal menu now starts at 1200 px; below it the burger menu is used.
 - Nests: a nest that belongs to several "À traiter" sections (to verify, near one's apiaries, one's own report) was counted once per section in the badges and listed several times. It now counts once and appears once, in the most urgent section.
+- Apiaries: "Changer de propriétaire" was only in the apiary sheet; it is now also in the "Plus d'actions" menu of each row of the list.
 
 ## [1.5.0] - 2026-10-16
 
