@@ -13,6 +13,7 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ### Added
 - Notification when a nest is destroyed: the coordinators and the owners of the apiaries within 1 km (and
   the administrators of their associations) are told, like for a new nest.
+- Nests: "Transférer" is also in the menu of each row of the list, as in the nest sheet.
 - Follow-up of a nest: each nest is followed by a person, its reporter at first. A platform
   admin hands the follow-up of any nest over to a trapper, a coordinator of the trappers
   (`/trappers/admin`) the nests they follow (one reported for someone who called): "Transférer"
