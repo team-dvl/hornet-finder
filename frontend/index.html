@@ -8,6 +8,13 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#1f1b16">
     <meta name="color-scheme" content="light dark">
+    <!-- Page background before the stylesheet arrives (--app-bg of styles/theme.css, keep in step) -->
+    <style>
+      html { background: #f6f3ee; color-scheme: light; }
+      html[data-bs-theme='dark'] { background: #14110d; color-scheme: dark; }
+      html[data-theme='foret'] { background: #f1f5ef; }
+      html[data-theme='foret'][data-bs-theme='dark'] { background: #0f1612; }
+    </style>
     <!-- Look (palette + mode) applied before the first paint; same rules as src/utils/theme.ts -->
     <script>
       (function () {

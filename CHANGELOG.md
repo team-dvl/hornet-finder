@@ -23,6 +23,9 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ### Changed
 - Dialogs on a large screen (object sheets such as a nest, forms): 700 px wide from 992 px instead of 500 px. Confirmations and phone layout unchanged.
 
+### Fixed
+- Dark mode: white screen on launch or after a reactivation, until the stylesheet had loaded. The page background of the chosen palette and mode (kept locally) is now set inline in `index.html`, so the first paint already has the right colour.
+
 ## [1.5.1] - 2026-10-16
 
 ### Fixed
