@@ -28,6 +28,7 @@ export const ACTION_LABELS: Record<string, string> = {
   'nest.archived': 'Nid archivé',
   'nest.unarchived': 'Nid désarchivé',
   'nest.bulk_archived': 'Nids archivés (période)',
+  'nest.owner_changed': 'Suivi du nid confié',
   'apiary.created': 'Rucher créé',
   'apiary.updated': 'Rucher modifié',
   'apiary.deleted': 'Rucher supprimé',
@@ -259,7 +260,13 @@ export const FIELD_LABELS: Record<string, string> = {
   from: 'Reconstitué depuis',
 };
 
-export const fieldLabel = (key: string) => FIELD_LABELS[key] ?? key;
+/** Labels that differ for one type of object: the owner of a nest follows it, it is no legal owner */
+const TYPE_FIELD_LABELS: Record<string, Record<string, string>> = {
+  nest: { owner: 'Suivi par' },
+};
+
+export const fieldLabel = (key: string, targetType?: string) =>
+  (targetType && TYPE_FIELD_LABELS[targetType]?.[key]) ?? FIELD_LABELS[key] ?? key;
 
 /** Fields holding a person's GUID (see PERSON_FIELDS in `audit/views.py`) */
 const PERSON_FIELDS = new Set(['owner', 'created_by', 'performed_by', 'generated_by', 'associated_by',
@@ -354,7 +361,7 @@ export function eventSummary(event: AuditEvent): string {
   } else if (typeof c.count === 'number') {
     parts.push(String(c.count));
   } else if (diffs.length > 0 && !event.action.endsWith('destroyed')) {
-    parts.push(diffs.map(([key]) => fieldLabel(key)).join(', '));
+    parts.push(diffs.map(([key]) => fieldLabel(key, event.target_type)).join(', '));
   }
   return parts.join(' · ');
 }

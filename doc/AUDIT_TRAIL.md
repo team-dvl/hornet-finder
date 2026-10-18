@@ -64,7 +64,7 @@ sa délégation) ou « à l'association X » en une requête.
 | Domaine | Actions |
 |---|---|
 | `hornet` | `reported`, `updated`, `deleted`, `archived`, `unarchived`, `bulk_archived` |
-| `nest` | `reported`, `updated`, `destroyed`, `reactivated`, `deleted`, `photo_added`, `photo_removed`, `archived`, `unarchived`, `bulk_archived` |
+| `nest` | `reported`, `updated`, `destroyed`, `reactivated`, `deleted`, `photo_added`, `photo_removed`, `owner_changed`, `archived`, `unarchived`, `bulk_archived` |
 | `apiary` | `created`, `updated`, `deleted`, `photo_set`, `photo_removed`, `shared`, `share_changed`, `unshared`, `owner_changed` |
 | `trap` | `created`, `updated`, `deleted`, `photo_set`, `photo_removed`, `delegated`, `undelegated`, `owner_changed`, `event_recorded`, `visit_recorded`, `visit_deleted`, `event_corrected`, `event_deleted`, `journal_photo_removed` |
 | `tag` | `batch_generated`, `associated` (avec le tag remplacé), `revoked` |

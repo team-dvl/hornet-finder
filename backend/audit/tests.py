@@ -54,6 +54,7 @@ AUDITED = {
     ('nest', 'delete_photo', 'delete'): 'nest.photo_removed',
     ('nest', 'events', 'post'): 'nest.visited / nest.destroyed / nest.reactivated',
     ('nest', 'delete_event', 'delete'): 'nest.event_deleted',
+    ('nest', 'owner', 'put'): 'nest.owner_changed',
     ('apiary', 'create', 'post'): 'apiary.created',
     ('apiary', 'update', 'put'): 'apiary.updated',
     ('apiary', 'partial_update', 'patch'): 'apiary.updated',

@@ -7,8 +7,10 @@ Notifications about nests, sent by the scheduler service.
   `NEARBY_APIARY_RADIUS_M` and the administrators of the associations those
   apiaries are shared with ("Nids près de mes ruchers"). An empty nest only
   tells the coordinators.
-* A verification or a destruction tells whoever reported the nest ("Suivi de mes
-  signalements"), unless they recorded it themselves.
+* A verification or a destruction tells the owner of the nest, its reporter at
+  first ("Suivi de mes signalements"), unless they recorded it themselves.
+* A nest handed over tells its new owner at once (`tell_new_owner`): an action
+  of a person, like a group message, not held to the sending hours.
 
 Each person gets one notification per event, the most telling one (their own
 apiary, then their association's, then "new nest"), never about their own
@@ -150,14 +152,31 @@ def _messages_for(event, users) -> dict:
                     break
     elif event.kind in (NestEvent.KIND_VISIT, NestEvent.KIND_DESTRUCTION):
         message = _followup_message(nest, event)
-        reporters = set(nest.events.filter(kind=NestEvent.KIND_REPORT, performed_by__isnull=False)
-                        .values_list('performed_by_id', flat=True))
         for user in users:
-            if message and user.guid in reporters and kinds.wants(user, kinds.NEST_FOLLOWUP):
+            if message and user.guid == nest.owner_id and kinds.wants(user, kinds.NEST_FOLLOWUP):
                 found[user.guid] = message
     found.pop(event.performed_by_id, None)
     already = set(NestAlert.objects.filter(event=event).values_list('user_id', flat=True))
     return {guid: message for guid, message in found.items() if guid not in already}
+
+
+def tell_new_owner(nest, owner, sender) -> int:
+    """
+    Tell `owner` the nest was handed over to them ("Suivi de mes signalements"),
+    unless they handed it to themselves or turned that kind off. Called inside
+    the transaction of the change: the sending starts once it is committed.
+    Returns the number of devices.
+    """
+    if not push.enabled() or str(owner.guid) == str(sender) or not kinds.wants(owner, kinds.NEST_FOLLOWUP):
+        return 0
+    notification = PushNotification.objects.create(
+        sender=sender, recipient=owner.guid, recipients_count=1, kind=kinds.NEST_FOLLOWUP,
+        title="Un nid vous a été confié", body=f"{_where(nest)}. Vous en recevrez le suivi.",
+        url=f'/nests?nest={nest.pk}')
+    devices = push.queue(notification, [owner.guid])
+    if devices:
+        transaction.on_commit(lambda: push.dispatch(notification))
+    return devices
 
 
 def run(now=None, dry_run=False) -> dict:

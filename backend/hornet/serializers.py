@@ -188,10 +188,12 @@ class NestSerializer(GPSValidationMixin, serializers.ModelSerializer):
         fields = ['id', 'longitude', 'latitude', 'public_place', 'address', 'status', 'destroyed', 'destroyed_at',
                   'nest_type', 'height_class', 'size_class', 'created_at', 'created_by', 'comments',
                   'contact_phone', 'private_comments', 'last_event_at', 'archived', 'archived_at', 'photos',
-                  'state']
-        # The reporter is the requester, set by the view: never a form field. The
-        # status follows the journal (POST /nests/<id>/events/)
-        read_only_fields = ['id', 'status', 'created_at', 'created_by', 'last_event_at', 'archived', 'archived_at']
+                  'state', 'owner']
+        # The reporter is the requester, set by the view: never a form field, nor
+        # the owner (PUT /nests/<id>/owner/). The status follows the journal
+        # (POST /nests/<id>/events/)
+        read_only_fields = ['id', 'status', 'created_at', 'created_by', 'owner', 'last_event_at', 'archived',
+                            'archived_at']
     
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -204,6 +206,9 @@ class NestSerializer(GPSValidationMixin, serializers.ModelSerializer):
             }
         else:
             data['created_by'] = None
+        # Most nests are still owned by their reporter: no second Keycloak lookup then
+        data['owner'] = (data['created_by'] if instance.owner_id == instance.created_by_id
+                         else user_summary(instance.owner))
         # What the requester may do, so the UI does not have to redo the rules
         request = self.context.get('request')
         if request is None or not nest_perms.can_see_contact(request, instance):
@@ -218,6 +223,7 @@ class NestSerializer(GPSValidationMixin, serializers.ModelSerializer):
                 'nearby_apiaries': nest_perms.can_see_nearby_apiaries(request),
                 'visit': nest_perms.can_visit_nest(request, instance),
                 'destroy': nest_perms.can_record_destruction(request, instance),
+                'change_owner': nest_perms.can_change_owner(request, instance),
             }
             # The journal comes with one nest, not with a list
             if self.context.get('with_events'):

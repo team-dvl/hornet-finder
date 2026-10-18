@@ -11,9 +11,10 @@ export default function NestsDoc() {
         <h5 className="text-primary">Qui fait quoi ?</h5>
         <ul className="mb-0">
           <li><strong>Tout le monde</strong> signale un nid, suit ce qu&apos;il devient et peut signaler qu&apos;il a été neutralisé.</li>
-          <li><strong>Chasseurs de nids, apiculteurs, administrateurs</strong> voient tous les nids ; les piégeurs voient les nids neutralisés et les leurs.</li>
+          <li><strong>Chasseurs de nids, apiculteurs, administrateurs</strong> voient tous les nids ; les piégeurs voient les nids neutralisés et ceux qu&apos;ils suivent.</li>
+          <li><strong>Coordinateurs des piégeurs</strong> : confient à un piégeur le suivi d&apos;un nid qu&apos;ils ont signalé pour lui (voir <em>Suivi d&apos;un nid</em>).</li>
           <li><strong>Coordinateurs</strong> (administrateurs de la plateforme et coordinateurs des chasseurs) : vérification des nids signalés, neutralisation, modification des nids et de leurs photos, numéros AFSCA des ruchers à moins de 1 km.</li>
-          <li><strong>Administrateurs</strong> : eux seuls réactivent un nid neutralisé, écarté ou abandonné, l&apos;archivent ou le suppriment.</li>
+          <li><strong>Administrateurs</strong> : eux seuls réactivent un nid neutralisé, écarté ou abandonné, l&apos;archivent ou le suppriment ; ils confient aussi le suivi de n&apos;importe quel nid.</li>
         </ul>
       </section>
 
@@ -81,13 +82,29 @@ export default function NestsDoc() {
         <h5 className="text-primary">Neutralisation</h5>
         <p>
           Un coordinateur l&apos;enregistre (<em>Neutraliser</em>) : la date, qui l&apos;a faite et par quels moyens
-          (perche, nacelle, nid retiré, plusieurs à la fois). La personne qui a signalé le nid peut aussi la signaler
-          (<em>Signaler neutralisé</em>) : c&apos;est souvent elle qui le sait la première. Elle peut retirer son
-          signalement.
+          (perche, nacelle, nid retiré, plusieurs à la fois). La personne qui suit le nid, d&apos;habitude celle qui
+          l&apos;a signalé, peut aussi la signaler (<em>Signaler neutralisé</em>) : c&apos;est souvent elle qui le
+          sait la première. Elle peut retirer son signalement.
         </p>
         <p className="mb-0">
           <strong>FixMyStreet</strong> : la Région wallonne subventionne des destructeurs formés, attribués par zone,
           qu&apos;on sollicite par sa plateforme. Le numéro de la demande relie le nid au dossier.
+        </p>
+      </section>
+
+      <section data-section="follow" className="mb-4">
+        <h5 className="text-primary">Suivi d&apos;un nid</h5>
+        <p>
+          Chaque nid est suivi par une personne : celle qui l&apos;a signalé, au départ. Elle le voit, reçoit les
+          notifications de son suivi et peut signaler sa neutralisation. Suivre un nid, c&apos;est le gérer :
+          cela ne fait pas de vous son propriétaire au sens juridique.
+        </p>
+        <p className="mb-0">
+          Quand un coordinateur des piégeurs signale un nid pour quelqu&apos;un d&apos;autre (par exemple après un
+          appel), il lui en confie le suivi : <em>Confier le suivi</em>, dans le menu de la fiche, parmi les
+          piégeurs. Un administrateur peut le faire pour n&apos;importe quel nid. La personne qui a signalé le nid
+          reste indiquée comme telle ; le coordinateur ne voit plus le nid ensuite, sauf s&apos;il voit tous les nids.
+          La personne choisie est prévenue par une notification.
         </p>
       </section>
 
@@ -97,7 +114,7 @@ export default function NestsDoc() {
         <ul>
           <li><strong>Tous les nouveaux nids</strong> : activé d&apos;office pour les coordinateurs et les administrateurs ; un apiculteur l&apos;active s&apos;il le souhaite. Un nid signalé vide ne prévient que les coordinateurs.</li>
           <li><strong>Nids près de mes ruchers</strong> : un nid actif à moins de 1 km d&apos;un de vos ruchers, ou d&apos;un rucher partagé avec l&apos;association que vous administrez.</li>
-          <li><strong>Suivi de mes signalements</strong> : confirmé, écarté, trouvé vide ou neutralisé.</li>
+          <li><strong>Suivi de mes signalements</strong> : confirmé, écarté, trouvé vide ou neutralisé, pour les nids que vous suivez ; et, aussitôt, un nid qui vous est confié.</li>
         </ul>
         <p className="mb-0">
           Elles partent de 9 h (10 h le dimanche) à 20 h ; ce qui arrive la nuit est annoncé à l&apos;ouverture, et à

@@ -142,8 +142,13 @@ class Nest(GeolocatedModel):
     size_class = models.CharField(max_length=8, choices=SIZE_CHOICES, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL)
+    # Who manages and follows the nest, not a legal owner: the reporter at first,
+    # reassignable by a platform admin or a coordinator of the trappers
+    # (see nest_permissions.can_change_owner)
+    owner = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL,
+                              related_name='owned_nests')
     comments = models.TextField(null=True, blank=True)
-    # For the coordinators only (and the reporter): how to call the reporter back, and
+    # For the coordinators only (and the owner): how to call the reporter back, and
     # what they want the coordinators alone to read. Never in the public list
     contact_phone = models.CharField(max_length=32, blank=True, default='')
     private_comments = models.TextField(blank=True, default='')

@@ -25,6 +25,7 @@ ACTIONS = {
     'nest.deleted': "Nest deleted",
     'nest.photo_added': "Nest photos added",
     'nest.photo_removed': "Nest photo removed",
+    'nest.owner_changed': "Nest handed over to another owner",
     'nest.archived': "Nest archived",
     'nest.unarchived': "Nest unarchived",
     'nest.bulk_archived': "Nests of a period archived",

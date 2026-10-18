@@ -52,7 +52,7 @@ def nest_todo(request, season) -> dict:
             near |= Q(point__distance_lte=(apiary.point, D(m=nest_perms.NEARBY_APIARY_RADIUS_M)))
         sections['near_apiaries'] = (season.filter(status__in=Nest.OPEN_STATUSES).filter(near)
                                      .order_by('-created_at', '-id'))
-    sections['mine'] = season.filter(created_by__guid=guid).order_by('-created_at', '-id')
+    sections['mine'] = season.filter(owner__guid=guid).order_by('-created_at', '-id')
     return sections
 
 

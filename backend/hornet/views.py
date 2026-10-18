@@ -1,3 +1,6 @@
+import logging
+import uuid
+
 from django.contrib.gis.measure import D
 from django.contrib.gis.geos import Point
 from django.contrib.gis.db.models.functions import Distance
@@ -14,18 +17,25 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
+from . import nest_alerts
 from . import nest_permissions as nest_perms
 from . import pending
+from .group_views import _Roster, _full_name
+from .invitation_views import _keycloak, _sort_key
 from .images import delete_files, store_photo
 from .models import Apiary, Hornet, Nest, NestEvent, NestPhoto, User
 from .stats.periods import PeriodError, resolve_archive_period
 from .serializers import (
     HornetSerializer, NestEventInputSerializer, NestSerializer, PublicHornetSerializer, PublicNestSerializer,
 )
+from .trap_permissions import TRAPPERS_ROOT
+from hornet_finder_api import utils as keycloak
 from hornet_finder_api.authentication import JWTBearerAuthentication, HasAnyRole
 from hornet_finder_api.roles import ADMIN, APP_ROLES, BEEKEEPER, HUNTER
 from audit import recorder as audit
 from rest_framework import status
+
+logger = logging.getLogger(__name__)
 
 
 class GeographicFilterMixin:
@@ -265,7 +275,7 @@ class NestPagination(PageNumberPagination):
 
 
 class NestViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewSet):
-    queryset = Nest.objects.select_related('created_by').prefetch_related('photos')
+    queryset = Nest.objects.select_related('created_by', 'owner').prefetch_related('photos')
     serializer_class = NestSerializer
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     # Actions answering one nest with its journal
@@ -315,11 +325,11 @@ class NestViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewS
     @geographic_list_schema()
     @action(detail=False, methods=['get'])
     def my(self, request, *args, **kwargs):
-        """The nests the requester reported, with the filters of `list`: what a trapper sees besides the destroyed ones."""
+        """The nests the requester owns, with the filters of `list`: what a trapper sees besides the destroyed ones."""
         queryset, error_response = self.get_geographic_queryset(request)
         if error_response:
             return error_response
-        queryset = queryset.filter(created_by__guid=getattr(request.user, 'guid', None))
+        queryset = queryset.filter(owner__guid=getattr(request.user, 'guid', None))
         queryset = self.apply_archive_year_filters(queryset, request)
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
@@ -341,7 +351,7 @@ class NestViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewS
             return super().get_permissions()
         if hasattr(self, 'action') and self.action in (
             'create', 'my', 'update', 'partial_update', 'add_photos', 'delete_photo', 'nearby_apiaries',
-            'retrieve', 'events', 'delete_event', 'managed', 'todo',
+            'retrieve', 'events', 'delete_event', 'managed', 'todo', 'owner',
         ):
             return [HasAnyRole(list(APP_ROLES))]
         if hasattr(self, 'action') and self.action == 'list':
@@ -388,7 +398,7 @@ class NestViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewS
         destroyed = serializer.validated_data.pop('destroyed', False)
         destroyed_at = serializer.validated_data.pop('destroyed_at', None)
         with transaction.atomic():
-            nest = serializer.save(created_by=user, destroyed=False, destroyed_at=None)
+            nest = serializer.save(created_by=user, owner=user, destroyed=False, destroyed_at=None)
             NestEvent.objects.create(nest=nest, kind=NestEvent.KIND_REPORT, performed_at=nest.created_at,
                                      performed_by=user, outcome=state)
             if destroyed:
@@ -515,7 +525,7 @@ class NestViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewS
         return self.apply_archive_year_filters(queryset, self.request)
 
     def _mine(self, queryset):
-        return queryset.filter(created_by__guid=getattr(self.request.user, 'guid', None))
+        return queryset.filter(owner__guid=getattr(self.request.user, 'guid', None))
 
     @extend_schema(parameters=[
         OpenApiParameter(name='show', type=OpenApiTypes.STR, enum=['all', 'mine'],
@@ -564,6 +574,51 @@ class NestViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewS
         sections = pending.nest_todo(request, self._season(self.get_queryset()))
         return Response({name: self.get_serializer(queryset[:TODO_SECTION_MAX], many=True).data
                          for name, queryset in sections.items()})
+
+    @extend_schema(
+        request={'application/json': {'type': 'object', 'properties': {'owner_guid': {'type': 'string'}}}},
+        responses={200: NestSerializer},
+    )
+    @action(detail=True, methods=['get', 'put'], url_path='owner')
+    def owner(self, request, pk=None):
+        """
+        Hand the follow-up of a nest over to a trapper (a member of `/trappers`):
+        a platform admin for any nest, a coordinator of the trappers for one they
+        own. The owner is who manages and follows the nest, not a legal owner.
+
+        GET: `owner_guid` and the trappers to choose from (first and last name,
+        never an email). PUT: `owner_guid`; the new owner gets a notification.
+        """
+        nest = self._readable(pk)
+        if not nest_perms.can_change_owner(request, nest):
+            raise PermissionDenied("Vous ne pouvez pas confier le suivi de ce nid.")
+        group = _keycloak(keycloak.get_group_by_path, TRAPPERS_ROOT)
+        if group is None:
+            raise NotFound("Le groupe des piégeurs n'existe pas.")
+        roster = _Roster(TRAPPERS_ROOT, group)
+        if request.method == 'GET':
+            members = sorted(({'guid': guid, 'name': _full_name(user)} for guid, user in roster.users.items()),
+                             key=lambda m: _sort_key(m['name'] or '~'))
+            return Response({'owner_guid': str(nest.owner_id) if nest.owner_id else None, 'members': members})
+
+        try:
+            guid = uuid.UUID(str(request.data.get('owner_guid') or ''))
+        except ValueError:
+            raise DRFValidationError({'owner_guid': "Identifiant invalide."})
+        if str(guid) not in roster:
+            raise DRFValidationError({'owner_guid': "Cette personne n'est pas un piégeur."})
+        if guid == nest.owner_id:
+            raise DRFValidationError({'owner_guid': "Cette personne suit déjà ce nid."})
+        new_owner, _ = User.objects.get_or_create(guid=guid)
+        previous = nest.owner_id
+        with audit.track(request, 'nest.owner_changed', nest, fields=['owner']) as tracked:
+            tracked.refs = [audit.ref('user', who) for who in (previous, new_owner.guid) if who]
+            nest.owner = new_owner
+            nest.save(update_fields=['owner'])
+            nest_alerts.tell_new_owner(nest, new_owner, getattr(request.user, 'guid', None))
+        logger.info("Nest %s handed over from %s to %s by %s", nest.pk, previous, new_owner.guid,
+                    getattr(request.user, 'guid', None))
+        return Response(self.get_serializer(self._fresh(nest)).data)
 
     def destroy(self, request, *args, **kwargs):
         nest = self.get_object()

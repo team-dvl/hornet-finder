@@ -3108,6 +3108,7 @@ class TradeSeparationTests(TestCase):
         self.hunter_user = FakeTrapUser(['hunter'], uuid_module.uuid4())
         self.own_nest = _make_nest(timezone.now().year)
         self.own_nest.created_by = self.trapper
+        self.own_nest.owner = self.trapper
         self.own_nest.save()
         self.other_nest = _make_nest(timezone.now().year)
 
@@ -3270,7 +3271,7 @@ class NestManagementTests(TestCase):
         self.stranger_user = FakeTrapUser(['trapper'], uuid_module.uuid4(), ['/trappers'])
 
         self.nest = Nest.objects.create(latitude=50.5, longitude=4.5, created_by=self.reporter,
-                                        comments='Dans le chêne')
+                                        owner=self.reporter, comments='Dans le chêne')
 
     def _call(self, method, path, actions, user, data=None, fmt=None, **kwargs):
         request = getattr(self.factory, method)(path, data, format=fmt) if data is not None \
@@ -3358,7 +3359,7 @@ class NestManagementTests(TestCase):
                               self.coordinator_user)
         self.assertEqual(response.data[0]['permissions'], {
             'update': True, 'photos': True, 'reactivate': False, 'delete': False,
-            'nearby_apiaries': True, 'visit': True, 'destroy': True,
+            'nearby_apiaries': True, 'visit': True, 'destroy': True, 'change_owner': False,
         })
         response = self._call('get', '/nests/?lat=50.5&lon=4.5&radius=5', {'get': 'list'},
                               self.hunter_user)

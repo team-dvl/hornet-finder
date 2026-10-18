@@ -21,7 +21,7 @@ Les rôles applicatifs à définir dans le realm sont :
 | `admin` | Accès complet aux API. Peut lire, créer, modifier, archiver et supprimer les données. Pour les ruchers, contourne les permissions de groupe et l'appartenance au propriétaire. |
 | `beekeeper` | Peut créer des nids, des ruchers et des pièges, mais plus d'observations de frelons (réservées aux chasseurs formés). Voit tous les nids. Peut lire et gérer ses propres ruchers. Les droits sur les ruchers d'autres utilisateurs dépendent de `ApiaryGroupPermission`. |
 | `hunter` | Chasseur de nids. Appartenir à `/hunters` suppose d'avoir suivi la formation : l'administrateur de la plateforme n'y ajoute qu'après. Peut créer des observations de frelons (lâchers, direction de vol) et des nids, et voit tous les nids. N'a pas accès aux ruchers ni aux pièges en tant que propriétaire. Ne peut pas modifier les frelons ni les nids : les nids sont modifiés par `admin` et par les coordinateurs des chasseurs (`/hunters/admin`, voir section 7). |
-| `trapper` | Piégeur, rôle de tout nouveau compte. Possède des pièges et imprime leurs QR Codes. Peut signaler un nid et signaler la neutralisation (destruction) de ceux qu'il a signalés ; il voit les nids neutralisés et ceux qu'il a signalés (`GET /api/nests/my/`), pas les autres. N'enregistre pas d'observation de frelon. |
+| `trapper` | Piégeur, rôle de tout nouveau compte. Possède des pièges et imprime leurs QR Codes. Peut signaler un nid et signaler la neutralisation (destruction) de ceux qu'il suit ; il voit les nids neutralisés et ceux qu'il suit (`GET /api/nests/my/`), pas les autres. Il suit les nids qu'il a signalés, et ceux dont le suivi lui a été confié. N'enregistre pas d'observation de frelon. |
 | `beekeeper-group-admin` | Rôle prévu pour identifier l'administrateur d'un groupe d'apiculteurs. Il est attribué aux sous-groupes `admin` des groupes d'apiculteurs. À ce jour, le backend ne l'utilise pas directement pour autoriser une opération : sa présence dans Keycloak ne remplace donc pas une permission Django. |
 
 Le rôle technique `mfa-required` n'ouvre aucune permission applicative : il impose un second facteur (OTP) à la connexion par mot de passe, à configurer à la première connexion s'il manque. Il est porté par `admin` comme rôle composite, donc par les membres de `/admins`. Les administrateurs de groupes (`beekeeper-group-admin`, `group-admin`) n'y sont pas soumis. Pour l'imposer à un autre groupe ou à une autre personne, lui attribuer ce rôle. Une connexion par passkey (vérification de l'utilisateur exigée) ou par Google ou Facebook n'est pas soumise à cette exigence. Le rôle apparaît dans `realm_access.roles` du token.
@@ -198,6 +198,11 @@ piégeurs depuis *Administration → Piégeurs*, par leur nom, sans pouvoir en r
 retirer quelqu'un de `/trappers` lui retire le rôle `trapper`, et donc l'accès à ses pièges,
 ce qui est réservé aux administrateurs de la plateforme. Ceux-ci nomment aussi les
 coordinateurs, depuis la même page.
+
+Le coordinateur des piégeurs confie aussi à un piégeur le suivi d'un nid qu'il suit lui-même,
+par exemple un nid signalé pour quelqu'un qui a téléphoné (`PUT /api/nests/{id}/owner/`) ; un
+administrateur de la plateforme le fait pour n'importe quel nid. Suivre un nid, c'est le gérer,
+pas en être propriétaire au sens juridique.
 
 Depuis *Administration → Mon groupe* (*Groupes* pour un administrateur de la plateforme),
 un administrateur de groupe voit la liste des membres, par leur nom (jamais leur

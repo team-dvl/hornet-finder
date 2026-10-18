@@ -11,7 +11,7 @@ import { useHistoryAction } from '../../hooks/useHistoryAction';
 import { ConfirmationModal } from '../modals';
 import { AuthImage, ClampedText } from '../common';
 import {
-  NearbyApiaries, NestEventModal, NestFormModal, NestJournal, NestPhotos, NestStatusBadge, NestSteps,
+  NearbyApiaries, NestEventModal, NestFormModal, NestJournal, NestOwnerModal, NestPhotos, NestStatusBadge, NestSteps,
 } from '../nests';
 import { AppModal, ConfirmDialog, FieldRow, SheetActions } from '../ui';
 import { ACTION_ICONS, OBJECT_ICONS } from '../../utils/icons';
@@ -31,7 +31,7 @@ interface NestInfoPopupProps {
 
 /** Dialog shown in place of the sheet (one dialog at a time) */
 type SubDialog =
-  | { kind: 'edit' | 'delete' | 'archive' | 'reactivate' | 'visit' | 'destruction' }
+  | { kind: 'edit' | 'delete' | 'archive' | 'reactivate' | 'visit' | 'destruction' | 'owner' }
   | { kind: 'photo' | 'photo-delete'; photo: NestPhoto }
   | { kind: 'event-delete'; event: NestEvent };
 
@@ -42,7 +42,7 @@ type SubDialog =
 export default function NestInfoPopup({ show, onHide, nest, onAddAtLocation, onLocate, onChanged }: NestInfoPopupProps) {
   const dispatch = useAppDispatch();
   const auth = useAuth();
-  const { canArchiveNest } = useUserPermissions();
+  const { canArchiveNest, canSeeAllNests } = useUserPermissions();
   const historyAction = useHistoryAction();
   const [sub, setSub] = useState<SubDialog | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +73,9 @@ export default function NestInfoPopup({ show, onHide, nest, onAddAtLocation, onL
   const mayVisit = Boolean(permissions?.visit);
   const mayDestroy = Boolean(permissions?.destroy);
   const mayReactivate = Boolean(permissions?.reactivate) && !isOpenStatus(current.status);
+  const mayChangeOwner = Boolean(permissions?.change_owner);
+  // Shown when it is not the reporter, who is already named
+  const followedBy = current.owner && current.owner.guid !== current.created_by?.guid ? current.owner : null;
   const mayArchive = auth.isAuthenticated && canArchiveNest() && !current.archived;
   const canAddHere = auth.isAuthenticated && onAddAtLocation;
   const photos = current.photos ?? [];
@@ -119,6 +122,18 @@ export default function NestInfoPopup({ show, onHide, nest, onAddAtLocation, onL
     () => setSub(null),
   );
 
+  // Handed over: the sheet shows who follows it now, or closes when the requester no longer sees the nest
+  const handleTransferred = (updated: Nest) => {
+    onChanged?.(updated);
+    if (canSeeAllNests) {
+      setDetail(updated);
+      setSub(null);
+    } else {
+      setSub(null);
+      onHide();
+    }
+  };
+
   const handleDeleteEvent = (event: NestEvent) => run(
     () => dispatch(deleteNestEvent({ id, eventId: event.id })).unwrap().then(changed),
     () => setSub(null),
@@ -159,6 +174,7 @@ export default function NestInfoPopup({ show, onHide, nest, onAddAtLocation, onL
         <FieldRow label="Lieu">{current.public_place ? 'Public' : 'Privé'}</FieldRow>
         {current.created_at && !current.events && <FieldRow label="Signalé le">{formatDate(current.created_at)}</FieldRow>}
         {current.created_by && <FieldRow label="Signalé par">{current.created_by.display_name || current.created_by.guid}</FieldRow>}
+        {followedBy && <FieldRow label="Suivi par">{followedBy.display_name || followedBy.guid}</FieldRow>}
         {current.contact_phone && (
           <FieldRow label="Téléphone">
             <a href={`tel:${current.contact_phone.replace(/[^\d+]/g, '')}`}>{current.contact_phone}</a>
@@ -180,7 +196,8 @@ export default function NestInfoPopup({ show, onHide, nest, onAddAtLocation, onL
 
         {permissions?.nearby_apiaries && show && sub === null && <NearbyApiaries nestId={id} />}
 
-        {(mayVisit || mayDestroy || mayEdit || canAddHere || mayArchive || mayDelete || history || onLocate || mayReactivate) && (
+        {(mayVisit || mayDestroy || mayEdit || canAddHere || mayArchive || mayDelete || history || onLocate || mayReactivate
+          || mayChangeOwner) && (
           <SheetActions
             className="mt-3"
             more={[
@@ -192,6 +209,7 @@ export default function NestInfoPopup({ show, onHide, nest, onAddAtLocation, onL
                 onClick: () => onAddAtLocation(current.latitude, current.longitude),
               },
               mayReactivate && { icon: 'arrow-counterclockwise', label: 'Réactiver', onClick: () => setSub({ kind: 'reactivate' }) },
+              mayChangeOwner && { icon: ACTION_ICONS.transfer, label: 'Confier le suivi', onClick: () => setSub({ kind: 'owner' }) },
               history,
               mayArchive && { icon: ACTION_ICONS.archive, label: 'Archiver', tone: 'warning', onClick: () => setSub({ kind: 'archive' }) },
               mayDelete && { icon: ACTION_ICONS.delete, label: 'Supprimer', tone: 'danger', onClick: () => setSub({ kind: 'delete' }) },
@@ -217,6 +235,10 @@ export default function NestInfoPopup({ show, onHide, nest, onAddAtLocation, onL
       </AppModal>
 
       {sub?.kind === 'edit' && <NestFormModal onHide={closeSub} nest={{ ...current, id }} onSaved={changed} />}
+
+      {sub?.kind === 'owner' && (
+        <NestOwnerModal onHide={closeSub} nest={{ ...current, id }} keepsSight={canSeeAllNests} onTransferred={handleTransferred} />
+      )}
 
       {(sub?.kind === 'visit' || sub?.kind === 'destruction') && (
         <NestEventModal

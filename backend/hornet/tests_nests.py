@@ -6,7 +6,7 @@ import tempfile
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.apps import apps
 from django.test import TestCase, override_settings
@@ -14,7 +14,7 @@ from django.utils import timezone
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from audit.models import AuditEvent
-from .models import Apiary, Nest, NestEvent, NestPhoto, User
+from .models import Apiary, Nest, NestEvent, NestPhoto, PushNotification, PushSubscription, User
 from .tests import FakeTrapUser, _image_file
 from .pending import pending_view
 from .views import NestViewSet
@@ -366,6 +366,151 @@ class ListTests(NestJournalTestCase):
         response = self.get(self.reporter_user, '/nests/todo/', 'todo')
         self.assertEqual(list(response.data), ['mine'])
         self.assertEqual([n['id'] for n in response.data['mine']], [self.nest.pk])
+
+
+class OwnerTests(NestJournalTestCase):
+    """Handing the follow-up of a nest over: platform admins, and the trappers' coordinators for their own nests."""
+
+    def setUp(self):
+        super().setUp()
+        self.trapper = User.objects.create(guid=uuid.uuid4(), group_paths=['/trappers'])
+        self.trapper_user = FakeTrapUser(['trapper'], self.trapper.guid, ['/trappers'])
+        self.trappers_admin = User.objects.create(guid=uuid.uuid4(), group_paths=['/trappers/admin'])
+        self.trappers_admin_user = FakeTrapUser(['trapper'], self.trappers_admin.guid, ['/trappers/admin'])
+        # The roster of /trappers in Keycloak: direct members, and the coordinator in /trappers/admin
+        groups = {'/trappers': {'id': 'trappers'}, '/trappers/admin': {'id': 'trappers-admin'}}
+        members = {
+            'trappers': [{'id': str(g), 'firstName': first, 'lastName': last} for g, first, last in (
+                (self.reporter.guid, 'Zoé', 'Martin'), (self.trapper.guid, 'Karim', 'B.'))],
+            'trappers-admin': [{'id': str(self.trappers_admin.guid), 'firstName': 'Sophie', 'lastName': 'L.'}],
+        }
+        for name, effect in (('get_group_by_path', groups.get),
+                             ('get_group_members', lambda group_id, *args, **kwargs: members[group_id])):
+            patcher = patch(f'hornet_finder_api.utils.{name}', side_effect=effect)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def hand_over(self, user, guid, nest=None):
+        nest = nest or self.nest
+        return self.call('put', f'/nests/{nest.pk}/owner/', {'put': 'owner'}, user,
+                         {'owner_guid': str(guid)}, pk=nest.pk)
+
+    def choices(self, user, nest=None):
+        nest = nest or self.nest
+        return self.get(user, f'/nests/{nest.pk}/owner/', 'owner', pk=nest.pk)
+
+    def test_the_reporter_owns_the_nest_at_first(self):
+        self.assertEqual(self.nest.owner_id, self.reporter.guid)
+        data = self.get(self.reporter_user, f'/nests/{self.nest.pk}/', 'retrieve', pk=self.nest.pk).data
+        self.assertEqual(data['owner'], data['created_by'])
+        self.assertFalse(data['permissions']['change_owner'])
+
+    def test_an_admin_hands_a_nest_over(self):
+        self.assertTrue(self.get(self.admin_user, f'/nests/{self.nest.pk}/', 'retrieve',
+                                 pk=self.nest.pk).data['permissions']['change_owner'])
+        response = self.hand_over(self.admin_user, self.trapper.guid)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['owner']['guid'], str(self.trapper.guid))
+        self.nest.refresh_from_db()
+        # The reporter stays the reporter
+        self.assertEqual((self.nest.owner_id, self.nest.created_by_id), (self.trapper.guid, self.reporter.guid))
+        event = AuditEvent.objects.get(action='nest.owner_changed')
+        self.assertEqual(event.changes, {'owner': [str(self.reporter.guid), str(self.trapper.guid)]})
+        self.assertEqual(set(event.refs), {f'nest:{self.nest.pk}', f'user:{self.reporter.guid}',
+                                           f'user:{self.trapper.guid}'})
+
+    def test_the_new_owner_follows_it_and_the_former_one_no_longer_sees_it(self):
+        self.hand_over(self.admin_user, self.trapper.guid)
+        detail = self.get(self.trapper_user, f'/nests/{self.nest.pk}/', 'retrieve', pk=self.nest.pk)
+        self.assertEqual(detail.status_code, 200)
+        self.assertTrue(detail.data['permissions']['destroy'])
+        rows = self.get(self.trapper_user, '/nests/managed/', 'managed').data['results']
+        self.assertEqual([row['id'] for row in rows], [self.nest.pk])
+        self.assertEqual([n['id'] for n in self.get(self.trapper_user, '/nests/todo/', 'todo').data['mine']],
+                         [self.nest.pk])
+        self.assertEqual(self.get(self.reporter_user, f'/nests/{self.nest.pk}/', 'retrieve',
+                                  pk=self.nest.pk).status_code, 404)
+        self.assertEqual(self.get(self.reporter_user, '/nests/managed/', 'managed').data['results'], [])
+        self.assertEqual(self.record(self.reporter_user, kind='destruction').status_code, 404)
+
+    def test_a_coordinator_of_the_trappers_hands_over_the_nests_they_own(self):
+        own = self.report(self.trappers_admin_user)
+        self.assertTrue(self.get(self.trappers_admin_user, f'/nests/{own.pk}/', 'retrieve',
+                                 pk=own.pk).data['permissions']['change_owner'])
+        self.assertEqual(self.hand_over(self.trappers_admin_user, self.trapper.guid, own).status_code, 200)
+        own.refresh_from_db()
+        self.assertEqual(own.owner_id, self.trapper.guid)
+        # Then it is no longer theirs to see, nor to hand over
+        self.assertEqual(self.hand_over(self.trappers_admin_user, self.trappers_admin.guid, own).status_code, 404)
+
+    def test_a_coordinator_of_the_trappers_does_not_reach_the_others_nests(self):
+        self.assertEqual(self.hand_over(self.trappers_admin_user, self.trapper.guid).status_code, 404)
+        # Even when they see every nest (a nest hunter too)
+        both = FakeTrapUser(['trapper', 'hunter'], self.trappers_admin.guid, ['/trappers/admin', '/hunters'])
+        self.assertEqual(self.hand_over(both, self.trapper.guid).status_code, 403)
+        self.nest.refresh_from_db()
+        self.assertEqual(self.nest.owner_id, self.reporter.guid)
+
+    def test_nobody_else_hands_it_over(self):
+        for user in (self.reporter_user, self.coordinator_user, self.beekeeper_user):
+            self.assertEqual(self.hand_over(user, self.trapper.guid).status_code, 403)
+        self.assertFalse(AuditEvent.objects.filter(action='nest.owner_changed').exists())
+
+    def test_only_to_a_trapper_and_not_to_the_same_person(self):
+        self.assertEqual(self.hand_over(self.admin_user, uuid.uuid4()).status_code, 400)
+        self.assertEqual(self.hand_over(self.admin_user, 'nope').status_code, 400)
+        self.assertEqual(self.hand_over(self.admin_user, self.reporter.guid).status_code, 400)
+        # A trapper who never signed in gets their local account
+        newcomer = uuid.uuid4()
+        with patch('hornet_finder_api.utils.get_group_members',
+                   side_effect=lambda group_id, *a, **k: [{'id': str(newcomer), 'firstName': 'Noé'}]
+                   if group_id == 'trappers' else []):
+            self.assertEqual(self.hand_over(self.admin_user, newcomer).status_code, 200)
+        self.assertTrue(User.objects.filter(guid=newcomer).exists())
+
+    def test_not_an_archived_nest(self):
+        Nest.objects.filter(pk=self.nest.pk).update(archived=True)
+        self.assertEqual(self.hand_over(self.admin_user, self.trapper.guid).status_code, 403)
+
+    def test_the_trappers_to_choose_from(self):
+        response = self.choices(self.admin_user)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['owner_guid'], str(self.reporter.guid))
+        self.assertEqual([m['name'] for m in response.data['members']], ['Karim B.', 'Sophie L.', 'Zoé Martin'])
+        self.assertEqual(self.choices(self.reporter_user).status_code, 403)
+
+    @override_settings(VAPID_PUBLIC_KEY='public', VAPID_PRIVATE_KEY='private', PUSH_SYNC=True)
+    def test_the_new_owner_is_told(self):
+        PushSubscription.objects.create(user=self.trapper, endpoint='https://push.example/t', p256dh='p',
+                                        auth='a', device='Android · Chrome')
+        Nest.objects.filter(pk=self.nest.pk).update(address='Rue du Moulin 14, 1340 Ottignies')
+        with patch('hornet.push.webpush', return_value=MagicMock(status_code=201)), \
+                self.captureOnCommitCallbacks(execute=True):
+            self.hand_over(self.admin_user, self.trapper.guid)
+        notification = PushNotification.objects.get(recipient=self.trapper.guid)
+        self.assertEqual((notification.title, notification.body, notification.url),
+                         ("Un nid vous a été confié", f"Nid #{self.nest.pk} à Ottignies. Vous en recevrez le suivi.",
+                          f'/nests?nest={self.nest.pk}'))
+        # Not one who turned the follow-up off
+        self.trapper.notification_prefs = {'nest_followup': False}
+        self.trapper.save()
+        self.hand_over(self.admin_user, self.reporter.guid)
+        self.hand_over(self.admin_user, self.trapper.guid)
+        self.assertEqual(PushNotification.objects.filter(recipient=self.trapper.guid).count(), 1)
+
+
+class OwnerMigrationTests(TestCase):
+    """0032: every existing nest is owned by its reporter."""
+
+    def test_the_reporter_becomes_the_owner(self):
+        migration = importlib.import_module('hornet.migrations.0032_nest_owner')
+        reporter = User.objects.create(guid=uuid.uuid4())
+        reported = Nest.objects.create(latitude=50.5, longitude=4.5, created_by=reporter)
+        anonymous = Nest.objects.create(latitude=50.5, longitude=4.5)
+        migration.forwards(apps, None)
+        reported.refresh_from_db()
+        anonymous.refresh_from_db()
+        self.assertEqual((reported.owner_id, anonymous.owner_id), (reporter.guid, None))
 
 
 class DataMigrationTests(TestCase):

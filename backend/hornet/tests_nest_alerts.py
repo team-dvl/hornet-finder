@@ -53,7 +53,7 @@ class NestAlertTestCase(TestCase):
 
     def report(self, by=None, outcome='', created=None, **fields):
         nest = Nest.objects.create(latitude=50.5, longitude=4.5, created_by=by or self.reporter,
-                                   address='Rue de Hemptinne 3, 5020 Vedrin, Namur', **fields)
+                                   owner=by or self.reporter, address='Rue de Hemptinne 3, 5020 Vedrin, Namur', **fields)
         event = NestEvent.objects.create(nest=nest, kind='report', performed_at=nest.created_at,
                                          performed_by=by or self.reporter, outcome=outcome)
         if created:
@@ -184,6 +184,13 @@ class FollowupTests(NestAlertTestCase):
         self.record('visit', self.coordinator, outcome='not_found')
         nest_alerts.run(now=at(20))
         self.assertEqual(self.received(self.reporter), [])
+
+    def test_the_owner_follows_it_once_handed_over(self):
+        Nest.objects.filter(pk=self.nest.pk).update(owner=self.hunter)
+        self.record('visit', self.coordinator, outcome='active')
+        nest_alerts.run(now=at(20))
+        self.assertEqual(self.received(self.reporter), [])
+        self.assertEqual([title for title, _ in self.received(self.hunter)], ["Votre signalement a avancé"])
 
 
 class SeasonEndTests(TestCase):
