@@ -489,7 +489,7 @@ class OwnerTests(NestJournalTestCase):
             self.hand_over(self.admin_user, self.trapper.guid)
         notification = PushNotification.objects.get(recipient=self.trapper.guid)
         self.assertEqual((notification.title, notification.body, notification.url),
-                         ("Un nid vous a été confié", f"Nid #{self.nest.pk} à Ottignies. Vous en recevrez le suivi.",
+                         ("Un nid vous a été transféré", f"Nid #{self.nest.pk} à Ottignies. Vous en recevrez le suivi.",
                           f'/nests?nest={self.nest.pk}'))
         # Not one who turned the follow-up off
         self.trapper.notification_prefs = {'nest_followup': False}

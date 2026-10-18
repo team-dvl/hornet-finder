@@ -591,7 +591,7 @@ class NestViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewS
         """
         nest = self._readable(pk)
         if not nest_perms.can_change_owner(request, nest):
-            raise PermissionDenied("Vous ne pouvez pas confier le suivi de ce nid.")
+            raise PermissionDenied("Vous ne pouvez pas transférer ce nid.")
         group = _keycloak(keycloak.get_group_by_path, TRAPPERS_ROOT)
         if group is None:
             raise NotFound("Le groupe des piégeurs n'existe pas.")

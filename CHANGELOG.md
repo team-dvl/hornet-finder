@@ -13,12 +13,12 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ### Added
 - Follow-up of a nest: each nest is followed by a person, its reporter at first. A platform
   admin hands the follow-up of any nest over to a trapper, a coordinator of the trappers
-  (`/trappers/admin`) the nests they follow (one reported for someone who called): "Confier le
-  suivi" in the menu of the nest sheet. The reporter stays "Signalé par"; the sheet shows
+  (`/trappers/admin`) the nests they follow (one reported for someone who called): "Transférer"
+  in the menu of the nest sheet. The reporter stays "Signalé par"; the sheet shows
   "Suivi par" when it is someone else. The new person sees the nest, gets its follow-up
   notifications and may declare its destruction, and is told at once ("Un nid vous a été
-  confié"); the former one no longer sees it unless they see every nest. Recorded in the audit
-  trail ("Suivi du nid confié"). Following a nest means managing it, not owning it.
+  transféré"); the former one no longer sees it unless they see every nest. Recorded in the audit
+  trail ("Nid transféré"). Following a nest means managing it, not owning it.
 
 ### Changed
 - Dialogs on a large screen (object sheets such as a nest, forms): 700 px wide from 992 px instead of 500 px. Confirmations and phone layout unchanged.

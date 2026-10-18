@@ -209,7 +209,7 @@ export default function NestInfoPopup({ show, onHide, nest, onAddAtLocation, onL
                 onClick: () => onAddAtLocation(current.latitude, current.longitude),
               },
               mayReactivate && { icon: 'arrow-counterclockwise', label: 'Réactiver', onClick: () => setSub({ kind: 'reactivate' }) },
-              mayChangeOwner && { icon: ACTION_ICONS.transfer, label: 'Confier le suivi', onClick: () => setSub({ kind: 'owner' }) },
+              mayChangeOwner && { icon: ACTION_ICONS.transfer, label: 'Transférer', onClick: () => setSub({ kind: 'owner' }) },
               history,
               mayArchive && { icon: ACTION_ICONS.archive, label: 'Archiver', tone: 'warning', onClick: () => setSub({ kind: 'archive' }) },
               mayDelete && { icon: ACTION_ICONS.delete, label: 'Supprimer', tone: 'danger', onClick: () => setSub({ kind: 'delete' }) },

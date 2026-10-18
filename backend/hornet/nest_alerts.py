@@ -171,7 +171,7 @@ def tell_new_owner(nest, owner, sender) -> int:
         return 0
     notification = PushNotification.objects.create(
         sender=sender, recipient=owner.guid, recipients_count=1, kind=kinds.NEST_FOLLOWUP,
-        title="Un nid vous a été confié", body=f"{_where(nest)}. Vous en recevrez le suivi.",
+        title="Un nid vous a été transféré", body=f"{_where(nest)}. Vous en recevrez le suivi.",
         url=f'/nests?nest={nest.pk}')
     devices = push.queue(notification, [owner.guid])
     if devices:

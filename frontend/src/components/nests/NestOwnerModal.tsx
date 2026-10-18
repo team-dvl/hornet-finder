@@ -75,12 +75,12 @@ export default function NestOwnerModal({ onHide, nest, keepsSight, onTransferred
       show
       onHide={onHide}
       icon={OBJECT_ICONS.nest}
-      title="Confier le suivi"
+      title="Transférer le nid"
       onSubmit={handleSubmit}
       footer={(
         <Button type="submit" variant="primary" disabled={saving || !selected}>
           {saving ? <Spinner animation="border" size="sm" className="me-2" /> : <i className="bi bi-arrow-left-right me-2" aria-hidden="true" />}
-          Confier
+          Transférer
         </Button>
       )}
     >
@@ -99,7 +99,7 @@ export default function NestOwnerModal({ onHide, nest, keepsSight, onTransferred
           />
           <div className="small mb-1 d-flex align-items-center">
             Suivi par
-            <HelpTip id="nest-owner-help" doc="nests#follow" title="Confier le suivi">
+            <HelpTip id="nest-owner-help" doc="nests#follow" title="Transférer le nid">
               La personne choisie suit le nid : elle le voit, reçoit les notifications de son suivi et peut
               signaler sa neutralisation. Celle qui l&apos;a signalé reste indiquée comme telle.
             </HelpTip>

@@ -81,7 +81,7 @@
 <body>
 <header class="doc">
   <h1>Suivi d'un nid – maquette (phone d'abord, 390 px)</h1>
-  <p>Maquette statique, aucune donnée réelle, noms fictifs. Un nid garde son créateur (<code>created_by</code>, « Signalé par ») et gagne une personne qui le suit (<code>owner</code>, « Suivi par ») : elle gère le nid, ce n'est pas un propriétaire au sens juridique. Le suivi est confié par un administrateur de la plateforme ou un coordinateur des piégeurs (<code>/trappers/admin</code>). Même mécanique que le transfert d'un rucher ou d'un piège.</p>
+  <p>Maquette statique, aucune donnée réelle, noms fictifs. Un nid garde son créateur (<code>created_by</code>, « Signalé par ») et gagne une personne qui le suit (<code>owner</code>, « Suivi par ») : elle gère le nid, ce n'est pas un propriétaire au sens juridique. Le nid est transféré par un administrateur de la plateforme ou un coordinateur des piégeurs (<code>/trappers/admin</code>). Même mécanique que le transfert d'un rucher ou d'un piège.</p>
 </header>
 
 <div class="notes">
@@ -90,7 +90,7 @@
     <ul>
       <li>Nouveau champ <code>Nest.owner</code> (clé étrangère vers <code>User</code>, <code>SET_NULL</code>), rempli avec le créateur à la migration puis à chaque signalement.</li>
       <li><code>created_by</code> ne change jamais : « Signalé par », auteur de l'entrée <code>report</code> du journal.</li>
-      <li>Pas de nouvelle entrée de journal : confier le suivi est une tâche d'administration, tracée dans l'audit (<code>nest.owner_changed</code>), comme <code>trap.owner_changed</code>.</li>
+      <li>Pas de nouvelle entrée de journal : transférer un nid est une tâche d'administration, tracée dans l'audit (<code>nest.owner_changed</code>), comme <code>trap.owner_changed</code>.</li>
     </ul>
   </section>
   <section>
@@ -113,7 +113,7 @@
   <section>
     <h2>Décidé (18/10/2026)</h2>
     <ul>
-      <li>Le coordinateur des piégeurs ne confie que les nids qu'il suit ; il ne lit pas ceux des autres.</li>
+      <li>Le coordinateur des piégeurs ne transfère que les nids qu'il suit ; il ne lit pas ceux des autres.</li>
       <li>La personne qui suivait le nid perd l'accès, comme pour un rucher.</li>
       <li>La nouvelle personne est notifiée aussitôt (sorte « Suivi de mes signalements », pas de nouvelle sorte).</li>
       <li>Pas de groupe « découvreurs » : tout inscrit est piégeur et peut signaler un nid.</li>
@@ -140,7 +140,7 @@
       <div class="veil"></div>
       <div class="sheet">
         <div class="it">🗺️ Voir sur la carte</div>
-        <div class="it hl">⇄ Confier le suivi</div>
+        <div class="it hl">⇄ Transférer</div>
         <div class="it">🕘 Historique</div>
       </div>
     </div>
@@ -149,7 +149,7 @@
   <figure>
     <figcaption><b>2. Choix de la personne qui suivra le nid.</b> Plein écran sous <code>sm</code> (<code>AppModal</code>), recherche car <code>/trappers</code> compte des centaines de personnes, la personne qui le suit est grisée, la conséquence est dite avant l'action.</figcaption>
     <div class="phone">
-      <div class="nav"><span class="cur">Confier le suivi</span><span class="x">✕</span></div>
+      <div class="nav"><span class="cur">Transférer le nid</span><span class="x">✕</span></div>
       <div class="body">
         <input type="search" value="kar" aria-label="Rechercher">
         <div class="lbl">Suivi par<span class="help">?</span></div>
@@ -159,7 +159,7 @@
         <div class="opt"><i></i>Oscar Karamanlis</div>
         <div class="conseq"><span>⚠</span><span>Vous ne verrez plus ce nid ensuite.</span></div>
       </div>
-      <div class="foot"><span class="btn pri block">⇄ Confier</span></div>
+      <div class="foot"><span class="btn pri block">⇄ Transférer</span></div>
     </div>
   </figure>
 
@@ -176,9 +176,9 @@
   </figure>
 
   <figure>
-    <figcaption><b>4. Côté personne qui reçoit le suivi.</b> Une notification « Un nid vous a été confié », aussitôt (sorte « Suivi de mes signalements », qu'elle peut couper), et le nid dans ses signalements.</figcaption>
+    <figcaption><b>4. Côté personne qui reçoit le nid.</b> Une notification « Un nid vous a été transféré », aussitôt (sorte « Suivi de mes signalements », qu'elle peut couper), et le nid dans ses signalements.</figcaption>
     <div class="phone">
-      <div class="push"><b>Un nid vous a été confié</b>Nid #482 à Ottignies. Vous en recevrez le suivi.<br><small>Velutina · maintenant</small></div>
+      <div class="push"><b>Un nid vous a été transféré</b>Nid #482 à Ottignies. Vous en recevrez le suivi.<br><small>Velutina · maintenant</small></div>
       <div class="nav" style="margin-top:10px"><span class="back">‹ Piégeage</span><span class="cur">Nids</span></div>
       <div class="body">
         <div class="item hl"><div class="g"><div class="t">#482 · Rue du Moulin 14</div><div class="s">Signalé le 12/10</div></div><span class="badge warn">Signalé</span></div>
@@ -192,7 +192,7 @@
     <div class="phone">
       <div class="nav"><span class="back">‹ Administration</span><span class="cur">Journal d'audit</span></div>
       <div class="body">
-        <div class="ev"><b>Suivi du nid confié</b> · Nid #482<div>Suivi par : Sophie L. <span class="arrow">→</span> Karim B.</div><div class="m">Par Sophie L. (coordinatrice des piégeurs) · 17/10/2026 14:32</div></div>
+        <div class="ev"><b>Nid transféré</b> · Nid #482<div>Suivi par : Sophie L. <span class="arrow">→</span> Karim B.</div><div class="m">Par Sophie L. (coordinatrice des piégeurs) · 17/10/2026 14:32</div></div>
         <div class="ev"><b>Piège transféré</b> · Piège #31<div>Propriétaire : Paul R. <span class="arrow">→</span> Inès V.</div><div class="m">Par Admin · 16/10/2026 09:05</div></div>
         <div class="ev"><b>Nid détruit</b> · Nid #479<div class="m">Par Karim B. · 14/10/2026 18:20</div></div>
       </div>

@@ -12,9 +12,9 @@ export default function NestsDoc() {
         <ul className="mb-0">
           <li><strong>Tout le monde</strong> signale un nid, suit ce qu&apos;il devient et peut signaler qu&apos;il a été neutralisé.</li>
           <li><strong>Chasseurs de nids, apiculteurs, administrateurs</strong> voient tous les nids ; les piégeurs voient les nids neutralisés et ceux qu&apos;ils suivent.</li>
-          <li><strong>Coordinateurs des piégeurs</strong> : confient à un piégeur le suivi d&apos;un nid qu&apos;ils ont signalé pour lui (voir <em>Suivi d&apos;un nid</em>).</li>
+          <li><strong>Coordinateurs des piégeurs</strong> : transfèrent à un piégeur un nid qu&apos;ils ont signalé pour lui (voir <em>Suivi d&apos;un nid</em>).</li>
           <li><strong>Coordinateurs</strong> (administrateurs de la plateforme et coordinateurs des chasseurs) : vérification des nids signalés, neutralisation, modification des nids et de leurs photos, numéros AFSCA des ruchers à moins de 1 km.</li>
-          <li><strong>Administrateurs</strong> : eux seuls réactivent un nid neutralisé, écarté ou abandonné, l&apos;archivent ou le suppriment ; ils confient aussi le suivi de n&apos;importe quel nid.</li>
+          <li><strong>Administrateurs</strong> : eux seuls réactivent un nid neutralisé, écarté ou abandonné, l&apos;archivent ou le suppriment ; ils transfèrent aussi n&apos;importe quel nid.</li>
         </ul>
       </section>
 
@@ -101,7 +101,7 @@ export default function NestsDoc() {
         </p>
         <p className="mb-0">
           Quand un coordinateur des piégeurs signale un nid pour quelqu&apos;un d&apos;autre (par exemple après un
-          appel), il lui en confie le suivi : <em>Confier le suivi</em>, dans le menu de la fiche, parmi les
+          appel), il le lui transfère : <em>Transférer</em>, dans le menu de la fiche, parmi les
           piégeurs. Un administrateur peut le faire pour n&apos;importe quel nid. La personne qui a signalé le nid
           reste indiquée comme telle ; le coordinateur ne voit plus le nid ensuite, sauf s&apos;il voit tous les nids.
           La personne choisie est prévenue par une notification.
@@ -114,7 +114,7 @@ export default function NestsDoc() {
         <ul>
           <li><strong>Tous les nouveaux nids</strong> : activé d&apos;office pour les coordinateurs et les administrateurs ; un apiculteur l&apos;active s&apos;il le souhaite. Un nid signalé vide ne prévient que les coordinateurs.</li>
           <li><strong>Nids près de mes ruchers</strong> : un nid actif à moins de 1 km d&apos;un de vos ruchers, ou d&apos;un rucher partagé avec l&apos;association que vous administrez.</li>
-          <li><strong>Suivi de mes signalements</strong> : confirmé, écarté, trouvé vide ou neutralisé, pour les nids que vous suivez ; et, aussitôt, un nid qui vous est confié.</li>
+          <li><strong>Suivi de mes signalements</strong> : confirmé, écarté, trouvé vide ou neutralisé, pour les nids que vous suivez ; et, aussitôt, un nid qui vous est transféré.</li>
         </ul>
         <p className="mb-0">
           Elles partent de 9 h (10 h le dimanche) à 20 h ; ce qui arrive la nuit est annoncé à l&apos;ouverture, et à

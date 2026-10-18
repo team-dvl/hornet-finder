@@ -28,7 +28,7 @@ export const ACTION_LABELS: Record<string, string> = {
   'nest.archived': 'Nid archivé',
   'nest.unarchived': 'Nid désarchivé',
   'nest.bulk_archived': 'Nids archivés (période)',
-  'nest.owner_changed': 'Suivi du nid confié',
+  'nest.owner_changed': 'Nid transféré',
   'apiary.created': 'Rucher créé',
   'apiary.updated': 'Rucher modifié',
   'apiary.deleted': 'Rucher supprimé',
