@@ -7,33 +7,36 @@ interface TrapActionsSheetProps {
   /** Trap whose actions are offered; the sheet is closed when null */
   trap: Trap | null;
   onHide: () => void;
-  /** Owner or platform admin: move, edit, delete */
-  canEdit: boolean;
   onOpen: (trap: Trap) => void;
   onLocate: (trap: Trap) => void;
   onMove: (trap: Trap) => void;
   onEdit: (trap: Trap) => void;
   onDelete: (trap: Trap) => void;
-  /** Owner or member of the group in charge: shelve the trap, or put it back in service */
-  canAct?: boolean;
+  onChangeOwner: (trap: Trap) => void;
   onServiceChange?: (trap: Trap) => void;
 }
 
-/** The less frequent actions of a row of the trap manager, in a bottom sheet. */
+/** The less frequent actions of a row of the trap manager, in a bottom sheet; what the user may do comes from `permissions`. */
 export default function TrapActionsSheet({
-  trap, onHide, canEdit, onOpen, onLocate, onMove, onEdit, onDelete, canAct = false, onServiceChange,
+  trap, onHide, onOpen, onLocate, onMove, onEdit, onDelete, onChangeOwner, onServiceChange,
 }: TrapActionsSheetProps) {
+  const permissions = trap?.permissions;
   const actions = trap ? [
     { key: 'open', icon: ACTION_ICONS.sheet, label: 'Fiche et journal', onClick: () => onOpen(trap) },
     { key: 'locate', icon: ACTION_ICONS.showOnMap, label: 'Voir sur la carte', onClick: () => onLocate(trap) },
     // Out of service, a trap has no reminder: the way to stop them for the winter
-    ...(canAct && onServiceChange ? [trap.active
+    ...(permissions?.act && onServiceChange ? [trap.active
       ? { key: 'shelve', icon: ACTION_ICONS.shelve, label: 'Remiser', onClick: () => onServiceChange(trap) }
       : { key: 'unshelve', icon: ACTION_ICONS.unshelve, label: 'Remettre en service', onClick: () => onServiceChange(trap) },
     ] : []),
-    ...(canEdit ? [
+    ...(permissions?.update ? [
       { key: 'move', icon: ACTION_ICONS.move, label: 'Déplacer', onClick: () => onMove(trap) },
       { key: 'edit', icon: ACTION_ICONS.edit, label: 'Modifier', onClick: () => onEdit(trap) },
+    ] : []),
+    ...(permissions?.change_owner
+      ? [{ key: 'owner', icon: ACTION_ICONS.transfer, label: 'Changer de propriétaire', onClick: () => onChangeOwner(trap) }]
+      : []),
+    ...(permissions?.update ? [
       { key: 'delete', icon: ACTION_ICONS.delete, label: 'Supprimer', onClick: () => onDelete(trap), danger: true },
     ] : []),
   ] : [];

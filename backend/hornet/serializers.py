@@ -9,6 +9,7 @@ from rest_framework import serializers
 from . import apiary_permissions as apiary_perms
 from .afsca import AFSCA_DIGITS, AFSCA_FORMAT, normalize_afsca
 from . import nest_permissions as nest_perms
+from . import trap_permissions as trap_perms
 from .trap_permissions import is_publicly_visible
 from .models import (
     Apiary, Hornet, Nest, NestEvent, NestPhoto, Species, Trap, TrapEvent, TrapPhoto, TrapType, User,
@@ -723,6 +724,15 @@ class TrapSerializer(GPSValidationMixin, serializers.ModelSerializer):
             }
             if instance.trap_type_id else None
         )
+        # What the requester may do, so the UI does not have to redo the rules.
+        # The delegation stays out: its groups come from `/delegation/`.
+        request = self.context.get('request')
+        if request is not None:
+            data['permissions'] = {
+                'update': trap_perms.can_edit_trap(request, instance),
+                'act': trap_perms.can_act_on_trap(request, instance),
+                'change_owner': trap_perms.can_change_owner(request, instance),
+            }
         return data
 
     def validate(self, attrs):

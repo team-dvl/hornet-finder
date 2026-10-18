@@ -93,13 +93,6 @@ export const useUserPermissions = () => {
     return Array.from(administered);
   }, [groups]);
 
-  // Appartenance par préfixe : Keycloak ne liste que les groupes directs, donc
-  // un membre de `/beekeepers/ena/admin` appartient aussi à `/beekeepers/ena`.
-  const isMemberOfGroup = useCallback((groupPath?: string | null) => {
-    if (!groupPath) return false;
-    return groups.some((path: string) => path === groupPath || path.startsWith(`${groupPath}/`));
-  }, [groups]);
-
   // Seuls les piégeurs et apiculteurs possèdent des pièges : l'administrateur
   // administre, il ne fait pas de terrain.
   const canAddTrap = useMemo(
@@ -115,18 +108,6 @@ export const useUserPermissions = () => {
     [userGuid]
   );
 
-  // Modifier, déplacer ou supprimer un piège : propriétaire ou administrateur
-  const canEditTrap = useCallback((trap: Trap) => {
-    if (!trap || !isSignedIn) return false;
-    return isAdmin || isTrapOwner(trap);
-  }, [isAdmin, isTrapOwner, isSignedIn]);
-
-  // Enregistrer une prise ou une action : propriétaire ou groupe délégataire
-  const canActOnTrap = useCallback((trap: Trap) => {
-    if (!trap || !isSignedIn) return false;
-    return isTrapOwner(trap) || isMemberOfGroup(trap.group?.path);
-  }, [isTrapOwner, isMemberOfGroup, isSignedIn]);
-
   // Désigner ou retirer le groupe délégataire : seulement vers une association
   // d'apiculteurs. La liste exacte des groupes autorisés est calculée par le
   // backend (GET /traps/{id}/delegation/).
@@ -136,8 +117,6 @@ export const useUserPermissions = () => {
     if (isTrapOwner(trap)) return memberGroups(groups).some(isBeekeeperGroup);
     return administeredGroups.some(isBeekeeperGroup);
   }, [isAdmin, isTrapOwner, groups, administeredGroups, isSignedIn]);
-
-  const canChangeTrapOwner = isAdmin;
 
   // Mémoriser si l'utilisateur peut ajouter des ruchers
   const canAddApiary = useMemo(() => {
@@ -165,10 +144,7 @@ export const useUserPermissions = () => {
       administeredGroups: [] as string[],
       administersTrappers: false,
       canAddTrap: false,
-      canEditTrap: () => false,
-      canActOnTrap: () => false,
       canSetTrapDelegation: () => false,
-      canChangeTrapOwner: false,
     };
   }
 
@@ -190,10 +166,7 @@ export const useUserPermissions = () => {
     administeredGroups,
     administersTrappers,
     canAddTrap,
-    canEditTrap,
-    canActOnTrap,
     canSetTrapDelegation,
-    canChangeTrapOwner,
     accessToken,
   };
 };

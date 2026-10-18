@@ -185,11 +185,13 @@ export default function TrapsDoc() {
           <li><strong>Groupe délégataire</strong> : consulter et enregistrer des interventions</li>
           <li>
             <strong>Administrateur d'un groupe</strong> : désigner ou retirer la délégation des
-            pièges des membres de son groupe
+            pièges des membres de son groupe, et transférer à un autre membre du groupe (piégeurs ou
+            association) un piège délégué à son association. La délégation est alors retirée et la
+            nouvelle personne en est prévenue ; elle le délègue de nouveau si besoin
           </li>
           <li>
             <strong>Administrateur de la plateforme</strong> : gérer les pièges et les référentiels,
-            réattribuer un piège légué, modérer le journal — mais pas enregistrer d'intervention,
+            réattribuer un piège légué (« Changer de propriétaire », dans le menu de la liste ou de la fiche), modérer le journal — mais pas enregistrer d'intervention,
             ce n'est pas son rôle
           </li>
         </ul>

@@ -26,6 +26,11 @@ const KIND_INFO: Record<NotificationKind, { icon: string; detail?: string; help:
     help: "Quand l'attractif d'un de vos pièges est à renouveler, selon le délai de son type, aux mêmes heures "
       + 'que les rappels de relevé.',
   },
+  trap_handover: {
+    icon: '🤝',
+    help: "Un piège qui vous est transféré par un administrateur de la plateforme ou de votre groupe : vous en "
+      + 'recevez ensuite les rappels. Prévenu aussitôt, à toute heure.',
+  },
   nest_new: {
     icon: '🏴',
     detail: '9 h–20 h · dimanche dès 10 h',
