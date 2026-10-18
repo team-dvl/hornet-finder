@@ -6,7 +6,7 @@ import { PageHeader, PageLayout } from '../components/layout';
 import { mapUrl } from '../components/map/viewModes';
 import { ConfirmationModal } from '../components/modals';
 import {
-  ApiaryActionsSheet, ApiaryFormModal, ApiaryListItem, ApiaryListToolbar,
+  ApiaryActionsSheet, ApiaryFormModal, ApiaryListItem, ApiaryListToolbar, ApiaryOwnerModal,
 } from '../components/apiaries';
 import { ApiaryInfoPopup } from '../components/popups';
 import { IconButton } from '../components/ui';
@@ -113,6 +113,7 @@ export default function Apiaries() {
   const [sheetApiary, setSheetApiary] = useState<Apiary | null>(null);
   const [actionsApiary, setActionsApiary] = useState<Apiary | null>(null);
   const [editApiary, setEditApiary] = useState<Apiary | null>(null);
+  const [ownerApiary, setOwnerApiary] = useState<Apiary | null>(null);
   const [deletingApiary, setDeletingApiary] = useState<Apiary | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -266,10 +267,20 @@ export default function Apiaries() {
         onOpen={(apiary) => { setActionsApiary(null); setSheetApiary(apiary); }}
         onLocate={(apiary) => { setActionsApiary(null); locate(apiary); }}
         onEdit={(apiary) => { setActionsApiary(null); setEditApiary(apiary); }}
+        onChangeOwner={(apiary) => { setActionsApiary(null); setOwnerApiary(apiary); }}
         onDelete={(apiary) => { setActionsApiary(null); setDeleteError(null); setDeletingApiary(apiary); }}
       />
 
       {editApiary && <ApiaryFormModal onHide={() => setEditApiary(null)} apiary={editApiary} />}
+
+      {ownerApiary && (
+        <ApiaryOwnerModal
+          onHide={() => setOwnerApiary(null)}
+          apiary={{ ...ownerApiary, id: ownerApiary.id as number }}
+          // The previous owner may no longer see it: refresh the list
+          onTransferred={reload}
+        />
+      )}
 
       {newApiaryAt && (
         <ApiaryFormModal
