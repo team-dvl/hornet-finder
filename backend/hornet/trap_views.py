@@ -23,7 +23,8 @@ from audit import recorder as audit
 
 from . import reminders
 from . import trap_permissions as perms
-from .invitation_views import BEEKEEPERS_ROOT, _sort_key
+from .group_views import _Roster, _full_name
+from .invitation_views import BEEKEEPERS_ROOT, _keycloak, _sort_key
 from .images import delete_files as _delete_files, store_photo as _store_photo
 from .models import BeekeeperGroup, Species, Tag, Trap, TrapEvent, TrapPhoto, TrapType, User
 from .serializers import (
@@ -298,7 +299,7 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
             queryset = queryset.filter(owner__guid=getattr(request.user, 'guid', None))
 
         serializer_class = self._serializer_for(request)
-        serializer = serializer_class(queryset, many=True)
+        serializer = serializer_class(queryset, many=True, context=self.get_serializer_context())
         return Response(serializer.data)
 
     def _serializer_for(self, request, detail=False):
@@ -311,7 +312,7 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def my(self, request):
         queryset = self.queryset.filter(owner__guid=getattr(request.user, 'guid', None))
-        return Response(TrapSerializer(queryset, many=True).data)
+        return Response(TrapSerializer(queryset, many=True, context=self.get_serializer_context()).data)
 
     @extend_schema(
         parameters=[
@@ -406,7 +407,7 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         paginator = ManagedTrapPagination()
         page = paginator.paginate_queryset(queryset, request, view=self)
         # Owners repeat across a page: resolve each display name once
-        serializer = TrapSerializer(page, many=True, context={'user_summaries': {}})
+        serializer = TrapSerializer(page, many=True, context={**self.get_serializer_context(), 'user_summaries': {}})
         return paginator.get_paginated_response(serializer.data)
 
     @extend_schema(
@@ -432,7 +433,8 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         today = timezone.localdate()
         guid = getattr(request.user, 'guid', None)
         items = reminders.due_for(self.queryset.filter(owner__guid=guid), today, days)
-        traps = TrapSerializer([item.trap for item in items], many=True, context={'user_summaries': {}}).data
+        traps = TrapSerializer([item.trap for item in items], many=True,
+                              context={**self.get_serializer_context(), 'user_summaries': {}}).data
         return Response([{
             'kind': item.kind,
             'trap': trap,
@@ -448,7 +450,7 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         if not perms.can_read_trap(request, trap):
             raise PermissionDenied("You do not have permission to view this trap.")
         serializer_class = self._serializer_for(request, detail=True)
-        return Response(serializer_class(trap).data)
+        return Response(serializer_class(trap, context=self.get_serializer_context()).data)
 
     # -- write operations ----------------------------------------------------
 
@@ -484,7 +486,7 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         with transaction.atomic():
             response = super().create(request, *args, **kwargs)
         # Re-serialise so the response carries the photo URLs and the journal
-        response.data = TrapDetailSerializer(self._created_trap).data
+        response.data = TrapDetailSerializer(self._created_trap, context=self.get_serializer_context()).data
         return response
 
     def update(self, request, *args, **kwargs):
@@ -538,7 +540,7 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
             else:
                 _store_photo(trap, 'photo', 'photo_thumbnail', uploaded)
             trap.save(update_fields=['photo', 'photo_thumbnail'])
-        return Response(TrapSerializer(trap).data)
+        return Response(TrapSerializer(trap, context=self.get_serializer_context()).data)
 
     # -- journal -------------------------------------------------------------
 
@@ -732,7 +734,7 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
                 # A trap with no group cannot stay restricted to that group
                 trap.visibility = Trap.VISIBILITY_PUBLIC
                 trap.save(update_fields=['group', 'visibility', 'updated_at'])
-            return Response(TrapSerializer(trap).data)
+            return Response(TrapSerializer(trap, context=self.get_serializer_context()).data)
 
         group_path = request.data.get('group_path')
         if not group_path:
@@ -750,34 +752,112 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
             if previous_group != group_path:
                 tracked.extra = {'group_path': [previous_group, group_path]}
             tracked.refs = [audit.ref('group', path) for path in (previous_group, group_path) if path]
-        return Response(TrapSerializer(trap).data)
+        return Response(TrapSerializer(trap, context=self.get_serializer_context()).data)
 
     @extend_schema(
+        parameters=[OpenApiParameter('group_path', OpenApiTypes.STR,
+                                     location=OpenApiParameter.QUERY, required=False,
+                                     description='GET: the group whose members are listed')],
         request={'application/json': {'type': 'object',
-                                      'properties': {'owner_guid': {'type': 'string'}}}},
+                                      'properties': {'owner_guid': {'type': 'string'},
+                                                     'group_path': {'type': 'string'}}}},
         responses={200: TrapSerializer},
     )
-    @action(detail=True, methods=['put'], url_path='owner')
+    @action(detail=True, methods=['get', 'put'], url_path='owner')
     def owner(self, request, pk=None):
-        """Reassign a bequeathed trap. Administration task, platform admins only."""
+        """
+        Hand a trap over: a platform admin, or the administrator of a group the
+        owner belongs to (the trappers, a beekeeper association), to a member of
+        that group. The delegation is cleared, as it depends on the owner's
+        associations, and the new owner is notified.
+
+        GET: the groups to choose from and, with `?group_path=`, their members
+        (first and last name, never an email). PUT: `owner_guid`, and the
+        `group_path` the person was picked from (optional for a platform admin).
+        """
         trap = self.get_object()
-        if not perms.can_change_owner(request):
-            raise PermissionDenied("Only a platform administrator can change the owner.")
+        allowed = perms.owner_transfer_groups(request, trap)
+        if allowed is not None and not allowed:
+            raise PermissionDenied("You cannot change the owner of this trap.")
+
+        if request.method == 'GET':
+            return Response(self._transfer_choices(request, trap, allowed))
 
         owner_guid = request.data.get('owner_guid')
         if not owner_guid:
             raise DRFValidationError({'owner_guid': "This field is required."})
-        new_owner = User.objects.filter(guid=owner_guid).first()
-        if new_owner is None:
-            raise DRFValidationError({'owner_guid': "Unknown user."})
+        group_path = request.data.get('group_path')
+        if group_path or allowed is not None:
+            new_owner = self._member_user(group_path, owner_guid, allowed)
+        else:
+            new_owner = User.objects.filter(guid=owner_guid).first()
+            if new_owner is None:
+                raise DRFValidationError({'owner_guid': "Unknown user."})
+        if new_owner.guid == trap.owner_id:
+            raise DRFValidationError({'owner_guid': "This person already owns the trap."})
 
         previous = trap.owner_id
-        with audit.track(request, 'trap.owner_changed', trap, fields=['owner']) as tracked:
+        previous_group = trap.group.path if trap.group else None
+        with audit.track(request, 'trap.owner_changed', trap, fields=['owner', 'group', 'visibility']) as tracked:
             tracked.refs = [audit.ref('user', guid) for guid in (previous, new_owner.guid) if guid]
+            if group_path:
+                # The group the new owner was picked from
+                tracked.refs.append(audit.ref('group', group_path))
+            if previous_group:
+                tracked.refs.append(audit.ref('group', previous_group))
+                tracked.extra = {'group_path': [previous_group, None]}
             trap.owner = new_owner
-            trap.save(update_fields=['owner', 'updated_at'])
-        logger.info("Trap %s reassigned from %s to %s", trap.id, previous, new_owner.guid)
-        return Response(TrapSerializer(trap).data)
+            # The delegation follows the owner's associations: the new owner delegates again
+            trap.group = None
+            trap.visibility = Trap.VISIBILITY_PUBLIC
+            trap.save(update_fields=['owner', 'group', 'visibility', 'updated_at'])
+            reminders.tell_new_owner(trap, new_owner, getattr(request.user, 'guid', None))
+        logger.info("Trap %s reassigned from %s to %s by %s", trap.id, previous, new_owner.guid,
+                    getattr(request.user, 'guid', None))
+        return Response(TrapSerializer(trap, context=self.get_serializer_context()).data)
+
+    def _transfer_choices(self, request, trap, allowed):
+        extra = [perms.TRAPPERS_ROOT] if allowed is None else []
+        data = {
+            'groups': _group_choices(allowed, extra=extra),
+            'owner_guid': str(trap.owner_id) if trap.owner_id else None,
+        }
+        group_path = request.query_params.get('group_path', '').strip()
+        if group_path:
+            self._check_transfer_group(group_path, allowed)
+            roster = _Roster(group_path, self._keycloak_group(group_path))
+            data['members'] = sorted(
+                ({'guid': guid, 'name': _full_name(user)} for guid, user in roster.users.items()),
+                key=lambda m: _sort_key(m['name'] or '~'),
+            )
+        return data
+
+    @staticmethod
+    def _check_transfer_group(group_path, allowed):
+        if not perms.is_transfer_group(group_path) or (allowed is not None and group_path not in allowed):
+            raise PermissionDenied(f"You cannot hand this trap over within {group_path}.")
+
+    @staticmethod
+    def _keycloak_group(group_path):
+        group = _keycloak(keycloak.get_group_by_path, group_path)
+        if group is None:
+            raise DRFValidationError({'group_path': "Unknown group."})
+        return group
+
+    def _member_user(self, group_path, owner_guid, allowed):
+        """The local user of a member of `group_path`, created if they never signed in."""
+        if not group_path:
+            raise DRFValidationError({'group_path': "This field is required."})
+        self._check_transfer_group(group_path, allowed)
+        try:
+            guid = str(uuid.UUID(str(owner_guid)))
+        except ValueError:
+            raise DRFValidationError({'owner_guid': "Invalid identifier."})
+        roster = _Roster(group_path, self._keycloak_group(group_path))
+        if guid not in roster:
+            raise DRFValidationError({'owner_guid': "This person is not a member of the group."})
+        user, _ = User.objects.get_or_create(guid=guid)
+        return user
 
 
 class TrapEventViewSet(viewsets.GenericViewSet):

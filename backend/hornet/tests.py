@@ -773,6 +773,139 @@ class TrapOwnerChangeTests(TrapTestCase):
         self.assertEqual(self._put(self.admin_user, uuid_module.uuid4()).status_code, 400)
 
 
+class _FakeRoster:
+    """Stand-in for the Keycloak roster of a group: the given guids are its members."""
+
+    def __init__(self, *guids):
+        self.users = {str(g): {'id': str(g), 'firstName': 'Prénom', 'lastName': f'Nom{i}'}
+                      for i, g in enumerate(guids)}
+
+    def __contains__(self, guid):
+        return guid in self.users
+
+
+class TrapOwnerTransferTests(TrapTestCase):
+    """Group administrators hand traps over within the owner's groups; platform admins anywhere."""
+
+    def setUp(self):
+        super().setUp()
+        # The trap is delegated to the group, so its administrator can see it
+        self.trap.group = self.group
+        self.trap.visibility = Trap.VISIBILITY_GROUP
+        self.trap.save()
+        self.colleague_guid = uuid_module.uuid4()
+        User.objects.create(guid=self.colleague_guid, group_paths=[self.group_path])
+        roster = patch('hornet.trap_views._Roster',
+                       side_effect=lambda path, group: _FakeRoster(self.colleague_guid, self.member_guid))
+        keycloak_group = patch.object(TrapViewSet, '_keycloak_group', return_value={'id': '1'})
+        for patcher in (roster, keycloak_group):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def _get(self, user, query=''):
+        request = self.factory.get(f'/traps/{self.trap.id}/owner/{query}')
+        force_authenticate(request, user=user)
+        return TrapViewSet.as_view({'get': 'owner'})(request, pk=self.trap.id)
+
+    def _put(self, user, guid, group_path=None):
+        payload = {'owner_guid': str(guid)}
+        if group_path:
+            payload['group_path'] = group_path
+        request = self.factory.put(f'/traps/{self.trap.id}/owner/', payload)
+        force_authenticate(request, user=user)
+        return TrapViewSet.as_view({'put': 'owner'})(request, pk=self.trap.id)
+
+    def test_group_admin_hands_over_to_a_member_and_the_delegation_is_cleared(self):
+        response = self._put(self.group_admin_user, self.colleague_guid, self.group_path)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.trap.refresh_from_db()
+        self.assertEqual(self.trap.owner_id, self.colleague_guid)
+        self.assertIsNone(self.trap.group)
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_PUBLIC)
+        self.assertIsNone(response.data['group'])
+
+    def test_choices_are_the_owners_groups_then_their_members(self):
+        groups = self._get(self.group_admin_user)
+        self.assertEqual([g['path'] for g in groups.data['groups']], [self.group_path])
+        self.assertNotIn('members', groups.data)
+        members = self._get(self.group_admin_user, f'?group_path={self.group_path}')
+        self.assertEqual(len(members.data['members']), 2)
+        self.assertEqual(members.data['owner_guid'], str(self.owner_guid))
+
+    def test_group_admin_cannot_use_a_group_they_do_not_administer(self):
+        self.assertEqual(self._get(self.group_admin_user, '?group_path=/beekeepers/other').status_code, 403)
+        self.assertEqual(self._put(self.group_admin_user, self.colleague_guid, '/beekeepers/other').status_code, 403)
+
+    def test_group_admin_needs_the_group_of_the_owner(self):
+        self.owner.group_paths = ['/beekeepers/elsewhere']
+        self.owner.save()
+        self.assertEqual(self._put(self.group_admin_user, self.colleague_guid, self.group_path).status_code, 403)
+
+    def test_group_admin_does_not_reach_a_trap_their_group_cannot_see(self):
+        self.trap.group = None
+        self.trap.visibility = Trap.VISIBILITY_PUBLIC
+        self.trap.save()
+        self.assertEqual(self._put(self.group_admin_user, self.colleague_guid, self.group_path).status_code, 403)
+
+    def test_owner_and_members_cannot_hand_over(self):
+        self.assertEqual(self._put(self.owner_user, self.colleague_guid, self.group_path).status_code, 403)
+        self.assertEqual(self._put(self.member_user, self.colleague_guid, self.group_path).status_code, 403)
+
+    def test_the_new_owner_must_belong_to_the_group(self):
+        response = self._put(self.group_admin_user, uuid_module.uuid4(), self.group_path)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self._put(self.group_admin_user, self.colleague_guid).status_code, 400)
+
+    def test_platform_admin_picks_from_the_trappers_too(self):
+        with patch('hornet.trap_views._group_choices', return_value=[]) as choices:
+            self.assertEqual(self._get(self.admin_user).status_code, 200)
+        self.assertEqual(choices.call_args.kwargs['extra'], ['/trappers'])
+        self.assertEqual(self._put(self.admin_user, self.colleague_guid, '/trappers').status_code, 200)
+
+    def test_trappers_coordinator_hands_over_their_own_trap(self):
+        self.owner.group_paths = ['/trappers']
+        self.owner.save()
+        coordinator = FakeTrapUser(['trapper'], self.owner_guid, ['/trappers/admin'])
+        self.assertEqual(self._put(coordinator, self.colleague_guid, '/trappers').status_code, 200)
+
+    def test_handing_a_trap_to_its_owner_is_refused(self):
+        self.assertEqual(self._put(self.admin_user, self.owner_guid, self.group_path).status_code, 400)
+
+    def test_the_new_owner_is_notified(self):
+        from hornet.models import PushNotification
+        with patch('hornet.reminders.push.enabled', return_value=True), \
+                patch('hornet.reminders.push.queue', return_value=1), \
+                patch('hornet.reminders.push.dispatch'), \
+                self.captureOnCommitCallbacks(execute=True):
+            self.assertEqual(self._put(self.group_admin_user, self.colleague_guid, self.group_path).status_code, 200)
+        [notification] = PushNotification.objects.filter(kind='trap_handover')
+        self.assertEqual(str(notification.recipient), str(self.colleague_guid))
+        self.assertEqual(notification.url, f'/traps?trap={self.trap.id}')
+
+    def test_a_person_who_turned_the_kind_off_is_not_notified(self):
+        from hornet.models import PushNotification
+        colleague = User.objects.get(guid=self.colleague_guid)
+        colleague.notification_prefs = {'trap_handover': False}
+        colleague.save()
+        with patch('hornet.reminders.push.enabled', return_value=True), \
+                patch('hornet.reminders.push.queue', return_value=1), \
+                patch('hornet.reminders.push.dispatch'):
+            self._put(self.group_admin_user, self.colleague_guid, self.group_path)
+        self.assertFalse(PushNotification.objects.filter(kind='trap_handover').exists())
+
+    def test_permissions_come_with_the_trap(self):
+        def permissions(user):
+            request = self.factory.get(f'/traps/{self.trap.id}/')
+            force_authenticate(request, user=user)
+            return TrapViewSet.as_view({'get': 'retrieve'})(request, pk=self.trap.id).data['permissions']
+
+        self.assertEqual(permissions(self.owner_user), {'update': True, 'act': True, 'change_owner': False})
+        self.assertEqual(permissions(self.member_user), {'update': False, 'act': True, 'change_owner': False})
+        self.assertEqual(permissions(self.group_admin_user),
+                         {'update': False, 'act': True, 'change_owner': True})
+        self.assertEqual(permissions(self.admin_user), {'update': True, 'act': False, 'change_owner': True})
+
+
 class TrapPhotoTests(TrapTestCase):
     def test_upload_is_resized_and_served_to_allowed_users_only(self):
         request = self.factory.post(f'/traps/{self.trap.id}/photo/',

@@ -32,7 +32,7 @@ export interface SentSummary {
 }
 
 /** A kind of notification the user can turn off, for all their devices */
-export type NotificationKind = 'trap_reading' | 'trap_refill' | 'nest_new' | 'nest_near_apiary' | 'nest_followup'
+export type NotificationKind = 'trap_reading' | 'trap_refill' | 'trap_handover' | 'nest_new' | 'nest_near_apiary' | 'nest_followup'
   | 'group_message' | 'platform_message';
 
 export interface NotificationPreference {

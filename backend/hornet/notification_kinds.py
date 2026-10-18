@@ -11,6 +11,7 @@ matter (the push subscription of that device).
 
 TRAP_READING = 'trap_reading'
 TRAP_REFILL = 'trap_refill'
+TRAP_HANDOVER = 'trap_handover'
 GROUP_MESSAGE = 'group_message'
 PLATFORM_MESSAGE = 'platform_message'
 # Nests (see hornet/nest_alerts.py)
@@ -23,6 +24,7 @@ TEST = 'test'
 KINDS = {
     TRAP_READING: "Rappels de relevé",
     TRAP_REFILL: "Rappels d'attractif",
+    TRAP_HANDOVER: "Pièges qui me sont transférés",
     NEST_NEW: "Tous les nouveaux nids",
     NEST_NEAR_APIARY: "Nids près de mes ruchers",
     NEST_FOLLOWUP: "Suivi de mes signalements",

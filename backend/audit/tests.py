@@ -293,7 +293,10 @@ class TrapAuditTests(ApiTestCase):
             f'/api/traps/{self.trap.id}/owner/', {'owner_guid': str(self.member_guid)}, format='json')
         self.assertEqual(response.status_code, 200)
         [handed] = _events('trap.owner_changed')
-        self.assertEqual(handed.changes, {'owner': [str(self.owner_guid), str(self.member_guid)]})
+        self.assertEqual(handed.changes['owner'], [str(self.owner_guid), str(self.member_guid)])
+        # The delegation is cleared with the hand-over: the new owner delegates again
+        self.assertEqual(handed.changes['group_path'], [self.group_path, None])
+        self.assertIn(f'group:{self.group_path}', handed.refs)
         self.assertEqual(handed.actor_roles, ['admin'])
 
         # Everything about the trap, in one query

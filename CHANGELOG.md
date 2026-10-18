@@ -18,6 +18,7 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   refused meanwhile. Recorded in the audit trail.
 - Notification when a nest is destroyed: the coordinators and the owners of the apiaries within 1 km (and
   the administrators of their associations) are told, like for a new nest.
+- Traps: handing a trap over. A platform admin, or the administrator of a group the owner belongs to (the trappers, a beekeeper association), hands a trap over to a member of that group: "Changer de propriétaire" in the menu of the list and in the trap sheet. The delegation is cleared with the hand-over (the new owner delegates again) and the new person is notified at once ("Pièges qui me sont transférés" in the Notifications module). A group administrator only reaches a trap delegated to their group.
 - Nests: "Transférer" is also in the menu of each row of the list, as in the nest sheet.
 - Follow-up of a nest: each nest is followed by a person, its reporter at first. A platform
   admin hands the follow-up of any nest over to a trapper, a coordinator of the trappers
@@ -46,6 +47,7 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 - reportlab 5.0.1 → 5.1.0 (Dependabot #23): the 543 backend tests pass, among them the tag sheets and the stats PDF.
 - Sign-in screen: the Google and Facebook buttons are at the top, above the identifier and password form, to encourage their use. The "Ou se connecter avec" heading is gone, a rule separates the two.
 - Sign-in screen: the "Se souvenir de moi" checkbox is gone. It changed nothing for the session (same 3-day idle and 7-day maximum limits, tokens kept in `localStorage`), only whether Keycloak's own cookie outlived the browser.
+- Traps: the API now says what the requester may do with each trap (`permissions`: `update`, `act`, `change_owner`), as for apiaries and nests; the app no longer works it out on its own.
 - Dialogs on a large screen (object sheets such as a nest, forms): 700 px wide from 992 px instead of 500 px. Confirmations and phone layout unchanged.
 
 ### Fixed

@@ -136,6 +136,27 @@ export interface Trap {
   created_at?: string;
   updated_at?: string;
   events?: TrapEvent[];
+  /** What the requester may do, from the backend; absent from the public representation */
+  permissions?: TrapPermissions;
+}
+
+/** Rights on one trap (`permissions` of the API); the delegation has its own endpoint */
+export interface TrapPermissions {
+  /** Edit, move, delete, photo: the owner or a platform admin */
+  update: boolean;
+  /** Record a reading or an action: the owner or the group in charge */
+  act: boolean;
+  /** Hand the trap over: a platform admin or the administrator of the owner's group */
+  change_owner: boolean;
+}
+
+/** Who a trap can be handed over to (`GET /traps/:id/owner/`) */
+export interface TrapOwnerChoices {
+  /** Groups to pick the new owner from: the trappers and beekeeper associations */
+  groups: { path: string; name: string }[];
+  owner_guid: string | null;
+  /** Present when a group was asked for; first and last name, `null` without any */
+  members?: { guid: string; name: string | null }[];
 }
 
 export interface DelegationInfo {
@@ -503,12 +524,25 @@ export const clearTrapDelegation = createAsyncThunk(
   }
 );
 
-/** Hand a bequeathed trap over to another owner (platform admins only). */
-export const setTrapOwner = createAsyncThunk(
-  'traps/setTrapOwner',
-  async ({ trapId, ownerGuid }: { trapId: number; ownerGuid: string }, { rejectWithValue }) => {
+/** Groups, and the members of one of them, the trap can be handed over to. */
+export const fetchTrapOwnerChoices = createAsyncThunk(
+  'traps/fetchTrapOwnerChoices',
+  async ({ trapId, groupPath }: { trapId: number; groupPath?: string }, { rejectWithValue }) => {
     try {
-      const response = await api.put(`/traps/${trapId}/owner/`, { owner_guid: ownerGuid });
+      const response = await api.get(`/traps/${trapId}/owner/`, { params: groupPath ? { group_path: groupPath } : {} });
+      return response.data as TrapOwnerChoices;
+    } catch (error: unknown) {
+      return rejectWithValue(getAxiosErrorMessage(error));
+    }
+  }
+);
+
+/** Hand the trap over to a member of `groupPath`; its delegation is cleared. */
+export const transferTrap = createAsyncThunk(
+  'traps/transferTrap',
+  async ({ trapId, ownerGuid, groupPath }: { trapId: number; ownerGuid: string; groupPath: string }, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`/traps/${trapId}/owner/`, { owner_guid: ownerGuid, group_path: groupPath });
       return response.data as Trap;
     } catch (error: unknown) {
       return rejectWithValue(getAxiosErrorMessage(error));
@@ -805,7 +839,7 @@ const trapsSlice = createSlice({
       .addMatcher(
         (action): action is { type: string; payload: Trap } =>
           [updateTrap.fulfilled.type, setTrapDelegation.fulfilled.type,
-           clearTrapDelegation.fulfilled.type, setTrapOwner.fulfilled.type]
+           clearTrapDelegation.fulfilled.type, transferTrap.fulfilled.type]
             .includes(action.type),
         (state, action) => {
           state.loading = false;

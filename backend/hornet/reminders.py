@@ -173,6 +173,25 @@ def _summary(items: list) -> dict:
             'body': body, 'url': '/traps/due'}
 
 
+def tell_new_owner(trap, owner, sender) -> int:
+    """
+    Tell `owner` the trap was handed over to them, unless they handed it to
+    themselves or turned that kind off. Called inside the transaction of the
+    change: the sending starts once it is committed, at any hour, as it is the
+    action of a person. Returns the number of devices.
+    """
+    if not push.enabled() or str(owner.guid) == str(sender) or not kinds.wants(owner, kinds.TRAP_HANDOVER):
+        return 0
+    notification = PushNotification.objects.create(
+        sender=sender, recipient=owner.guid, recipients_count=1, kind=kinds.TRAP_HANDOVER,
+        title="Un piège vous a été transféré", body=f"Piège #{trap.pk}. Vous en recevrez les rappels.",
+        url=f'/traps?trap={trap.pk}')
+    devices = push.queue(notification, [owner.guid])
+    if devices:
+        transaction.on_commit(lambda: push.dispatch(notification))
+    return devices
+
+
 def run(now=None, dry_run=False) -> dict:
     """
     One pass of the scheduler: send what is due today and not sent yet. Safe to
