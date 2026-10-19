@@ -736,7 +736,9 @@ class TrapSerializer(GPSValidationMixin, serializers.ModelSerializer):
         return data
 
     def validate(self, attrs):
-        visibility = attrs.get('visibility', getattr(self.instance, 'visibility', None))
+        # Only when the visibility is being set: a trap restricted to a group that is gone
+        # (deleted, or cleared by a hand-over) stays so, and must remain editable
+        visibility = attrs.get('visibility')
         group = getattr(self.instance, 'group_id', None)
         if visibility == Trap.VISIBILITY_GROUP and not group:
             # Setting a group goes through the delegation endpoint, so a trap

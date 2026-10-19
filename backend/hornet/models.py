@@ -478,7 +478,9 @@ class Trap(GeolocatedModel):
     visibility = models.CharField(max_length=16, choices=VISIBILITY_CHOICES,
                                   default=VISIBILITY_PUBLIC)
     # Delegation: the group whose members may maintain the trap, e.g. while the
-    # owner is away. Also restricts visibility when visibility is 'group'.
+    # owner is away. Also restricts visibility when visibility is 'group'. Without a
+    # group (deleted, or cleared by a hand-over), a 'group' trap is seen by its
+    # owner and the platform admins only: never widened to the public.
     group = models.ForeignKey(BeekeeperGroup, null=True, blank=True, on_delete=models.SET_NULL,
                               related_name='traps')
     trap_type = models.ForeignKey(TrapType, on_delete=models.PROTECT, related_name='traps')
@@ -501,11 +503,6 @@ class Trap(GeolocatedModel):
 
     def __str__(self):
         return f"Trap {self.id} ({self.trap_type_id})"
-
-    def clean(self):
-        super().clean()
-        if self.visibility == self.VISIBILITY_GROUP and self.group_id is None:
-            raise ValidationError({'group': "A group is required when visibility is 'group'."})
 
     def recompute_catches(self, save=True):
         """

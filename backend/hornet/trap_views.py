@@ -769,7 +769,9 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         Hand a trap over: a platform admin, or the administrator of a group the
         owner belongs to (the trappers, a beekeeper association), to a member of
         that group. The delegation is cleared, as it depends on the owner's
-        associations, and the new owner is notified.
+        associations, and the new owner is notified. The visibility is never
+        widened: a trap restricted to its group stays restricted, so that it is
+        then seen by its owner and the platform admins only.
 
         GET: the groups to choose from and, with `?group_path=`, their members
         (first and last name, never an email). PUT: `owner_guid`, and the
@@ -798,7 +800,7 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
 
         previous = trap.owner_id
         previous_group = trap.group.path if trap.group else None
-        with audit.track(request, 'trap.owner_changed', trap, fields=['owner', 'group', 'visibility']) as tracked:
+        with audit.track(request, 'trap.owner_changed', trap, fields=['owner', 'group']) as tracked:
             tracked.refs = [audit.ref('user', guid) for guid in (previous, new_owner.guid) if guid]
             if group_path:
                 # The group the new owner was picked from
@@ -807,10 +809,11 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
                 tracked.refs.append(audit.ref('group', previous_group))
                 tracked.extra = {'group_path': [previous_group, None]}
             trap.owner = new_owner
-            # The delegation follows the owner's associations: the new owner delegates again
+            # The delegation follows the owner's associations: the new owner delegates again.
+            # The visibility is left as it is: clearing the group of a trap restricted to it
+            # must not make it public (`group` visibility without a group: owner and admins only)
             trap.group = None
-            trap.visibility = Trap.VISIBILITY_PUBLIC
-            trap.save(update_fields=['owner', 'group', 'visibility', 'updated_at'])
+            trap.save(update_fields=['owner', 'group', 'updated_at'])
             reminders.tell_new_owner(trap, new_owner, getattr(request.user, 'guid', None))
         logger.info("Trap %s reassigned from %s to %s by %s", trap.id, previous, new_owner.guid,
                     getattr(request.user, 'guid', None))

@@ -821,8 +821,57 @@ class TrapOwnerTransferTests(TrapTestCase):
         self.trap.refresh_from_db()
         self.assertEqual(self.trap.owner_id, self.colleague_guid)
         self.assertIsNone(self.trap.group)
-        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_PUBLIC)
+        # Never widened: still restricted, now to its owner and the platform admins
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_GROUP)
         self.assertIsNone(response.data['group'])
+
+    def _retrieve_status(self, user=None):
+        request = self.factory.get(f'/traps/{self.trap.id}/')
+        if user:
+            force_authenticate(request, user=user)
+        return TrapViewSet.as_view({'get': 'retrieve'})(request, pk=self.trap.id).status_code
+
+    def _listed(self, user=None):
+        request = self.factory.get('/traps/?lat=50.5&lon=4.5&radius=5')
+        if user:
+            force_authenticate(request, user=user)
+        return self.trap.id in {t['id'] for t in TrapViewSet.as_view({'get': 'list'})(request).data}
+
+    def test_a_trap_restricted_to_its_group_does_not_become_public(self):
+        new_owner = FakeTrapUser(['trapper'], self.colleague_guid, [self.group_path])
+        self.assertEqual(self._put(self.group_admin_user, self.colleague_guid, self.group_path).status_code, 200)
+        for user in (None, self.stranger_user, self.member_user, self.group_admin_user):
+            with self.subTest(user=getattr(user, 'roles', 'anonymous')):
+                self.assertIn(self._retrieve_status(user), (403, 404))
+                self.assertFalse(self._listed(user))
+        for user in (new_owner, self.admin_user):
+            with self.subTest(user=user.roles):
+                self.assertEqual(self._retrieve_status(user), 200)
+                self.assertTrue(self._listed(user))
+
+    def test_an_apiary_bound_trap_is_never_public_through_a_hand_over(self):
+        self.trap.trap_type = TrapType.objects.get(slug='electric-harp')
+        for visibility in (Trap.VISIBILITY_GROUP, Trap.VISIBILITY_PUBLIC):
+            with self.subTest(visibility=visibility):
+                self.trap.owner, self.trap.group, self.trap.visibility = self.owner, self.group, visibility
+                self.trap.save()
+                response = self._put(self.group_admin_user, self.colleague_guid, self.group_path)
+                self.assertEqual(response.status_code, 200)
+                for user in (None, self.stranger_user, self.member_user):
+                    self.assertIn(self._retrieve_status(user), (403, 404))
+                    self.assertFalse(self._listed(user))
+                self.assertFalse(response.data['publicly_visible'])
+
+    def test_the_new_owner_can_still_edit_a_trap_left_restricted(self):
+        self._put(self.group_admin_user, self.colleague_guid, self.group_path)
+        request = self.factory.patch(f'/traps/{self.trap.id}/', {'comments': 'ok'})
+        force_authenticate(request, user=FakeTrapUser(['trapper'], self.colleague_guid, [self.group_path]))
+        response = TrapViewSet.as_view({'patch': 'partial_update'})(request, pk=self.trap.id)
+        self.assertEqual(response.status_code, 200, response.data)
+        # Restricting a trap to a group still needs a group
+        request = self.factory.patch(f'/traps/{self.trap.id}/', {'visibility': 'group'})
+        force_authenticate(request, user=FakeTrapUser(['trapper'], self.colleague_guid, [self.group_path]))
+        self.assertEqual(TrapViewSet.as_view({'patch': 'partial_update'})(request, pk=self.trap.id).status_code, 400)
 
     def test_choices_are_the_owners_groups_then_their_members(self):
         groups = self._get(self.group_admin_user)
