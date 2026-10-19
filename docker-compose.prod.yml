@@ -115,6 +115,21 @@ services:
       - KC_HOSTNAME=${KC_HOSTNAME}
     volumes:
       - ./auth/realm-export.json:/opt/keycloak/data/import/realm-export.json
+    healthcheck:
+      # No curl in the image: plain HTTP request over bash's /dev/tcp. The
+      # realm import runs before Keycloak listens, so 200 means it is ready.
+      test:
+        - CMD
+        - bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/8080 &&
+          printf 'GET /realms/master HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3 &&
+          read -r status <&3 && [[ $$status == *' 200 '* ]]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 30s
     depends_on:
       - hornet-finder-keycloak-db
 
@@ -133,8 +148,10 @@ services:
       - frontend-dist:/usr/share/nginx/html:ro
       - media:/srv/media:ro
     depends_on:
-      - hornet-finder-api
-      - hornet-finder-keycloak
+      hornet-finder-api:
+        condition: service_started
+      hornet-finder-keycloak:
+        condition: service_healthy
 
   hornet-finder-frontend-build:
     build:
