@@ -346,13 +346,13 @@ class TrapVisibilityTests(TrapTestCase):
         self.assertNotIn('comments', response.data[0])
 
     def test_anonymous_does_not_see_group_traps(self):
-        self.trap.visibility = Trap.VISIBILITY_GROUP
+        self.trap.visibility = Trap.VISIBILITY_RESTRICTED
         self.trap.group = self.group
         self.trap.save()
         self.assertEqual(self._list().data, [])
 
     def test_group_trap_visible_to_member_owner_and_admin(self):
-        self.trap.visibility = Trap.VISIBILITY_GROUP
+        self.trap.visibility = Trap.VISIBILITY_RESTRICTED
         self.trap.group = self.group
         self.trap.save()
         for user in (self.owner_user, self.member_user, self.group_admin_user,
@@ -362,7 +362,7 @@ class TrapVisibilityTests(TrapTestCase):
                 self.assertEqual(ids, {self.trap.id})
 
     def test_group_trap_invisible_to_stranger(self):
-        self.trap.visibility = Trap.VISIBILITY_GROUP
+        self.trap.visibility = Trap.VISIBILITY_RESTRICTED
         self.trap.group = self.group
         self.trap.save()
         self.assertEqual(self._list(self.stranger_user).data, [])
@@ -401,12 +401,18 @@ class ApiaryBoundTrapTests(TrapTestCase):
     def test_electric_harp_is_flagged_by_the_migration(self):
         self.assertTrue(TrapType.objects.get(slug='electric-harp').apiary_bound)
 
-    def test_hidden_from_anonymous_and_strangers_despite_public_visibility(self):
-        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_PUBLIC)
+    def test_it_is_stored_as_restricted_and_hidden_from_anonymous_and_strangers(self):
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_RESTRICTED)
         self.assertEqual(self._list_ids(), {self.public_trap.id})
         self.assertEqual(self._list_ids(self.stranger_user), {self.public_trap.id})
         self.assertIn(self._retrieve().status_code, (403, 404))
         self.assertIn(self._retrieve(self.stranger_user).status_code, (403, 404))
+
+    def test_a_row_stored_as_public_is_still_hidden_at_read_time(self):
+        # Defense in depth: a row written around the model (bulk update, old data)
+        Trap.objects.filter(pk=self.trap.pk).update(visibility=Trap.VISIBILITY_PUBLIC)
+        self.assertEqual(self._list_ids(), {self.public_trap.id})
+        self.assertIn(self._retrieve().status_code, (403, 404))
 
     def test_visible_to_owner_delegated_group_and_admin(self):
         for user in (self.owner_user, self.member_user, self.group_admin_user,
@@ -439,6 +445,110 @@ class ApiaryBoundTrapTests(TrapTestCase):
         allowed = self.factory.get(f'/api/media/{path}')
         force_authenticate(allowed, user=self.member_user)
         self.assertEqual(media_view(allowed, path=path).status_code, 200)
+
+
+class TrapVisibilityInvariantTests(TrapTestCase):
+    """The stored visibility is what the trap is: an apiary-bound trap is never `public`."""
+
+    def setUp(self):
+        super().setUp()
+        self.harp = TrapType.objects.get(slug='electric-harp')
+
+    def _patch(self, user, payload):
+        request = self.factory.patch(f'/traps/{self.trap.id}/', payload)
+        force_authenticate(request, user=user)
+        return TrapViewSet.as_view({'patch': 'partial_update'})(request, pk=self.trap.id)
+
+    def test_the_model_stores_an_apiary_bound_trap_as_restricted(self):
+        trap = Trap.objects.create(latitude=50.5, longitude=4.5, owner=self.owner, trap_type=self.harp,
+                                   installed_at=timezone.now().date(), visibility=Trap.VISIBILITY_PUBLIC)
+        trap.refresh_from_db()
+        self.assertEqual(trap.visibility, Trap.VISIBILITY_RESTRICTED)
+
+    def test_a_partial_save_cannot_leave_it_public(self):
+        trap = Trap.objects.create(latitude=50.5, longitude=4.5, owner=self.owner, trap_type=self.harp,
+                                   installed_at=timezone.now().date())
+        Trap.objects.filter(pk=trap.pk).update(visibility=Trap.VISIBILITY_PUBLIC)
+        trap.refresh_from_db()
+        trap.comments = 'x'
+        trap.save(update_fields=['comments'])
+        trap.refresh_from_db()
+        self.assertEqual(trap.visibility, Trap.VISIBILITY_RESTRICTED)
+
+    def test_creating_an_apiary_bound_trap_through_the_api_restricts_it(self):
+        request = self.factory.post('/traps/', {
+            'latitude': 50.5, 'longitude': 4.5, 'trap_type_slug': 'electric-harp',
+            'installed_at': timezone.now().date().isoformat()})
+        force_authenticate(request, user=self.owner_user)
+        response = TrapViewSet.as_view({'post': 'create'})(request)
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data['visibility'], Trap.VISIBILITY_RESTRICTED)
+
+    def test_asking_for_public_on_an_apiary_bound_trap_is_refused(self):
+        self.trap.trap_type = self.harp
+        self.trap.save()
+        self.assertEqual(self._patch(self.owner_user, {'visibility': 'public'}).status_code, 400)
+        self.trap.refresh_from_db()
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_RESTRICTED)
+
+    def test_switching_a_trap_to_an_apiary_bound_type_restricts_it(self):
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_PUBLIC)
+        response = self._patch(self.owner_user, {'trap_type_slug': 'electric-harp'})
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['visibility'], Trap.VISIBILITY_RESTRICTED)
+        self.assertFalse(response.data['publicly_visible'])
+        # Becoming a type that can be public again restores nothing
+        response = self._patch(self.owner_user, {'trap_type_slug': 'homemade'})
+        self.assertEqual(response.data['visibility'], Trap.VISIBILITY_RESTRICTED)
+
+    def test_an_ordinary_trap_goes_public_and_back(self):
+        for value in ('restricted', 'public'):
+            response = self._patch(self.owner_user, {'visibility': value})
+            self.assertEqual((response.status_code, response.data['visibility']), (200, value))
+
+    def test_only_the_owner_or_an_admin_changes_the_visibility(self):
+        self.assertEqual(self._patch(self.member_user, {'visibility': 'restricted'}).status_code, 403)
+        self.assertEqual(self._patch(self.admin_user, {'visibility': 'restricted'}).status_code, 200)
+
+    def test_the_former_group_value_is_read_as_restricted(self):
+        response = self._patch(self.owner_user, {'visibility': 'group'})
+        self.assertEqual((response.status_code, response.data['visibility']), (200, Trap.VISIBILITY_RESTRICTED))
+
+    def test_flagging_a_trap_type_restricts_its_public_traps_and_is_audited(self):
+        from audit.models import AuditEvent
+        other = Trap.objects.create(latitude=50.5, longitude=4.5, owner=self.owner, trap_type=self.trap_type,
+                                    installed_at=timezone.now().date(), visibility=Trap.VISIBILITY_RESTRICTED)
+        request = self.factory.patch(f'/trap-types/{self.trap_type.id}/', {'apiary_bound': 'true'})
+        force_authenticate(request, user=self.admin_user)
+        response = TrapTypeViewSet.as_view({'patch': 'partial_update'})(request, pk=self.trap_type.id)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.trap.refresh_from_db()
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_RESTRICTED)
+        [event] = AuditEvent.objects.filter(action='trap_type.updated')
+        self.assertEqual(event.changes['traps_restricted'], 1)
+        self.assertIn(f'trap:{self.trap.id}', event.refs)
+        self.assertNotIn(f'trap:{other.id}', event.refs)
+        # Unflagging restores nothing
+        request = self.factory.patch(f'/trap-types/{self.trap_type.id}/', {'apiary_bound': 'false'})
+        force_authenticate(request, user=self.admin_user)
+        TrapTypeViewSet.as_view({'patch': 'partial_update'})(request, pk=self.trap_type.id)
+        self.trap.refresh_from_db()
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_RESTRICTED)
+
+    def test_the_migration_restricts_former_group_traps_and_apiary_bound_ones(self):
+        import importlib
+        from django.apps import apps
+        migration = importlib.import_module('hornet.migrations.0033_trap_visibility_restricted')
+        former_group = self.trap
+        bound = Trap.objects.create(latitude=50.5, longitude=4.5, owner=self.owner, trap_type=self.harp,
+                                    installed_at=timezone.now().date())
+        public = Trap.objects.create(latitude=50.5, longitude=4.5, owner=self.owner, trap_type=self.trap_type,
+                                     installed_at=timezone.now().date())
+        Trap.objects.filter(pk=former_group.pk).update(visibility='group')
+        Trap.objects.filter(pk=bound.pk).update(visibility='public')
+        migration.forwards(apps, None)
+        stored = dict(Trap.objects.values_list('pk', 'visibility'))
+        self.assertEqual(stored, {former_group.pk: 'restricted', bound.pk: 'restricted', public.pk: 'public'})
 
 
 class TrapCreationTests(TrapTestCase):
@@ -674,15 +784,35 @@ class TrapDelegationTests(TrapTestCase):
         self.assertFalse(response.data['can_set_delegation'])
         self.assertEqual(response.data['allowed_groups'], [])
 
-    def test_withdrawal_resets_group_and_visibility(self):
-        self._put(self.owner_user, self.group_path, visibility=Trap.VISIBILITY_GROUP)
+    def _withdraw(self):
         request = self.factory.delete(f'/traps/{self.trap.id}/delegation/')
         force_authenticate(request, user=self.owner_user)
         response = TrapViewSet.as_view({'delete': 'delegation'})(request, pk=self.trap.id)
         self.assertEqual(response.status_code, 200)
         self.trap.refresh_from_db()
+
+    def test_withdrawal_keeps_a_restricted_trap_restricted(self):
+        # `group`, the former name of `restricted`, is still accepted
+        self._put(self.owner_user, self.group_path, visibility='group')
+        self.trap.refresh_from_db()
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_RESTRICTED)
+        self._withdraw()
+        self.assertIsNone(self.trap.group)
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_RESTRICTED)
+
+    def test_withdrawal_keeps_a_public_trap_public(self):
+        self._put(self.owner_user, self.group_path)
+        self._withdraw()
         self.assertIsNone(self.trap.group)
         self.assertEqual(self.trap.visibility, Trap.VISIBILITY_PUBLIC)
+
+    def test_an_apiary_bound_trap_cannot_be_delegated_as_public(self):
+        self.trap.trap_type = TrapType.objects.get(slug='electric-harp')
+        self.trap.save()
+        self.assertEqual(self._put(self.owner_user, self.group_path, visibility='public').status_code, 400)
+        self.assertEqual(self._put(self.owner_user, self.group_path).status_code, 200)
+        self.trap.refresh_from_db()
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_RESTRICTED)
 
     def test_allowed_groups_listing(self):
         request = self.factory.get(f'/traps/{self.trap.id}/delegation/')
@@ -791,7 +921,7 @@ class TrapOwnerTransferTests(TrapTestCase):
         super().setUp()
         # The trap is delegated to the group, so its administrator can see it
         self.trap.group = self.group
-        self.trap.visibility = Trap.VISIBILITY_GROUP
+        self.trap.visibility = Trap.VISIBILITY_RESTRICTED
         self.trap.save()
         self.colleague_guid = uuid_module.uuid4()
         User.objects.create(guid=self.colleague_guid, group_paths=[self.group_path])
@@ -822,7 +952,7 @@ class TrapOwnerTransferTests(TrapTestCase):
         self.assertEqual(self.trap.owner_id, self.colleague_guid)
         self.assertIsNone(self.trap.group)
         # Never widened: still restricted, now to its owner and the platform admins
-        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_GROUP)
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_RESTRICTED)
         self.assertIsNone(response.data['group'])
 
     def _retrieve_status(self, user=None):
@@ -851,7 +981,7 @@ class TrapOwnerTransferTests(TrapTestCase):
 
     def test_an_apiary_bound_trap_is_never_public_through_a_hand_over(self):
         self.trap.trap_type = TrapType.objects.get(slug='electric-harp')
-        for visibility in (Trap.VISIBILITY_GROUP, Trap.VISIBILITY_PUBLIC):
+        for visibility in (Trap.VISIBILITY_RESTRICTED, Trap.VISIBILITY_PUBLIC):
             with self.subTest(visibility=visibility):
                 self.trap.owner, self.trap.group, self.trap.visibility = self.owner, self.group, visibility
                 self.trap.save()
@@ -868,10 +998,12 @@ class TrapOwnerTransferTests(TrapTestCase):
         force_authenticate(request, user=FakeTrapUser(['trapper'], self.colleague_guid, [self.group_path]))
         response = TrapViewSet.as_view({'patch': 'partial_update'})(request, pk=self.trap.id)
         self.assertEqual(response.status_code, 200, response.data)
-        # Restricting a trap to a group still needs a group
-        request = self.factory.patch(f'/traps/{self.trap.id}/', {'visibility': 'group'})
-        force_authenticate(request, user=FakeTrapUser(['trapper'], self.colleague_guid, [self.group_path]))
-        self.assertEqual(TrapViewSet.as_view({'patch': 'partial_update'})(request, pk=self.trap.id).status_code, 400)
+        # And restrict or open it up again, as any owner
+        for value, expected in (('public', 'public'), ('restricted', 'restricted')):
+            request = self.factory.patch(f'/traps/{self.trap.id}/', {'visibility': value})
+            force_authenticate(request, user=FakeTrapUser(['trapper'], self.colleague_guid, [self.group_path]))
+            response = TrapViewSet.as_view({'patch': 'partial_update'})(request, pk=self.trap.id)
+            self.assertEqual((response.status_code, response.data['visibility']), (200, expected))
 
     def test_choices_are_the_owners_groups_then_their_members(self):
         groups = self._get(self.group_admin_user)
@@ -970,7 +1102,7 @@ class TrapPhotoTests(TrapTestCase):
         self.addCleanup(self.trap.photo_thumbnail.delete, save=False)
 
         path = self.trap.photo.name
-        self.trap.visibility = Trap.VISIBILITY_GROUP
+        self.trap.visibility = Trap.VISIBILITY_RESTRICTED
         self.trap.group = self.group
         self.trap.save()
 
@@ -1273,7 +1405,7 @@ class TagApiTests(TrapTestCase):
     def test_a_group_trap_is_hidden_from_strangers(self):
         value = self._new_tag()
         self._associate(value, self.owner_user, self.trap.id)
-        self.trap.group, self.trap.visibility = self.group, Trap.VISIBILITY_GROUP
+        self.trap.group, self.trap.visibility = self.group, Trap.VISIBILITY_RESTRICTED
         self.trap.save()
         with self.assertLogs('hornet.tag_views', level='WARNING'):
             self.assertEqual(self._resolve(value, self.stranger_user).status_code, 403)

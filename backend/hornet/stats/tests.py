@@ -255,7 +255,7 @@ class ThreeTrapsTestCase(StatsTestCase):
     def setUp(self):
         super().setUp()
         self.reading(self.trap, date(2025, 3, 15), 14)  # public trap
-        self.private = self.make_trap(visibility=Trap.VISIBILITY_GROUP, group=self.group)
+        self.private = self.make_trap(visibility=Trap.VISIBILITY_RESTRICTED, group=self.group)
         self.reading(self.private, date(2025, 3, 15), 28)
         harp = TrapType.objects.get(slug='electric-harp')
         self.assertTrue(harp.apiary_bound)
@@ -580,7 +580,7 @@ class CoverageTests(StatsTestCase):
         self.assertEqual(self.map('traps-coverage', self.zone)['summary']['traps'], 1)
 
     def test_only_visible_traps_count(self):
-        self.make_trap(latitude=50.51, longitude=4.51, visibility=Trap.VISIBILITY_GROUP,
+        self.make_trap(latitude=50.51, longitude=4.51, visibility=Trap.VISIBILITY_RESTRICTED,
                        group=self.group)
         self.assertEqual(self.map('traps-coverage', self.zone, self.stranger_user)['summary']['traps'], 1)
         self.assertEqual(self.map('traps-coverage', self.zone, self.member_user)['summary']['traps'], 2)

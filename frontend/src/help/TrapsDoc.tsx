@@ -167,13 +167,16 @@ export default function TrapsDoc() {
           Un piège est <strong>public</strong> par défaut : sa position, son type et son compteur de
           captures sont visibles de tous, y compris sans compte. Le journal, lui, n'est lisible que par
           les utilisateurs connectés, et le propriétaire n'est jamais montré aux visiteurs anonymes.
+          Vous pouvez le <strong>restreindre</strong> depuis sa fiche : il n'est alors visible que de vous,
+          du groupe à qui vous le déléguez et des administrateurs. Un piège d'un type lié à un rucher
+          (harpe électrique, muselière...) est toujours restreint : le montrer révélerait un rucher.
         </p>
         <p className="mb-0">
           Si vous êtes membre d'une association d'apiculteurs, vous pouvez lui déléguer l'entretien,
           par exemple pendant une absence : ses membres peuvent alors enregistrer captures et
-          interventions. En option, la visibilité du piège se restreint à ce groupe. Un piégeur
-          indépendant n'a pas de délégation : ses pièges restent publics. La délégation se retire à tout
-          moment, par vous, par un administrateur de ce groupe ou par un administrateur de la
+          interventions. La délégation et la visibilité sont indépendantes : retirer la délégation ne rend
+          jamais un piège public. Un piégeur indépendant n'a pas de délégation. La délégation se retire à
+          tout moment, par vous, par un administrateur de ce groupe ou par un administrateur de la
           plateforme.
         </p>
       </section>
@@ -187,8 +190,9 @@ export default function TrapsDoc() {
             <strong>Administrateur d'un groupe</strong> : désigner ou retirer la délégation des
             pièges des membres de son groupe, et transférer à un autre membre du groupe (piégeurs ou
             association) un piège délégué à son association. La délégation est alors retirée et la
-            nouvelle personne en est prévenue ; elle le délègue de nouveau si besoin. Un piège réservé
-            à son groupe le reste : il n'est plus visible que de son propriétaire et des admins
+            nouvelle personne en est prévenue ; elle le délègue de nouveau si besoin. Un piège restreint
+            le reste : il n'est plus visible que de son propriétaire et des admins, jusqu'à ce que la
+            nouvelle personne le délègue ou le rende public
           </li>
           <li>
             <strong>Administrateur de la plateforme</strong> : gérer les pièges et les référentiels,

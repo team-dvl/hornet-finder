@@ -464,12 +464,17 @@ class Species(models.Model):
 class Trap(GeolocatedModel):
     """A trap owned by a trapper or a beekeeper, optionally delegated to a beekeeper group."""
 
+    # What the trap really is, never what it could be: `public` is seen by everyone,
+    # `restricted` by its owner, its delegated group (if any) and the platform admins.
+    # A trap of an apiary-bound type is always restricted (see `save`).
     VISIBILITY_PUBLIC = 'public'
-    VISIBILITY_GROUP = 'group'
+    VISIBILITY_RESTRICTED = 'restricted'
     VISIBILITY_CHOICES = [
         (VISIBILITY_PUBLIC, 'Public'),
-        (VISIBILITY_GROUP, 'Group only'),
+        (VISIBILITY_RESTRICTED, 'Restricted'),
     ]
+    # Value used before the rename, still accepted from clients not yet updated
+    LEGACY_VISIBILITY_GROUP = 'group'
 
     id = models.AutoField(primary_key=True)
     owner = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL,
@@ -477,10 +482,10 @@ class Trap(GeolocatedModel):
     active = models.BooleanField(default=True)
     visibility = models.CharField(max_length=16, choices=VISIBILITY_CHOICES,
                                   default=VISIBILITY_PUBLIC)
-    # Delegation: the group whose members may maintain the trap, e.g. while the
-    # owner is away. Also restricts visibility when visibility is 'group'. Without a
-    # group (deleted, or cleared by a hand-over), a 'group' trap is seen by its
-    # owner and the platform admins only: never widened to the public.
+    # Delegation: the group whose members may maintain (and see) the trap, e.g. while
+    # the owner is away. Independent of the visibility: a restricted trap without a
+    # group (never delegated, group deleted, delegation cleared by a hand-over) is
+    # seen by its owner and the platform admins only.
     group = models.ForeignKey(BeekeeperGroup, null=True, blank=True, on_delete=models.SET_NULL,
                               related_name='traps')
     trap_type = models.ForeignKey(TrapType, on_delete=models.PROTECT, related_name='traps')
@@ -503,6 +508,22 @@ class Trap(GeolocatedModel):
 
     def __str__(self):
         return f"Trap {self.id} ({self.trap_type_id})"
+
+    def save(self, *args, **kwargs):
+        # A trap of an apiary-bound type would reveal an apiary: it is never stored as public
+        if (self.visibility == self.VISIBILITY_PUBLIC and self.trap_type_id
+                and self.trap_type.apiary_bound):
+            self.visibility = self.VISIBILITY_RESTRICTED
+            if kwargs.get('update_fields') is not None:
+                kwargs['update_fields'] = {*kwargs['update_fields'], 'visibility'}
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def normalize_visibility(cls, value):
+        """`value` as stored (the former `group` is `restricted`), or None when it is not a visibility."""
+        if value == cls.LEGACY_VISIBILITY_GROUP:
+            return cls.VISIBILITY_RESTRICTED
+        return value if value in (cls.VISIBILITY_PUBLIC, cls.VISIBILITY_RESTRICTED) else None
 
     def recompute_catches(self, save=True):
         """

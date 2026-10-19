@@ -203,6 +203,7 @@ export const FIELD_LABELS: Record<string, string> = {
   visibility: 'Visibilité',
   group: 'Groupe (n°)',
   group_path: 'Groupe',
+  traps_restricted: 'Pièges rendus privés',
   kind: "Type d'entrée",
   performed_at: 'Date',
   performed_by: 'Par',
@@ -273,7 +274,8 @@ const PERSON_FIELDS = new Set(['owner', 'created_by', 'performed_by', 'generated
   'revoked_by', 'uploaded_by', 'member']);
 
 const VALUE_LABELS: Record<string, Record<string, string>> = {
-  visibility: { public: 'Publique', group: 'Groupe' },
+  // `group` is the former name of `restricted`, kept for the history
+  visibility: { public: 'Publique', restricted: 'Restreinte', group: 'Restreinte au groupe' },
   via: { link: 'Lien direct', email: 'Lien envoyé par email' },
   kind: {
     installation: 'Installation', inspection: 'Inspection', cleaning: 'Nettoyage', refill: 'Remplissage',

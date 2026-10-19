@@ -119,7 +119,7 @@ export default function TrapFormModal({
                 Public
                 <HelpTip id="trap-visibility-help" doc="traps#delegation" title="Visibilité">
                   Le piège est public par défaut : sa position et ses captures sont visibles de tous.
-                  La délégation à une association se règle depuis la fiche du piège.
+                  Vous pouvez le restreindre et le déléguer à une association depuis la fiche du piège.
                 </HelpTip>
               </>
             )}

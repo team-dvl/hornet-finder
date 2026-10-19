@@ -645,6 +645,13 @@ class CatchSerializer(serializers.Serializer):
         return attrs
 
 
+class VisibilityField(serializers.ChoiceField):
+    """The visibility of a trap; the former value `group` is read as `restricted`."""
+
+    def to_internal_value(self, data):
+        return super().to_internal_value(Trap.normalize_visibility(data) or data)
+
+
 class TrapSerializer(GPSValidationMixin, serializers.ModelSerializer):
     """Full representation, for users allowed to read the trap."""
 
@@ -657,6 +664,7 @@ class TrapSerializer(GPSValidationMixin, serializers.ModelSerializer):
     last_event_at = serializers.SerializerMethodField()
     tag_short = serializers.SerializerMethodField()
     publicly_visible = serializers.SerializerMethodField()
+    visibility = VisibilityField(choices=Trap.VISIBILITY_CHOICES, required=False)
 
     class Meta:
         model = Trap
@@ -736,15 +744,11 @@ class TrapSerializer(GPSValidationMixin, serializers.ModelSerializer):
         return data
 
     def validate(self, attrs):
-        # Only when the visibility is being set: a trap restricted to a group that is gone
-        # (deleted, or cleared by a hand-over) stays so, and must remain editable
-        visibility = attrs.get('visibility')
-        group = getattr(self.instance, 'group_id', None)
-        if visibility == Trap.VISIBILITY_GROUP and not group:
-            # Setting a group goes through the delegation endpoint, so a trap
-            # cannot become group-visible before it has one.
+        # An apiary-bound type is never public (the stored visibility says what the trap is)
+        trap_type = attrs.get('trap_type') or getattr(self.instance, 'trap_type', None)
+        if attrs.get('visibility') == Trap.VISIBILITY_PUBLIC and trap_type and trap_type.apiary_bound:
             raise serializers.ValidationError({
-                'visibility': "Delegate the trap to a group before restricting its visibility.",
+                'visibility': "A trap of this type is only set up in front of hives: it cannot be public.",
             })
         return attrs
 

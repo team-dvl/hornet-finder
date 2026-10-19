@@ -124,8 +124,9 @@ export interface Trap {
   contents?: TrapContents | null;
   // Absent from the public (anonymous) representation
   address?: string;
-  visibility?: 'public' | 'group';
-  /** Public visibility and not of an apiary-bound type: what anonymous visitors actually see */
+  /** What the trap is: `public`, or `restricted` to its owner, its delegated group and the admins. Always restricted for an apiary-bound type */
+  visibility?: TrapVisibility;
+  /** Same as `visibility === 'public'`: what anonymous visitors actually see */
   publicly_visible?: boolean;
   comments?: string;
   owner?: UserSummary | null;
@@ -139,6 +140,8 @@ export interface Trap {
   /** What the requester may do, from the backend; absent from the public representation */
   permissions?: TrapPermissions;
 }
+
+export type TrapVisibility = 'public' | 'restricted';
 
 /** Rights on one trap (`permissions` of the API); the delegation has its own endpoint */
 export interface TrapPermissions {
@@ -175,6 +178,7 @@ export interface TrapFormValues {
   address?: string;
   comments?: string;
   active?: boolean;
+  visibility?: TrapVisibility;
   photo?: File | null;
 }
 
@@ -498,7 +502,7 @@ export const setTrapDelegation = createAsyncThunk(
   async ({ trapId, groupPath, visibility }: {
     trapId: number;
     groupPath: string;
-    visibility?: 'public' | 'group';
+    visibility?: TrapVisibility;
   }, { rejectWithValue }) => {
     try {
       const response = await api.put(`/traps/${trapId}/delegation/`, {
