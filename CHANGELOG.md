@@ -21,6 +21,7 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   trail ("Nid transféré"). Following a nest means managing it, not owning it.
 
 ### Changed
+- Sign-in screen: the Google and Facebook buttons are at the top, above the identifier and password form, to encourage their use. The "Ou se connecter avec" heading is gone, a rule separates the two.
 - Sign-in screen: the "Se souvenir de moi" checkbox is gone. It changed nothing for the session (same 3-day idle and 7-day maximum limits, tokens kept in `localStorage`), only whether Keycloak's own cookie outlived the browser.
 - Dialogs on a large screen (object sheets such as a nest, forms): 700 px wide from 992 px instead of 500 px. Confirmations and phone layout unchanged.
 

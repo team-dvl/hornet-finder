@@ -49,3 +49,17 @@ div.card-pf {
     box-shadow: 0 4px 20px rgba(0,0,0,0.2);
     background-color: rgba(255, 255, 255, 0.94);
 }
+
+/* Social sign-in sits above the form: tighten the list and separate it from the password form */
+#kc-social-providers ul {
+    margin: 0;
+    padding: 0;
+}
+
+#kc-social-providers a {
+    margin-bottom: 8px;
+}
+
+hr.kc-social-separator {
+    margin: 12px 0 16px;
+}
