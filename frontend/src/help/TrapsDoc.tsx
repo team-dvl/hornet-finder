@@ -187,7 +187,8 @@ export default function TrapsDoc() {
             <strong>Administrateur d'un groupe</strong> : désigner ou retirer la délégation des
             pièges des membres de son groupe, et transférer à un autre membre du groupe (piégeurs ou
             association) un piège délégué à son association. La délégation est alors retirée et la
-            nouvelle personne en est prévenue ; elle le délègue de nouveau si besoin
+            nouvelle personne en est prévenue ; elle le délègue de nouveau si besoin. Un piège réservé
+            à son groupe le reste : il n'est plus visible que de son propriétaire et des admins
           </li>
           <li>
             <strong>Administrateur de la plateforme</strong> : gérer les pièges et les référentiels,

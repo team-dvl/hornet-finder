@@ -98,6 +98,9 @@ export default function TrapDelegationPanel({ trap }: TrapDelegationPanelProps) 
           ) : (
             <p className="mb-2 small text-muted">
               Aucun groupe désigné : seul le propriétaire entretient ce piège.
+              {trap.visibility === 'group' && !trap.trap_type.apiary_bound && (
+                <Badge bg="secondary" className="ms-2">visible de vous et des admins seulement</Badge>
+              )}
             </p>
           )}
 
