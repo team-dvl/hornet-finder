@@ -9,6 +9,9 @@ Notifications about nests, sent by the scheduler service.
   tells the coordinators.
 * A verification or a destruction tells the owner of the nest, its reporter at
   first ("Suivi de mes signalements"), unless they recorded it themselves.
+* A destruction also tells the coordinators ("Tous les nouveaux nids") and, as
+  for an active nest, the owners of the apiaries nearby and the administrators
+  of their associations ("Nids près de mes ruchers"): the danger is over.
 * A nest handed over tells its new owner at once (`tell_new_owner`): an action
   of a person, like a group message, not held to the sending hours.
 
@@ -79,6 +82,17 @@ def _new_nest_message(nest, event, reason: str) -> dict:
             'body': f"{_where(nest)} · {' · '.join(details)}."}
 
 
+def _destroyed_message(nest, reason: str) -> dict:
+    url = f'/nests?nest={nest.pk}'
+    if reason == 'near_own':
+        return {'kind': kinds.NEST_NEAR_APIARY, 'title': "Nid neutralisé près de votre rucher", 'url': url,
+                'body': f"{_where(nest)}, à moins de 1 km de votre rucher, a été neutralisé."}
+    if reason == 'near_association':
+        return {'kind': kinds.NEST_NEAR_APIARY, 'title': "Nid neutralisé près d'un rucher de votre association",
+                'url': url, 'body': f"{_where(nest)}, à moins de 1 km d'un rucher de votre association, a été neutralisé."}
+    return {'kind': kinds.NEST_NEW, 'title': "Nid neutralisé", 'url': url, 'body': f"{_where(nest)} a été neutralisé."}
+
+
 def _followup_message(nest, event):
     url = f'/nests?nest={nest.pk}'
     if event.kind == NestEvent.KIND_DESTRUCTION:
@@ -108,12 +122,15 @@ def _summary(messages: list) -> dict:
             'title': f"{len(messages)} nouveaux nids signalés", 'body': body, 'url': '/nests'}
 
 
-def _new_nest_reasons(nest, event, users) -> dict:
-    """guid -> the reasons a person is told about this new nest, the most telling first."""
+def _new_nest_reasons(nest, event, users, destroyed=False) -> dict:
+    """
+    guid -> the reasons a person is told about this nest, the most telling first.
+    For a destroyed nest the beekeepers' "all nests" is left out: only the coordinators and the neighbours.
+    """
     reasons = {}
     empty = event.outcome == NestEvent.OUTCOME_EMPTY
     for user in users:
-        if kinds.is_nest_coordinator(user) or (kinds.is_beekeeper(user) and not empty):
+        if kinds.is_nest_coordinator(user) or (kinds.is_beekeeper(user) and not empty and not destroyed):
             reasons.setdefault(user.guid, []).append(kinds.NEST_NEW)
     if empty or nest.point is None:
         return reasons
@@ -155,6 +172,17 @@ def _messages_for(event, users) -> dict:
         for user in users:
             if message and user.guid == nest.owner_id and kinds.wants(user, kinds.NEST_FOLLOWUP):
                 found[user.guid] = message
+        if event.kind == NestEvent.KIND_DESTRUCTION:
+            by_guid = {user.guid: user for user in users}
+            for guid, reasons in _new_nest_reasons(nest, event, users, destroyed=True).items():
+                # The follow-up above is the most telling one for the owner
+                if guid in found:
+                    continue
+                for reason in reasons:
+                    message = _destroyed_message(nest, reason)
+                    if kinds.wants(by_guid[guid], message['kind']):
+                        found[guid] = {**message, 'destroyed': True}
+                        break
     found.pop(event.performed_by_id, None)
     already = set(NestAlert.objects.filter(event=event).values_list('user_id', flat=True))
     return {guid: message for guid, message in found.items() if guid not in already}
@@ -205,8 +233,11 @@ def run(now=None, dry_run=False) -> dict:
                 by_person.setdefault(guid, []).append((event, message))
 
         for guid, entries in by_person.items():
-            new_nests = [(e, m) for e, m in entries if m['kind'] != kinds.NEST_FOLLOWUP]
-            others = [(e, m) for e, m in entries if m['kind'] == kinds.NEST_FOLLOWUP]
+            def is_news(entry):
+                return entry[1]['kind'] != kinds.NEST_FOLLOWUP and not entry[1].get('destroyed')
+
+            new_nests = [entry for entry in entries if is_news(entry)]
+            others = [entry for entry in entries if not is_news(entry)]
             messages = [m for _, m in others]
             if len(new_nests) >= SUMMARY_FROM:
                 messages.append(_summary([m for _, m in new_nests]))
