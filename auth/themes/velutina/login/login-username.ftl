@@ -32,19 +32,6 @@
 
                         <div class="${properties.kcFormGroupClass!} ${properties.kcFormSettingClass!}">
                             <div id="kc-form-options">
-                                <#if realm.rememberMe && !usernameHidden??>
-                                    <div class="checkbox">
-                                        <label>
-                                            <#if login.rememberMe??>
-                                                <input tabindex="3" id="rememberMe" name="rememberMe" type="checkbox"
-                                                       checked> ${msg("rememberMe")}
-                                            <#else>
-                                                <input tabindex="3" id="rememberMe" name="rememberMe"
-                                                       type="checkbox"> ${msg("rememberMe")}
-                                            </#if>
-                                        </label>
-                                    </div>
-                                </#if>
                                 <#-- Velutina: reset link on the first step, users without a password never reach login-password.ftl -->
                                 <#if realm.resetPasswordAllowed>
                                     <div class="${properties.kcFormOptionsWrapperClass!}">
