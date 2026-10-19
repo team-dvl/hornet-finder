@@ -122,9 +122,10 @@ export default function TrapTypeFormModal({ onHide, trapType = null }: TrapTypeF
           onChange={setApiaryBound}
           help={(
             <HelpTip id="apiary-bound-help" title="Lié à un rucher">
-              Ces pièges ne s'installent que devant des ruches : les montrer révélerait un rucher.
-              Ils ne sont visibles que de leur propriétaire, du groupe à qui l'entretien est délégué et des admins.
-              Cocher cette case rend privés les pièges déjà créés de ce type ; la décocher ne les rouvre pas.
+              Ces pièges ne s'installent que devant des ruches : ceux d'un apiculteur sont toujours privés, les
+              montrer révélerait un rucher (propriétaire, groupe délégué et admins seulement). Ceux d'une
+              personne qui n'a pas de ruches peuvent être publics. Cocher cette case rend privés les pièges déjà
+              créés de ce type par des apiculteurs ; la décocher ne les rouvre pas.
             </HelpTip>
           )}
         />

@@ -51,6 +51,37 @@ class User(models.Model):
     def __str__(self):
         return str(self.guid)
 
+    @property
+    def is_beekeeper(self) -> bool:
+        """A beekeeper is a member of `/beekeepers` or of one of its groups, as of the local mirror."""
+        return any(path == BEEKEEPERS_ROOT or path.startswith(BEEKEEPERS_ROOT + '/')
+                   for path in self.group_paths or [])
+
+    def restrict_apiary_bound_traps(self) -> int:
+        """
+        Restrict the public traps of an apiary-bound type of this user once they are a beekeeper:
+        they stand in front of hives. Widens nothing: a beekeeper who leaves keeps them restricted.
+        """
+        if not self.is_beekeeper:
+            return 0
+        return self.traps.filter(trap_type__apiary_bound=True, visibility=Trap.VISIBILITY_PUBLIC
+                                 ).update(visibility=Trap.VISIBILITY_RESTRICTED)
+
+
+# Group of the beekeepers' associations; a member of it or of a subgroup is a beekeeper
+BEEKEEPERS_ROOT = '/beekeepers'
+
+
+class BeekeeperOwner(models.Func):
+    """
+    SQL test: the user whose mirrored `group_paths` (JSON) are given is a beekeeper (see
+    `User.is_beekeeper`). `BeekeeperOwner(F('owner__group_paths'))` filters traps by their owner.
+    """
+
+    template = ("COALESCE(jsonb_path_exists(%(expressions)s, "
+                "'$[*] ? (@ like_regex \"^/beekeepers(/|$)\")'), false)")
+    output_field = models.BooleanField()
+
 
 class GeolocatedModel(models.Model):
     latitude = models.FloatField()
@@ -466,7 +497,7 @@ class Trap(GeolocatedModel):
 
     # What the trap really is, never what it could be: `public` is seen by everyone,
     # `restricted` by its owner, its delegated group (if any) and the platform admins.
-    # A trap of an apiary-bound type is always restricted (see `save`).
+    # A trap of an apiary-bound type of a beekeeper is always restricted (see `restricted_by_nature`).
     VISIBILITY_PUBLIC = 'public'
     VISIBILITY_RESTRICTED = 'restricted'
     VISIBILITY_CHOICES = [
@@ -509,10 +540,19 @@ class Trap(GeolocatedModel):
     def __str__(self):
         return f"Trap {self.id} ({self.trap_type_id})"
 
+    @staticmethod
+    def restricted_by_nature(trap_type, owner) -> bool:
+        """
+        An apiary-bound trap (electric harp, muzzle...) of a beekeeper stands in front of
+        hives: showing it would reveal an apiary. The same trap of someone who keeps no
+        bees (a trapper with a Jadeprobe) may be public.
+        """
+        return bool(trap_type and trap_type.apiary_bound and owner and owner.is_beekeeper)
+
     def save(self, *args, **kwargs):
-        # A trap of an apiary-bound type would reveal an apiary: it is never stored as public
+        # Such a trap is never stored as public
         if (self.visibility == self.VISIBILITY_PUBLIC and self.trap_type_id
-                and self.trap_type.apiary_bound):
+                and self.restricted_by_nature(self.trap_type, self.owner)):
             self.visibility = self.VISIBILITY_RESTRICTED
             if kwargs.get('update_fields') is not None:
                 kwargs['update_fields'] = {*kwargs['update_fields'], 'visibility'}

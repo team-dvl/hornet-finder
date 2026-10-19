@@ -664,12 +664,13 @@ class TrapSerializer(GPSValidationMixin, serializers.ModelSerializer):
     last_event_at = serializers.SerializerMethodField()
     tag_short = serializers.SerializerMethodField()
     publicly_visible = serializers.SerializerMethodField()
+    visibility_locked = serializers.SerializerMethodField()
     visibility = VisibilityField(choices=Trap.VISIBILITY_CHOICES, required=False)
 
     class Meta:
         model = Trap
         fields = ['id', 'latitude', 'longitude', 'address', 'active', 'visibility',
-                  'publicly_visible',
+                  'publicly_visible', 'visibility_locked',
                   'trap_type', 'trap_type_slug', 'photo_url', 'photo_thumbnail_url',
                   'installed_at', 'comments', 'hornet_catch_count', 'contents', 'owner', 'group',
                   'last_event_at', 'tag_short', 'created_at', 'updated_at']
@@ -688,6 +689,10 @@ class TrapSerializer(GPSValidationMixin, serializers.ModelSerializer):
 
     def get_publicly_visible(self, instance) -> bool:
         return is_publicly_visible(instance)
+
+    def get_visibility_locked(self, instance) -> bool:
+        """The trap must stay restricted: an apiary-bound type, and an owner who is a beekeeper."""
+        return Trap.restricted_by_nature(instance.trap_type, instance.owner)
 
     def get_tag_short(self, instance) -> Optional[str]:
         # `active_tags` is prefetched by the trap viewset; query otherwise
@@ -744,11 +749,13 @@ class TrapSerializer(GPSValidationMixin, serializers.ModelSerializer):
         return data
 
     def validate(self, attrs):
-        # An apiary-bound type is never public (the stored visibility says what the trap is)
+        # An apiary-bound trap of a beekeeper is never public (the stored visibility says what it is)
         trap_type = attrs.get('trap_type') or getattr(self.instance, 'trap_type', None)
-        if attrs.get('visibility') == Trap.VISIBILITY_PUBLIC and trap_type and trap_type.apiary_bound:
+        request = self.context.get('request')
+        owner = self.instance.owner if self.instance else (trap_perms.local_user(request) if request else None)
+        if attrs.get('visibility') == Trap.VISIBILITY_PUBLIC and Trap.restricted_by_nature(trap_type, owner):
             raise serializers.ValidationError({
-                'visibility': "A trap of this type is only set up in front of hives: it cannot be public.",
+                'visibility': "A beekeeper's trap of this type is set up in front of hives: it cannot be public.",
             })
         return attrs
 

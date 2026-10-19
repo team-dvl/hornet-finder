@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Alert, Button, Form, Spinner } from 'react-bootstrap';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { useUserPermissions } from '../../hooks/useUserPermissions';
+import { isBeekeeper } from '../../utils/groups';
 import {
   createTrap, updateTrap, fetchTrapTypes, selectTrapTypes, type Trap,
 } from '../../store/store';
@@ -92,6 +94,11 @@ export default function TrapFormModal({
   };
 
   const selectedType = trapTypes.find((type) => type.slug === typeSlug);
+  const { groups } = useUserPermissions();
+  // An apiary-bound type of a beekeeper stays private; the same trap of someone without bees may be public
+  const locked = trap && trap.trap_type.slug === typeSlug
+    ? Boolean(trap.visibility_locked)
+    : Boolean(selectedType?.apiary_bound) && isBeekeeper(groups);
 
   return (
     <AppModal
@@ -104,13 +111,23 @@ export default function TrapFormModal({
       footer={(
         <>
           <span className="me-auto small text-muted d-inline-flex align-items-center">
-            {selectedType?.apiary_bound ? (
+            {locked ? (
               <>
                 <i className="bi bi-lock-fill me-1" aria-hidden="true" />
                 Privé
                 <HelpTip id="trap-visibility-help" doc="traps#delegation" title="Visibilité">
-                  Ce type de piège ne s'installe que devant des ruches : le montrer révélerait un rucher.
-                  Il n'est visible que de vous, du groupe à qui vous en déléguez l'entretien et des admins.
+                  Ce type de piège ne s'installe que devant des ruches et vous êtes apiculteur : le montrer
+                  révélerait un rucher. Il n'est visible que de vous, du groupe à qui vous en déléguez
+                  l'entretien et des admins.
+                </HelpTip>
+              </>
+            ) : trap?.visibility === 'restricted' ? (
+              <>
+                <i className="bi bi-lock-fill me-1" aria-hidden="true" />
+                Restreint
+                <HelpTip id="trap-visibility-help" doc="traps#delegation" title="Visibilité">
+                  Visible de vous, du groupe à qui vous déléguez l'entretien et des admins seulement. Vous le
+                  rendez public depuis la fiche du piège.
                 </HelpTip>
               </>
             ) : (

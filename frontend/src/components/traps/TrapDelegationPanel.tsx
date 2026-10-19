@@ -23,7 +23,7 @@ export default function TrapDelegationPanel({ trap }: TrapDelegationPanelProps) 
   const dispatch = useAppDispatch();
   const [info, setInfo] = useState<DelegationInfo | null>(null);
   const [groupPath, setGroupPath] = useState('');
-  const bound = Boolean(trap.trap_type.apiary_bound);
+  const locked = Boolean(trap.visibility_locked);
   const isPublic = trap.visibility === 'public';
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,12 +95,13 @@ export default function TrapDelegationPanel({ trap }: TrapDelegationPanelProps) 
         <Accordion.Body>
           {error && <Alert variant="danger" className="py-2 small">{error}</Alert>}
 
-          {bound ? (
+          {locked ? (
             <p className="mb-2 small">
               <i className="bi bi-lock-fill me-1" aria-hidden="true" />Privé
               <HelpTip id={`trap-${trap.id}-bound-help`} doc="traps#delegation" title="Privé">
-                Ce type de piège ne s'installe que devant des ruches : le montrer révélerait un rucher.
-                Il n'est visible que de son propriétaire, du groupe délégué et des admins.
+                Ce type de piège ne s'installe que devant des ruches et son propriétaire est apiculteur : le
+                montrer révélerait un rucher. Il n'est visible que de son propriétaire, du groupe délégué
+                et des admins.
               </HelpTip>
             </p>
           ) : (

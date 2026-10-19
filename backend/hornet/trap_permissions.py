@@ -14,9 +14,9 @@ Two ideas drive this module:
 
 import logging
 
-from django.db.models import Q
+from django.db.models import F, Q
 
-from .models import User
+from .models import BeekeeperOwner, Trap, User
 
 logger = logging.getLogger(__name__)
 
@@ -119,21 +119,27 @@ def is_owner(user, trap) -> bool:
 
 def is_publicly_visible(trap) -> bool:
     """
-    Public and not of an apiary-bound type: those only stand in front of hives,
-    so showing one would reveal an apiary. Evaluated at read time from the type,
-    so flagging a type protects its existing traps at once.
+    Public and not restricted by nature: an apiary-bound trap of a beekeeper
+    stands in front of hives, so showing one would reveal an apiary. Stored
+    visibility says as much (see `Trap.restricted_by_nature`); this checks the
+    type and the owner again at read time, as a last safeguard.
     """
     return (trap.visibility == trap.VISIBILITY_PUBLIC
-            and not (trap.trap_type_id and trap.trap_type.apiary_bound))
+            and not Trap.restricted_by_nature(trap.trap_type, trap.owner))
+
+
+def restricted_by_nature_q() -> Q:
+    """`Trap.restricted_by_nature` as a filter: an apiary-bound type and an owner who is a beekeeper."""
+    return Q(trap_type__apiary_bound=True) & Q(BeekeeperOwner(F('owner__group_paths')))
 
 
 def readable_traps(request, queryset):
     """
-    The traps of `queryset` the requester may see: public ones (never those of
-    an apiary-bound type, as in `is_publicly_visible`), their own, their
+    The traps of `queryset` the requester may see: public ones (never those
+    restricted by nature, as in `is_publicly_visible`), their own, their
     groups'. Platform admins see everything.
     """
-    public = Q(visibility='public', trap_type__apiary_bound=False)
+    public = Q(visibility='public') & ~restricted_by_nature_q()
     user = getattr(request, 'user', None)
     if not user or not getattr(user, 'is_authenticated', False):
         return queryset.filter(public)

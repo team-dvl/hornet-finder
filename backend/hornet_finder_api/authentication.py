@@ -106,6 +106,8 @@ class JWTBearerAuthentication(BaseAuthentication):
                     if local_user.group_paths != group_paths:
                         local_user.group_paths = group_paths
                         local_user.save(update_fields=['group_paths'])
+                        # A new beekeeper's apiary-bound traps stop being public
+                        local_user.restrict_apiary_bound_traps()
                 except User.DoesNotExist:
                     logger.debug(f"Creating new user with GUID: {guid}")
                     User.objects.create(guid=uuid.UUID(guid), group_paths=group_paths)

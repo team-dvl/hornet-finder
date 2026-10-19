@@ -160,10 +160,11 @@ class TrapTypeViewSet(ReferentialViewSet):
         with audit.track(self.request, 'trap_type.updated', trap_type) as tracked:
             self._attach_photo(serializer.save())
             if trap_type.apiary_bound and not was_bound:
-                # Flagging a type restricts its existing traps at once; unflagging restores nothing:
-                # their owners decide. A bulk update bypasses the model and the audit, so it is recorded here.
+                # Flagging a type restricts the existing traps of beekeepers at once (those of
+                # others may stay public); unflagging restores nothing: their owners decide.
+                # A bulk update bypasses the model and the audit, so it is recorded here.
                 exposed = list(Trap.objects.filter(trap_type=trap_type, visibility=Trap.VISIBILITY_PUBLIC)
-                               .values_list('pk', flat=True))
+                               .filter(perms.restricted_by_nature_q()).values_list('pk', flat=True))
                 Trap.objects.filter(pk__in=exposed).update(visibility=Trap.VISIBILITY_RESTRICTED)
                 if exposed:
                     tracked.extra = {'traps_restricted': len(exposed)}
@@ -760,9 +761,9 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
 
         # Optional, for clients that still send it with the delegation (`group` is `restricted`)
         visibility = Trap.normalize_visibility(request.data.get('visibility'))
-        if visibility == Trap.VISIBILITY_PUBLIC and trap.trap_type.apiary_bound:
-            raise DRFValidationError({'visibility': "A trap of this type is only set up in front of hives: "
-                                                    "it cannot be public."})
+        if visibility == Trap.VISIBILITY_PUBLIC and Trap.restricted_by_nature(trap.trap_type, trap.owner):
+            raise DRFValidationError({'visibility': "A beekeeper's trap of this type is set up in front "
+                                                    "of hives: it cannot be public."})
         with audit.track(request, 'trap.delegated', trap, fields=delegation_fields) as tracked:
             trap.group = _group_for_path(group_path)
             if visibility:
@@ -788,9 +789,10 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         Hand a trap over: a platform admin, or the administrator of a group the
         owner belongs to (the trappers, a beekeeper association), to a member of
         that group. The delegation is cleared, as it depends on the owner's
-        associations, and the new owner is notified. The visibility is left as it
-        is: a restricted trap stays so, seen by its new owner and the platform
-        admins only until it is delegated again.
+        associations, and the new owner is notified. A restricted trap stays so,
+        seen by its new owner and the platform admins only until it is delegated
+        again; a public apiary-bound trap becomes restricted when the new owner
+        is a beekeeper (and stays restricted when they are not).
 
         GET: the groups to choose from and, with `?group_path=`, their members
         (first and last name, never an email). PUT: `owner_guid`, and the
@@ -819,7 +821,11 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
 
         previous = trap.owner_id
         previous_group = trap.group.path if trap.group else None
-        with audit.track(request, 'trap.owner_changed', trap, fields=['owner', 'group']) as tracked:
+        if group_path and perms.is_beekeeper_group(group_path) and group_path not in (new_owner.group_paths or []):
+            # Picked from a beekeepers' association: a beekeeper, even if they never signed in
+            new_owner.group_paths = [*(new_owner.group_paths or []), group_path]
+            new_owner.save(update_fields=['group_paths'])
+        with audit.track(request, 'trap.owner_changed', trap, fields=['owner', 'group', 'visibility']) as tracked:
             tracked.refs = [audit.ref('user', guid) for guid in (previous, new_owner.guid) if guid]
             if group_path:
                 # The group the new owner was picked from
