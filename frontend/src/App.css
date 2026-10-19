@@ -1780,18 +1780,6 @@ html[data-platform="material"] .form-switch .form-check-input:checked {
   box-shadow: 0 0 0 2px var(--nav-bg, var(--bs-dark));
 }
 
-/* A reminder of the "À relever" list */
-.due-item .due-icon {
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  display: grid;
-  place-items: center;
-  border-radius: 0.5rem;
-  background: var(--bs-tertiary-bg);
-  font-size: 1.2rem;
-}
-
 /* Position sheet while typing an address: tall enough for the suggestions to stay above the keyboard */
 .locate-sheet-searching {
   min-height: 70vh;
