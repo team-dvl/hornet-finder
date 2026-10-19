@@ -48,6 +48,7 @@ ACTIONS = {
     'trap.delegated': "Trap delegated to a group",
     'trap.undelegated': "Trap delegation removed",
     'trap.owner_changed': "Trap handed over",
+    'trap.restricted': "Trap restricted: its owner became a beekeeper",
     'trap.event_recorded': "Trap journal entry recorded",
     'trap.visit_recorded': "Trap visit recorded",
     'trap.visit_deleted': "Trap visit deleted",

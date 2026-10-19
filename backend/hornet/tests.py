@@ -616,6 +616,7 @@ class TrapOfSomeoneWithoutBeesTests(TrapTestCase):
         # Until the mirror is synchronised, reads already hide it
         self.assertIn(self._retrieve().status_code, (403, 404))
         self.assertEqual(self.trapper.restrict_apiary_bound_traps(), 1)
+        self.assertEqual(self.trapper.restrict_apiary_bound_traps(), 0)
         self.trap.refresh_from_db()
         ordinary.refresh_from_db()
         self.assertEqual((self.trap.visibility, ordinary.visibility),
@@ -633,6 +634,19 @@ class TrapOfSomeoneWithoutBeesTests(TrapTestCase):
             JWTBearerAuthentication().authenticate(request)
         self.trap.refresh_from_db()
         self.assertEqual(self.trap.visibility, Trap.VISIBILITY_RESTRICTED)
+        # Recorded as the system's doing: nobody asked for it
+        from audit.models import AuditEvent
+        [event] = AuditEvent.objects.filter(action='trap.restricted')
+        self.assertEqual((event.source, event.actor), ('system', None))
+        self.assertEqual(event.target_id, str(self.trap.id))
+        self.assertEqual(event.changes, {'visibility': ['public', 'restricted']})
+        self.assertIn(f'user:{self.trapper_guid}', event.refs)
+        self.assertIn(f'trap:{self.trap.id}', event.refs)
+        # A second request changes nothing, so records nothing more
+        with patch.object(JWTBearerAuthentication, 'JWKS_CLIENT', MagicMock()), \
+                patch('hornet_finder_api.authentication.jwt.decode', return_value=token):
+            JWTBearerAuthentication().authenticate(request)
+        self.assertEqual(AuditEvent.objects.filter(action='trap.restricted').count(), 1)
 
     def test_a_beekeeper_who_leaves_keeps_it_restricted(self):
         self.trapper.group_paths = [self.group_path]
