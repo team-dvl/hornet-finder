@@ -39,7 +39,7 @@ export {
 export type {
   Trap, TrapContents, TrapEvent, TrapEventKind, TrapPhoto, TrapType, Species, DelegationInfo,
   TrapFormValues, TrapTypeFormValues, SpeciesFormValues, CatchItem, UserSummary, GroupSummary,
-  TrapScope, TrapOrdering, ManagedTrapsQuery, TrapPermissions, TrapOwnerChoices,
+  TrapScope, TrapOrdering, ManagedTrapsQuery, TrapPermissions, TrapOwnerChoices, TrapVisibility,
 } from './slices/trapsSlice';
 
 // Export des actions et selectors du slice map

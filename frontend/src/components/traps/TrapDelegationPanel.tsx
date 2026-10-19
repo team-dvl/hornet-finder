@@ -2,17 +2,19 @@ import { useEffect, useState } from 'react';
 import { Accordion, Alert, Badge, Button, Form, Spinner } from 'react-bootstrap';
 import { useAppDispatch } from '../../store/hooks';
 import {
-  clearTrapDelegation, fetchTrapDelegation, setTrapDelegation,
+  clearTrapDelegation, fetchTrapDelegation, setTrapDelegation, updateTrap,
   type DelegationInfo, type Trap,
 } from '../../store/store';
+import { HelpTip } from '../common';
 
 interface TrapDelegationPanelProps {
   trap: Trap;
 }
 
 /**
- * Delegation of a trap to a group: which association may maintain it, and
- * whether the trap is visible to that group only.
+ * Visibility of a trap (public, or restricted to its owner, its delegated group
+ * and the admins) and its delegation to a group: which association may maintain
+ * it. The two are independent.
  *
  * The list of groups the current user may pick comes from the backend, which
  * is the only side that knows the *owner's* groups.
@@ -21,9 +23,8 @@ export default function TrapDelegationPanel({ trap }: TrapDelegationPanelProps) 
   const dispatch = useAppDispatch();
   const [info, setInfo] = useState<DelegationInfo | null>(null);
   const [groupPath, setGroupPath] = useState('');
-  // The switch follows the trap until the user overrides it
-  const [groupOnlyOverride, setGroupOnlyOverride] = useState<boolean | null>(null);
-  const groupOnly = groupOnlyOverride ?? trap.visibility === 'group';
+  const bound = Boolean(trap.trap_type.apiary_bound);
+  const isPublic = trap.visibility === 'public';
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,11 +46,19 @@ export default function TrapDelegationPanel({ trap }: TrapDelegationPanelProps) 
     setBusy(true);
     setError(null);
     try {
-      await dispatch(setTrapDelegation({
-        trapId: trap.id,
-        groupPath,
-        visibility: groupOnly ? 'group' : 'public',
-      })).unwrap();
+      await dispatch(setTrapDelegation({ trapId: trap.id, groupPath })).unwrap();
+    } catch (saveError) {
+      setError(saveError as string);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleVisibility = async (makePublic: boolean) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await dispatch(updateTrap({ trapId: trap.id, values: { visibility: makePublic ? 'public' : 'restricted' } })).unwrap();
     } catch (saveError) {
       setError(saveError as string);
     } finally {
@@ -86,21 +95,43 @@ export default function TrapDelegationPanel({ trap }: TrapDelegationPanelProps) 
         <Accordion.Body>
           {error && <Alert variant="danger" className="py-2 small">{error}</Alert>}
 
+          {bound ? (
+            <p className="mb-2 small">
+              <i className="bi bi-lock-fill me-1" aria-hidden="true" />Privé
+              <HelpTip id={`trap-${trap.id}-bound-help`} doc="traps#delegation" title="Privé">
+                Ce type de piège ne s'installe que devant des ruches : le montrer révélerait un rucher.
+                Il n'est visible que de son propriétaire, du groupe délégué et des admins.
+              </HelpTip>
+            </p>
+          ) : (
+            <div className="d-flex align-items-center mb-2">
+              {trap.permissions?.update ? (
+                <Form.Check
+                  type="switch"
+                  id={`trap-${trap.id}-public`}
+                  className="small"
+                  label="Piège public"
+                  checked={isPublic}
+                  disabled={busy}
+                  onChange={(event) => void handleVisibility(event.target.checked)}
+                />
+              ) : (
+                <span className="small">{isPublic ? 'Public' : 'Restreint'}</span>
+              )}
+              <HelpTip id={`trap-${trap.id}-visibility-help`} doc="traps#delegation" title="Visibilité">
+                Public : position et captures visibles de tous, y compris sans compte. Restreint : visible de son
+                propriétaire, du groupe délégué et des admins seulement.
+              </HelpTip>
+            </div>
+          )}
+
           {trap.group ? (
             <p className="mb-2 small">
               Entretien délégué à <Badge bg="primary">{trap.group.name}</Badge>
-              {trap.trap_type.apiary_bound ? (
-                <Badge bg="secondary" className="ms-2">privé</Badge>
-              ) : trap.visibility === 'group' && (
-                <Badge bg="secondary" className="ms-2">visible par ce groupe seulement</Badge>
-              )}
             </p>
           ) : (
             <p className="mb-2 small text-muted">
               Aucun groupe désigné : seul le propriétaire entretient ce piège.
-              {trap.visibility === 'group' && !trap.trap_type.apiary_bound && (
-                <Badge bg="secondary" className="ms-2">visible de vous et des admins seulement</Badge>
-              )}
             </p>
           )}
 
@@ -123,18 +154,6 @@ export default function TrapDelegationPanel({ trap }: TrapDelegationPanelProps) 
                   ))}
                 </Form.Select>
               </Form.Group>
-
-              {/* An apiary-bound trap is private anyway: nothing to restrict */}
-              {!trap.trap_type.apiary_bound && (
-                <Form.Check
-                  type="switch"
-                  id={`trap-${trap.id}-group-only`}
-                  className="small mb-2"
-                  label="Réserver la visibilité à ce groupe"
-                  checked={groupOnly}
-                  onChange={(event) => setGroupOnlyOverride(event.target.checked)}
-                />
-              )}
 
               <div className="d-flex gap-2">
                 <Button size="sm" variant="primary" onClick={handleSave} disabled={busy || !groupPath}>

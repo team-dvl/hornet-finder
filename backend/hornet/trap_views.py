@@ -154,6 +154,21 @@ class TrapTypeViewSet(ReferentialViewSet):
     serializer_class = TrapTypeSerializer
     queryset = TrapType.objects.all()
 
+    def perform_update(self, serializer):
+        trap_type = serializer.instance
+        was_bound = trap_type.apiary_bound
+        with audit.track(self.request, 'trap_type.updated', trap_type) as tracked:
+            self._attach_photo(serializer.save())
+            if trap_type.apiary_bound and not was_bound:
+                # Flagging a type restricts its existing traps at once; unflagging restores nothing:
+                # their owners decide. A bulk update bypasses the model and the audit, so it is recorded here.
+                exposed = list(Trap.objects.filter(trap_type=trap_type, visibility=Trap.VISIBILITY_PUBLIC)
+                               .values_list('pk', flat=True))
+                Trap.objects.filter(pk__in=exposed).update(visibility=Trap.VISIBILITY_RESTRICTED)
+                if exposed:
+                    tracked.extra = {'traps_restricted': len(exposed)}
+                    tracked.refs = [audit.ref('trap', pk) for pk in exposed]
+
     def get_queryset(self):
         return TrapType.objects.annotate(trap_count=db_models.Count('traps'))
 
@@ -726,14 +741,14 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         delegation_fields = ['group', 'visibility']
         previous_group = trap.group.path if trap.group else None
         if request.method == 'DELETE':
-            with audit.track(request, 'trap.undelegated', trap, fields=delegation_fields) as tracked:
+            # The delegation and the visibility are independent: withdrawing the group
+            # never makes a restricted trap public
+            with audit.track(request, 'trap.undelegated', trap, fields=['group']) as tracked:
                 if previous_group:
                     tracked.extra = {'group_path': [previous_group, None]}
                     tracked.refs = [audit.ref('group', previous_group)]
                 trap.group = None
-                # A trap with no group cannot stay restricted to that group
-                trap.visibility = Trap.VISIBILITY_PUBLIC
-                trap.save(update_fields=['group', 'visibility', 'updated_at'])
+                trap.save(update_fields=['group', 'updated_at'])
             return Response(TrapSerializer(trap, context=self.get_serializer_context()).data)
 
         group_path = request.data.get('group_path')
@@ -743,10 +758,14 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         if not perms.can_delegate_to(request, trap, group_path):
             raise PermissionDenied(f"You cannot delegate this trap to {group_path}.")
 
+        # Optional, for clients that still send it with the delegation (`group` is `restricted`)
+        visibility = Trap.normalize_visibility(request.data.get('visibility'))
+        if visibility == Trap.VISIBILITY_PUBLIC and trap.trap_type.apiary_bound:
+            raise DRFValidationError({'visibility': "A trap of this type is only set up in front of hives: "
+                                                    "it cannot be public."})
         with audit.track(request, 'trap.delegated', trap, fields=delegation_fields) as tracked:
             trap.group = _group_for_path(group_path)
-            visibility = request.data.get('visibility')
-            if visibility in (Trap.VISIBILITY_PUBLIC, Trap.VISIBILITY_GROUP):
+            if visibility:
                 trap.visibility = visibility
             trap.save(update_fields=['group', 'visibility', 'updated_at'])
             if previous_group != group_path:
@@ -769,9 +788,9 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         Hand a trap over: a platform admin, or the administrator of a group the
         owner belongs to (the trappers, a beekeeper association), to a member of
         that group. The delegation is cleared, as it depends on the owner's
-        associations, and the new owner is notified. The visibility is never
-        widened: a trap restricted to its group stays restricted, so that it is
-        then seen by its owner and the platform admins only.
+        associations, and the new owner is notified. The visibility is left as it
+        is: a restricted trap stays so, seen by its new owner and the platform
+        admins only until it is delegated again.
 
         GET: the groups to choose from and, with `?group_path=`, their members
         (first and last name, never an email). PUT: `owner_guid`, and the
@@ -810,8 +829,7 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
                 tracked.extra = {'group_path': [previous_group, None]}
             trap.owner = new_owner
             # The delegation follows the owner's associations: the new owner delegates again.
-            # The visibility is left as it is: clearing the group of a trap restricted to it
-            # must not make it public (`group` visibility without a group: owner and admins only)
+            # The visibility is independent of it and stays as it is.
             trap.group = None
             trap.save(update_fields=['owner', 'group', 'updated_at'])
             reminders.tell_new_owner(trap, new_owner, getattr(request.user, 'guid', None))
