@@ -71,8 +71,10 @@ services:
       # Layout and logo of the Keycloak email theme, reused by the API's emails
       - ./auth/themes/velutina/email:/app/email-theme:ro
     depends_on:
-      - hornet-finder-dev-api-db
-      - hornet-finder-dev-keycloak
+      hornet-finder-dev-api-db:
+        condition: service_started
+      hornet-finder-dev-keycloak:
+        condition: service_healthy
 
   # Periodic jobs (trap reminders): the API image, running `manage.py
   # run_scheduler` instead of gunicorn (the image entrypoint always starts
@@ -112,6 +114,21 @@ services:
     volumes:
       - ./auth/realm-export-dev.json:/opt/keycloak/data/import/realm-export.json
       - ./auth/docker-entrypoint-dev.sh:/opt/keycloak/docker-entrypoint.sh
+    healthcheck:
+      # No curl in the image: plain HTTP request over bash's /dev/tcp. The
+      # realm import runs before Keycloak listens, so 200 means it is ready.
+      test:
+        - CMD
+        - bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/8080 &&
+          printf 'GET /realms/master HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3 &&
+          read -r status <&3 && [[ $$status == *' 200 '* ]]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 30s
     depends_on:
       - hornet-finder-dev-keycloak-db
 
@@ -135,11 +152,16 @@ services:
       - ./certbot-dev/www:/var/www/certbot
       - dev-media:/srv/media:ro
     depends_on:
-      - hornet-finder-dev-api
-      - hornet-finder-dev-keycloak
-      - hornet-finder-dev-vite
-      - hornet-finder-dev-mailpit
-      - hornet-finder-dev-mail-proxy
+      hornet-finder-dev-api:
+        condition: service_started
+      hornet-finder-dev-vite:
+        condition: service_started
+      hornet-finder-dev-mailpit:
+        condition: service_started
+      hornet-finder-dev-mail-proxy:
+        condition: service_started
+      hornet-finder-dev-keycloak:
+        condition: service_healthy
 
   # Catch-all mailbox for DEV: every email sent by Keycloak or Django lands
   # here and is never relayed. Storage is ephemeral (no volume). UI and REST
@@ -189,7 +211,8 @@ services:
       - OAUTH2_PROXY_HTTP_ADDRESS=0.0.0.0:4180
       - OAUTH2_PROXY_SKIP_PROVIDER_BUTTON=true
     depends_on:
-      - hornet-finder-dev-keycloak
+      hornet-finder-dev-keycloak:
+        condition: service_healthy
 
   # Serveur Vite pour DEV
   hornet-finder-dev-vite:
@@ -207,8 +230,10 @@ services:
       - ./frontend:/app
       - /app/node_modules
     depends_on:
-      - hornet-finder-dev-api
-      - hornet-finder-dev-keycloak
+      hornet-finder-dev-api:
+        condition: service_started
+      hornet-finder-dev-keycloak:
+        condition: service_healthy
     command: npm run dev -- --host 0.0.0.0 --port 5173
 
 volumes:
