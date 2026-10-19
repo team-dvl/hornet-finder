@@ -168,8 +168,10 @@ export default function TrapsDoc() {
           captures sont visibles de tous, y compris sans compte. Le journal, lui, n'est lisible que par
           les utilisateurs connectés, et le propriétaire n'est jamais montré aux visiteurs anonymes.
           Vous pouvez le <strong>restreindre</strong> depuis sa fiche : il n'est alors visible que de vous,
-          du groupe à qui vous le déléguez et des administrateurs. Un piège d'un type lié à un rucher
-          (harpe électrique, muselière...) est toujours restreint : le montrer révélerait un rucher.
+          du groupe à qui vous le déléguez et des administrateurs. Le piège d'un <strong>apiculteur</strong>
+          d'un type lié à un rucher (harpe électrique, muselière...) est toujours restreint : le montrer
+          révélerait un rucher. Quelqu'un qui n'a pas de ruches (un piégeur avec un Jadeprobe, par exemple)
+          peut le rendre public ; s'il devient apiculteur, ses pièges de ce type passent en restreint
         </p>
         <p className="mb-0">
           Si vous êtes membre d'une association d'apiculteurs, vous pouvez lui déléguer l'entretien,

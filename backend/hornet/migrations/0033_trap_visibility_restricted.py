@@ -1,7 +1,8 @@
 """
 The visibility of a trap says what it is: `public` or `restricted`. `group` (restricted to the
-delegated group) becomes `restricted`, and the traps of an apiary-bound type, which were stored
-as public although never shown, are restricted.
+delegated group) becomes `restricted`. So do all the existing traps of an apiary-bound type, whoever
+owns them: they were stored as public but never shown, and they stay hidden. Their owners who keep
+no bees may make them public themselves.
 """
 
 from django.db import migrations, models

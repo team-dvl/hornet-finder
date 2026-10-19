@@ -126,6 +126,8 @@ export interface Trap {
   address?: string;
   /** What the trap is: `public`, or `restricted` to its owner, its delegated group and the admins. Always restricted for an apiary-bound type */
   visibility?: TrapVisibility;
+  /** The trap must stay restricted: an apiary-bound type and an owner who is a beekeeper */
+  visibility_locked?: boolean;
   /** Same as `visibility === 'public'`: what anonymous visitors actually see */
   publicly_visible?: boolean;
   comments?: string;
