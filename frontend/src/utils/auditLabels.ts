@@ -46,6 +46,7 @@ export const ACTION_LABELS: Record<string, string> = {
   'trap.delegated': 'Piège délégué',
   'trap.undelegated': 'Délégation retirée',
   'trap.owner_changed': 'Piège transféré',
+  'trap.restricted': 'Piège rendu privé (propriétaire devenu apiculteur)',
   'trap.event_recorded': 'Entrée de journal',
   'trap.visit_recorded': 'Visite enregistrée',
   'trap.visit_deleted': 'Visite supprimée',

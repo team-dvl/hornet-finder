@@ -61,11 +61,19 @@ class User(models.Model):
         """
         Restrict the public traps of an apiary-bound type of this user once they are a beekeeper:
         they stand in front of hives. Widens nothing: a beekeeper who leaves keeps them restricted.
+        Nobody asked for it, so each one is recorded as a system event of the audit trail.
         """
         if not self.is_beekeeper:
             return 0
-        return self.traps.filter(trap_type__apiary_bound=True, visibility=Trap.VISIBILITY_PUBLIC
-                                 ).update(visibility=Trap.VISIBILITY_RESTRICTED)
+        from audit import recorder as audit
+        with transaction.atomic():
+            traps = list(self.traps.filter(trap_type__apiary_bound=True, visibility=Trap.VISIBILITY_PUBLIC))
+            for trap in traps:
+                trap.visibility = Trap.VISIBILITY_RESTRICTED
+                trap.save(update_fields=['visibility', 'updated_at'])
+                audit.record(None, 'trap.restricted', trap, refs=[audit.ref('user', self.guid)],
+                             changes={'visibility': [Trap.VISIBILITY_PUBLIC, Trap.VISIBILITY_RESTRICTED]})
+        return len(traps)
 
 
 # Group of the beekeepers' associations; a member of it or of a subgroup is a beekeeper

@@ -30,7 +30,7 @@ Une table `audit_auditevent`, une ligne par action :
 | `occurred_at` | Moment de l'action (heure du serveur) |
 | `actor` | GUID Keycloak, sans clé étrangère ; vide si inconnu ou sans connexion |
 | `actor_roles` | Rôles détenus à ce moment (agissait-il comme admin ?) |
-| `source` | `api`, `system` (expiration d'invitation), `backfill` (reconstitué) |
+| `source` | `api`, `system` (expiration d'invitation, piège restreint quand son propriétaire devient apiculteur), `backfill` (reconstitué) |
 | `action` | `<domaine>.<verbe>`, catalogue dans `audit/actions.py` |
 | `target_type`, `target_id` | L'objet visé (`trap`, `42`), aussi un groupe Keycloak ou une statistique |
 | `refs` | Tous les objets concernés (`trap:42`, `group:/beekeepers/x`, `user:<guid>`, `visit:<batch>`, `export:<empreinte>`), index GIN |
@@ -66,7 +66,7 @@ sa délégation) ou « à l'association X » en une requête.
 | `hornet` | `reported`, `updated`, `deleted`, `archived`, `unarchived`, `bulk_archived` |
 | `nest` | `reported`, `updated`, `destroyed`, `reactivated`, `deleted`, `photo_added`, `photo_removed`, `owner_changed`, `archived`, `unarchived`, `bulk_archived` |
 | `apiary` | `created`, `updated`, `deleted`, `photo_set`, `photo_removed`, `shared`, `share_changed`, `unshared`, `owner_changed` |
-| `trap` | `created`, `updated`, `deleted`, `photo_set`, `photo_removed`, `delegated`, `undelegated`, `owner_changed`, `event_recorded`, `visit_recorded`, `visit_deleted`, `event_corrected`, `event_deleted`, `journal_photo_removed` |
+| `trap` | `created`, `updated`, `deleted`, `photo_set`, `photo_removed`, `delegated`, `undelegated`, `owner_changed`, `restricted` (système : le propriétaire d'un piège d'un type lié à un rucher devient apiculteur, `changes.visibility`), `event_recorded`, `visit_recorded`, `visit_deleted`, `event_corrected`, `event_deleted`, `journal_photo_removed` |
 | `tag` | `batch_generated`, `associated` (avec le tag remplacé), `revoked` |
 | `trap_type`, `species` | `created`, `updated`, `deleted` ; `species.reordered` |
 | `group` | `member_removed`, `admin_named`, `admin_dismissed` |
