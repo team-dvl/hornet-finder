@@ -22,6 +22,9 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   transféré"); the former one no longer sees it unless they see every nest. Recorded in the audit
   trail ("Nid transféré"). Following a nest means managing it, not owning it.
 
+### Security
+- Keycloak 26.8.0 → 26.8.1 (released 2026-10-13): security fixes, among them a 2FA enforcement bypass, a PAR single-use bypass and authorization issues; the Authorization Services are not enabled here. Prod note `0027`.
+
 ### Changed
 - Sign-in screen: the Google and Facebook buttons are at the top, above the identifier and password form, to encourage their use. The "Ou se connecter avec" heading is gone, a rule separates the two.
 - Sign-in screen: the "Se souvenir de moi" checkbox is gone. It changed nothing for the session (same 3-day idle and 7-day maximum limits, tokens kept in `localStorage`), only whether Keycloak's own cookie outlived the browser.
