@@ -38,7 +38,7 @@ export default function NotificationsAdmin() {
     <PageLayout>
       <Container className="py-4">
         <PageHeader
-          title="Notifications"
+          title="Envois"
           help="Les dernières notifications envoyées, appareil par appareil."
         />
 

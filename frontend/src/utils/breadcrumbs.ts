@@ -13,11 +13,12 @@ const ADMIN_SECTIONS: Record<string, string> = {
   tags: 'QR Codes',
   group: 'Groupe',
   platform: 'Plateforme',
+  notifications: 'Envois',
   audit: "Journal d'audit",
 };
 
 /** Pages reached from the platform dashboard: its crumb comes first. */
-const UNDER_PLATFORM = new Set(['audit']);
+const UNDER_PLATFORM = new Set(['audit', 'notifications']);
 
 /** Statistics with a page, for the breadcrumb trail (short names). */
 export const STAT_SECTIONS: Record<string, string> = {
@@ -33,7 +34,8 @@ export const STAT_SECTIONS: Record<string, string> = {
  * Breadcrumb trail for the current route, derived from the module config:
  * `/nests` → [Nids],
  * `/admin/trap-types` → [Administration, Types de pièges], `/admin/audit` →
- * [Administration, Plateforme, Journal d'audit]. The site name
+ * [Administration, Plateforme, Journal d'audit], `/admin/notifications` →
+ * [Administration, Plateforme, Envois]. The site name
  * (link to `/`) is prepended by the navbar itself.
  */
 export function getBreadcrumbs(pathname: string): Crumb[] {
