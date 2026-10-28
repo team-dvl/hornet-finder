@@ -37,6 +37,7 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   *Journal d'audit*) above the state of the devices, of the sendings and of the scheduler, whose help tips say
   how they differ. The addresses `/admin/audit` and `/admin/notifications` are unchanged.
 - API image: Python 3.13 → 3.14 (`python:3.14-alpine3.22`); the 530 backend tests pass on 3.14.6, dependencies unchanged.
+- Pillow 12.3.0 → 13.0.0 (major, Dependabot #26): the removals of 13.0 (`GifImagePlugin._save_netpbm`, `ExifTags.IFD.Makernote`, Python 3.10) are not used here. The upload pipeline (`hornet/images.py`: JPEG/PNG/WebP/GIF, EXIF orientation 1/3/6/8, RGBA and grayscale, thumbnails, avatars) gives the same sizes as on 12.3.0 and the 543 backend tests pass; the release also bounds TIFF tag data and fixes a heap overflow when saving a TIFF to `BytesIO`.
 - Sign-in screen: the Google and Facebook buttons are at the top, above the identifier and password form, to encourage their use. The "Ou se connecter avec" heading is gone, a rule separates the two.
 - Sign-in screen: the "Se souvenir de moi" checkbox is gone. It changed nothing for the session (same 3-day idle and 7-day maximum limits, tokens kept in `localStorage`), only whether Keycloak's own cookie outlived the browser.
 - Dialogs on a large screen (object sheets such as a nest, forms): 700 px wide from 992 px instead of 500 px. Confirmations and phone layout unchanged.
