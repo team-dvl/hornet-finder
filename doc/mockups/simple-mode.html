@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette – Interface simplifiée pour les piégeurs</title>
+<style>
+  /* Tokens of the "velutina" palette (frontend/src/styles/theme.css), light and dark */
+  :root { --bg:#ebe6dc; --card:#ffffff; --app:#f6f3ee; --ink:#1f1b16; --muted:#6a6055; --line:#e0d8cb;
+          --pri:#8a5300; --pri-ink:#fff; --pri-soft:#f6e8d2; --nav:#1f1b16; --nav-ink:#f1ebe1;
+          --danger:#b3261e; --ok:#2e7d32; --warn:#9a5b00; --trap:#8a5300; --water:#d8cdb8; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0d0b08; --card:#1e1a15; --app:#14110d; --ink:#f1ebe1; --muted:#a99f91; --line:#3a332a;
+            --pri:#f2b233; --pri-ink:#1f1b16; --pri-soft:#3a2a0c; --nav:#14110d; --danger:#f2b8b5;
+            --ok:#8bd18f; --warn:#f2b233; --water:#2c2a26; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.4 system-ui,sans-serif; }
+  h1 { font-size:1.25rem; margin:0; }
+  header.doc, .legend { padding:16px; max-width:1700px; margin:auto; }
+  header.doc p, .legend { color:var(--muted); font-size:.9rem; margin:.25rem 0 0; }
+  h2.group { max-width:1700px; margin:8px auto 0; padding:0 16px; font-size:1rem; text-transform:uppercase;
+             letter-spacing:.04em; color:var(--muted); }
+  .board { display:flex; flex-wrap:wrap; gap:24px; padding:12px 16px 24px; max-width:1700px; margin:auto; }
+  figure { margin:0; }
+  figcaption { font-size:.85rem; color:var(--muted); margin:0 0 8px; max-width:390px; }
+  figcaption b { color:var(--ink); }
+  .phone { width:390px; height:780px; background:var(--app); border:1px solid var(--line); border-radius:28px;
+           overflow:hidden; position:relative; display:flex; flex-direction:column; }
+  /* Top bar: dark in both modes, one line */
+  .top { background:var(--nav); color:var(--nav-ink); display:flex; align-items:center; gap:8px; padding:0 8px 0 14px;
+         min-height:52px; flex-shrink:0; }
+  .top b { font-size:1.05rem; }
+  .top .sp { flex:1; }
+  .top .me { width:44px; height:44px; display:grid; place-items:center; position:relative; font-size:1.3rem; }
+  .dot { position:absolute; top:9px; right:9px; width:10px; height:10px; border-radius:50%; background:#e5484d; }
+  .body { flex:1; overflow:hidden; padding:12px; position:relative; }
+  /* Bottom tab bar (simple mode) */
+  .tabs { display:flex; background:var(--card); border-top:1px solid var(--line); padding-bottom:14px; flex-shrink:0; }
+  .tabs div { flex:1; text-align:center; padding:8px 2px 4px; min-height:56px; font-size:.75rem; color:var(--muted); position:relative; }
+  .tabs div i { display:block; font-style:normal; font-size:1.35rem; line-height:1.2; }
+  .tabs div.on { color:var(--pri); font-weight:600; }
+  .tabs div.on::before { content:""; position:absolute; top:-1px; left:25%; right:25%; height:3px; background:var(--pri); border-radius:0 0 3px 3px; }
+  .cnt { position:absolute; top:4px; left:calc(50% + 8px); background:#e5484d; color:#fff; border-radius:99px;
+         font-size:.68rem; padding:1px 6px; font-weight:600; }
+  .h { font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:14px 0 6px; }
+  .h.late { color:var(--danger); font-weight:600; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; }
+  .row { display:flex; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid var(--line); min-height:64px; }
+  .row:last-child { border-bottom:0; }
+  .ph { width:44px; height:44px; border-radius:10px; background:var(--pri-soft); display:grid; place-items:center;
+        font-size:1.3rem; flex-shrink:0; }
+  .grow { flex:1; min-width:0; }
+  .name { font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sub { font-size:.8rem; color:var(--muted); }
+  .sub.late { color:var(--danger); font-weight:600; }
+  .btn { display:flex; align-items:center; justify-content:center; gap:6px; min-height:44px; padding:8px 14px;
+         border-radius:10px; border:1px solid var(--line); background:transparent; color:var(--ink); font-size:1rem; }
+  .btn.pri { background:var(--pri); color:var(--pri-ink); border-color:var(--pri); font-weight:600; }
+  .btn.block { display:flex; width:100%; margin-top:8px; }
+  .btn.sm { padding:8px 12px; flex-shrink:0; }
+  .btn.ghost { border-color:transparent; color:var(--muted); }
+  .fab { position:absolute; left:12px; right:12px; bottom:10px; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip { padding:8px 14px; min-height:44px; border:1px solid var(--line); border-radius:99px; display:flex;
+          align-items:center; gap:6px; background:var(--card); }
+  .chip.on { background:var(--pri); color:var(--pri-ink); border-color:var(--pri); font-weight:600; }
+  .seg { display:flex; border:1px solid var(--line); border-radius:10px; overflow:hidden; background:var(--card); }
+  .seg span { flex:1; text-align:center; padding:10px 4px; min-height:44px; font-size:.92rem; }
+  .seg span.on { background:var(--pri); color:var(--pri-ink); font-weight:600; }
+  .field { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 12px;
+           border-bottom:1px solid var(--line); min-height:52px; }
+  .field:last-child { border-bottom:0; }
+  .field .l { color:var(--muted); font-size:.8rem; }
+  .switch { width:46px; height:26px; border-radius:99px; background:var(--pri); position:relative; flex-shrink:0; }
+  .switch::after { content:""; position:absolute; right:3px; top:3px; width:20px; height:20px; border-radius:50%; background:#fff; }
+  .switch.off { background:#b9b0a2; } .switch.off::after { right:auto; left:3px; }
+  .help { display:inline-grid; place-items:center; width:20px; height:20px; border-radius:50%; border:1px solid var(--muted);
+          font-size:.7rem; color:var(--muted); margin-left:6px; flex-shrink:0; }
+  .veil { position:absolute; inset:0; background:rgba(0,0,0,.5); }
+  .sheet { position:absolute; left:0; right:0; bottom:0; background:var(--card); border-radius:18px 18px 0 0;
+           padding:10px 14px 24px; box-shadow:0 -4px 20px rgba(0,0,0,.3); }
+  .sheet::before { content:""; display:block; width:40px; height:4px; border-radius:2px; background:var(--line); margin:0 auto 10px; }
+  .sheet h2 { font-size:1.1rem; margin:0 0 2px; }
+  .full { position:absolute; inset:0; background:var(--card); display:flex; flex-direction:column; }
+  .full .hd { display:flex; align-items:center; padding:0 6px 0 14px; min-height:52px; border-bottom:1px solid var(--line); font-weight:600; }
+  .full .hd span:last-child { margin-left:auto; width:44px; height:44px; display:grid; place-items:center; font-size:1.3rem; font-weight:400; }
+  .full .in { padding:14px; flex:1; overflow:hidden; }
+  .lbl { font-size:.82rem; color:var(--muted); margin:14px 0 6px; }
+  .big { font-size:2.4rem; font-weight:700; line-height:1.1; }
+  .kpi { padding:14px; margin-bottom:12px; }
+  .bars { display:flex; align-items:flex-end; gap:6px; height:84px; margin-top:12px; }
+  .bars i { flex:1; background:var(--pri); border-radius:4px 4px 0 0; opacity:.9; }
+  .bars i.f { background:var(--line); }
+  .axis { display:flex; justify-content:space-between; font-size:.7rem; color:var(--muted); margin-top:4px; }
+  .map { height:150px; border-radius:10px; position:relative; overflow:hidden; margin-top:12px;
+         background:linear-gradient(135deg,var(--water) 0 100%); border:1px solid var(--line); }
+  .map b { position:absolute; border-radius:50%; background:var(--pri); opacity:.28; border:1px solid var(--pri); }
+  .map u { position:absolute; width:10px; height:10px; border-radius:50%; background:var(--pri); border:2px solid var(--card); }
+  .pill { font-size:.72rem; padding:2px 8px; border-radius:99px; border:1px solid var(--line); white-space:nowrap; }
+  .pill.ok { color:var(--ok); border-color:var(--ok); } .pill.warn { color:var(--warn); border-color:var(--warn); }
+  .empty { text-align:center; color:var(--muted); padding:34px 10px 10px; }
+  .empty .e { font-size:2.6rem; }
+  .step { display:flex; gap:10px; align-items:flex-start; padding:10px 0; }
+  .num { width:28px; height:28px; border-radius:50%; background:var(--pri-soft); color:var(--pri); display:grid; place-items:center;
+         font-weight:700; flex-shrink:0; }
+  .num.done { background:var(--ok); color:#fff; }
+  .dots { display:flex; gap:6px; justify-content:center; margin:6px 0 12px; }
+  .dots i { width:8px; height:8px; border-radius:50%; background:var(--line); } .dots i.on { background:var(--pri); width:22px; border-radius:4px; }
+  .note { font-size:.78rem; color:var(--muted); }
+  .tile { display:flex; align-items:center; gap:12px; padding:12px; min-height:68px; margin-bottom:8px; }
+  .tilegrid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .tilegrid .card { padding:12px; min-height:92px; font-size:.9rem; }
+  .tilegrid .card i { display:block; font-style:normal; font-size:1.5rem; }
+  .tilegrid .card.off { opacity:.45; }
+</style>
+</head>
+<body>
+<header class="doc">
+  <h1>Interface simplifiée pour les piégeurs occasionnels</h1>
+  <p>Maquettes statiques, 390 px (iPhone 14), palette Velutina (clair ou sombre selon le système). Voir
+  <code>doc/SIMPLE_MODE.md</code>. Les chiffres sont des exemples inventés.</p>
+</header>
+
+<h2 class="group">1 · Le quotidien : relever et entretenir</h2>
+<div class="board">
+
+<figure>
+  <figcaption><b>A · « À faire » (accueil)</b>. La liste <code>DueList</code> existante devient l'accueil. Une seule action
+  principale en bas : « Ajouter un piège ». Pastille rouge sur l'onglet = <code>pending.traps</code>.</figcaption>
+  <div class="phone">
+    <div class="top"><b>Velutina</b><span class="sp"></span><span class="me">👤<span class="dot"></span></span></div>
+    <div class="body">
+      <div class="h late">En retard</div>
+      <div class="card">
+        <div class="row"><div class="ph">🪤</div><div class="grow"><div class="name">Jardin, rue des Vignes</div>
+          <div class="sub late">Relevé en retard de 3 j</div></div><div class="btn pri sm">Relever</div></div>
+      </div>
+      <div class="h">Aujourd'hui</div>
+      <div class="card">
+        <div class="row"><div class="ph">🪤</div><div class="grow"><div class="name">Verger, chemin du Bois</div>
+          <div class="sub">Relevé à faire aujourd'hui</div></div><div class="btn pri sm">Relever</div></div>
+        <div class="row"><div class="ph">🧪</div><div class="grow"><div class="name">Verger, chemin du Bois</div>
+          <div class="sub">Attractif à renouveler</div></div><div class="btn sm">Recharger</div></div>
+      </div>
+      <div class="h">Bientôt</div>
+      <div class="card">
+        <div class="row"><div class="ph">🪤</div><div class="grow"><div class="name">Rucher du Moulin</div>
+          <div class="sub">Relevé dans 2 j</div></div></div>
+      </div>
+      <div class="btn pri block fab">＋ Ajouter un piège</div>
+    </div>
+    <div class="tabs"><div class="on"><i>✅</i>À faire<span class="cnt">2</span></div><div><i>🪤</i>Mes pièges</div><div><i>📊</i>Chiffres</div></div>
+  </div>
+</figure>
+
+<figure>
+  <figcaption><b>B · Relever</b>. Le cas le plus fréquent, <b>« Rien dans le piège »</b>, est un seul tap et enregistre un
+  relevé à zéro. Sinon, le nombre de frelons asiatiques d'abord ; les autres espèces sont repliées.</figcaption>
+  <div class="phone">
+    <div class="top"><b>Velutina</b><span class="sp"></span><span class="me">👤</span></div>
+    <div class="body" style="opacity:.5"><div class="card"><div class="row"><div class="ph">🪤</div><div class="grow"><div class="name">Verger, chemin du Bois</div></div></div></div></div>
+    <div class="veil"></div>
+    <div class="sheet">
+      <h2>Relever · Verger, chemin du Bois</h2>
+      <div class="sub">Dernier relevé il y a 14 j</div>
+      <div class="btn pri block" style="min-height:56px;font-size:1.05rem">✓ Rien dans le piège</div>
+      <div class="lbl">Ou : frelons asiatiques trouvés <span class="help">?</span></div>
+      <div class="chips"><div class="chip">1</div><div class="chip">2</div><div class="chip on">3</div><div class="chip">4</div><div class="chip">5</div><div class="chip">6+</div></div>
+      <div class="lbl">Autres insectes</div>
+      <div class="card"><div class="field"><span>Compter les autres espèces</span><span style="color:var(--muted)">⌄</span></div></div>
+      <div class="field" style="border:0;padding-left:0"><span>Vidé et remis en place <span class="help">?</span></span><div class="switch"></div></div>
+      <div class="btn pri block">Enregistrer · 3 frelons</div>
+    </div>
+  </div>
+</figure>
+
+<figure>
+  <figcaption><b>C · Mes pièges</b>. Portée « mes pièges » fixée, ni filtre ni tri. Tap = fiche ; « Relever » reste à
+  portée du pouce. Un piège remisé est replié sous la liste.</figcaption>
+  <div class="phone">
+    <div class="top"><b>Velutina</b><span class="sp"></span><span class="me">👤</span></div>
+    <div class="body">
+      <div class="card">
+        <div class="row"><div class="ph">🪤</div><div class="grow"><div class="name">Jardin, rue des Vignes</div>
+          <div class="sub">Dernier relevé il y a 17 j · 5 captures</div></div><span class="pill warn">En retard</span></div>
+        <div class="row"><div class="ph">🪤</div><div class="grow"><div class="name">Verger, chemin du Bois</div>
+          <div class="sub">Dernier relevé il y a 14 j · 12 captures</div></div><span class="pill warn">Aujourd'hui</span></div>
+        <div class="row"><div class="ph">🪤</div><div class="grow"><div class="name">Rucher du Moulin</div>
+          <div class="sub">Dernier relevé il y a 5 j · 0 capture</div></div><span class="pill ok">À jour</span></div>
+      </div>
+      <div class="h">Remisés (1)</div>
+      <div class="card"><div class="row"><div class="ph" style="opacity:.5">🪤</div><div class="grow"><div class="name" style="color:var(--muted)">Cour de l'école</div>
+        <div class="sub">Remisé le 3 sept.</div></div><div class="btn sm">Remettre</div></div></div>
+      <div class="btn pri block fab">＋ Ajouter un piège</div>
+    </div>
+    <div class="tabs"><div><i>✅</i>À faire<span class="cnt">2</span></div><div class="on"><i>🪤</i>Mes pièges</div><div><i>📊</i>Chiffres</div></div>
+  </div>
+</figure>
+
+<figure>
+  <figcaption><b>D · Ajouter un piège</b>. Deux champs : <b>type</b> (puces avec photo) et <b>position</b>. L'installation est
+  enregistrée à la création, donc les rappels démarrent seuls. QR Code, photo, délégation : depuis la fiche.</figcaption>
+  <div class="phone">
+    <div class="full">
+      <div class="hd">Nouveau piège<span>✕</span></div>
+      <div class="in">
+        <div class="lbl" style="margin-top:0">Type de piège</div>
+        <div class="chips">
+          <div class="chip on">🪤 Bouteille</div><div class="chip">🪤 JadeProbe</div><div class="chip">🪤 Vespa-catch</div><div class="chip">Autre</div>
+        </div>
+        <div class="lbl">Où est-il ?</div>
+        <div class="seg"><span class="on">📍 Ma position</span><span>🔎 Une adresse</span></div>
+        <div class="map" style="height:130px"><u style="left:48%;top:44%"></u><b style="left:30%;top:20%;width:90px;height:90px"></b></div>
+        <div class="sub" style="margin-top:6px">Rue des Vignes 12, 5020 Vedrin</div>
+        <div class="note" style="margin-top:14px">Les rappels de relevé commencent aujourd'hui.</div>
+      </div>
+      <div style="padding:12px;border-top:1px solid var(--line)"><div class="btn pri block" style="margin:0">Enregistrer</div></div>
+    </div>
+  </div>
+</figure>
+
+</div>
+
+<h2 class="group">2 · Le retour d'information : les chiffres</h2>
+<div class="board">
+
+<figure>
+  <figcaption><b>E · Chiffres (saison en cours)</b>. Une page, deux cartes : captures et couverture. Bascule « Mes pièges /
+  Tous les pièges ». Pas de CPUE ni d'IC à l'écran ; l'incertitude est dans l'aide <span class="help">?</span>.</figcaption>
+  <div class="phone">
+    <div class="top"><b>Velutina</b><span class="sp"></span><span class="me">👤</span></div>
+    <div class="body">
+      <div class="seg" style="margin-bottom:12px"><span class="on">Mes pièges</span><span>Tous les pièges</span></div>
+      <div class="card kpi">
+        <div class="sub">Frelons asiatiques capturés · saison 2026<span class="help">?</span></div>
+        <div class="big">17</div>
+        <div class="sub">sur 3 pièges · 9 relevés</div>
+        <div class="bars"><i style="height:12%"></i><i style="height:25%"></i><i style="height:55%"></i><i style="height:100%"></i><i style="height:70%"></i><i class="f" style="height:8%"></i></div>
+        <div class="axis"><span>mai</span><span>juin</span><span>juil.</span><span>août</span><span>sept.</span><span>oct.</span></div>
+      </div>
+      <div class="card kpi">
+        <div class="sub">Territoire couvert<span class="help">?</span></div>
+        <div class="big">8 %</div>
+        <div class="sub">de la zone, à 300 m d'un piège en service</div>
+        <div class="map"><b style="left:20%;top:30%;width:70px;height:70px"></b><b style="left:55%;top:40%;width:70px;height:70px"></b><b style="left:72%;top:8%;width:60px;height:60px"></b>
+          <u style="left:26%;top:46%"></u><u style="left:62%;top:56%"></u><u style="left:78%;top:24%"></u></div>
+      </div>
+    </div>
+    <div class="tabs"><div><i>✅</i>À faire<span class="cnt">2</span></div><div><i>🪤</i>Mes pièges</div><div class="on"><i>📊</i>Chiffres</div></div>
+  </div>
+</figure>
+
+<figure>
+  <figcaption><b>F · Début de saison, aucune donnée</b> (cas réel au lancement : pas d'historique). On dit ce qui va
+  apparaître et ce qui le déclenche, sans graphique vide.</figcaption>
+  <div class="phone">
+    <div class="top"><b>Velutina</b><span class="sp"></span><span class="me">👤</span></div>
+    <div class="body">
+      <div class="seg" style="margin-bottom:12px"><span class="on">Mes pièges</span><span>Tous les pièges</span></div>
+      <div class="empty"><div class="e">📊</div>
+        <div style="color:var(--ink);font-weight:600;margin:8px 0 4px">Les chiffres arrivent avec vos relevés</div>
+        Dès le premier relevé, vous verrez ici vos captures et la part du territoire couverte.</div>
+      <div class="btn pri block">Ajouter un piège</div>
+      <div class="h" style="margin-top:22px">Tous les pièges</div>
+      <div class="card" style="padding:12px"><div class="sub">La saison vient de commencer : les chiffres de la communauté s'affichent
+        dès qu'au moins 3 personnes ont relevé un piège.</div></div>
+    </div>
+    <div class="tabs"><div><i>✅</i>À faire</div><div><i>🪤</i>Mes pièges</div><div class="on"><i>📊</i>Chiffres</div></div>
+  </div>
+</figure>
+
+</div>
+
+<h2 class="group">3 · Premier lancement, réglages et bascule</h2>
+<div class="board">
+
+<figure>
+  <figcaption><b>G · Onboarding, étape 2/3</b>. Feuille jamais bloquante, rejouable depuis le profil. Étape 1 : installer
+  (obligatoire sur iPhone pour les notifications). Étape 3 : premier piège.</figcaption>
+  <div class="phone">
+    <div class="top"><b>Velutina</b><span class="sp"></span><span class="me">👤</span></div>
+    <div class="body"><div class="empty"><div class="e">✅</div>Rien à faire pour l'instant.</div></div>
+    <div class="tabs"><div class="on"><i>✅</i>À faire</div><div><i>🪤</i>Mes pièges</div><div><i>📊</i>Chiffres</div></div>
+    <div class="veil"></div>
+    <div class="sheet">
+      <div class="dots"><i></i><i class="on"></i><i></i></div>
+      <h2>Bienvenue sur Velutina</h2>
+      <div class="step"><div class="num done">✓</div><div class="grow"><b>Application installée</b><div class="sub">Sur l'écran d'accueil de ce téléphone</div></div></div>
+      <div class="step"><div class="num">2</div><div class="grow"><b>Recevoir les rappels</b>
+        <div class="sub">Un message quand un piège est à relever, à 9 h (10 h le dimanche).</div></div></div>
+      <div class="step"><div class="num">3</div><div class="grow"><b>Mon premier piège</b>
+        <div class="sub">Ajoutez-le maintenant, ou plus tard.</div></div></div>
+      <div class="btn pri block">🔔 Activer les rappels</div>
+      <div class="btn ghost block">Passer cette étape</div>
+    </div>
+  </div>
+</figure>
+
+<figure>
+  <figcaption><b>H · Profil</b> (bouton en haut à droite). Réglages rares regroupés ici : notifications, signaler un nid,
+  aide, <b>bascule d'interface</b>. Rejouer l'onboarding aussi.</figcaption>
+  <div class="phone">
+    <div class="top"><b>Velutina</b><span class="sp"></span><span class="me">👤</span></div>
+    <div class="body" style="opacity:.5"></div>
+    <div class="veil"></div>
+    <div class="sheet" style="padding-bottom:18px">
+      <h2>Mon profil</h2>
+      <div class="card" style="margin-top:10px">
+        <div class="field"><span>🔔 Notifications</span><span style="color:var(--muted)">›</span></div>
+        <div class="field"><span>🏴 Signaler un nid</span><span style="color:var(--muted)">›</span></div>
+        <div class="field"><span>❓ Aide</span><span style="color:var(--muted)">›</span></div>
+        <div class="field"><span>👋 Revoir la présentation</span><span style="color:var(--muted)">›</span></div>
+        <div class="field"><span>🎨 Apparence</span><span style="color:var(--muted)">›</span></div>
+        <div class="field"><span>👤 Mon compte</span><span style="color:var(--muted)">›</span></div>
+      </div>
+      <div class="lbl">Interface</div>
+      <div class="seg"><span class="on">Simplifiée</span><span>Complète</span></div>
+      <div class="note" style="margin-top:6px">La complète ajoute la carte, les nids, les statistiques détaillées et l'administration. Vos données sont les mêmes.</div>
+      <div class="btn block" style="margin-top:12px">Se déconnecter</div>
+    </div>
+  </div>
+</figure>
+
+<figure>
+  <figcaption><b>I · Notifications (vue réduite)</b>. Même API que l'écran actuel ; seuls les types qui concernent un
+  piégeur. L'état de l'appareil est explicite.</figcaption>
+  <div class="phone">
+    <div class="full">
+      <div class="hd">‹ Notifications<span></span></div>
+      <div class="in" style="background:var(--app)">
+        <div class="h" style="margin-top:0">Sur cet appareil</div>
+        <div class="card">
+          <div class="field"><div>📱 Cet appareil<div class="l">Rappels actifs sur ce téléphone</div></div><div class="switch"></div></div>
+          <div class="field"><span>🔔 Envoyer un essai</span><div class="btn sm">Envoyer</div></div>
+        </div>
+        <div class="h">Me prévenir pour</div>
+        <div class="card">
+          <div class="field"><div>🪤 Relever un piège<span class="help">?</span><div class="l">9 h · dimanche 10 h</div></div><div class="switch"></div></div>
+          <div class="field"><div>🧪 Renouveler l'attractif<span class="help">?</span><div class="l">9 h · dimanche 10 h</div></div><div class="switch"></div></div>
+          <div class="field"><div>👥 Messages de mon groupe<span class="help">?</span></div><div class="switch"></div></div>
+          <div class="field"><div>📣 Messages de la plateforme<span class="help">?</span></div><div class="switch"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</figure>
+
+<figure>
+  <figcaption><b>J · Interface complète → simplifiée</b>. Dans l'interface complète actuelle, la bascule est dans le panneau
+  « Apparence » du menu. Réservée aux comptes qui ont plusieurs rôles ; le <code>trapper</code> seul arrive en simplifiée.</figcaption>
+  <div class="phone">
+    <div class="top"><b>Velutina</b><span class="sp"></span><span class="me">☰</span></div>
+    <div class="body">
+      <div class="tilegrid">
+        <div class="card"><i>🗺️</i>Carte</div><div class="card"><i>📍</i>Gestion des nids</div>
+        <div class="card"><i>🎯</i>Gestion des pièges</div><div class="card"><i>⬢</i>Gestion des ruchers</div>
+        <div class="card"><i>📊</i>Statistiques</div><div class="card"><i>⚙️</i>Administration</div>
+      </div>
+    </div>
+    <div class="veil"></div>
+    <div class="sheet">
+      <h2>Apparence</h2>
+      <div class="lbl">Palette</div>
+      <div class="chips"><div class="chip on">Velutina</div><div class="chip">Forêt</div></div>
+      <div class="lbl">Mode</div>
+      <div class="seg"><span>Clair</span><span>Sombre</span><span class="on">Auto</span></div>
+      <div class="lbl">Interface</div>
+      <div class="seg"><span>Simplifiée</span><span class="on">Complète</span></div>
+    </div>
+  </div>
+</figure>
+
+</div>
+
+<div class="legend">
+  <p><b>Écrans non maquettés</b> : fiche d'un piège (inchangée), « Signaler un nid » (feuille existante <code>ReportNestSheet</code>),
+  barre du haut sur ordinateur (les trois mêmes entrées en ligne). <b>À mesurer sur appareil</b> : hauteur de la barre du bas
+  avec la zone de sécurité iOS, et le bouton « Ajouter un piège » (haut 56 px) au-dessus d'elle à 320 px de large.</p>
+</div>
+</body>
+</html>
