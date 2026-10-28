@@ -1,6 +1,6 @@
 # Mode simple : proposition pour les piégeurs occasionnels
 
-Statut : **proposition** (aucun code). Objectif de la campagne de piégeage : que l'application devienne l'outil
+Statut : **proposition** (aucun code), décisions du développeur en section 9 ; maquettes : `doc/mockups/simple-mode.html`. Objectif de la campagne de piégeage : que l'application devienne l'outil
 habituel de **déclaration des captures**. Le public visé est le piégeur occasionnel (rôle `trapper`, rôle par défaut
 d'un nouveau compte), qui ouvre l'application quelques minutes par semaine, souvent depuis un téléphone, parfois
 devant le piège.
@@ -170,3 +170,26 @@ aujourd'hui l'interface complète), à 320 px aussi pour la barre du bas, et con
 Aucune mesure d'usage n'a été faite : le constat de la section 1 vient de la lecture du code, pas d'observations de
 piégeurs. Les gains attendus (moins de taps, meilleure adoption) sont des hypothèses ; un test avec 3 à 5 piégeurs
 occasionnels sur la phase 1 donnera un ordre de grandeur plus fiable que n'importe quelle estimation ici.
+
+## 9. Décisions du développeur (réponses à la section 7)
+
+1. **Défaut** : mode simple exclusivement pour les comptes `trapper` seul ; tout autre compte démarre en interface complète.
+2. **Stockage** : champ sur `User` (suit la personne d'un appareil à l'autre). Conséquences, qui remplacent le « rien côté
+   backend » de la section 5 :
+   - migration (`User.ui_mode`, valeurs `simple` / `full`, vide = défaut par rôle) et endpoint de lecture/écriture, sur le
+     modèle de `notification_prefs` ;
+   - `audit.tests.CoverageTests` : l'endpoint est à déclarer (skill `audited-endpoint`) ou à justifier comme réglage
+     d'affichage non métier ;
+   - note `doc/prod-migrations/NNNN-simple-mode.md` (skill `prod-migration-note`) : la migration Django passe par
+     `./deploy.sh`, la note rappelle seulement de vérifier qu'elle s'est appliquée ;
+   - côté page : le mode est lu au démarrage avec le profil ; pour éviter un flash de la mauvaise interface, le dernier mode
+     connu est recopié en `localStorage` (cache, à inscrire à l'article 9 de la politique de confidentialité).
+   - « Onboarding vu » suit le même chemin (second champ ou clé dans le même JSON).
+3. **Signaler un nid** : oui, depuis le profil (maquette H).
+4. **Pas d'historique** (saison de lancement) : les statistiques sont vides au début. Maquette F : état vide qui dit ce qui va
+   apparaître. Le seuil « au moins 3 personnes » pour les chiffres de la communauté est une **proposition de la maquette**,
+   non tranchée : il évite d'exposer les relevés d'une seule personne ; à valider.
+5. **Délais de rappel** : supposés définis pour les types de piège proposés. À contrôler une fois avant la campagne, pas à
+   concevoir.
+
+Maquettes : `doc/mockups/simple-mode.html` (10 écrans, clair et sombre selon le système).
