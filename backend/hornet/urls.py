@@ -9,6 +9,7 @@ from .stats.views import (
 from .profile_views import my_avatar
 from .apiary_views import ApiaryViewSet
 from .group_views import GroupViewSet
+from .platform_views import PlatformViewSet
 from .push_views import PushViewSet
 from .invitation_views import GroupInvitationViewSet, MyGroupInvitationViewSet
 from .views import HornetViewSet, NestViewSet
@@ -31,6 +32,7 @@ router.register(r'tags', TagViewSet, basename='tag')
 router.register(r'admin/tags', TagAdminViewSet, basename='tagadmin')
 router.register(r'groups', GroupViewSet, basename='group')
 router.register(r'push', PushViewSet, basename='push')
+router.register(r'platform', PlatformViewSet, basename='platform')
 router.register(r'group-invitations', GroupInvitationViewSet, basename='group-invitation')
 router.register(r'me/group-invitations', MyGroupInvitationViewSet, basename='my-group-invitation')
 

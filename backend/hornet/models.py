@@ -1038,3 +1038,30 @@ class TrapReminder(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['trap', 'kind'], name='trapreminder_trap_kind')]
+
+
+class PlatformSettings(models.Model):
+    """
+    Platform-wide settings set by the platform admins: a single row (pk 1, read
+    with `load()`), kept in the database because the API and the scheduler are
+    separate processes and both must see a change at once.
+
+    `paused_kinds` lists the kinds of notifications (hornet.notification_kinds)
+    the platform holds back for everyone; the trap reminders and the nest
+    alerts wait for the resumption, a message of a person is refused. The
+    scheduler stamps `scheduler_seen_at` at each pass, so the dashboard can
+    tell when it has stopped.
+    """
+
+    paused_kinds = models.JSONField(default=list, blank=True)
+    updated_at = models.DateTimeField(null=True, blank=True)
+    # Keycloak GUID of the admin, not a foreign key: outlives the account
+    updated_by = models.UUIDField(null=True, blank=True)
+    scheduler_seen_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name_plural = 'platform settings'
+
+    @classmethod
+    def load(cls) -> 'PlatformSettings':
+        return cls.objects.get_or_create(pk=1)[0]

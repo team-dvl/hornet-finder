@@ -71,6 +71,7 @@ sa délégation) ou « à l'association X » en une requête.
 | `trap_type`, `species` | `created`, `updated`, `deleted` ; `species.reordered` |
 | `group` | `member_removed`, `admin_named`, `admin_dismissed` |
 | `notification` | `sent` (notification push à un groupe ou à un membre ; le titre et les effectifs, jamais le texte) |
+| `platform` | `notifications_changed` (sortes de notification suspendues ou reprises pour tout le monde) |
 | `invitation` | `sent` (avec `notified`), `reminded`, `cancelled`, `accepted`, `declined`, `expired` (système, daté de la fin de validité) |
 | `stats` | `export_link`, `export_emailed`, `export_downloaded` |
 | `audit` | `exported` (export CSV du journal) |

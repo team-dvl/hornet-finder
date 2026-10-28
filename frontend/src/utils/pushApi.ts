@@ -6,6 +6,8 @@ import type { AxiosErrorResponse } from './axiosTypes';
 export interface PushConfig {
   enabled: boolean;
   public_key: string | null;
+  /** Kinds the platform admins hold back for everyone */
+  paused_kinds: NotificationKind[];
 }
 
 export interface PushDevice {

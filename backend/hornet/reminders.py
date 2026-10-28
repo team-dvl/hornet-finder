@@ -195,9 +195,11 @@ def run(now=None, dry_run=False) -> dict:
         states = {(s.trap_id, s.kind): s for s in TrapReminder.objects.filter(
             trap_id__in={item.trap.pk for item in items})}
 
+        # Held back by the platform: the state is left alone, so the reminder goes out once resumed
+        paused = push.paused_kinds()
         by_owner = {}
         for item in items:
-            if not kinds.wants(item.trap.owner, item.kind):
+            if item.kind in paused or not kinds.wants(item.trap.owner, item.kind):
                 continue
             state = states.get((item.trap.pk, item.kind))
             if state is None:

@@ -88,8 +88,9 @@ class PushViewSet(viewsets.GenericViewSet):
     @extend_schema(responses={200: None})
     @action(detail=False, methods=['get'])
     def config(self, request):
-        """Whether Web Push is on, and the public VAPID key a browser subscribes with."""
-        return Response({'enabled': push.enabled(), 'public_key': settings.VAPID_PUBLIC_KEY or None})
+        """Whether Web Push is on, the public VAPID key a browser subscribes with, and the kinds the platform holds back."""
+        return Response({'enabled': push.enabled(), 'public_key': settings.VAPID_PUBLIC_KEY or None,
+                         'paused_kinds': sorted(push.paused_kinds())})
 
     @extend_schema(responses={200: None})
     @action(detail=False, methods=['get'])
@@ -178,7 +179,7 @@ class PushViewSet(viewsets.GenericViewSet):
         `recipients` (people addressed), `reached` (of those, with a device), `muted` (of those,
         who turned this kind of message off: `platform_message` from a platform admin,
         `group_message` otherwise) and `devices`.
-        Errors carry a `code`: `rate_limited` (429), `no_recipient` (409), `disabled` (503).
+        Errors carry a `code`: `rate_limited` (429), `no_recipient` (409), `disabled` and `paused` (503).
         """
         disabled = _require_enabled()
         if disabled:
@@ -186,6 +187,11 @@ class PushViewSet(viewsets.GenericViewSet):
         user = _requester(request)
         group_path = (request.data.get('group_path') or '').strip()
         group = _administered(request, group_path)
+        # A platform admin writes as the platform, wherever they write
+        kind = kinds.PLATFORM_MESSAGE if perms.is_platform_admin(request.user) else kinds.GROUP_MESSAGE
+        if kind in push.paused_kinds():
+            return Response({'code': 'paused', 'detail': "Les administrateurs de la plateforme ont suspendu ces messages."},
+                            status=status.HTTP_503_SERVICE_UNAVAILABLE)
         title = _text(request, 'title', PushNotification.TITLE_MAX)
         body = _text(request, 'body', PushNotification.BODY_MAX)
 
@@ -211,8 +217,6 @@ class PushViewSet(viewsets.GenericViewSet):
                  'detail': f"{PushNotification.HOURLY_LIMIT} notifications par heure au plus : réessayez plus tard."},
                 status=status.HTTP_429_TOO_MANY_REQUESTS)
 
-        # A platform admin writes as the platform, wherever they write
-        kind = kinds.PLATFORM_MESSAGE if perms.is_platform_admin(request.user) else kinds.GROUP_MESSAGE
         muted = {str(u.guid) for u in User.objects.filter(guid__in=recipients) if not kinds.wants(u, kind)}
 
         with transaction.atomic():

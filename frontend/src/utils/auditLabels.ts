@@ -75,6 +75,7 @@ export const ACTION_LABELS: Record<string, string> = {
   'stats.export_link': 'Export demandé',
   'stats.export_emailed': 'Export envoyé par email',
   'stats.export_downloaded': 'Export téléchargé',
+  'platform.notifications_changed': 'Notifications suspendues ou reprises',
   'audit.exported': "Journal d'audit exporté",
 };
 
@@ -95,6 +96,7 @@ export const DOMAINS: Record<string, Domain> = {
   group: { label: 'Groupes', icon: 'people' },
   invitation: { label: 'Invitations', icon: 'envelope' },
   notification: { label: 'Notifications', icon: 'bell' },
+  platform: { label: 'Plateforme', icon: 'speedometer2' },
   stats: { label: 'Exports', icon: 'bar-chart-line' },
   trap_type: { label: 'Types de pièges', icon: 'bullseye' },
   species: { label: 'Espèces', icon: 'bug' },
@@ -123,6 +125,7 @@ const OBJECT_NAMES: Record<string, string> = {
   statistic: 'Statistique',
   export: 'Export',
   user: 'Personne',
+  platform: 'Plateforme',
   audit: "Journal d'audit",
 };
 
@@ -258,6 +261,8 @@ export const FIELD_LABELS: Record<string, string> = {
   associated_by: 'Associé par',
   revoked_by: 'Révoqué par',
   from: 'Reconstitué depuis',
+  paused: 'Suspendues',
+  resumed: 'Reprises',
 };
 
 /** Labels that differ for one type of object: the owner of a nest follows it, it is no legal owner */
@@ -272,8 +277,17 @@ export const fieldLabel = (key: string, targetType?: string) =>
 const PERSON_FIELDS = new Set(['owner', 'created_by', 'performed_by', 'generated_by', 'associated_by',
   'revoked_by', 'uploaded_by', 'member']);
 
+/** Kinds of notifications the platform admins hold back or resume */
+const NOTIFICATION_KINDS: Record<string, string> = {
+  trap_reading: 'Rappels de relevé', trap_refill: "Rappels d'attractif", nest_new: 'Tous les nouveaux nids',
+  nest_near_apiary: 'Nids près des ruchers', nest_followup: 'Suivi des signalements',
+  group_message: 'Messages de groupe', platform_message: 'Messages de la plateforme',
+};
+
 const VALUE_LABELS: Record<string, Record<string, string>> = {
   visibility: { public: 'Publique', group: 'Groupe' },
+  paused: NOTIFICATION_KINDS,
+  resumed: NOTIFICATION_KINDS,
   via: { link: 'Lien direct', email: 'Lien envoyé par email' },
   kind: {
     installation: 'Installation', inspection: 'Inspection', cleaning: 'Nettoyage', refill: 'Remplissage',

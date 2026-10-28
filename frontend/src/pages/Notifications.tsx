@@ -124,6 +124,13 @@ export default function Notifications() {
 
         {push.config?.enabled && (
           <>
+            {push.config.paused_kinds.length > 0 && (
+              <Alert variant="warning">
+                {prefs?.every((pref) => push.config?.paused_kinds.includes(pref.id))
+                  ? 'Les administrateurs ont suspendu les notifications pour le moment.'
+                  : 'Les administrateurs ont suspendu certaines notifications pour le moment.'}
+              </Alert>
+            )}
             <h2 className="h6 text-uppercase text-muted mb-2">Sur cet appareil</h2>
             <Card body className="mb-4 py-0">
               <Switch
@@ -174,7 +181,7 @@ export default function Notifications() {
                       id={`kind-${pref.id}`}
                       icon={info?.icon}
                       label={pref.label}
-                      detail={info?.detail}
+                      detail={push.config?.paused_kinds.includes(pref.id) ? 'Suspendu par les administrateurs' : info?.detail}
                       checked={pref.enabled}
                       onChange={(on) => toggle(pref.id, on)}
                       help={info && <HelpTip id={`kind-${pref.id}-help`} title={pref.label}>{info.help}</HelpTip>}

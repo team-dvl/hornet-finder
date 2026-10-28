@@ -11,6 +11,11 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ## [Unreleased]
 
 ### Added
+- Platform dashboard for the platform admins (*Administration → Plateforme*): a switch per kind of
+  notification and a general switch to hold them back for everyone, the devices subscribed, what became of the
+  sendings over 24 hours and 7 days, and whether the scheduler still runs. Trap reminders and nest alerts wait for
+  the resumption (nest alerts older than 48 hours are dropped), messages of a group or of the platform are
+  refused meanwhile. Recorded in the audit trail.
 - Notification when a nest is destroyed: the coordinators and the owners of the apiaries within 1 km (and
   the administrators of their associations) are told, like for a new nest.
 - Follow-up of a nest: each nest is followed by a person, its reporter at first. A platform

@@ -87,6 +87,18 @@ Le module *Notifications* (tuile de l'accueil) réunit :
 
 Un volet « Recevoir les rappels ? » s'ouvre une seule fois par appareil (`PushPromptSheet`) : à partir de la 2<sup>e</sup> visite, si le navigateur peut recevoir des notifications et ne les a jamais autorisées ni refusées, jamais sur un autre dialogue ni le jour où la suggestion d'installation s'est montrée. « Activer » est le geste qui déclenche la demande du navigateur (obligatoire sur iPhone) ; « Plus tard » repousse de 30 jours ; « Ne plus demander » arrête. Sur iPhone, hors application installée, c'est la suggestion d'installation qui passe d'abord.
 
+## Suspendre des notifications (administrateurs de la plateforme)
+
+*Administration → Plateforme* (`/admin/platform`, `backend/hornet/platform_views.py`) : un interrupteur par sorte de notification et un interrupteur général qui les bascule toutes (l'état reste celui de chaque sorte : « 3 sur 7 suspendues »). Suspendre coupe la sorte pour tout le monde, sans toucher aux préférences de chacun ni aux abonnements des appareils. L'état est en base (`PlatformSettings`, une ligne), parce que l'API et le service planifié sont deux processus ; `push.paused_kinds()` le relit à chaque usage.
+
+- **Rappels de pièges** : la sorte suspendue est sautée sans toucher à `TrapReminder` ; les rappels dus partent à la reprise, dans les heures d'envoi.
+- **Alertes de nids** : un événement dont une personne attend un message d'une sorte suspendue reste en attente (`alerted_at` vide) ; les autres personnes sont prévenues normalement, et `NestAlert` évite tout doublon à la reprise. Un événement de plus de `EXPIRY` (48 h) est abandonné, suspendu ou non : une pause plus longue perd ces alertes.
+- **Messages de groupe et de la plateforme** : refusés (503, code `paused`) tant que leur sorte est suspendue. L'avis de transfert d'un nid (« Suivi de mes signalements ») est une action de personne : il n'est pas gardé.
+- **Déjà en file** : `push._send_one` revérifie au moment de l'envoi ; la livraison prend le statut `1` (`STATUS_PAUSED`, « suspendu » dans *Notifications*) et l'appareil reste abonné. Ce qui est déjà chez le service de notification (TTL 24 h) n'est pas rappelé.
+- **L'essai** d'un appareil (sorte `test`) n'est jamais suspendu. `GET /api/push/config/` indique `paused_kinds` : la page *Notifications* de chacun prévient.
+- **Journal d'audit** : `platform.notifications_changed` (sortes suspendues et reprises).
+- Le tableau de bord montre aussi les appareils abonnés, le sort des envois sur 24 h et 7 jours, et le planificateur : chaque passage inscrit `scheduler_seen_at`, « en retard » après 30 minutes sans passage.
+
 ## Limites connues
 
 - **iPhone et mise à jour** : après un déploiement, l'ancien service worker peut rester actif tant que l'application n'a pas été fermée complètement (balayée du sélecteur d'applications) puis rouvrue. Un abonnement créé avec un ancien worker sans gestion du push reçoit les messages sans rien afficher : c'est ce qui a été observé en test.

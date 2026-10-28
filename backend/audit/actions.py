@@ -82,6 +82,8 @@ ACTIONS = {
     'stats.export_link': "Statistics export requested (direct link)",
     'stats.export_emailed': "Statistics export requested (emailed link)",
     'stats.export_downloaded': "Statistics export downloaded",
+    # Platform settings
+    'platform.notifications_changed': "Notification kinds held back or resumed for everyone",
     # The audit trail itself
     'audit.exported': "Audit trail exported",
 }

@@ -152,40 +152,54 @@ def _new_nest_reasons(nest, event, users, destroyed=False) -> dict:
     return reasons
 
 
-def _messages_for(event, users) -> dict:
-    """guid -> the message `event` calls for; nobody about their own action."""
+def _messages_for(event, users, paused=frozenset()):
+    """
+    (messages, held): guid -> the message `event` calls for, nobody about their own
+    action; and the people whose message is of a kind held back by the platform
+    (`paused`): they are told once it is resumed, so the event stays pending.
+    """
     nest = event.nest
-    found = {}
+    found, held = {}, set()
     if event.kind == NestEvent.KIND_REPORT:
         # Done by then (rejected, destroyed): nothing to call anyone for
         if nest.status in (Nest.STATUS_REJECTED, Nest.STATUS_DESTROYED):
-            return found
+            return found, held
         by_guid = {user.guid: user for user in users}
         for guid, reasons in _new_nest_reasons(nest, event, users).items():
             for reason in reasons:
                 message = _new_nest_message(nest, event, reason)
                 if kinds.wants(by_guid[guid], message['kind']):
-                    found[guid] = {**message, 'place': locality(nest.address) or f"#{nest.pk}"}
+                    if message['kind'] in paused:
+                        held.add(guid)
+                    else:
+                        found[guid] = {**message, 'place': locality(nest.address) or f"#{nest.pk}"}
                     break
     elif event.kind in (NestEvent.KIND_VISIT, NestEvent.KIND_DESTRUCTION):
         message = _followup_message(nest, event)
         for user in users:
             if message and user.guid == nest.owner_id and kinds.wants(user, kinds.NEST_FOLLOWUP):
-                found[user.guid] = message
+                if kinds.NEST_FOLLOWUP in paused:
+                    held.add(user.guid)
+                else:
+                    found[user.guid] = message
         if event.kind == NestEvent.KIND_DESTRUCTION:
             by_guid = {user.guid: user for user in users}
             for guid, reasons in _new_nest_reasons(nest, event, users, destroyed=True).items():
                 # The follow-up above is the most telling one for the owner
-                if guid in found:
+                if guid in found or guid in held:
                     continue
                 for reason in reasons:
                     message = _destroyed_message(nest, reason)
                     if kinds.wants(by_guid[guid], message['kind']):
-                        found[guid] = {**message, 'destroyed': True}
+                        if message['kind'] in paused:
+                            held.add(guid)
+                        else:
+                            found[guid] = {**message, 'destroyed': True}
                         break
     found.pop(event.performed_by_id, None)
+    held.discard(event.performed_by_id)
     already = set(NestAlert.objects.filter(event=event).values_list('user_id', flat=True))
-    return {guid: message for guid, message in found.items() if guid not in already}
+    return {guid: message for guid, message in found.items() if guid not in already}, held - already
 
 
 def tell_new_owner(nest, owner, sender) -> int:
@@ -196,6 +210,8 @@ def tell_new_owner(nest, owner, sender) -> int:
     Returns the number of devices.
     """
     if not push.enabled() or str(owner.guid) == str(sender) or not kinds.wants(owner, kinds.NEST_FOLLOWUP):
+        return 0
+    if kinds.NEST_FOLLOWUP in push.paused_kinds():  # an action of a person: not kept for later
         return 0
     notification = PushNotification.objects.create(
         sender=sender, recipient=owner.guid, recipients_count=1, kind=kinds.NEST_FOLLOWUP,
@@ -227,9 +243,14 @@ def run(now=None, dry_run=False) -> dict:
         # Only those who can receive anything
         users = list(User.objects.filter(push_subscriptions__isnull=False).distinct())
 
-        by_person = {}
+        # Held back by the platform: such an event stays pending until resumed (or `EXPIRY`)
+        paused = push.paused_kinds()
+        by_person, waiting = {}, set()
         for event in events:
-            for guid, message in _messages_for(event, users).items():
+            messages, held = _messages_for(event, users, paused)
+            if held:
+                waiting.add(event.pk)
+            for guid, message in messages.items():
                 by_person.setdefault(guid, []).append((event, message))
 
         for guid, entries in by_person.items():
@@ -258,7 +279,8 @@ def run(now=None, dry_run=False) -> dict:
             NestAlert.objects.bulk_create([NestAlert(event=event, user_id=guid, kind=message['kind'], sent_at=now)
                                            for event, message in entries], ignore_conflicts=True)
         if not dry_run:
-            NestEvent.objects.filter(pk__in=[event.pk for event in events]).update(alerted_at=now)
+            NestEvent.objects.filter(pk__in=[event.pk for event in events if event.pk not in waiting]
+                                     ).update(alerted_at=now)
 
     if not dry_run:
         for notification in sent:
@@ -266,4 +288,5 @@ def run(now=None, dry_run=False) -> dict:
     if sent:
         logger.info("Nest alerts: %s notification(s) for %s people", len(sent), len(plans))
     return {'notifications': len(sent), 'people': len(plans),
+            'waiting': len(waiting),
             'messages': [(m['title'], m['body']) if isinstance(m, dict) else (m.title, m.body) for m in sent]}

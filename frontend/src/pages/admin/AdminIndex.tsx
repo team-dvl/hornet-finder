@@ -50,6 +50,13 @@ const SECTIONS: AdminSection[] = [
     roles: [ADMIN],
   },
   {
+    title: 'Plateforme',
+    description: "État de la plateforme, et interrupteurs des notifications pour tout le monde.",
+    icon: 'bi-speedometer2',
+    to: '/admin/platform',
+    roles: [ADMIN],
+  },
+  {
     title: 'Notifications',
     description: 'Suivez les notifications envoyées, appareil par appareil.',
     icon: 'bi-bell',

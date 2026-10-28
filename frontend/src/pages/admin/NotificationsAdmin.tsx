@@ -6,10 +6,11 @@ import { IconButton } from '../../components/ui';
 import { formatDateTime } from '../../utils/format';
 import { fetchDeliveries, pushErrorOf, type PushDeliveryRow } from '../../utils/pushApi';
 
-/** Badge of the push service's answer: 201 accepted, 404/410 device gone, 0 unreachable. */
+/** Badge of the push service's answer: 201 accepted, 404/410 device gone, 0 unreachable, 1 held back by the platform. */
 function StatusBadge({ row }: { row: PushDeliveryRow }) {
   if (row.status === null) return <Badge bg="secondary">en cours</Badge>;
   if (row.status === 201) return <Badge bg="success">accepté</Badge>;
+  if (row.status === 1) return <Badge bg="secondary">suspendu</Badge>;
   if (row.status === 404 || row.status === 410) return <Badge bg="warning" text="dark">appareil retiré</Badge>;
   return <Badge bg="danger">{row.status === 0 ? 'injoignable' : `erreur ${row.status}`}</Badge>;
 }

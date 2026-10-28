@@ -4,7 +4,7 @@ export default function AdminDoc() {
     <>
       <p className="lead text-muted">
         Les outils de la plateforme : vos QR Codes et votre groupe pour chacun, les référentiels,
-        l&apos;archivage et le journal d&apos;audit pour les administrateurs de la plateforme.
+        l&apos;archivage, la plateforme et le journal d&apos;audit pour les administrateurs de la plateforme.
       </p>
 
       <section data-section="qr-codes" className="mb-4">
@@ -59,6 +59,30 @@ export default function AdminDoc() {
           Réservé aux administrateurs de la plateforme : les signalements de frelons et de nids
           d&apos;une saison ou d&apos;une année écoulée sont archivés d&apos;un coup. Ils quittent la
           carte de l&apos;année en cours sans être supprimés.
+        </p>
+      </section>
+
+      <section data-section="platform" className="mb-4">
+        <h5 className="text-primary">
+          <span className="me-2">🎛️</span>
+          Plateforme
+        </h5>
+        <p>
+          Réservé aux administrateurs de la plateforme : <em>Administration → Plateforme</em> montre les
+          appareils abonnés aux notifications, ce que sont devenus les envois des dernières 24 heures et des
+          7 derniers jours, et si le planificateur (rappels, alertes de nids, ménage) tourne toujours.
+        </p>
+        <p>
+          <strong>Suspendre des notifications.</strong> Un interrupteur par sorte, et un interrupteur général qui
+          les bascule toutes. Suspendre coupe la sorte pour tout le monde, sans toucher aux réglages de chacun ni
+          aux abonnements des appareils. Les rappels de pièges et les alertes de nids attendent la reprise (les
+          rappels partent alors, dans les heures d&apos;envoi) ; une alerte de nid de plus de 48 heures est perdue.
+          Un message écrit par une personne (groupe, plateforme) est refusé tant que sa sorte est suspendue, et
+          l&apos;avis de transfert d&apos;un nid n&apos;est pas gardé. Ce qui est déjà parti chez le service de
+          notification n&apos;est pas rappelé. L&apos;essai de l&apos;appareil n&apos;est jamais suspendu.
+        </p>
+        <p className="mb-0">
+          Chaque changement est inscrit au journal d&apos;audit (qui, quand, quelles sortes).
         </p>
       </section>
 
