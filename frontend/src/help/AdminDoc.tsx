@@ -68,21 +68,32 @@ export default function AdminDoc() {
           Plateforme
         </h5>
         <p>
-          Réservé aux administrateurs de la plateforme : <em>Administration → Plateforme</em> montre les
-          appareils abonnés aux notifications, ce que sont devenus les envois des dernières 24 heures et des
-          7 derniers jours, et si le planificateur (rappels, alertes de nids, ménage) tourne toujours.
+          Réservé aux administrateurs de la plateforme : <em>Administration → Plateforme</em> ouvre les
+          pages <em>Notifications</em> et <em>Journal d&apos;audit</em>, et montre l&apos;état : les appareils
+          abonnés, les envois, le planificateur.
         </p>
         <p>
-          <strong>Suspendre des notifications.</strong> Un interrupteur par sorte, et un interrupteur général qui
-          les bascule toutes. Suspendre coupe la sorte pour tout le monde, sans toucher aux réglages de chacun ni
-          aux abonnements des appareils. Les rappels de pièges et les alertes de nids attendent la reprise (les
-          rappels partent alors, dans les heures d&apos;envoi) ; une alerte de nid de plus de 48 heures est perdue.
-          Un message écrit par une personne (groupe, plateforme) est refusé tant que sa sorte est suspendue, et
-          l&apos;avis de transfert d&apos;un nid n&apos;est pas gardé. Ce qui est déjà parti chez le service de
-          notification n&apos;est pas rappelé. L&apos;essai de l&apos;appareil n&apos;est jamais suspendu.
+          <strong>Envois et planificateur.</strong> Le planificateur est le service qui décide d&apos;envoyer,
+          toutes les 10 minutes : rappels de pièges, alertes de nids, fin de saison, ménage. Les envois sont le
+          résultat : ce que le service de notification du navigateur ou du téléphone a répondu pour chaque
+          message, quel qu&apos;en soit l&apos;origine (automatique, écrit par une personne, essai). Des envois
+          vides ne disent donc pas que le planificateur est en panne (rien n&apos;était dû, ou hors des heures
+          d&apos;envoi) ; un planificateur à l&apos;arrêt coupe les envois automatiques, pas les messages écrits.
+          Le détail appareil par appareil est dans <em>Notifications → Envois</em>, avec le délai
+          d&apos;affichage mesuré sur l&apos;appareil.
+        </p>
+        <p>
+          <strong>Suspendre des notifications</strong> (<em>Plateforme → Notifications</em>). Un interrupteur
+          par sorte, et un interrupteur général qui les bascule toutes. Suspendre coupe la sorte pour tout le
+          monde, sans toucher aux réglages de chacun ni aux abonnements des appareils. Les rappels de pièges et
+          les alertes de nids attendent la reprise (les rappels partent alors, dans les heures d&apos;envoi) ;
+          une alerte de nid de plus de 48 heures est perdue. Un message écrit par une personne (groupe,
+          plateforme) est refusé tant que sa sorte est suspendue, et l&apos;avis de transfert d&apos;un nid
+          n&apos;est pas gardé. Ce qui est déjà parti chez le service de notification n&apos;est pas rappelé.
+          L&apos;essai de l&apos;appareil n&apos;est jamais suspendu.
         </p>
         <p className="mb-0">
-          Chaque changement est inscrit au journal d&apos;audit (qui, quand, quelles sortes), que la page ouvre d&apos;un toucher.
+          Chaque changement est inscrit au journal d&apos;audit (qui, quand, quelles sortes).
         </p>
       </section>
 

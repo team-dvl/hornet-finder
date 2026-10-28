@@ -52,6 +52,11 @@ export async function fetchDashboard(): Promise<PlatformDashboardData> {
   return (await api.get('/platform/')).data;
 }
 
+/** The switches alone (the dashboard carries them too). */
+export async function fetchNotifications(): Promise<PlatformNotifications> {
+  return (await api.get('/platform/notifications/')).data;
+}
+
 /** Sets the complete list of kinds held back for everyone. */
 export async function setPausedKinds(paused: NotificationKind[]): Promise<PlatformNotifications> {
   return (await api.put('/platform/notifications/', { paused })).data;

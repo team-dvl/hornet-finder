@@ -33,7 +33,9 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ### Changed
 - The audit trail and the deliveries of the notifications (device by device) are opened from the platform
   dashboard (*Administration → Plateforme*), no longer from their own tiles: all are reserved to the platform
-  admins. Their addresses `/admin/audit` and `/admin/notifications` are unchanged.
+  admins. The dashboard lists its sub-pages (*Notifications*, with the switches and the deliveries, and
+  *Journal d'audit*) above the state of the devices, of the sendings and of the scheduler, whose help tips say
+  how they differ. The addresses `/admin/audit` and `/admin/notifications` are unchanged.
 - API image: Python 3.13 → 3.14 (`python:3.14-alpine3.22`); the 530 backend tests pass on 3.14.6, dependencies unchanged.
 - Sign-in screen: the Google and Facebook buttons are at the top, above the identifier and password form, to encourage their use. The "Ou se connecter avec" heading is gone, a rule separates the two.
 - Sign-in screen: the "Se souvenir de moi" checkbox is gone. It changed nothing for the session (same 3-day idle and 7-day maximum limits, tokens kept in `localStorage`), only whether Keycloak's own cookie outlived the browser.

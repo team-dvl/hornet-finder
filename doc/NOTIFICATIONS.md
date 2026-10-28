@@ -8,7 +8,7 @@ Un administrateur écrit à un membre ou à tout un groupe ; le message s'affich
 - **Identité de l'API (VAPID, RFC 8292)** : une paire de clés par environnement signe chaque envoi. Générer avec `docker compose run --rm --no-deps --entrypoint python <service api> manage.py generate_vapid_keys`, puis `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (secrète) et au besoin `VAPID_SUBJECT` dans `.env`. `--entrypoint python` est nécessaire : l'entrypoint de l'image lance toujours gunicorn et ignore la commande donnée. Sans clés, l'application ne propose pas les notifications. Changer les clés désabonne tous les appareils.
 - **Envoi** : depuis la liste des membres d'un groupe (*Administration → Mon groupe / Groupes / Piégeurs*), « Notifier le groupe » ou « Notifier » sur un membre. Mêmes droits que la liste : administrateur du groupe pour son groupe, administrateur de la plateforme partout (`/trappers` contient tous les comptes, donc atteint tout le monde ou n'importe qui). Les administrateurs de `/hunters` n'ont pas encore de liste de membres, donc pas d'envoi. L'expéditeur n'est jamais destinataire. Titre ≤ 60 caractères, texte ≤ 200, 10 envois par heure et par expéditeur.
 - **Livraison** : l'API crée un `PushDelivery` par appareil et envoie en arrière-plan (8 envois en parallèle). Le service de notification répond 201 (pris en charge), 404/410 (appareil désabonné : l'abonnement est supprimé) ou une erreur.
-- **Accusé de réception** : le service worker (`frontend/src/sw.ts`) affiche la notification puis appelle `POST /api/push/ack/<id>/` (sans session ; l'identifiant, non devinable, est le seul justificatif). Le délai entre l'envoi et l'accusé est affiché dans *Administration → Plateforme → Envois* (administrateurs de la plateforme).
+- **Accusé de réception** : le service worker (`frontend/src/sw.ts`) affiche la notification puis appelle `POST /api/push/ack/<id>/` (sans session ; l'identifiant, non devinable, est le seul justificatif). Le délai entre l'envoi et l'accusé est affiché dans *Administration → Plateforme → Notifications → Envois* (administrateurs de la plateforme).
 - **Journal d'audit** : `notification.sent` garde le titre et les effectifs, jamais le texte.
 - **Conservation** (`push.purge_expired`, à chaque passage du service planifié) : l'historique des envois (`PushNotification`, avec leurs `PushDelivery`) est supprimé après 90 jours (`PUSH_HISTORY_DAYS`). Un appareil sur lequel l'application n'a pas été ouverte depuis 183 jours (`PUSH_DEVICE_IDLE_DAYS`, environ 6 mois) est oublié : chaque ouverture réenregistre l'abonnement et met à jour `last_seen_at`. Un appareil oublié dont le navigateur garde l'autorisation se réabonne de lui-même à la prochaine ouverture ; entre-temps, il ne reçoit rien. `manage.py purge_push_history --dry-run` compte ce qui partirait.
 
@@ -37,7 +37,7 @@ Une notification doit toujours s'afficher : iOS et Chrome retirent l'autorisatio
 1. En dev, générer et renseigner les clés, `./deploy.sh`.
 2. Sur chaque appareil (Android Chrome, iPhone PWA installée, ordinateur) : se connecter, *Mon profil → Notifications* → activer, puis le bouton d'essai.
 3. Avec un second compte administrateur de groupe : « Notifier » un membre, puis le groupe.
-4. *Administration → Plateforme → Détail des envois* : statut (accepté / appareil retiré / injoignable) et délai d'affichage de chaque appareil. Tester aussi application fermée, écran verrouillé, mode économie d'énergie.
+4. *Administration → Plateforme → Notifications → Envois* : statut (accepté / appareil retiré / injoignable) et délai d'affichage de chaque appareil. Tester aussi application fermée, écran verrouillé, mode économie d'énergie.
 
 ## Rappels des pièges
 
@@ -89,7 +89,7 @@ Un volet « Recevoir les rappels ? » s'ouvre une seule fois par appareil (`Push
 
 ## Suspendre des notifications (administrateurs de la plateforme)
 
-*Administration → Plateforme* (`/admin/platform`, `backend/hornet/platform_views.py`) : un interrupteur par sorte de notification et un interrupteur général qui les bascule toutes (l'état reste celui de chaque sorte : « 3 sur 7 suspendues »). Suspendre coupe la sorte pour tout le monde, sans toucher aux préférences de chacun ni aux abonnements des appareils. L'état est en base (`PlatformSettings`, une ligne), parce que l'API et le service planifié sont deux processus ; `push.paused_kinds()` le relit à chaque usage.
+*Administration → Plateforme → Notifications* (`/admin/platform/notifications`, `backend/hornet/platform_views.py`) : un interrupteur par sorte de notification et un interrupteur général qui les bascule toutes (l'état reste celui de chaque sorte : « 3 sur 7 suspendues »). Suspendre coupe la sorte pour tout le monde, sans toucher aux préférences de chacun ni aux abonnements des appareils. L'état est en base (`PlatformSettings`, une ligne), parce que l'API et le service planifié sont deux processus ; `push.paused_kinds()` le relit à chaque usage.
 
 - **Rappels de pièges** : la sorte suspendue est sautée sans toucher à `TrapReminder` ; les rappels dus partent à la reprise, dans les heures d'envoi.
 - **Alertes de nids** : un événement dont une personne attend un message d'une sorte suspendue reste en attente (`alerted_at` vide) ; les autres personnes sont prévenues normalement, et `NestAlert` évite tout doublon à la reprise. Un événement de plus de `EXPIRY` (48 h) est abandonné, suspendu ou non : une pause plus longue perd ces alertes.
@@ -97,7 +97,7 @@ Un volet « Recevoir les rappels ? » s'ouvre une seule fois par appareil (`Push
 - **Déjà en file** : `push._send_one` revérifie au moment de l'envoi ; la livraison prend le statut `1` (`STATUS_PAUSED`, « suspendu » dans *Notifications*) et l'appareil reste abonné. Ce qui est déjà chez le service de notification (TTL 24 h) n'est pas rappelé.
 - **L'essai** d'un appareil (sorte `test`) n'est jamais suspendu. `GET /api/push/config/` indique `paused_kinds` : la page *Notifications* de chacun prévient.
 - **Journal d'audit** : `platform.notifications_changed` (sortes suspendues et reprises).
-- Le tableau de bord montre aussi les appareils abonnés, le sort des envois sur 24 h et 7 jours, et le planificateur : chaque passage inscrit `scheduler_seen_at`, « en retard » après 30 minutes sans passage.
+- La page *Plateforme* (`/admin/platform`) mène aux interrupteurs, au journal d'audit et aux envois, et montre aussi les appareils abonnés, le sort des envois sur 24 h et 7 jours (le résultat : réponse du service de notification, affichage), et le planificateur (la cause : le service qui déclenche rappels et alertes) : chaque passage inscrit `scheduler_seen_at`, « en retard » après 30 minutes sans passage.
 
 ## Limites connues
 

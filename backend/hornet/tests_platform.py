@@ -25,8 +25,8 @@ class DashboardTests(PushTestCase):
         return self._call(PlatformViewSet, 'get', '/api/platform/', {'get': 'list'}, user)
 
     def _put(self, user, paused):
-        return self._call(PlatformViewSet, 'put', '/api/platform/notifications/', {'put': 'notifications'}, user,
-                          {'paused': paused})
+        return self._call(PlatformViewSet, 'put', '/api/platform/notifications/',
+                          {'put': 'set_notifications'}, user, {'paused': paused})
 
     def test_only_platform_admins_reach_it(self):
         for user in (self.aga, self.member, self.trappers_admin):
@@ -72,9 +72,16 @@ class DashboardTests(PushTestCase):
         config = self._call(PushViewSet, 'get', '/api/push/config/', {'get': 'config'}, self.member)
         self.assertEqual(config.data['paused_kinds'], ['nest_new'])
 
+    def test_the_switches_are_readable_on_their_own(self):
+        self._put(self.admin, ['nest_new'])
+        get = self._call(PlatformViewSet, 'get', '/api/platform/notifications/', {'get': 'notifications'}, self.admin)
+        self.assertEqual([k['id'] for k in get.data['kinds'] if k['paused']], ['nest_new'])
+        self.assertEqual(self._call(PlatformViewSet, 'get', '/api/platform/notifications/',
+                                    {'get': 'notifications'}, self.aga).status_code, 403)
+
     def test_unknown_kinds_are_refused(self):
         self.assertEqual(self._put(self.admin, ['spam']).status_code, 400)
-        self.assertEqual(self._call(PlatformViewSet, 'put', '/api/platform/notifications/', {'put': 'notifications'},
+        self.assertEqual(self._call(PlatformViewSet, 'put', '/api/platform/notifications/', {'put': 'set_notifications'},
                                     self.admin, {'paused': 'all'}).status_code, 400)
         self.assertEqual(push.paused_kinds(), set())
 

@@ -95,7 +95,7 @@ AUDITED = {
     ('group', 'member_admin', 'put'): 'group.admin_named',
     ('group', 'dismiss_admin', 'delete'): 'group.admin_dismissed',
     ('push', 'send', 'post'): 'notification.sent',
-    ('platform', 'notifications', 'put'): 'platform.notifications_changed',
+    ('platform', 'set_notifications', 'put'): 'platform.notifications_changed',
     ('group-invitation', 'create', 'post'): 'invitation.sent',
     ('group-invitation', 'remind', 'post'): 'invitation.reminded',
     ('group-invitation', 'destroy', 'delete'): 'invitation.cancelled',

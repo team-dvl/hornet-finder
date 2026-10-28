@@ -97,9 +97,15 @@ class PlatformViewSet(viewsets.GenericViewSet):
             },
         })
 
-    @extend_schema(request=None, responses={200: None})
-    @action(detail=False, methods=['put'])
+    @extend_schema(responses={200: None})
+    @action(detail=False, methods=['get'])
     def notifications(self, request):
+        """The `notifications` block of the dashboard: the switches and when they last changed."""
+        return Response(_notifications(PlatformSettings.load()))
+
+    @extend_schema(request=None, responses={200: None})
+    @notifications.mapping.put
+    def set_notifications(self, request):
         """
         Set the kinds of notifications held back for everyone: `{"paused": ["trap_reading", ...]}`,
         the complete list (empty: nothing is held back). Answers the `notifications` block of the dashboard.
