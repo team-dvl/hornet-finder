@@ -51,7 +51,7 @@ const SECTIONS: AdminSection[] = [
   },
   {
     title: 'Plateforme',
-    description: "État de la plateforme, et interrupteurs des notifications pour tout le monde.",
+    description: "État de la plateforme, interrupteurs des notifications pour tout le monde, journal d'audit.",
     icon: 'bi-speedometer2',
     to: '/admin/platform',
     roles: [ADMIN],
@@ -91,13 +91,6 @@ const SECTIONS: AdminSection[] = [
     description: 'Imprimez des QR Codes, suivez-les avec leurs clefs de signature, et révoquez ceux qui sont perdus ou compromis.',
     icon: 'bi-qr-code',
     to: '/admin/tags',
-    roles: [ADMIN],
-  },
-  {
-    title: "Journal d'audit",
-    description: 'Retrouvez qui a fait quoi, quand, sur chaque objet.',
-    icon: 'bi-clock-history',
-    to: '/admin/audit',
     roles: [ADMIN],
   },
   ...(import.meta.env.DEV

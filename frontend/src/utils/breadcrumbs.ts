@@ -12,8 +12,12 @@ const ADMIN_SECTIONS: Record<string, string> = {
   archiving: 'Archivage',
   tags: 'QR Codes',
   group: 'Groupe',
+  platform: 'Plateforme',
   audit: "Journal d'audit",
 };
+
+/** Pages reached from the platform dashboard: its crumb comes first. */
+const UNDER_PLATFORM = new Set(['audit']);
 
 /** Statistics with a page, for the breadcrumb trail (short names). */
 export const STAT_SECTIONS: Record<string, string> = {
@@ -28,7 +32,8 @@ export const STAT_SECTIONS: Record<string, string> = {
 /**
  * Breadcrumb trail for the current route, derived from the module config:
  * `/nests` → [Nids],
- * `/admin/trap-types` → [Administration, Types de pièges]. The site name
+ * `/admin/trap-types` → [Administration, Types de pièges], `/admin/audit` →
+ * [Administration, Plateforme, Journal d'audit]. The site name
  * (link to `/`) is prepended by the navbar itself.
  */
 export function getBreadcrumbs(pathname: string): Crumb[] {
@@ -46,6 +51,7 @@ export function getBreadcrumbs(pathname: string): Crumb[] {
   if (module.id === 'admin' && segments[1]) {
     const section = ADMIN_SECTIONS[segments[1]];
     if (section) {
+      if (UNDER_PLATFORM.has(segments[1])) crumbs.push({ label: ADMIN_SECTIONS.platform, path: '/admin/platform' });
       crumbs.push({ label: section, path: `/admin/${segments[1]}` });
     }
   }

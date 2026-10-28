@@ -120,7 +120,7 @@ référentiels, membres de groupes, téléchargements passés.
 
 ## Module d'administration
 
-`/admin/audit`, carte « Journal d'audit » d'Administration, admins de plateforme
+`/admin/audit`, ouvert depuis la page Plateforme (`/admin/platform`) d'Administration, admins de plateforme
 seulement (page chargée à la demande, hors du bundle des autres rôles).
 
 - Liste du plus récent au plus ancien (une icône de tri inverse l'ordre,

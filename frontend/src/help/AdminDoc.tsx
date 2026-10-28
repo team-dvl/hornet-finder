@@ -82,7 +82,7 @@ export default function AdminDoc() {
           notification n&apos;est pas rappelé. L&apos;essai de l&apos;appareil n&apos;est jamais suspendu.
         </p>
         <p className="mb-0">
-          Chaque changement est inscrit au journal d&apos;audit (qui, quand, quelles sortes).
+          Chaque changement est inscrit au journal d&apos;audit (qui, quand, quelles sortes), que la page ouvre d&apos;un toucher.
         </p>
       </section>
 
@@ -107,7 +107,7 @@ export default function AdminDoc() {
           dans votre compte au moment de la consultation.
         </p>
         <p>
-          <strong>Consulter</strong> (administrateurs) : <em>Administration → Journal d&apos;audit</em>,
+          <strong>Consulter</strong> (administrateurs) : <em>Administration → Plateforme → Journal d&apos;audit</em>,
           du plus récent au plus ancien (l&apos;icône de tri inverse l&apos;ordre), filtré par période,
           domaine, action, personne, source ou texte.
           L&apos;icône <i className="bi bi-clock-history" aria-hidden="true" /> <em>Historique</em> d&apos;une

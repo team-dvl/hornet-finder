@@ -194,6 +194,15 @@ export default function PlatformDashboard() {
               </ListGroup>
             </Card>
 
+            <h2 className="h6 text-uppercase text-muted mb-2">Journal</h2>
+            <ListGroup className="mb-4">
+              <ListGroup.Item action as={Link} to="/admin/audit" className="d-flex align-items-center gap-2">
+                <i className="bi bi-clock-history fs-5" aria-hidden="true" />
+                <span className="flex-grow-1">Journal d&apos;audit</span>
+                <i className="bi bi-chevron-right text-muted" aria-hidden="true" />
+              </ListGroup.Item>
+            </ListGroup>
+
             <h2 className="h6 text-uppercase text-muted mb-2 d-flex align-items-center">
               Planificateur
               <HelpTip id="platform-scheduler-help" title="Planificateur">
