@@ -31,23 +31,28 @@ function StatRow({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** What became of the deliveries of a period: accepted of all, then the exceptions. */
+/** What became of the deliveries of a period: accepted of all, then the exceptions, under the period. */
 function WindowRow({ label, data }: { label: string; data: DeliveryWindow }) {
-  if (data.deliveries === 0) {
-    return <StatRow label={label}><span className="text-muted">aucun envoi</span></StatRow>;
-  }
   return (
-    <StatRow label={label}>
-      <strong>{data.accepted}</strong>
-      <span className="text-muted"> / {data.deliveries} acceptés</span>
-      {data.gone > 0 && <Badge bg="warning" text="dark" className="ms-1">{data.gone} retirés</Badge>}
-      {data.failed > 0 && <Badge bg="danger" className="ms-1">{data.failed} en erreur</Badge>}
-      {data.paused > 0 && <Badge bg="secondary" className="ms-1">{data.paused} suspendus</Badge>}
-      {data.waiting > 0 && <Badge bg="secondary" className="ms-1">{data.waiting} en cours</Badge>}
-      {data.median_seconds !== null && (
-        <span className="d-block small text-muted">affichage : {data.median_seconds} s (médiane)</span>
+    <ListGroup.Item className="bg-transparent">
+      <div>{label}</div>
+      {data.deliveries === 0 ? (
+        <div className="text-muted">aucun envoi</div>
+      ) : (
+        <>
+          <div className="d-flex flex-wrap align-items-center gap-1">
+            <span><strong>{data.accepted}</strong><span className="text-muted"> / {data.deliveries} acceptés</span></span>
+            {data.gone > 0 && <Badge bg="warning" text="dark">{data.gone} retirés</Badge>}
+            {data.failed > 0 && <Badge bg="danger">{data.failed} en erreur</Badge>}
+            {data.paused > 0 && <Badge bg="secondary">{data.paused} suspendus</Badge>}
+            {data.waiting > 0 && <Badge bg="secondary">{data.waiting} en cours</Badge>}
+          </div>
+          {data.median_seconds !== null && (
+            <div className="small text-muted">affichage : {data.median_seconds} s (médiane)</div>
+          )}
+        </>
       )}
-    </StatRow>
+    </ListGroup.Item>
   );
 }
 

@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette – Plateforme</title>
+<style>
+  :root { --bg:#f1f3f5; --card:#fff; --ink:#212529; --muted:#6c757d; --line:#dee2e6;
+          --pri:#b8860b; --pri-ink:#fff; --danger:#c0392b; --ok:#2e7d32; --warn:#b26a00; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14171a; --card:#1e2226; --ink:#e9ecef; --muted:#9aa3ab; --line:#343a40; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.4 system-ui,sans-serif; }
+  h1 { font-size:1.25rem; margin:0; }
+  header.doc { padding:16px; max-width:1500px; margin:auto; }
+  header.doc p { color:var(--muted); margin:.25rem 0 0; }
+  .board { display:flex; flex-wrap:wrap; gap:24px; padding:0 16px 32px; max-width:1500px; margin:auto; }
+  figure { margin:0; }
+  figcaption { font-size:.85rem; color:var(--muted); margin:0 0 8px; max-width:390px; }
+  figcaption b { color:var(--ink); }
+  .phone { width:390px; height:760px; background:var(--card); border:1px solid var(--line);
+           border-radius:28px; overflow:hidden; position:relative; display:flex; flex-direction:column; }
+  .nav { display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid var(--line); min-height:48px; }
+  .nav .back { color:var(--pri); text-decoration:none; white-space:nowrap; }
+  .nav .cur { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .nav .menu { margin-left:auto; font-size:1.25rem; }
+  .body { flex:1; overflow:hidden; padding:12px; }
+  .desc { color:var(--muted); font-size:.9rem; margin:0 0 10px; }
+  .seg { display:flex; border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:12px; }
+  .seg span { flex:1; text-align:center; padding:10px 4px; min-height:44px; font-size:.9rem; }
+  .seg span.on { background:var(--pri); color:var(--pri-ink); font-weight:600; }
+  .seg small { opacity:.85; }
+  .row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); min-height:56px; }
+  .row:last-child { border-bottom:0; }
+  .av { width:36px; height:36px; border-radius:50%; background:var(--line); display:grid; place-items:center;
+        font-weight:600; flex-shrink:0; }
+  .grow { flex:1; min-width:0; }
+  .name { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sub { font-size:.8rem; color:var(--muted); }
+  .badge { font-size:.72rem; padding:2px 8px; border-radius:99px; border:1px solid var(--line); white-space:nowrap; }
+  .badge.adm { background:var(--pri); color:var(--pri-ink); border-color:var(--pri); }
+  .badge.warn { color:var(--warn); border-color:var(--warn); }
+  .ib { width:44px; height:44px; border:1px solid var(--line); border-radius:10px; display:grid; place-items:center;
+        background:transparent; color:var(--ink); flex-shrink:0; }
+  .btn { display:block; width:100%; min-height:44px; padding:10px; border-radius:10px; border:1px solid var(--line);
+         background:transparent; color:var(--ink); text-align:center; font-size:1rem; margin-top:8px; }
+  .btn.pri { background:var(--pri); color:var(--pri-ink); border-color:var(--pri); font-weight:600; }
+  .btn.danger { color:var(--danger); border-color:var(--danger); }
+  .btn.solid-danger { background:var(--danger); color:#fff; border-color:var(--danger); font-weight:600; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+  .chip { padding:8px 12px; min-height:44px; border:1px solid var(--line); border-radius:99px; display:flex; align-items:center; font-size:.9rem; }
+  .chip.on { background:var(--pri); color:var(--pri-ink); border-color:var(--pri); }
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px; }
+  .stats div { border:1px solid var(--line); border-radius:10px; padding:8px; text-align:center; }
+  .stats b { display:block; font-size:1.25rem; }
+  .stats span { font-size:.75rem; color:var(--muted); }
+  input, select { width:100%; min-height:44px; font-size:16px; padding:8px 10px; border:1px solid var(--line);
+                  border-radius:10px; background:var(--card); color:var(--ink); }
+  .veil { position:absolute; inset:0; background:rgba(0,0,0,.45); }
+  .sheet { position:absolute; left:0; right:0; bottom:0; background:var(--card); border-radius:18px 18px 0 0;
+           padding:16px 12px 20px; box-shadow:0 -4px 20px rgba(0,0,0,.25); }
+  .sheet h2 { font-size:1.05rem; margin:0 0 2px; }
+  .modal { position:absolute; left:16px; right:16px; top:210px; background:var(--card); border-radius:14px; padding:16px; }
+  .modal h2 { font-size:1.05rem; margin:0 0 8px; }
+  .modal p { margin:0 0 6px; font-size:.92rem; }
+  .log { font-size:.85rem; }
+  .log .row { min-height:48px; }
+  .help { display:inline-grid; place-items:center; width:20px; height:20px; border-radius:50%; border:1px solid var(--muted);
+          font-size:.7rem; color:var(--muted); margin-left:6px; }
+  .legend { max-width:1500px; margin:0 auto; padding:0 16px 40px; color:var(--muted); font-size:.85rem; }
+  .alert-ok { background:#e8f5e9; color:#1b5e20; border:1px solid #c8e6c9; border-radius:10px; padding:10px 12px; margin:0 0 12px; font-size:.92rem; }
+  .field { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); min-height:48px; }
+  .field .l { color:var(--muted); font-size:.85rem; }
+  .switch { width:46px; height:26px; border-radius:99px; background:var(--pri); position:relative; flex-shrink:0; }
+  .switch::after { content:""; position:absolute; right:3px; top:3px; width:20px; height:20px; border-radius:50%; background:#fff; }
+  .switch.off { background:#ced4da; } .switch.off::after { right:auto; left:3px; }
+  .full { position:absolute; inset:0; background:var(--card); display:flex; flex-direction:column; }
+  .full .hd { display:flex; align-items:center; padding:12px; border-bottom:1px solid var(--line); font-weight:600; }
+  .full .hd span:last-child { margin-left:auto; font-size:1.3rem; font-weight:400; }
+  .full .bd { flex:1; padding:12px; }
+  .full .ft { padding:12px; border-top:1px solid var(--line); }
+  label { display:block; font-size:.9rem; margin:0 0 4px; }
+  textarea { width:100%; font:16px system-ui; padding:8px 10px; border:1px solid var(--line); border-radius:10px; background:var(--card); color:var(--ink); min-height:110px; }
+  .count { text-align:right; font-size:.8rem; color:var(--muted); }
+  .lock { background:linear-gradient(160deg,#2b3a55,#1a2233); color:#fff; border-radius:28px; width:390px; height:780px; padding:60px 14px 14px; position:relative; overflow:hidden; }
+  .lock .time { text-align:center; font-size:3.4rem; font-weight:300; margin-bottom:6px; }
+  .lock .date { text-align:center; opacity:.8; margin-bottom:44px; }
+  .notif { background:rgba(255,255,255,.18); backdrop-filter:blur(8px); border-radius:18px; padding:12px; display:flex; gap:10px; margin-bottom:10px; }
+  .notif .ic, .home .ic { width:38px; height:38px; border-radius:9px; background:var(--pri); display:grid; place-items:center; font-weight:700; flex-shrink:0; position:relative; color:#fff; }
+  .notif b { display:block; } .notif small { opacity:.75; margin-left:auto; }
+  .home { background:linear-gradient(160deg,#3b5b78,#1f2d3d); color:#fff; border-radius:28px; width:390px; height:780px; padding:70px 30px; position:relative; }
+  .home .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:26px 10px; text-align:center; font-size:.7rem; }
+  .home .ic { width:58px; height:58px; border-radius:14px; margin:0 auto 4px; font-size:1.6rem; }
+  .home .dot { position:absolute; top:-6px; right:-6px; min-width:22px; height:22px; border-radius:99px; background:#e53935; font-size:.8rem; display:grid; place-items:center; padding:0 5px; border:2px solid transparent; }
+  .home .ic.plain { background:rgba(255,255,255,.25); }
+  .tag { display:inline-block; font-size:.72rem; padding:2px 8px; border-radius:99px; background:#fff3cd; color:#7a5b00; border:1px solid #ffe69c; }
+  .ok { color:#1b5e20; border-color:#1b5e20; } .bad { color:var(--danger); border-color:var(--danger); }
+  .phone.tall { height:auto; min-height:760px; }
+  .sec { display:flex; align-items:center; justify-content:space-between; margin:14px 0 6px; }
+  .sec h3 { margin:0; font-size:.78rem; text-transform:uppercase; letter-spacing:.03em; color:var(--muted); display:flex; align-items:center; }
+  .card { border:1px solid var(--line); border-radius:10px; padding:0 12px; }
+  .card.stat { padding:0; }
+  .sw { display:flex; align-items:center; gap:12px; min-height:56px; padding:8px 0; border-bottom:1px solid var(--line); }
+  .sw:last-child { border-bottom:0; }
+  .sw .ic { width:32px; text-align:center; font-size:1.25rem; flex-shrink:0; }
+  .st { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid var(--line); min-height:48px; }
+  .st:last-child { border-bottom:0; }
+  .st .v { text-align:right; }
+  .pill { font-size:.72rem; padding:2px 8px; border-radius:99px; color:#fff; white-space:nowrap; margin-left:4px; }
+  .pill.ok { background:var(--ok); } .pill.ko { background:var(--danger); } .pill.wn { background:#f0ad4e; color:#212529; } .pill.gr { background:#6c757d; }
+  .sw .switch.part { background:#ced4da; }
+  .banner { background:#fff3cd; color:#664d03; border:1px solid #ffe69c; border-radius:10px; padding:10px 12px; margin:0 0 12px; font-size:.92rem; }
+  @media (prefers-color-scheme: dark) { .banner { background:#332701; color:#ffda6a; border-color:#997404; } .switch.off,.sw .switch.part { background:#495057; } }
+</style>
+</head>
+<body>
+<header class="doc">
+  <h1>Tableau de bord de la plateforme – maquette (phone d'abord, 390 px)</h1>
+  <p>Maquette statique, données fictives. Reproduit les écrans de la branche <code>feat/platform-dashboard</code> (<code>/admin/platform</code>, réservé aux administrateurs de la plateforme).</p>
+</header>
+<div class="board">
+<figure><figcaption><b>1. Administration → Plateforme, tout actif.</b> Un interrupteur général, puis un par sorte. Le général est « actif » quand rien n'est suspendu. Appareils, sort des envois, planificateur en dessous (lecture seule).</figcaption><div class="phone tall"><div class="nav"><a class="back">‹ Administration</a><span class="cur">Plateforme</span><span class="menu">☰</span></div><div class="body"><div class="desc">L'état de la plateforme et les notifications pour tout le monde.</div>
+<div class="sec" style="margin-top:4px"><h3>Notifications <span class="help">?</span></h3><button class="ib" aria-label="Actualiser">↻</button></div>
+<div class="card"><div class="sw"><span class="ic">🔔</span><div class="grow"><div>Toutes les notifications</div><div class="sub">modifié le 21/10/2026 09:12</div></div><span class="switch"></span></div><div class="sw"><span class="ic">🪤</span><div class="grow"><div>Rappels de relevé</div></div><span class="switch"></span></div><div class="sw"><span class="ic">🧪</span><div class="grow"><div>Rappels d'attractif</div></div><span class="switch"></span></div><div class="sw"><span class="ic">🏴</span><div class="grow"><div>Tous les nouveaux nids</div></div><span class="switch"></span></div><div class="sw"><span class="ic">🍯</span><div class="grow"><div>Nids près de mes ruchers</div></div><span class="switch"></span></div><div class="sw"><span class="ic">📍</span><div class="grow"><div>Suivi de mes signalements</div></div><span class="switch"></span></div><div class="sw"><span class="ic">👥</span><div class="grow"><div>Messages de mon groupe</div></div><span class="switch"></span></div><div class="sw"><span class="ic">📣</span><div class="grow"><div>Messages de la plateforme</div></div><span class="switch"></span></div></div>
+<div class="sec"><h3>Appareils</h3></div>
+<div class="card stat"><div class="st"><span>Appareils abonnés</span><b>38</b></div><div class="st"><span>Personnes</span><span><b>27</b> <span style="color:var(--muted)">sur 61</span></span></div><div class="st"><span>Android · Chrome</span><span>21</span></div><div class="st"><span>iOS · Safari</span><span>14</span></div><div class="st"><span>Windows · Edge</span><span>2</span></div><div class="st"><span>macOS · Safari</span><span>1</span></div></div>
+<div class="sec"><h3>Envois</h3><button class="btn" style="width:auto;margin:0;padding:8px 14px">☰ Détail</button></div>
+<div class="card stat"><div class="st" style="display:block"><div>24 dernières heures</div><span style="white-space:nowrap"><b>112</b> <span style="color:var(--muted)">/ 118 acceptés</span></span><span class="pill wn">4 retirés</span><span class="pill ko">2 en erreur</span><div class="sub">affichage : 2,8 s (médiane)</div></div><div class="st" style="display:block"><div>7 derniers jours</div><span style="white-space:nowrap"><b>640</b> <span style="color:var(--muted)">/ 671 acceptés</span></span><span class="pill wn">21 retirés</span><span class="pill ko">6 en erreur</span><span class="pill gr">4 suspendus</span><div class="sub">affichage : 3,1 s (médiane)</div></div></div>
+<div class="sec"><h3>Planificateur <span class="help">?</span></h3></div>
+<div class="card stat"><div class="st"><span>État</span><span class="pill ok">en marche</span></div><div class="st"><span>Dernier passage</span><span>28/10/2026 15:04</span></div></div></div></div></figure>
+<figure><figcaption><b>2. Deux sortes suspendues (nids).</b> Le général est « coupé » et dit combien (« 2 sur 7 »). Le toucher depuis cet état reprend tout. Ici le planificateur est en retard (aucun passage depuis plus de 30 min) et 3 événements de nids attendent la reprise.</figcaption><div class="phone tall"><div class="nav"><a class="back">‹ Administration</a><span class="cur">Plateforme</span><span class="menu">☰</span></div><div class="body"><div class="desc">L'état de la plateforme et les notifications pour tout le monde.</div>
+<div class="sec" style="margin-top:4px"><h3>Notifications <span class="help">?</span></h3><button class="ib" aria-label="Actualiser">↻</button></div>
+<div class="card"><div class="sw"><span class="ic">🔔</span><div class="grow"><div>Toutes les notifications</div><div class="sub">2 sur 7 suspendues · modifié le 28/10/2026 14:31</div></div><span class="switch off"></span></div><div class="sw"><span class="ic">🪤</span><div class="grow"><div>Rappels de relevé</div></div><span class="switch"></span></div><div class="sw"><span class="ic">🧪</span><div class="grow"><div>Rappels d'attractif</div></div><span class="switch"></span></div><div class="sw"><span class="ic">🏴</span><div class="grow"><div>Tous les nouveaux nids</div></div><span class="switch off"></span></div><div class="sw"><span class="ic">🍯</span><div class="grow"><div>Nids près de mes ruchers</div></div><span class="switch off"></span></div><div class="sw"><span class="ic">📍</span><div class="grow"><div>Suivi de mes signalements</div></div><span class="switch"></span></div><div class="sw"><span class="ic">👥</span><div class="grow"><div>Messages de mon groupe</div></div><span class="switch"></span></div><div class="sw"><span class="ic">📣</span><div class="grow"><div>Messages de la plateforme</div></div><span class="switch"></span></div></div>
+<div class="sec"><h3>Appareils</h3></div>
+<div class="card stat"><div class="st"><span>Appareils abonnés</span><b>38</b></div><div class="st"><span>Personnes</span><span><b>27</b> <span style="color:var(--muted)">sur 61</span></span></div><div class="st"><span>Android · Chrome</span><span>21</span></div><div class="st"><span>iOS · Safari</span><span>14</span></div><div class="st"><span>Windows · Edge</span><span>2</span></div><div class="st"><span>macOS · Safari</span><span>1</span></div></div>
+<div class="sec"><h3>Envois</h3><button class="btn" style="width:auto;margin:0;padding:8px 14px">☰ Détail</button></div>
+<div class="card stat"><div class="st" style="display:block"><div>24 dernières heures</div><span style="white-space:nowrap"><b>112</b> <span style="color:var(--muted)">/ 118 acceptés</span></span><span class="pill wn">4 retirés</span><span class="pill ko">2 en erreur</span><div class="sub">affichage : 2,8 s (médiane)</div></div><div class="st" style="display:block"><div>7 derniers jours</div><span style="white-space:nowrap"><b>640</b> <span style="color:var(--muted)">/ 671 acceptés</span></span><span class="pill wn">21 retirés</span><span class="pill ko">6 en erreur</span><span class="pill gr">4 suspendus</span><div class="sub">affichage : 3,1 s (médiane)</div></div></div>
+<div class="sec"><h3>Planificateur <span class="help">?</span></h3></div>
+<div class="card stat"><div class="st"><span>État</span><span class="pill ko">en retard</span></div><div class="st"><span>Dernier passage</span><span>28/10/2026 15:04</span></div><div class="st"><span>Événements de nids en attente</span><b>3</b></div></div></div></div></figure>
+<figure><figcaption><b>3. Confirmation avant de suspendre.</b> Pleine page sur phone (<code>ConfirmDialog</code>). Reprendre est immédiat, sans confirmation. Chaque changement est inscrit au journal d'audit.</figcaption><div class="phone"><div class="nav"><a class="back">‹ Administration</a><span class="cur">Plateforme</span><span class="menu">☰</span></div><div class="body"></div><div class="full"><div class="hd"><span>Suspendre toutes les notifications ?</span><span>✕</span></div>
+<div class="bd"><p>Plus aucune notification ne partira pour personne, sauf les essais. Vous pourrez les reprendre ici à tout moment.</p></div>
+<div class="ft"><button class="btn" style="margin:0 0 8px">Annuler</button><button class="btn" style="margin:0;background:#f0ad4e;border-color:#f0ad4e;color:#212529;font-weight:600">🔕 Suspendre</button></div></div></div></figure>
+<figure><figcaption><b>4. Ce que voit chacun</b> (<code>/notifications</code>) : un bandeau, et la mention sur les sortes suspendues. Les réglages personnels restent modifiables ; les interrupteurs gardent leur état.</figcaption><div class="phone tall"><div class="nav"><a class="back">‹ Administration</a><span class="cur">Notifications</span><span class="menu">☰</span></div><div class="body"><div class="desc">Les rappels et les messages que vous recevez, et sur quels appareils.</div>
+<div class="banner">Les administrateurs ont suspendu certaines notifications pour le moment.</div>
+<div class="sec" style="margin-top:0"><h3>Sur cet appareil</h3></div>
+<div class="card"><div class="sw"><span class="ic">📱</span><div class="grow"><div>Cet appareil</div></div><span class="switch"></span></div></div>
+<div class="sec"><h3>Me prévenir pour</h3></div>
+<div class="card"><div class="sw"><span class="ic">🪤</span><div class="grow"><div>Rappels de relevé</div></div><span class="switch"></span></div><div class="sw"><span class="ic">🧪</span><div class="grow"><div>Rappels d'attractif</div></div><span class="switch"></span></div><div class="sw"><span class="ic">🏴</span><div class="grow"><div>Tous les nouveaux nids</div><div class="sub">Suspendu par les administrateurs</div></div><span class="switch"></span></div><div class="sw"><span class="ic">🍯</span><div class="grow"><div>Nids près de mes ruchers</div><div class="sub">Suspendu par les administrateurs</div></div><span class="switch"></span></div><div class="sw"><span class="ic">📍</span><div class="grow"><div>Suivi de mes signalements</div></div><span class="switch"></span></div><div class="sw"><span class="ic">👥</span><div class="grow"><div>Messages de mon groupe</div></div><span class="switch"></span></div><div class="sw"><span class="ic">📣</span><div class="grow"><div>Messages de la plateforme</div></div><span class="switch"></span></div></div></div></div></figure>
+</div>
+</body>
+</html>
