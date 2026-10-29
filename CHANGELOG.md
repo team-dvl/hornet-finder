@@ -29,6 +29,7 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 
 ### Security
 - Keycloak 26.8.0 → 26.8.1 (released 2026-10-13): security fixes, among them a 2FA enforcement bypass, a PAR single-use bypass and authorization issues; the Authorization Services are not enabled here. Prod note `0027`.
+- Frontend `npm audit fix` (lockfile only, no change to `package.json`): zod 4.5.4 → 4.6.7 (high), follow-redirects 1.16.0 → 1.16.2 (high), fast-uri 3.1.8 → 3.1.9 (moderate and low), serialize-javascript 7.1.2 → 7.1.4 (low). 8 vulnerabilities (5 low, 1 moderate, 2 high) → 4 low, none in production dependencies (`npm audit --omit=dev`: 0). The remaining four are the `deepmerge` 4.3.1 chain pulled by `workbox-build` (prototype poisoning in `mergeObject()`), with no fix other than a downgrade of `vite-plugin-pwa`; the built `dist` is byte-identical.
 
 ### Changed
 - The audit trail and the deliveries of the notifications (device by device) are opened from the platform
