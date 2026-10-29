@@ -281,7 +281,7 @@ const PERSON_FIELDS = new Set(['owner', 'created_by', 'performed_by', 'generated
 
 /** Kinds of notifications the platform admins hold back or resume */
 const NOTIFICATION_KINDS: Record<string, string> = {
-  trap_reading: 'Rappels de relevé', trap_refill: "Rappels d'attractif", nest_new: 'Tous les nouveaux nids',
+  trap_reading: 'Rappels de relevé', trap_refill: "Rappels d'attractif", trap_handover: 'Pièges transférés', nest_new: 'Tous les nouveaux nids',
   nest_near_apiary: 'Nids près des ruchers', nest_followup: 'Suivi des signalements',
   group_message: 'Messages de groupe', platform_message: 'Messages de la plateforme',
 };

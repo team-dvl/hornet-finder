@@ -94,7 +94,7 @@ Un volet « Recevoir les rappels ? » s'ouvre une seule fois par appareil (`Push
 
 - **Rappels de pièges** : la sorte suspendue est sautée sans toucher à `TrapReminder` ; les rappels dus partent à la reprise, dans les heures d'envoi.
 - **Alertes de nids** : un événement dont une personne attend un message d'une sorte suspendue reste en attente (`alerted_at` vide) ; les autres personnes sont prévenues normalement, et `NestAlert` évite tout doublon à la reprise. Un événement de plus de `EXPIRY` (48 h) est abandonné, suspendu ou non : une pause plus longue perd ces alertes.
-- **Messages de groupe et de la plateforme** : refusés (503, code `paused`) tant que leur sorte est suspendue. L'avis de transfert d'un nid (« Suivi de mes signalements ») est une action de personne : il n'est pas gardé.
+- **Messages de groupe et de la plateforme** : refusés (503, code `paused`) tant que leur sorte est suspendue. Les avis de transfert d'un nid (« Suivi de mes signalements ») et d'un piège (« Pièges qui me sont transférés ») sont des actions de personne : ils ne sont pas gardés.
 - **Déjà en file** : `push._send_one` revérifie au moment de l'envoi ; la livraison prend le statut `1` (`STATUS_PAUSED`, « suspendu » dans *Notifications*) et l'appareil reste abonné. Ce qui est déjà chez le service de notification (TTL 24 h) n'est pas rappelé.
 - **L'essai** d'un appareil (sorte `test`) n'est jamais suspendu. `GET /api/push/config/` indique `paused_kinds` : la page *Notifications* de chacun prévient.
 - **Journal d'audit** : `platform.notifications_changed` (sortes suspendues et reprises).

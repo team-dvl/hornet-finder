@@ -12,6 +12,7 @@ import { pushErrorOf, type NotificationKind } from '../../utils/pushApi';
 const KIND_ICONS: Record<NotificationKind, string> = {
   trap_reading: '🪤',
   trap_refill: '🧪',
+  trap_handover: '🤝',
   nest_new: '🏴',
   nest_near_apiary: '🍯',
   nest_followup: '📍',

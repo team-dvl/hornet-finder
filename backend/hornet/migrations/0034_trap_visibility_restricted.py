@@ -22,7 +22,7 @@ def backwards(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('hornet', '0032_nest_owner'),
+        ('hornet', '0033_platformsettings'),
     ]
 
     operations = [

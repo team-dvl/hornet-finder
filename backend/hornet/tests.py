@@ -544,7 +544,7 @@ class TrapVisibilityInvariantTests(TrapTestCase):
     def test_the_migration_restricts_former_group_traps_and_apiary_bound_ones(self):
         import importlib
         from django.apps import apps
-        migration = importlib.import_module('hornet.migrations.0033_trap_visibility_restricted')
+        migration = importlib.import_module('hornet.migrations.0034_trap_visibility_restricted')
         former_group = self.trap
         bound = Trap.objects.create(latitude=50.5, longitude=4.5, owner=self.owner, trap_type=self.harp,
                                     installed_at=timezone.now().date())
@@ -1213,6 +1213,17 @@ class TrapOwnerTransferTests(TrapTestCase):
         [notification] = PushNotification.objects.filter(kind='trap_handover')
         self.assertEqual(str(notification.recipient), str(self.colleague_guid))
         self.assertEqual(notification.url, f'/traps?trap={self.trap.id}')
+
+    def test_a_kind_held_back_by_the_platform_is_neither_sent_nor_kept(self):
+        from hornet.models import PlatformSettings, PushNotification
+        PlatformSettings.objects.create(pk=1, paused_kinds=['trap_handover'])
+        with patch('hornet.reminders.push.enabled', return_value=True), \
+                patch('hornet.reminders.push.queue', return_value=1) as queue, \
+                patch('hornet.reminders.push.dispatch'):
+            # The hand-over itself is not held back
+            self.assertEqual(self._put(self.group_admin_user, self.colleague_guid, self.group_path).status_code, 200)
+        self.assertFalse(queue.called)
+        self.assertFalse(PushNotification.objects.filter(kind='trap_handover').exists())
 
     def test_a_person_who_turned_the_kind_off_is_not_notified(self):
         from hornet.models import PushNotification

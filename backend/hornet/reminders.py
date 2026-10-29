@@ -176,11 +176,14 @@ def _summary(items: list) -> dict:
 def tell_new_owner(trap, owner, sender) -> int:
     """
     Tell `owner` the trap was handed over to them, unless they handed it to
-    themselves or turned that kind off. Called inside the transaction of the
+    themselves, turned that kind off, or the platform holds it back (the action
+    of a person is not kept for later). Called inside the transaction of the
     change: the sending starts once it is committed, at any hour, as it is the
     action of a person. Returns the number of devices.
     """
     if not push.enabled() or str(owner.guid) == str(sender) or not kinds.wants(owner, kinds.TRAP_HANDOVER):
+        return 0
+    if kinds.TRAP_HANDOVER in push.paused_kinds():  # an action of a person: not kept for later
         return 0
     notification = PushNotification.objects.create(
         sender=sender, recipient=owner.guid, recipients_count=1, kind=kinds.TRAP_HANDOVER,
