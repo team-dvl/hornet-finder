@@ -2,7 +2,7 @@
 
 Gestion des ruches et des colonies, à côté de la lutte contre le frelon : ruchers, ruches, colonies, visites (planifiées puis rapportées), photos. Public : les petits ruchers familiaux, conduits pour le maintien de l'espèce et la pollinisation, sans orientation miel. Le varroa est géré par la rupture de ponte (division, essaimage), sans traitement chimique.
 
-Statut : **conception validée, rien n'est encore implémenté.** La reprise des données de l'application Glide actuelle est un projet séparé (voir « Reprise Glide » en fin de document) ; ce module lui réserve seulement un point d'ancrage.
+Statut : **étape 1 (ruches) implémentée** (app Django `apiculture`, onglet *Ruches* du module *Ruchers*), étapes suivantes à venir. La reprise des données de l'application Glide actuelle est un projet séparé (voir « Reprise Glide » en fin de document) ; ce module lui réserve seulement un point d'ancrage.
 
 ## Décisions
 
@@ -45,7 +45,7 @@ Valeurs initiales : TBH, TBH Chandler, Warré, tronc, nucleus. La vue détaillé
 
 ### Rucher (`hornet.Apiary`, existant)
 
-Inchangé, plus un **hébergeur** facultatif : un compte, ou à défaut un nom en texte libre. Le rucher garde sa position, son responsable (`owner`), son numéro AFSCA et son partage par groupe.
+Inchangé, plus un **hébergeur** facultatif (`host_name`) : un nom en texte libre, jamais écrit dans le journal d'audit (le lien vers un compte viendra si le besoin se confirme). Le rucher garde sa position, son responsable (`owner`), son numéro AFSCA et son partage par groupe.
 
 ### Ruche (`Hive`)
 
@@ -53,7 +53,7 @@ Inchangé, plus un **hébergeur** facultatif : un compte, ou à défaut un nom e
 - `status` : en service, remisée, réformée.
 - Propriétaire : `owner_group` **ou** `owner_user` (contrainte de base : exactement un des deux).
 - `keeper` : l'apiculteur à qui la ruche est confiée.
-- `divider_bar` : position de la cloison (numéro de barrette), vide sans cloison.
+- `divider_bar` (étape 2) : position de la cloison (numéro de barrette), vide sans cloison.
 - `external_ref` : identifiant dans une source externe (reprise Glide), unique quand renseigné.
 - Historiques datés (du, au) : **emplacements** (`HivePlacement` : ruche, rucher) et **responsables** (`HiveCustody` : ruche, apiculteur). Une ruche remisée n'a pas d'emplacement courant.
 
@@ -136,11 +136,11 @@ La saisie de terrain (visites, inspections, photos, événements de colonie) fon
 
 ## Étapes
 
-Chaque étape est livrable seule, avec ses tests, son audit, son aide (`help/ApicultureDoc.tsx`, `anchors.ts`) et un passage de `./ui-shots.sh`.
+Chaque étape est livrable seule, avec ses tests, son audit, son aide (section `apiaries#hives` de `help/ApiariesDoc.tsx` tant que le module reste celui des ruchers) et un passage de `./ui-shots.sh`.
 
 | # | Étape | Contenu |
 |---|---|---|
-| 1 | Ruches | `HiveType` (référentiel et administration), `Hive`, emplacements et responsables datés, hébergeur du rucher, liste des ruches par rucher, fiche ruche |
+| 1 ✅ | Ruches | `HiveType` (référentiel et administration), `Hive`, emplacements et responsables datés, hébergeur du rucher, liste des ruches par rucher, fiche ruche. Reportés : photo de ruche (la vue des médias résout les droits par chemin, à étendre au module), changement de propriétaire d'une ruche |
 | 2 | Colonies | occupation par compartiment, cloison, événements (division, essaimage, transfert, fin), généalogie |
 | 3 | Socle hors ligne | cache de lecture, file d'envoi, photos en attente, indicateur, persistance du stockage |
 | 4 | Journal de visites | visite d'un rucher, inspections par colonie, participants, photos, reprise de configuration, le tout par la file d'envoi |

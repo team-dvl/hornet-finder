@@ -72,6 +72,12 @@ body {
 .module-icon[data-tone='stats'] { color: var(--tone-stats); }
 .module-icon[data-tone='plain'] { color: var(--tone-plain); }
 
+/* A hive, in the lists and sheets of the apiaries module */
+.hive-icon { color: var(--tone-apiary); }
+
+/* The number of a hive, next to its name in the form */
+.hive-number-field { width: 6rem; }
+
 /* Module tiles on the landing page */
 .module-card {
   transition: transform 0.15s ease, box-shadow 0.15s ease;

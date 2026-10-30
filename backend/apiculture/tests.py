@@ -184,6 +184,13 @@ class HiveCreationTests(HiveTestCase):
         # Someone else cannot probe it
         self.assertEqual(self._create(user=self.stranger, id=hive_id).status_code, 400)
 
+    def test_the_associations_offered_are_those_of_the_creator(self):
+        response = self._as(self.member).get('/api/hives/owner-groups/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([g['path'] for g in response.data], [ENA])
+        response = self._as(self.admin).get('/api/hives/owner-groups/')
+        self.assertEqual({g['path'] for g in response.data}, {ENA, OTHER})
+
     def test_trappers_have_no_hives(self):
         trapper = self._user(['trapper'], ['/trappers'])
         self.assertEqual(self._as(trapper).get('/api/hives/').status_code, 403)
@@ -229,6 +236,14 @@ class HiveEditTests(HiveTestCase):
         reader = self._user(['beekeeper'], [ENA])
         response = self._as(reader).patch(f'/api/hives/{hive.pk}/', {'number': '8'}, format='json')
         self.assertEqual(response.status_code, 403)
+
+    def test_the_identifier_of_a_hive_does_not_change(self):
+        hive = self._hive()
+        response = self._as(self.member).patch(f'/api/hives/{hive.pk}/',
+                                               {'id': str(uuid.uuid4()), 'name': 'Renommée'}, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual((response.data['id'], response.data['name']), (str(hive.pk), 'Renommée'))
+        self.assertEqual(Hive.objects.count(), 1)
 
     def test_the_type_of_a_hive_does_not_change(self):
         hive = self._hive()

@@ -82,6 +82,11 @@ class HiveSerializer(serializers.ModelSerializer):
     def validate_number(self, value: str) -> str:
         return value.strip()
 
+    def update(self, instance, validated_data):
+        # The identifier is chosen once, at the creation: a new one would copy the row
+        validated_data.pop('id', None)
+        return super().update(instance, validated_data)
+
     def validate_hive_type(self, value):
         # Bars and colonies are about to depend on the type (colonies, visits):
         # a hive does not change type once created

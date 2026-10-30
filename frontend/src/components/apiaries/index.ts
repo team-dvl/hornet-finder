@@ -5,3 +5,4 @@ export { default as ApiaryListItem } from './ApiaryListItem';
 export { default as ApiaryListToolbar } from './ApiaryListToolbar';
 export { default as ApiaryActionsSheet } from './ApiaryActionsSheet';
 export { INFESTATION_LABELS } from './apiaryLevels';
+export { default as ApiariesTabs } from './ApiariesTabs';

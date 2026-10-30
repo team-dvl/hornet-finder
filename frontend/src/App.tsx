@@ -24,6 +24,8 @@ const StatDetail = lazy(() => import('./pages/stats/StatDetail'));
 const ExportJob = lazy(() => import('./pages/stats/ExportJob'));
 // Platform admins only: kept out of everyone else's bundle
 const AuditTrail = lazy(() => import('./pages/admin/AuditTrail'));
+const HiveTypesAdmin = lazy(() => import('./pages/admin/HiveTypesAdmin'));
+const Hives = lazy(() => import('./pages/Hives'));
 const PlatformDashboard = lazy(() => import('./pages/admin/PlatformDashboard'));
 const PlatformNotifications = lazy(() => import('./pages/admin/PlatformNotifications'));
 const pageFallback = <div className="text-center py-5"><Spinner animation="border" /></div>;
@@ -108,6 +110,10 @@ function App() {
         path="/apiaries"
         element={<RequireRole roles={['beekeeper', 'admin']}><Apiaries /></RequireRole>}
       />
+      <Route
+        path="/apiaries/hives"
+        element={<RequireRole roles={['beekeeper', 'admin']}><Suspense fallback={pageFallback}><Hives /></Suspense></RequireRole>}
+      />
       {/* One trap manager for these paths, so resolving a tag or scanning returns to /traps without remounting it */}
       <Route element={<Traps />}>
         <Route path="/traps" element={null} />
@@ -137,6 +143,10 @@ function App() {
       <Route
         path="/admin/trap-types"
         element={<RequireRole roles={['admin']}><TrapTypesAdmin /></RequireRole>}
+      />
+      <Route
+        path="/admin/hive-types"
+        element={<RequireRole roles={['admin']}><Suspense fallback={pageFallback}><HiveTypesAdmin /></Suspense></RequireRole>}
       />
       <Route
         path="/admin/species"
