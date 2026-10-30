@@ -401,6 +401,9 @@ class Apiary(GeolocatedModel):
     photo = models.ImageField(upload_to=apiary_photo_path, null=True, blank=True)
     photo_thumbnail = models.ImageField(upload_to=apiary_photo_path, null=True, blank=True)
     comments = models.TextField(null=True, blank=True)
+    # Who welcomes the apiary on their land, when it is not the beekeeper: a
+    # person's name, so it never enters the audit trail
+    host_name = models.CharField(max_length=120, blank=True, default='')
     # groups that can access this apiary, with permissions
     allowed_groups = models.ManyToManyField(
         BeekeeperGroup,

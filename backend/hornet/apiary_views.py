@@ -5,10 +5,10 @@ import re
 import uuid
 
 from django.db import transaction
-from django.db.models import F, Prefetch, Q, Value
+from django.db.models import F, Prefetch, ProtectedError, Q, Value
 from django.db.models.functions import Replace
 
-from rest_framework import viewsets
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError as DRFValidationError
 from rest_framework.pagination import PageNumberPagination
@@ -219,13 +219,18 @@ class ApiaryViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
         apiary = self.get_object()
         self._require(apiary, perms.DELETE, "You do not have permission to delete this apiary.")
         files = (apiary.photo, apiary.photo_thumbnail)
-        with transaction.atomic():
-            changes = {**audit.snapshot(apiary), 'shared_with': [
-                share.group.path for share in apiary.apiarygrouppermission_set.select_related('group')]}
-            response = super().destroy(request, *args, **kwargs)
-            audit.record(request, 'apiary.deleted', ('apiary', apiary.pk), changes=changes,
-                         label=audit.label_of(apiary),
-                         refs=[audit.ref('group', path) for path in changes['shared_with']])
+        try:
+            with transaction.atomic():
+                changes = {**audit.snapshot(apiary), 'shared_with': [
+                    share.group.path for share in apiary.apiarygrouppermission_set.select_related('group')]}
+                response = super().destroy(request, *args, **kwargs)
+                audit.record(request, 'apiary.deleted', ('apiary', apiary.pk), changes=changes,
+                             label=audit.label_of(apiary),
+                             refs=[audit.ref('group', path) for path in changes['shared_with']])
+        except ProtectedError:
+            # Hives still stand in it (module `apiculture`): they are moved or stored first
+            return Response({'error': "Hives still stand in this apiary: move or store them first."},
+                            status=status.HTTP_409_CONFLICT)
         _delete_files(*files)
         return response
 

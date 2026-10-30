@@ -58,7 +58,7 @@ def actor_names(guids) -> dict:
 
 # Fields of `changes` holding a person (a GUID, or a [before, after] pair of them)
 PERSON_FIELDS = {'owner', 'created_by', 'performed_by', 'generated_by', 'associated_by', 'revoked_by',
-                 'uploaded_by', 'member'}
+                 'uploaded_by', 'member', 'owner_user', 'keeper'}
 
 
 def people_of(event) -> set:

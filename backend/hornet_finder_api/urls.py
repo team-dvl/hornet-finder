@@ -34,6 +34,7 @@ urlpatterns = [
     path('robots.txt', robots_txt),
     path('api/audit/', include('audit.urls')),
     path('api/', include('hornet.urls')),
+    path('api/', include('apiculture.urls')),
 ]
 
 if settings.DEBUG:
