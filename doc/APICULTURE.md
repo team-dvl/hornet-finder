@@ -14,9 +14,9 @@ Statut : **conception validée, rien n'est encore implémenté.** La reprise des
 | 3 | Propriété d'une ruche | Un groupe **ou** une personne, mutuellement exclusifs |
 | 4 | Public du module | Tous les apiculteurs (rôle `beekeeper`) |
 | 5 | Réseau aux ruchers | Pas garanti : **la saisie de terrain fonctionne hors ligne** |
-| 6 | Compatibilité des barrettes | Nucleus, TBH et TBH Chandler totalement compatibles. Les Warré ont aussi des barrettes (pas de cadres). La ruche tronc n'en a pas |
+| 6 | Compatibilité des barrettes | Nucleus, TBH et TBH Chandler interchangeables entre eux. Les Warré ont aussi des barrettes (pas de cadres), non interchangeables avec les autres. La ruche tronc n'en a pas |
 | 7 | Trou de vol avec cloison | Un par compartiment : les observations d'entrée se notent par colonie |
-| 8 | Nombre maximal de barrettes | Fixe et connu par type de ruche |
+| 8 | Nombre maximal de barrettes | Fixe par type : 24 pour TBH et Chandler (partagées entre les deux colonies quand il y a une cloison), 12 pour le nucleus, 8 par élément de Warré |
 
 ## Architecture
 
@@ -37,8 +37,8 @@ Modifiable par les administrateurs de la plateforme.
 |---|---|
 | `slug`, `name`, `description`, `photo`, `sort_order` | présentation |
 | `bar_family` | barrettes interchangeables entre types de même famille : `topbar` (TBH, Chandler, nucleus), `warre`, vide (tronc) |
-| `max_bars` | nombre maximal de barrettes, fixe par type (nucleus : 12) |
-| `bars_per_box` | Warré : barrettes par élément (la hauteur, elle, varie) |
+| `max_bars` | nombre maximal de barrettes, fixe par type : TBH et Chandler 24, nucleus 12, vide pour Warré et tronc |
+| `bars_per_box` | Warré : 8 barrettes par élément (le nombre d'éléments, lui, varie) |
 | `max_colonies` | 2 pour TBH et Chandler (avec cloison), 1 sinon |
 
 Valeurs initiales : TBH, TBH Chandler, Warré, tronc, nucleus. La vue détaillée propre à chaque type (barrettes d'une Chandler, éléments d'une Warré) est une étape ultérieure.
@@ -161,5 +161,4 @@ Hors de ce module ; ce qu'il en retient pour la conception :
 
 ## Reste à fournir
 
-- Nombre maximal de barrettes d'une TBH et d'une TBH Chandler ; barrettes par élément d'une Warré (8 en Warré classique, à confirmer).
-- Les barrettes Warré sont-elles interchangeables avec celles des TBH ? Hypothèse retenue : non (dimensions différentes), d'où deux familles.
+- Avec une cloison, celle-ci occupe-t-elle une position de barrette (deux colonies : 23 barrettes au plus à elles deux) ? Hypothèse retenue : oui, `divider_bar` est la position de la cloison, le compartiment 1 en deçà, le compartiment 2 au-delà.
