@@ -29,6 +29,13 @@ const SECTIONS: AdminSection[] = [
     roles: [ADMIN],
   },
   {
+    title: 'Types de ruches',
+    description: 'Tenez à jour les modèles de ruches, leurs barrettes et le nombre de colonies accueillies.',
+    icon: 'bi-hexagon-half',
+    to: '/admin/hive-types',
+    roles: [ADMIN],
+  },
+  {
     title: 'Espèces',
     description: "Tenez à jour les espèces proposées lors d'un constat de capture, et leur photo.",
     icon: 'bi-bug',

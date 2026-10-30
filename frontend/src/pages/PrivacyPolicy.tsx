@@ -56,6 +56,7 @@ export default function PrivacyPolicy() {
               <li>Données de géolocalisation des signalements</li>
               <li>Informations techniques relatives aux signalements (photos, descriptions, dates)</li>
               <li>Si vous le donnez en signalant un nid, un numéro de téléphone pour vous rappeler, lu seulement par les coordinateurs des nids</li>
+              <li>Pour les apiculteurs, leurs ruchers et leurs ruches (emplacements successifs, apiculteur à qui chaque ruche est confiée) et, s'ils l'indiquent, le nom de la personne qui accueille un rucher sur son terrain, visible des seules personnes qui voient ce rucher</li>
               <li>Journal des actions faites dans l'application (voir l'article 8)</li>
               <li>Si vous les activez, l'abonnement de vos appareils aux notifications et les notifications envoyées (voir l'article 7)</li>
             </ul>
@@ -153,7 +154,8 @@ export default function PrivacyPolicy() {
               utilisateurs, chaque action faite dans l'application est enregistrée dans un journal :
             </p>
             <ul>
-              <li>signalement, modification ou suppression d'un nid, d'un frelon, d'un rucher ou d'un piège ;</li>
+              <li>signalement, modification ou suppression d'un nid, d'un frelon, d'un rucher, d'une ruche ou d'un piège ;</li>
+              <li>déplacements des ruches et changements de l'apiculteur à qui elles sont confiées ;</li>
               <li>relevés ;</li>
               <li>partages, délégations et transferts ;</li>
               <li>QR Codes ;</li>

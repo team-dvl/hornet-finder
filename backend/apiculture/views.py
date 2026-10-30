@@ -273,6 +273,12 @@ class HiveViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("You cannot place a hive in this apiary.")
         return apiary
 
+    @extend_schema(responses={200: OpenApiResponse(description='[{path, name}]')})
+    @action(detail=False, methods=['get'], url_path='owner-groups')
+    def owner_groups(self, request):
+        """The associations a new hive may belong to, named as in Keycloak."""
+        return Response(_group_choices(perms.owner_group_choices(request)))
+
     def _owner_group(self, path):
         if not path:
             return None

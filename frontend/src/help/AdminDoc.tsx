@@ -41,12 +41,13 @@ export default function AdminDoc() {
       <section data-section="referentials" className="mb-4">
         <h5 className="text-primary">
           <span className="me-2">📚</span>
-          Types de pièges et espèces
+          Types de pièges, de ruches et espèces
         </h5>
         <p className="mb-0">
           Réservé aux administrateurs de la plateforme : les modèles de pièges proposés à la
-          création d&apos;un piège, et les espèces proposées lors d&apos;un relevé, avec leur photo et
-          leur ordre. Un type ou une espèce déjà utilisé ne peut pas être supprimé.
+          création d&apos;un piège, les modèles de ruches (leurs barrettes et le nombre de
+          colonies qu&apos;ils accueillent), et les espèces proposées lors d&apos;un relevé, avec leur
+          photo et leur ordre. Un type ou une espèce déjà utilisé ne peut pas être supprimé.
         </p>
       </section>
 
@@ -104,7 +105,8 @@ export default function AdminDoc() {
         </h5>
         <p>
           Chaque action faite dans l&apos;application est enregistrée : signalement, modification ou
-          suppression d&apos;un nid, d&apos;un frelon, d&apos;un rucher ou d&apos;un piège, visites et
+          suppression d&apos;un nid, d&apos;un frelon, d&apos;un rucher, d&apos;une ruche ou d&apos;un piège,
+          déplacements, remises et changements d&apos;apiculteur des ruches, visites et
           destructions des nids (et le passage des nids non traités à « abandonné » en fin de saison), relevés et
           entrées du journal des pièges, partages, délégations et transferts (et le passage en privé d&apos;un piège
           d&apos;un type lié à un rucher quand son propriétaire devient apiculteur, enregistré comme une action du système), QR Codes, membres et
