@@ -40,6 +40,8 @@ TYPES = {
     'groupinvitation': 'invitation',
     'user': 'user',
     'statexportjob': 'export',
+    'hive': 'hive',
+    'hivetype': 'hive_type',
 }
 
 # Business fields kept in snapshots and diffs; technical ones (`point`,
@@ -62,6 +64,10 @@ FIELDS = {
     'species': ['slug', 'name', 'scientific_name', 'wikipedia_url', 'photo_credit', 'photo_source_url',
                 'sort_order', 'photo'],
     'tag': ['key_index', 'trap', 'generated_by', 'associated_by', 'revoked_by'],
+    'hive': ['name', 'number', 'hive_type', 'status', 'apiary', 'owner_group', 'owner_user', 'keeper',
+             'commissioned_on', 'comments'],
+    'hive_type': ['slug', 'name', 'description', 'sort_order', 'bar_family', 'max_bars', 'bars_per_box',
+                  'max_colonies'],
 }
 
 # Purge of the events past retention, at most once a day per process
@@ -124,6 +130,11 @@ def default_refs(obj) -> list:
         refs.append(ref('group', obj.group.path))
     elif kind == 'invitation':
         refs += [ref('group', obj.group_path), ref('user', obj.invitee_id)]
+    elif kind == 'hive':
+        if obj.apiary_id:
+            refs.append(ref('apiary', obj.apiary_id))
+        if obj.owner_group_id:
+            refs.append(ref('group', obj.owner_group.path))
     return refs
 
 
@@ -140,8 +151,10 @@ def label_of(obj) -> str:
         label = obj.value[2:10]
     elif kind == 'invitation':
         label = obj.group_name
-    elif kind in ('trap_type', 'species'):
+    elif kind in ('trap_type', 'species', 'hive_type'):
         label = obj.name
+    elif kind == 'hive':
+        label = str(obj)
     else:
         label = ''
     return (label or '')[:255]
