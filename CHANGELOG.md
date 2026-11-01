@@ -10,6 +10,8 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-11-01
+
 ### Added
 - Platform dashboard for the platform admins (*Administration → Plateforme*): a switch per kind of
   notification and a general switch to hold them back for everyone, the devices subscribed, what became of the
@@ -496,7 +498,8 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   algorithm-confusion flaws were not reachable; `PyJWKClient` redirect handling
   is fixed.
 
-[Unreleased]: https://github.com/team-dvl/hornet-finder/compare/v1.5.1...HEAD
+[Unreleased]: https://github.com/team-dvl/hornet-finder/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/team-dvl/hornet-finder/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/team-dvl/hornet-finder/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/team-dvl/hornet-finder/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/team-dvl/hornet-finder/compare/v1.3.0...v1.4.0
