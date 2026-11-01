@@ -15,7 +15,7 @@ class HiveTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = HiveType
         fields = ['id', 'slug', 'name', 'description', 'sort_order', 'bar_family', 'max_bars',
-                  'bars_per_box', 'max_colonies', 'hive_count']
+                  'bars_per_box', 'max_colonies', 'portable', 'hive_count']
         extra_kwargs = {
             'max_bars': {'min_value': 1, 'max_value': 99},
             'bars_per_box': {'min_value': 1, 'max_value': 30},
@@ -120,6 +120,7 @@ class HiveSerializer(serializers.ModelSerializer):
         data['max_bars'] = hive_type.max_bars
         data['bars_per_box'] = hive_type.bars_per_box
         data['max_colonies'] = hive_type.max_colonies
+        data['portable'] = hive_type.portable
         data['divider_bar'] = instance.divider_bar
         # The living colonies, prefetched by the viewset as `living_colonies`
         living = getattr(instance, 'living_colonies', None)
@@ -151,7 +152,17 @@ def colony_summary(colony) -> Optional[dict]:
     return {'id': str(colony.pk), 'name': colony.name, 'origin': colony.origin,
             'compartment': colony.compartment, 'bars': colony.bars, 'started_on': colony.started_on,
             'ended_on': colony.ended_on, 'requeening_since': colony.requeening_since,
-            'laying_since': colony.laying_since}
+            'laying_since': colony.laying_since, 'in_hive_since': in_hive_since(colony)}
+
+
+def in_hive_since(colony):
+    """Since when a living colony lives in its hive (its current stay), else None."""
+    if colony.ended_on is not None:
+        return None
+    stays = getattr(colony, 'open_stays', None)
+    if stays is None:
+        stays = list(colony.occupancies.filter(ended_on__isnull=True))
+    return stays[0].started_on if stays else None
 
 
 class ColonySerializer(serializers.ModelSerializer):
@@ -185,8 +196,9 @@ class ColonySerializer(serializers.ModelSerializer):
         hive = instance.hive
         data['hive'] = {'id': str(hive.pk), 'name': hive.name, 'number': hive.number,
                         'status': hive.status, 'hive_type_name': hive.hive_type.name,
-                        'bar_family': hive.hive_type.bar_family,
+                        'bar_family': hive.hive_type.bar_family, 'portable': hive.hive_type.portable,
                         'apiary': _apiary_summary(hive.apiary)}
+        data['in_hive_since'] = in_hive_since(instance)
         data['parent'] = colony_summary(instance.parent)
         data['merged_into'] = colony_summary(instance.merged_into)
         request = self.context.get('request')

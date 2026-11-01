@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { Alert, Button, Form, Spinner } from 'react-bootstrap';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, Button, ButtonGroup, Form, Spinner } from 'react-bootstrap';
 import { HelpTip } from '../common';
 import { AppModal } from '../ui';
 import {
-  compartmentCapacity, countLabel, countOf, createColony, updateColony, type Colony, type NewColonyValues,
+  colonyLabel, compartmentCapacity, countLabel, countOf, createColony, daysBetween, fetchColonies, transferColony,
+  updateColony, type Colony, type NewColonyValues,
 } from '../../utils/coloniesApi';
 import { hiveErrorOf, hiveLabel, today, type Hive } from '../../utils/hivesApi';
 
@@ -23,9 +24,13 @@ const ORIGINS: { value: NewColonyValues['origin']; label: string }[] = [
   { value: 'unknown', label: 'Origine inconnue' },
 ];
 
+type Source = 'existing' | 'new';
+
 /**
- * Put a colony in a hive (a caught swarm, a bought package), or edit one.
- * Divisions and swarms are recorded from the colony they come from.
+ * Put a colony in a hive, or edit one. The colony comes from another hive or
+ * from a nucleus, where it waited a few days (a transfer: it keeps its
+ * identity), or it is new: a caught swarm, a bought package. Divisions and
+ * swarms are recorded from the colony they come from.
  */
 export default function ColonyFormModal({ onHide, onSaved, colony = null, hive, compartment = 1 }: ColonyFormModalProps) {
   const family = colony ? colony.hive.bar_family : hive!.bar_family;
@@ -38,6 +43,34 @@ export default function ColonyFormModal({ onHide, onSaved, colony = null, hive, 
   const [comments, setComments] = useState(colony?.comments ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // New colony: the living colonies it may come from, those in a nucleus first
+  const creating = !colony;
+  const [candidates, setCandidates] = useState<Colony[] | null>(null);
+  const [chosenSource, setChosenSource] = useState<Source | null>(null);
+  const [movedId, setMovedId] = useState('');
+
+  useEffect(() => {
+    if (!creating || !hive) return;
+    let cancelled = false;
+    fetchColonies({ status: 'active' })
+      .then((found) => {
+        if (cancelled) return;
+        setCandidates(found
+          .filter((other) => other.permissions?.edit && !(other.hive.id === hive.id && other.compartment === compartment))
+          .sort((a, b) => Number(b.hive.portable) - Number(a.hive.portable) || colonyLabel(a).localeCompare(colonyLabel(b))));
+      })
+      .catch(() => { if (!cancelled) setCandidates([]); });
+    return () => { cancelled = true; };
+  }, [creating, hive, compartment]);
+
+  // Coming from a nucleus is the usual way; a new colony otherwise
+  const source: Source = chosenSource ?? (candidates?.some((other) => other.hive.portable) ? 'existing' : 'new');
+  const moved = useMemo(
+    () => candidates?.find((other) => other.id === movedId) ?? candidates?.[0],
+    [candidates, movedId],
+  );
+  // Within the same family of bars, the count follows the colony
+  const keepsBars = Boolean(moved && hive && moved.hive.bar_family === hive.bar_family);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -47,7 +80,12 @@ export default function ColonyFormModal({ onHide, onSaved, colony = null, hive, 
     try {
       const saved = colony
         ? await updateColony(colony.id, values)
-        : await createColony({ ...values, hive: hive!.id, compartment, origin, started_on: startedOn });
+        : source === 'existing' && moved
+          ? await transferColony(moved.id, {
+            on: startedOn, hive: hive!.id, compartment,
+            ...(keepsBars && bars === '' ? {} : { bars: values.bars }),
+          })
+          : await createColony({ ...values, hive: hive!.id, compartment, origin, started_on: startedOn });
       onSaved(saved);
     } catch (submitError) {
       setError(hiveErrorOf(submitError));
@@ -64,9 +102,9 @@ export default function ColonyFormModal({ onHide, onSaved, colony = null, hive, 
       title={colony ? 'Modifier la colonie' : 'Installer une colonie'}
       onSubmit={handleSubmit}
       footer={(
-        <Button type="submit" variant="success" disabled={saving}>
+        <Button type="submit" variant="success" disabled={saving || (creating && source === 'existing' && !moved)}>
           {saving ? <Spinner animation="border" size="sm" className="me-2" /> : <i className="bi bi-check-lg me-2" aria-hidden="true" />}
-          {colony ? 'Enregistrer' : 'Installer'}
+          {colony ? 'Enregistrer' : source === 'existing' ? 'Transvaser' : 'Installer'}
         </Button>
       )}
     >
@@ -77,7 +115,44 @@ export default function ColonyFormModal({ onHide, onSaved, colony = null, hive, 
         </p>
       )}
 
-      {!colony && (
+      {creating && (
+        <ButtonGroup className="d-flex mb-3" aria-label="Provenance de la colonie">
+          <Button variant={source === 'existing' ? 'secondary' : 'outline-secondary'} aria-pressed={source === 'existing'}
+            onClick={() => setChosenSource('existing')} disabled={saving}>
+            D'une autre ruche
+          </Button>
+          <Button variant={source === 'new' ? 'secondary' : 'outline-secondary'} aria-pressed={source === 'new'}
+            onClick={() => setChosenSource('new')} disabled={saving}>
+            Nouvelle colonie
+          </Button>
+        </ButtonGroup>
+      )}
+
+      {creating && source === 'existing' && (
+        <Form.Group className="mb-3" controlId="colony-moved">
+          <Form.Label className="d-flex align-items-center">
+            Colonie
+            <HelpTip id="colony-moved-help" doc="apiaries#colonies" title="Transvaser">
+              La colonie quitte sa ruche ou son nucleus pour celle-ci : elle garde son nom, sa lignée et
+              l'historique de ses ruches. Ses barrettes la suivent entre ruches de la même famille.
+            </HelpTip>
+          </Form.Label>
+          {candidates === null && <div><Spinner animation="border" size="sm" /></div>}
+          {candidates?.length === 0 && <p className="text-muted mb-0">Aucune autre colonie dont vous vous occupez.</p>}
+          {candidates && candidates.length > 0 && (
+            <Form.Select value={moved?.id ?? ''} onChange={(event) => setMovedId(event.target.value)} disabled={saving}>
+              {candidates.map((other) => (
+                <option key={other.id} value={other.id}>
+                  {colonyLabel(other)} · {hiveLabel(other.hive)}
+                  {other.hive.portable && other.in_hive_since ? ` (J+${daysBetween(other.in_hive_since, today())})` : ''}
+                </option>
+              ))}
+            </Form.Select>
+          )}
+        </Form.Group>
+      )}
+
+      {creating && source === 'new' && (
         <Form.Group className="mb-3" controlId="colony-origin">
           <Form.Label className="d-flex align-items-center">
             Origine
@@ -92,33 +167,39 @@ export default function ColonyFormModal({ onHide, onSaved, colony = null, hive, 
         </Form.Group>
       )}
 
-      <Form.Group className="mb-3" controlId="colony-name">
-        <Form.Label>Nom</Form.Label>
-        <Form.Control type="text" value={name} maxLength={120} disabled={saving}
-          onChange={(event) => setName(event.target.value)} />
-      </Form.Group>
+      {(!creating || source === 'new') && (
+        <Form.Group className="mb-3" controlId="colony-name">
+          <Form.Label>Nom</Form.Label>
+          <Form.Control type="text" value={name} maxLength={120} disabled={saving}
+            onChange={(event) => setName(event.target.value)} />
+        </Form.Group>
+      )}
 
       {count && (
         <Form.Group className="mb-3" controlId="colony-bars">
           <Form.Label>{count}{capacity !== null ? ` (${capacity} au plus)` : ''}</Form.Label>
           <Form.Control type="number" inputMode="numeric" min={0} max={capacity ?? undefined} value={bars}
+            placeholder={creating && source === 'existing' && keepsBars && moved?.bars != null ? String(moved.bars) : undefined}
             disabled={saving} onChange={(event) => setBars(event.target.value)} />
         </Form.Group>
       )}
 
-      {!colony && (
+      {creating && (
         <Form.Group className="mb-3" controlId="colony-started">
-          <Form.Label>Installée le</Form.Label>
+          <Form.Label>{source === 'existing' ? 'Transvasée le' : 'Installée le'}</Form.Label>
           <Form.Control type="date" value={startedOn} max={today()} required disabled={saving}
+            min={source === 'existing' ? moved?.in_hive_since ?? undefined : undefined}
             onChange={(event) => setStartedOn(event.target.value)} />
         </Form.Group>
       )}
 
-      <Form.Group className="mb-0" controlId="colony-comments">
-        <Form.Label>Commentaire</Form.Label>
-        <Form.Control as="textarea" rows={3} value={comments} disabled={saving}
-          onChange={(event) => setComments(event.target.value)} />
-      </Form.Group>
+      {(!creating || source === 'new') && (
+        <Form.Group className="mb-0" controlId="colony-comments">
+          <Form.Label>Commentaire</Form.Label>
+          <Form.Control as="textarea" rows={3} value={comments} disabled={saving}
+            onChange={(event) => setComments(event.target.value)} />
+        </Form.Group>
+      )}
     </AppModal>
   );
 }

@@ -16,7 +16,19 @@ function barsOf(type: HiveType): string {
 }
 
 const columns: ReferentialColumn<HiveType>[] = [
-  { key: 'name', header: 'Nom', main: true, render: (type) => type.name },
+  {
+    key: 'name',
+    header: 'Nom',
+    main: true,
+    render: (type) => (
+      <>
+        {type.name}
+        {type.portable && (
+          <i className="bi bi-truck ms-2 text-muted" title="Ruche de transport" aria-label="Ruche de transport" />
+        )}
+      </>
+    ),
+  },
   { key: 'bars', header: 'Barrettes', render: (type) => <span className="small">{barsOf(type)}</span> },
   {
     key: 'description',

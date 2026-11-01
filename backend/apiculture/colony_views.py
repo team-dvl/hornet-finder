@@ -21,7 +21,7 @@ from hornet_finder_api.authentication import HasAnyRole, JWTBearerAuthentication
 
 from . import colony_rules as rules
 from . import permissions as perms
-from .models import Colony, Hive
+from .models import Colony, ColonyOccupancy, Hive
 from .serializers import ColonySerializer
 from .views import _DAY_PARAM, _day
 
@@ -90,6 +90,8 @@ class ColonyViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.L
         ).prefetch_related(
             Prefetch('hive__apiary__apiarygrouppermission_set',
                      queryset=ApiaryGroupPermission.objects.select_related('group')),
+            Prefetch('occupancies', queryset=ColonyOccupancy.objects.filter(ended_on__isnull=True),
+                     to_attr='open_stays'),
         )
 
     def get_object(self):

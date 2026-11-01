@@ -1,7 +1,8 @@
 import { IconButton } from '../ui';
 import { ACTION_ICONS } from '../../utils/icons';
-import { ORIGIN_LABELS, colonyLabel, countLabel } from '../../utils/coloniesApi';
-import type { ColonySummary, Hive } from '../../utils/hivesApi';
+import { formatDate } from '../../utils/format';
+import { ORIGIN_LABELS, colonyLabel, countLabel, daysBetween } from '../../utils/coloniesApi';
+import { today, type ColonySummary, type Hive } from '../../utils/hivesApi';
 import BroodBreak from './BroodBreak';
 
 interface HiveColoniesProps {
@@ -61,6 +62,11 @@ export default function HiveColonies({ hive, canEdit, onOpen, onInstall }: HiveC
                     count && colony.bars !== null ? `${colony.bars} ${count.toLowerCase()}` : null]
                     .filter(Boolean).join(' · ')}
                 </span>
+                {hive.portable && colony.in_hive_since && (
+                  <span className="d-block small text-truncate">
+                    En nucleus depuis le {formatDate(colony.in_hive_since)} (J+{daysBetween(colony.in_hive_since, today())})
+                  </span>
+                )}
                 {colony.requeening_since && (
                   <span className="d-block small text-truncate"><BroodBreak colony={colony} compact /></span>
                 )}

@@ -15,7 +15,7 @@ export type ColonyEventMode = 'split' | 'swarm' | 'transfer' | 'end' | 'laying';
 const TITLES: Record<ColonyEventMode, string> = {
   split: 'Diviser la colonie',
   swarm: 'Essaimage',
-  transfer: 'Transférer la colonie',
+  transfer: 'Transvaser la colonie',
   end: 'Fin de la colonie',
   laying: 'Ponte constatée',
 };
@@ -23,7 +23,7 @@ const TITLES: Record<ColonyEventMode, string> = {
 const SUBMITS: Record<ColonyEventMode, { label: string; icon: string; variant: string }> = {
   split: { label: 'Diviser', icon: 'diagram-2', variant: 'primary' },
   swarm: { label: 'Enregistrer', icon: 'check-lg', variant: 'primary' },
-  transfer: { label: 'Transférer', icon: 'arrow-left-right', variant: 'primary' },
+  transfer: { label: 'Transvaser', icon: 'arrow-left-right', variant: 'primary' },
   end: { label: 'Enregistrer', icon: 'check-lg', variant: 'danger' },
   laying: { label: 'Enregistrer', icon: 'check-lg', variant: 'success' },
 };

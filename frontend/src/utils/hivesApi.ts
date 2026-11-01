@@ -19,6 +19,8 @@ export interface HiveType {
   max_bars: number | null;
   bars_per_box: number | null;
   max_colonies: number;
+  /** A small hive to carry a colony between two hives (nucleus) */
+  portable: boolean;
   hive_count?: number;
 }
 
@@ -75,6 +77,7 @@ export interface Hive {
   max_bars: number | null;
   bars_per_box: number | null;
   max_colonies: number;
+  portable: boolean;
   /** Position of the divider (it takes a bar's place); null without one */
   divider_bar: number | null;
   /** The living colonies, by compartment */
@@ -97,6 +100,8 @@ export interface ColonySummary {
   ended_on: string | null;
   requeening_since: string | null;
   laying_since: string | null;
+  /** Since when a living colony lives in its hive (its current stay) */
+  in_hive_since: string | null;
 }
 
 export interface HiveValues {

@@ -115,10 +115,20 @@ export default function ApiariesDoc() {
         </h5>
         <p>
           Une colonie vit dans une ruche, mais n'est pas la ruche : elle peut changer de ruche
-          (<strong>Transférer</strong>, d'un nucleus vers une TBH, d'un tronc vers une TBH…) et
+          (<strong>Transvaser</strong>, d'un nucleus vers une TBH, d'un tronc vers une TBH…) et
           garde alors son nom et sa lignée. Ses barrettes la suivent entre ruches de la même
           famille (TBH, Chandler, nucleus) ; vers une Warré ou depuis un tronc, on les recompte.
           Une colonie ne vit que dans une ruche en service, donc dans un rucher.
+        </p>
+        <p>
+          <strong>Le nucleus</strong> est une petite ruche à barrettes (12 au plus, sans cloison) qui
+          sert à déplacer une colonie : on la transvase d'abord dans le nucleus, on déplace au
+          besoin le nucleus vers un autre rucher, on la laisse se remettre quelques jours avec un
+          nourrissage, puis on la transvase dans sa nouvelle ruche, tôt le matin ou tard le soir.
+          Comme une ruche, un nucleus appartient à une association ou à une personne. Une colonie
+          en nucleus affiche depuis combien de jours elle y est ; elle peut y rester plus longtemps.
+          Le bouton <strong>Installer une colonie</strong> d'une ruche propose d'abord les colonies
+          qui attendent dans un nucleus.
         </p>
         <p>
           Une colonie naît d'une <strong>division</strong>, de ce qui reste après un
@@ -184,7 +194,7 @@ export default function ApiariesDoc() {
           </li>
           <li>
             <strong>Colonie</strong> : les mêmes droits que sa ruche. Qui s'occupe de la ruche
-            enregistre divisions, essaimages, transferts et fin ; le propriétaire de la ruche
+            enregistre divisions, essaimages, transvasements et fin ; le propriétaire de la ruche
             supprime une colonie encodée par erreur
           </li>
         </ul>

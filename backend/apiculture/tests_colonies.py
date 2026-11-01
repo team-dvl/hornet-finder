@@ -255,3 +255,27 @@ class HiveWithColoniesTests(ColonyTestCase):
         self.assertEqual(response.status_code, 204)
         self.assertEqual(AuditEvent.objects.get(action='colony.deleted').changes['name'], 'Reinettes')
         self.assertEqual(self._as(self.member).delete(f'/api/hives/{self.hive.pk}/').status_code, 204)
+
+
+class NucleusTests(ColonyTestCase):
+    def test_a_colony_waits_in_the_nucleus_then_is_transferred(self):
+        self.assertTrue(HiveType.objects.get(slug='nucleus').portable)
+        self.assertFalse(self.tbh.portable)
+        colony = self._colony(bars=9)
+        response = self._post(f'/api/colonies/{colony.pk}/transfer/', {'on': '2026-05-01', 'hive': str(self.nucleus.pk)})
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual((response.data['hive']['portable'], str(response.data['in_hive_since']), response.data['bars']),
+                         (True, '2026-05-01', 9))
+        nucleus = self._as(self.member).get(f'/api/hives/{self.nucleus.pk}/').data
+        self.assertEqual(nucleus['portable'], True)
+        self.assertEqual(str(nucleus['colonies'][0]['in_hive_since']), '2026-05-01')
+        listed = self._as(self.member).get('/api/colonies/').data
+        self.assertEqual(str(listed[0]['in_hive_since']), '2026-05-01')
+        # A few days later, fed, it goes into its new hive
+        other = self._hive(apiary=self.apiary.pk, placed_on='2026-03-01', name='TBH neuve')
+        response = self._post(f'/api/colonies/{colony.pk}/transfer/', {'on': '2026-05-05', 'hive': str(other.pk)})
+        self.assertEqual((response.data['hive']['id'], str(response.data['in_hive_since']), response.data['bars']),
+                         (str(other.pk), '2026-05-05', 9))
+        self.assertEqual([stay['hive']['id'] for stay in reversed(response.data['occupancies'])],
+                         [str(self.hive.pk), str(self.nucleus.pk), str(other.pk)])
+        self.assertIsNone(self._as(self.member).get(f'/api/colonies/{colony.pk}/').data['ended_on'])

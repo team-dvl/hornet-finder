@@ -23,6 +23,7 @@ export default function HiveTypeFormModal({ onHide, hiveType, onSaved }: HiveTyp
   const [maxBars, setMaxBars] = useState(String(hiveType?.max_bars ?? ''));
   const [barsPerBox, setBarsPerBox] = useState(String(hiveType?.bars_per_box ?? ''));
   const [twoColonies, setTwoColonies] = useState((hiveType?.max_colonies ?? 1) > 1);
+  const [portable, setPortable] = useState(hiveType?.portable ?? false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,6 +40,7 @@ export default function HiveTypeFormModal({ onHide, hiveType, onSaved }: HiveTyp
         max_bars: family === 'topbar' ? Number(maxBars) || null : null,
         bars_per_box: family === 'warre' ? Number(barsPerBox) || null : null,
         max_colonies: family === 'topbar' && twoColonies ? 2 : 1,
+        portable,
       });
       onSaved();
       onHide();
@@ -111,6 +113,22 @@ export default function HiveTypeFormModal({ onHide, hiveType, onSaved }: HiveTyp
             disabled={saving} onChange={(event) => setBarsPerBox(event.target.value)} />
         </Form.Group>
       )}
+
+      <div className="mb-3">
+        <Switch
+          id="hive-type-portable"
+          label="Ruche de transport (nucleus)"
+          checked={portable}
+          disabled={saving}
+          onChange={setPortable}
+          help={(
+            <HelpTip id="hive-type-portable-help" doc="apiaries#colonies" title="Ruche de transport">
+              Une petite ruche qui sert à déplacer une colonie d'une ruche à une autre. Une colonie
+              qui y attend montre depuis combien de jours elle s'y trouve.
+            </HelpTip>
+          )}
+        />
+      </div>
 
       <Form.Group className="mb-3" controlId="hive-type-description">
         <Form.Label>Description</Form.Label>

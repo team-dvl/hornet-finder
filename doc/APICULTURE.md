@@ -40,6 +40,7 @@ Modifiable par les administrateurs de la plateforme.
 | `max_bars` | nombre maximal de barrettes, fixe par type : TBH et Chandler 24, nucleus 12, vide pour Warré et tronc |
 | `bars_per_box` | Warré : 8 barrettes par élément (le nombre d'éléments, lui, varie) |
 | `max_colonies` | 2 pour TBH et Chandler (avec cloison), 1 sinon |
+| `portable` | ruche de transport (le nucleus) : une colonie y attend quelques jours, nourrie, avant d'être transvasée ; sa fiche compte les jours (J+n), sans limite |
 
 Valeurs initiales : TBH, TBH Chandler, Warré, tronc, nucleus. La vue détaillée propre à chaque type (barrettes d'une Chandler, éléments d'une Warré) est une étape ultérieure.
 
@@ -75,7 +76,7 @@ Actions explicites, jamais déduites du texte (dans Glide, divisions et essaimag
 | Division vers l'autre compartiment | pose la cloison si besoin, crée la colonie fille (compartiment 2) |
 | Division ou essaim récolté vers une autre ruche (souvent un nucleus) | crée la colonie dans cette ruche |
 | Essaimage | la colonie qui part avec sa reine s'arrête (« essaimée ») ; ce qui reste devient une nouvelle colonie à sa place (« souche après essaimage », reine en élevage) ; l'essaim récolté est une autre nouvelle colonie. Toutes deux descendent de la colonie essaimée |
-| Transfert | déplace la colonie (et le nombre de barrettes) vers une autre ruche ou un autre compartiment |
+| Transvasement | déplace la colonie (et le nombre de barrettes) vers une autre ruche ou un autre compartiment ; se lance depuis la fiche de la colonie, ou depuis la ruche d'arrivée (« Installer une colonie », colonies en nucleus d'abord). Mode opératoire classique : ruche → nucleus → quelques jours de repos nourrie → nouvelle ruche, tôt le matin ou tard le soir |
 | Réunion, mort, désertion | ferme la colonie |
 
 La date de ces événements alimente la **rupture de ponte** attendue (calculée, pas saisie).
