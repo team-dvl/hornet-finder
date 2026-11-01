@@ -1,4 +1,4 @@
-status: pending
+status: applied (2026-11-01)
 
 # Visibilité des pièges : public ou restreint, transfert de propriétaire (`main` 64af2a6 → `devel` 06c1549)
 

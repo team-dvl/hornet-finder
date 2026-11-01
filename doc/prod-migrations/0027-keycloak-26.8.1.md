@@ -1,4 +1,4 @@
-status: pending
+status: applied (2026-11-01)
 
 # Keycloak 26.8.0 → 26.8.1 (`main` 64af2a6 → `devel`)
 

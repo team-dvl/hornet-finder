@@ -1,4 +1,4 @@
-status: pending
+status: applied (2026-11-01)
 
 # Notifications push (`devel`)
 
