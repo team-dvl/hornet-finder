@@ -156,7 +156,7 @@ export default function PrivacyPolicy() {
             <ul>
               <li>signalement, modification ou suppression d'un nid, d'un frelon, d'un rucher, d'une ruche ou d'un piège ;</li>
               <li>déplacements des ruches et changements de l'apiculteur à qui elles sont confiées ;</li>
-              <li>vie des colonies : installation, division, essaimage, transfert, fin ;</li>
+              <li>vie des colonies : installation, division, essaimage, transvasement, fin ;</li>
               <li>relevés ;</li>
               <li>partages, délégations et transferts ;</li>
               <li>QR Codes ;</li>

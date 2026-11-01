@@ -37,6 +37,9 @@ class HiveType(models.Model):
     bars_per_box = models.PositiveSmallIntegerField(null=True, blank=True)
     # Two for a top-bar hive split by a divider, one otherwise
     max_colonies = models.PositiveSmallIntegerField(default=1)
+    # A small hive to carry a colony from one hive to another (nucleus): a
+    # colony waits in it a few days, fed, before it is transferred
+    portable = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['sort_order', 'name']

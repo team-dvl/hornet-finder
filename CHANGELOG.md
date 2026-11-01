@@ -11,6 +11,10 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ## [Unreleased]
 
 ### Added
+- Colonies: the nucleus is a carrying hive ("Ruche de transport", a new setting of the hive types). A
+  colony in a nucleus shows since when it waits there (J+n). "Installer une colonie" in a hive also takes
+  a colony from another hive or from a nucleus (those waiting in a nucleus first): a transfer, which keeps
+  the colony's identity and lineage. "Transférer" is now "Transvaser".
 - Apiaries: colonies (second step of the beekeeping module). A colony lives in a hive compartment and
   keeps its name and lineage when transferred to another hive (nucleus to TBH, log hive to TBH...). The
   hive sheet lists its colonies and installs a caught swarm or a bought package; the colony sheet records a

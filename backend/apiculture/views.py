@@ -25,7 +25,7 @@ from hornet_finder_api.authentication import HasAnyRole, JWTBearerAuthentication
 
 from . import permissions as perms
 from . import colony_rules as rules
-from .models import Colony, Hive, HiveCustody, HivePlacement, HiveType
+from .models import Colony, ColonyOccupancy, Hive, HiveCustody, HivePlacement, HiveType
 from .serializers import HiveSerializer, HiveTypeSerializer
 
 
@@ -144,8 +144,9 @@ class HiveViewSet(viewsets.ModelViewSet):
         ).prefetch_related(
             Prefetch('apiary__apiarygrouppermission_set',
                      queryset=ApiaryGroupPermission.objects.select_related('group')),
-            Prefetch('colonies', queryset=Colony.objects.filter(ended_on__isnull=True),
-                     to_attr='living_colonies'),
+            Prefetch('colonies', queryset=Colony.objects.filter(ended_on__isnull=True).prefetch_related(
+                Prefetch('occupancies', queryset=ColonyOccupancy.objects.filter(ended_on__isnull=True),
+                         to_attr='open_stays')), to_attr='living_colonies'),
         )
 
     def get_object(self):

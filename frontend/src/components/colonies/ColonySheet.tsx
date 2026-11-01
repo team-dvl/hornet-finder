@@ -6,9 +6,9 @@ import { useHistoryAction } from '../../hooks/useHistoryAction';
 import { ACTION_ICONS } from '../../utils/icons';
 import { formatDate } from '../../utils/format';
 import {
-  END_LABELS, ORIGIN_LABELS, colonyLabel, countLabel, deleteColony, fetchColony, type Colony,
+  END_LABELS, ORIGIN_LABELS, colonyLabel, countLabel, daysBetween, deleteColony, fetchColony, type Colony,
 } from '../../utils/coloniesApi';
-import { apiaryLabel, hiveErrorOf, hiveLabel, type ColonySummary } from '../../utils/hivesApi';
+import { apiaryLabel, hiveErrorOf, hiveLabel, today, type ColonySummary } from '../../utils/hivesApi';
 import BroodBreak from './BroodBreak';
 import ColonyEventModal, { type ColonyEventMode } from './ColonyEventModal';
 import ColonyFormModal from './ColonyFormModal';
@@ -107,6 +107,11 @@ export default function ColonySheet({ colonyId, onHide, onChanged }: ColonySheet
               {hiveLabel(colony.hive)}
               {colony.hive.status === 'active' && colony.compartment === 2 ? ' · compartiment 2' : ''}
             </FieldRow>
+            {alive && colony.hive.portable && colony.in_hive_since && (
+              <FieldRow label="En nucleus depuis">
+                {formatDate(colony.in_hive_since)} (J+{daysBetween(colony.in_hive_since, today())})
+              </FieldRow>
+            )}
             {colony.hive.apiary && <FieldRow label="Rucher">{apiaryLabel(colony.hive.apiary)}</FieldRow>}
             {count && colony.bars !== null && <FieldRow label={count}>{colony.bars}</FieldRow>}
             <FieldRow label="Depuis le">{formatDate(colony.started_on)}</FieldRow>
@@ -127,7 +132,7 @@ export default function ColonySheet({ colonyId, onHide, onChanged }: ColonySheet
                 more={[
                   can.edit && { icon: ACTION_ICONS.edit, label: 'Modifier', onClick: () => setSub('edit') },
                   can.edit && alive && { icon: 'wind', label: 'Essaimage', onClick: () => setSub('swarm') },
-                  can.edit && alive && { icon: ACTION_ICONS.transfer, label: 'Transférer', onClick: () => setSub('transfer') },
+                  can.edit && alive && { icon: ACTION_ICONS.transfer, label: 'Transvaser', onClick: () => setSub('transfer') },
                   can.edit && alive && Boolean(colony.requeening_since) && !colony.laying_since && {
                     icon: 'egg', label: 'Ponte constatée', onClick: () => setSub('laying'),
                   },

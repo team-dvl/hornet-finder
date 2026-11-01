@@ -18,6 +18,7 @@ export interface ColonyHive {
   status: HiveStatus;
   hive_type_name: string;
   bar_family: BarFamily;
+  portable: boolean;
   apiary: ApiarySummary | null;
 }
 

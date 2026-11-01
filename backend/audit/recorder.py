@@ -70,7 +70,7 @@ FIELDS = {
     'colony': ['name', 'origin', 'parent', 'hive', 'compartment', 'bars', 'started_on', 'ended_on', 'end_cause',
                'merged_into', 'requeening_since', 'laying_since', 'comments'],
     'hive_type': ['slug', 'name', 'description', 'sort_order', 'bar_family', 'max_bars', 'bars_per_box',
-                  'max_colonies'],
+                  'max_colonies', 'portable'],
 }
 
 # Purge of the events past retention, at most once a day per process
