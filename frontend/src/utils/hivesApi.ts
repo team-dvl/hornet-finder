@@ -70,9 +70,33 @@ export interface Hive {
   owner: HiveOwner | null;
   keeper: PersonSummary | null;
   permissions?: { edit: boolean; move: boolean; manage: boolean };
+  /** From the hive type: what the hive holds */
+  bar_family: BarFamily;
+  max_bars: number | null;
+  bars_per_box: number | null;
+  max_colonies: number;
+  /** Position of the divider (it takes a bar's place); null without one */
+  divider_bar: number | null;
+  /** The living colonies, by compartment */
+  colonies: ColonySummary[];
   /** Detail only */
   placements?: HivePlacement[];
   custodies?: HiveCustody[];
+}
+
+export type ColonyOrigin = 'division' | 'swarm_parent' | 'swarm_caught' | 'package' | 'unknown';
+
+export interface ColonySummary {
+  id: string;
+  name: string;
+  origin: ColonyOrigin;
+  compartment: 1 | 2;
+  /** Top bar: bars; Warré: boxes; null when not counted */
+  bars: number | null;
+  started_on: string;
+  ended_on: string | null;
+  requeening_since: string | null;
+  laying_since: string | null;
 }
 
 export interface HiveValues {
@@ -190,7 +214,27 @@ export function today(): string {
 }
 
 // The server's messages a user may meet, in French
-const MESSAGES: [RegExp, string][] = [
+const MESSAGES: [RegExp, string | ((match: RegExpMatchArray) => string)][] = [
+  [/Only a hive split by a divider has a second compartment/, 'Le compartiment 2 demande une cloison.'],
+  [/already holds a colony/, 'Ce compartiment abrite déjà une colonie.'],
+  [/This hive has no bars/, "Cette ruche n'a pas de barrettes."],
+  [/At most (\d+) bars in this compartment/, (m) => `Au plus ${m[1]} barrettes dans ce compartiment.`],
+  [/takes no divider/, 'Cette ruche ne prend pas de cloison.'],
+  [/^Between 2 and (\d+)/, (m) => `La cloison se place entre la barrette 2 et la barrette ${m[1]}.`],
+  [/Two colonies live on either side/, 'Deux colonies vivent de part et d\'autre de la cloison.'],
+  [/no room for them/, 'Les barrettes d\'une colonie ne tiendraient plus dans son compartiment.'],
+  [/^The colony has (\d+) bars/, (m) => `La colonie n'a que ${m[1]} barrettes.`],
+  [/This colony has ended/, "Cette colonie n'existe plus."],
+  [/A colony lives in this hive/, "Une colonie vit dans cette ruche : transférez-la ou enregistrez sa fin d'abord."],
+  [/has held colonies/, 'Cette ruche a abrité des colonies : réformez-la plutôt.'],
+  [/already lives there/, 'La colonie est déjà là.'],
+  [/living colony you tend/, 'Choisissez une colonie vivante dont vous vous occupez.'],
+  [/not raising a queen/, "Cette colonie n'élève pas de reine."],
+  [/Before the colony started/, 'Cette date précède le début de la colonie.'],
+  [/This hive is not in service/, "Cette ruche n'est pas en service : installez-la d'abord dans un rucher."],
+  [/Unknown hive/, 'Ruche introuvable.'],
+  [/cannot put a colony in this hive/, 'Vous ne pouvez pas mettre de colonie dans cette ruche.'],
+  [/origin of a colony does not change/, "L'origine d'une colonie ne change pas."],
   [/already stands in this apiary/, 'La ruche est déjà dans ce rucher.'],
   [/Not before/, 'Cette date précède le début de la période en cours.'],
   [/in the future/, 'Cette date est dans le futur.'],
@@ -221,8 +265,10 @@ export function hiveErrorOf(error: unknown): string {
   if (response.status === 403) return "Vous n'avez pas le droit de faire cela.";
   if (response.status === 404) return "Cette ruche est introuvable, ou vous n'y avez pas accès.";
   for (const text of flatten(response.data)) {
-    const known = MESSAGES.find(([pattern]) => pattern.test(text));
-    if (known) return known[1];
+    for (const [pattern, message] of MESSAGES) {
+      const match = text.match(pattern);
+      if (match) return typeof message === 'string' ? message : message(match);
+    }
   }
   return 'Une erreur est survenue.';
 }

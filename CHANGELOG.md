@@ -11,6 +11,14 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ## [Unreleased]
 
 ### Added
+- Apiaries: colonies (second step of the beekeeping module). A colony lives in a hive compartment and
+  keeps its name and lineage when transferred to another hive (nucleus to TBH, log hive to TBH...). The
+  hive sheet lists its colonies and installs a caught swarm or a bought package; the colony sheet records a
+  division (to the other compartment or another hive, with the bars taken and the side that keeps the
+  queen), a swarm (what stays is a new colony, so is the caught swarm), a transfer, its end (died, merged,
+  absconded) and the laying of a new queen, and shows the brood break, the lineage and the hives it
+  lived in. A TBH or Chandler takes a divider in a bar's place and then holds two colonies, 23 bars at
+  most between them. Recorded in the audit trail.
 - Apiaries: hives (first step of the beekeeping module). A "Ruches" tab lists the hives one owns,
   keeps, or sees through an association or an apiary; the apiary sheet lists the hives standing in it,
   with a button to add one. A hive has a type (TBH, TBH Chandler, Warré, log hive, nucleus), belongs to

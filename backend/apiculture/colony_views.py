@@ -114,8 +114,9 @@ class ColonyViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.L
             raise ValidationError({field: "Unknown hive."})
         if not perms.can_tend_hive(self.request, hive):
             raise PermissionDenied("You cannot put a colony in this hive.")
-        if hive.status == Hive.STATUS_RETIRED:
-            raise ValidationError({field: "This hive is retired."})
+        if hive.status != Hive.STATUS_ACTIVE:
+            # A colony lives in an apiary: a stored hive is put in one first
+            raise ValidationError({field: "This hive is not in service."})
         return hive
 
     def _tend(self, colony):

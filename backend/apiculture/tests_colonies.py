@@ -59,6 +59,12 @@ class ColonyInstallTests(ColonyTestCase):
         self._colony()
         self.assertEqual(self._install().status_code, 400, 'one colony per compartment')
 
+    def test_a_stored_hive_is_put_in_an_apiary_first(self):
+        stored = self._hive(name='Remisée')
+        response = self._install(hive=stored)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('not in service', str(response.data))
+
     def test_divisions_and_swarms_come_from_their_parent(self):
         self.assertEqual(self._install(origin='division').status_code, 400)
         self.assertEqual(self._install(origin='swarm_parent').status_code, 400)

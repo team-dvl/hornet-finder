@@ -108,6 +108,45 @@ export default function ApiariesDoc() {
         </p>
       </section>
 
+      <section data-section="colonies" className="mb-4">
+        <h5 className="text-primary">
+          <span className="me-2">👑</span>
+          Les colonies
+        </h5>
+        <p>
+          Une colonie vit dans une ruche, mais n'est pas la ruche : elle peut changer de ruche
+          (<strong>Transférer</strong>, d'un nucleus vers une TBH, d'un tronc vers une TBH…) et
+          garde alors son nom et sa lignée. Ses barrettes la suivent entre ruches de la même
+          famille (TBH, Chandler, nucleus) ; vers une Warré ou depuis un tronc, on les recompte.
+          Une colonie ne vit que dans une ruche en service, donc dans un rucher.
+        </p>
+        <p>
+          Une colonie naît d'une <strong>division</strong>, de ce qui reste après un
+          {' '}<strong>essaimage</strong>, d'un <strong>essaim récolté</strong> ou d'un
+          {' '}<strong>essaim nu acheté</strong>. Les deux derniers s'installent depuis la fiche de la
+          ruche ; une division et un essaimage s'enregistrent depuis la fiche de la colonie
+          d'origine, qui garde ainsi sa descendance. Après un essaimage, la colonie qui est partie
+          avec sa reine s'arrête : ce qui reste est une nouvelle colonie, et l'essaim récolté une
+          autre. Une colonie s'arrête aussi quand elle meurt, déserte ou est réunie à une autre.
+        </p>
+        <p>
+          Une TBH ou une Chandler accueille <strong>deux colonies</strong> séparées par une
+          {' '}<strong>cloison</strong>, qui prend la place d'une barrette : le compartiment 1 est
+          en deçà, le compartiment 2 au-delà. Les deux colonies se partagent les 24 positions, soit
+          23 barrettes au plus. La cloison se pose depuis la fiche de la ruche, ou au moment d'une
+          division ; elle se retire quand un compartiment est vide.
+        </p>
+        <p className="mb-0">
+          <strong>Rupture de ponte</strong> : la partie qui n'a pas la reine (après une division)
+          ou ce qui reste après un essaimage élève une nouvelle reine. Sa fiche compte les jours
+          depuis l'événement ; notez <strong>Ponte constatée</strong> le jour où vous voyez des
+          œufs : la rupture a duré au plus ce nombre de jours. Repères moyens : le dernier couvain
+          d'ouvrières naît au plus tard 21 jours après l'événement ; une reine élevée en urgence
+          naît 10 à 16 jours après une division et pond en général une à deux semaines plus tard,
+          davantage par mauvais temps.
+        </p>
+      </section>
+
       <section data-section="sharing" className="mb-4">
         <h5 className="text-primary">
           <span className="me-2">🔒</span>
@@ -142,6 +181,11 @@ export default function ApiariesDoc() {
             propriétaire) la confie, la réforme et la supprime ; l'apiculteur à qui elle est
             confiée la modifie, la déplace et la remise ; les membres de l'association
             propriétaire et ceux qui voient le rucher la consultent
+          </li>
+          <li>
+            <strong>Colonie</strong> : les mêmes droits que sa ruche. Qui s'occupe de la ruche
+            enregistre divisions, essaimages, transferts et fin ; le propriétaire de la ruche
+            supprime une colonie encodée par erreur
           </li>
         </ul>
       </section>

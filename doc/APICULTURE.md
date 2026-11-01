@@ -2,7 +2,7 @@
 
 Gestion des ruches et des colonies, à côté de la lutte contre le frelon : ruchers, ruches, colonies, visites (planifiées puis rapportées), photos. Public : les petits ruchers familiaux, conduits pour le maintien de l'espèce et la pollinisation, sans orientation miel. Le varroa est géré par la rupture de ponte (division, essaimage), sans traitement chimique.
 
-Statut : **étape 1 (ruches) implémentée** (app Django `apiculture`, onglet *Ruches* du module *Ruchers*), étapes suivantes à venir. La reprise des données de l'application Glide actuelle est un projet séparé (voir « Reprise Glide » en fin de document) ; ce module lui réserve seulement un point d'ancrage.
+Statut : **étapes 1 (ruches) et 2 (colonies) implémentées** (app Django `apiculture`, onglet *Ruches* du module *Ruchers*), étapes suivantes à venir. La reprise des données de l'application Glide actuelle est un projet séparé (voir « Reprise Glide » en fin de document) ; ce module lui réserve seulement un point d'ancrage.
 
 ## Décisions
 
@@ -62,7 +62,7 @@ Inchangé, plus un **hébergeur** facultatif (`host_name`) : un nom en texte lib
 - `name` (le surnom donné par les apiculteurs), `started_at`, `ended_at`.
 - `origin` : division, souche restée après essaimage, essaim récolté, essaim nu acheté, inconnue.
 - `parent` : colonie d'origine (division, essaimage), d'où la généalogie.
-- `end_cause` : morte, réunie (avec la colonie qui l'absorbe), désertée, inconnue.
+- `end_cause` : morte, réunie (avec la colonie qui l'absorbe), désertée, essaimée, inconnue.
 - **Occupation** (`ColonyOccupancy`, datée) : colonie, ruche, compartiment (1 ou 2). La colonie est distincte de la ruche : un transfert (nucleus vers TBH, compartiment vers une autre ruche) garde son identité et sa généalogie.
 - Règles vérifiées par le serveur : colonies actives d'une ruche ≤ `max_colonies` de son type ; compartiment 2 seulement avec une cloison ; cloison retirée seulement si un compartiment est libre ; transfert de barrettes seulement entre types de même `bar_family`.
 
@@ -74,7 +74,7 @@ Actions explicites, jamais déduites du texte (dans Glide, divisions et essaimag
 |---|---|
 | Division vers l'autre compartiment | pose la cloison si besoin, crée la colonie fille (compartiment 2) |
 | Division ou essaim récolté vers une autre ruche (souvent un nucleus) | crée la colonie dans cette ruche |
-| Essaimage | la colonie restante est la souche, l'essaim parti est noté (récolté : nouvelle colonie) |
+| Essaimage | la colonie qui part avec sa reine s'arrête (« essaimée ») ; ce qui reste devient une nouvelle colonie à sa place (« souche après essaimage », reine en élevage) ; l'essaim récolté est une autre nouvelle colonie. Toutes deux descendent de la colonie essaimée |
 | Transfert | déplace la colonie (et le nombre de barrettes) vers une autre ruche ou un autre compartiment |
 | Réunion, mort, désertion | ferme la colonie |
 
@@ -141,7 +141,7 @@ Chaque étape est livrable seule, avec ses tests, son audit, son aide (section `
 | # | Étape | Contenu |
 |---|---|---|
 | 1 ✅ | Ruches | `HiveType` (référentiel et administration), `Hive`, emplacements et responsables datés, hébergeur du rucher, liste des ruches par rucher, fiche ruche. Reportés : photo de ruche (la vue des médias résout les droits par chemin, à étendre au module), changement de propriétaire d'une ruche |
-| 2 | Colonies | occupation par compartiment, cloison, événements (division, essaimage, transfert, fin), généalogie |
+| 2 ✅ | Colonies | occupation par compartiment, cloison, événements (division, essaimage, transfert, fin, ponte constatée), généalogie. Une colonie ne vit que dans une ruche en service ; une ruche qui a abrité une colonie se réforme, elle ne se supprime pas |
 | 3 | Socle hors ligne | cache de lecture, file d'envoi, photos en attente, indicateur, persistance du stockage |
 | 4 | Journal de visites | visite d'un rucher, inspections par colonie, participants, photos, reprise de configuration, le tout par la file d'envoi |
 | 5 | Planification | visites prévues, agenda, rappels push (planificateur), compteur « À faire » dans `pending.py` ; en option un flux iCal |

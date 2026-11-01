@@ -106,7 +106,8 @@ export default function AdminDoc() {
         <p>
           Chaque action faite dans l&apos;application est enregistrée : signalement, modification ou
           suppression d&apos;un nid, d&apos;un frelon, d&apos;un rucher, d&apos;une ruche ou d&apos;un piège,
-          déplacements, remises et changements d&apos;apiculteur des ruches, visites et
+          déplacements, remises et changements d&apos;apiculteur des ruches, colonies (installation,
+          division, essaimage, transfert, fin, ponte d&apos;une nouvelle reine) et cloisons, visites et
           destructions des nids (et le passage des nids non traités à « abandonné » en fin de saison), relevés et
           entrées du journal des pièges, partages, délégations et transferts (et le passage en privé d&apos;un piège
           d&apos;un type lié à un rucher quand son propriétaire devient apiculteur, enregistré comme une action du système), QR Codes, membres et

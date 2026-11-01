@@ -1,4 +1,5 @@
 import { Badge } from 'react-bootstrap';
+import { colonyLabel } from '../../utils/coloniesApi';
 import { HIVE_STATUS_LABELS, apiaryLabel, hiveLabel, type Hive } from '../../utils/hivesApi';
 
 interface HiveListItemProps {
@@ -31,6 +32,12 @@ export default function HiveListItem({ hive, onOpen, inApiary = false }: HiveLis
           {hive.hive_type_name}
           {!inApiary && hive.apiary && ` · ${apiaryLabel(hive.apiary)}`}
         </span>
+        {hive.colonies.length > 0 && (
+          <span className="d-block small text-truncate">
+            <i className="bi bi-bug me-1" aria-hidden="true" />
+            {hive.colonies.map(colonyLabel).join(' · ')}
+          </span>
+        )}
       </span>
     </button>
   );
