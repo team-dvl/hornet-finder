@@ -301,6 +301,9 @@ class NestEvent(models.Model):
     # What a verification noted (type, height, size, as it was then) and relied on (`basis`)
     details = models.JSONField(default=dict, blank=True)
     comments = models.TextField(blank=True, default='')
+    # Key the client gave the event, so that a replayed request records it once
+    # (see hornet/idempotency.py)
+    client_key = models.UUIDField(null=True, blank=True, unique=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     alerted_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
@@ -733,6 +736,9 @@ class TrapEvent(models.Model):
     left_quantity = models.PositiveIntegerField(null=True, blank=True)
     # Groups the events of one visit (catches and actions); NULL for a lone event
     batch = models.UUIDField(null=True, blank=True, db_index=True)
+    # Key the client gave a lone event, so that a replayed request records it once
+    # (see hornet/idempotency.py); a visit uses its `batch` for that
+    client_key = models.UUIDField(null=True, blank=True, unique=True, editable=False)
     # Whether the other species were counted too during this reading, the same
     # on every catch event of a batch: False when they were left uncounted,
     # NULL when unknown (readings recorded before the question was asked)

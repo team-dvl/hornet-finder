@@ -128,7 +128,7 @@ class NestEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = NestEvent
         fields = ['id', 'kind', 'performed_at', 'performed_by', 'outcome', 'actor', 'fixmystreet_ref',
-                  'means', 'details', 'comments', 'photos']
+                  'means', 'details', 'comments', 'photos', 'client_key']
         read_only_fields = fields
 
     def to_representation(self, instance):
@@ -480,11 +480,12 @@ class TrapEventSerializer(serializers.ModelSerializer):
         model = TrapEvent
         fields = ['id', 'trap', 'kind', 'performed_at', 'performed_by', 'species',
                   'species_slug', 'quantity', 'observed_quantity', 'emptied', 'left_quantity',
-                  'batch', 'bycatch_counted', 'comments', 'photos', 'created_at']
+                  'batch', 'bycatch_counted', 'comments', 'photos', 'client_key', 'created_at']
         # On a catch, `quantity` is written as what the trap held and read back
         # as the catches derived from it (see Trap.recompute_catches)
         read_only_fields = ['id', 'trap', 'performed_by', 'species', 'observed_quantity',
-                            'emptied', 'left_quantity', 'batch', 'bycatch_counted', 'created_at']
+                            'emptied', 'left_quantity', 'batch', 'bycatch_counted', 'client_key',
+                            'created_at']
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

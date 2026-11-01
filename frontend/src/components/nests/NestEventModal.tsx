@@ -7,6 +7,7 @@ import {
 import { HelpTip } from '../common';
 import { PhotoInput } from '../traps';
 import { AppModal } from '../ui';
+import { newClientKey } from '../../utils/clientKey';
 import { dateInputToIso, toDateInputValue } from '../../utils/format';
 import {
   ACTORS, BASES, HEIGHT_CLASSES, MEANS, NEST_TYPES, SIZE_CLASSES, VISIT_OUTCOMES, suggestedNestType,
@@ -47,6 +48,8 @@ export default function NestEventModal({ onHide, nest, kind, asReporter = false,
   const [photos, setPhotos] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // One entry per opening, whatever the number of attempts (see utils/clientKey.ts)
+  const [clientKey] = useState(newClientKey);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -60,15 +63,16 @@ export default function NestEventModal({ onHide, nest, kind, asReporter = false,
       const saved = await dispatch(recordNestEvent({
         id: nest.id,
         photos,
-        values: isVisit
+        values: { client_key: clientKey, ...(isVisit
           ? {
-            kind, outcome, basis, comments: comments.trim(),
+            // Done now, not when the server receives it
+            kind, outcome, basis, comments: comments.trim(), performed_at: new Date().toISOString(),
             ...(outcome === 'active' ? { nest_type: nestType, height_class: height, size_class: size } : {}),
           }
           : {
             kind, performed_at: dateInputToIso(day), actor: actor || 'unknown', comments: comments.trim(),
             fixmystreet_ref: actor === 'fixmystreet' ? reference.trim() : undefined, means,
-          },
+          }) },
       })).unwrap();
       onSaved?.(saved);
       onHide();

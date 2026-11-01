@@ -21,7 +21,7 @@ from hornet_finder_api.authentication import HasAnyRole, JWTBearerAuthentication
 from hornet_finder_api.roles import APP_ROLES, BEEKEEPER, TRAPPER
 from audit import recorder as audit
 
-from . import reminders
+from . import idempotency, reminders
 from . import trap_permissions as perms
 from .group_views import _Roster, _full_name
 from .invitation_views import BEEKEEPERS_ROOT, _keycloak, _sort_key
@@ -254,6 +254,13 @@ class SpeciesViewSet(ReferentialViewSet):
                 status=status.HTTP_409_CONFLICT,
             )
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# Journal entries may answer the trap as it is after them (see TrapViewSet._journal_response)
+INCLUDE_TRAP = OpenApiParameter(
+    'include', str, enum=['trap'], required=False,
+    description='POST only: `trap` answers {"events"|"event": ..., "trap": <trap detail>}',
+)
 
 
 class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
@@ -560,7 +567,10 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
 
     # -- journal -------------------------------------------------------------
 
-    @extend_schema(responses={200: TrapEventSerializer(many=True)})
+    @extend_schema(parameters=[INCLUDE_TRAP],
+                   responses={200: TrapEventSerializer(many=True), 201: TrapEventSerializer,
+                              409: OpenApiResponse(description='client_key used by someone else '
+                                                               'or on another trap')})
     @action(detail=True, methods=['get', 'post'], url_path='events')
     def events(self, request, pk=None):
         trap = self.get_object()
@@ -576,11 +586,22 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
             raise PermissionDenied(
                 "Only the owner and the members of the group in charge can record an event."
             )
+        key = idempotency.client_key(request)
+        performed_by = perms.local_user(request)
+        replayed = self._replayed_event(request, trap, key, performed_by)
+        if replayed:
+            return replayed
         serializer = TrapEventSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         uploads = request.FILES.getlist('photos')
         with transaction.atomic():
-            event = serializer.save(trap=trap, performed_by=perms.local_user(request))
+            if key:
+                # A second attempt sent meanwhile waits here, then finds the first one
+                Trap.objects.select_for_update().filter(pk=trap.pk).first()
+                replayed = self._replayed_event(request, trap, key, performed_by)
+                if replayed:
+                    return replayed
+            event = serializer.save(trap=trap, performed_by=performed_by, client_key=key)
 
             for uploaded in uploads:
                 photo = TrapPhoto(trap=trap, event=event, uploaded_by=event.performed_by)
@@ -592,7 +613,39 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
             event.refresh_from_db()
             audit.record(request, 'trap.event_recorded', event,
                          changes={**audit.snapshot(event), 'photos': len(uploads)})
-        return Response(TrapEventSerializer(event).data, status=status.HTTP_201_CREATED)
+        return self._journal_response(request, trap, 'event', TrapEventSerializer(event).data, created=True)
+
+    def _replayed_event(self, request, trap, key, performed_by):
+        """The answer to a lone event already recorded under `key`, None if there is none."""
+        if key is None:
+            return None
+        existing = TrapEvent.objects.filter(client_key=key)
+        if not idempotency.check_owner(existing, 'trap', trap.pk, performed_by):
+            return None
+        return self._journal_response(request, trap, 'event', TrapEventSerializer(existing.get()).data,
+                                      created=False)
+
+    def _replayed_visit(self, request, trap, key, performed_by):
+        """The answer to a visit already recorded under `key` (its batch), None if there is none."""
+        if key is None:
+            return None
+        existing = TrapEvent.objects.filter(batch=key).order_by('id')
+        if not idempotency.check_owner(existing, 'trap', trap.pk, performed_by):
+            return None
+        return self._journal_response(request, trap, 'events', TrapEventSerializer(existing, many=True).data,
+                                      created=False)
+
+    def _journal_response(self, request, trap, name, data, created):
+        """
+        What a journal entry answers: the entry (201, or 200 for a replay). With
+        `?include=trap`, `{<name>: entry, "trap": trap}`, the trap as it is now
+        (status, counters, journal), which spares the client a second request.
+        """
+        code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        if request.query_params.get('include') == 'trap':
+            fresh = self.queryset.get(pk=trap.pk)
+            data = {name: data, 'trap': TrapDetailSerializer(fresh, context=self.get_serializer_context()).data}
+        return Response(data, status=code)
 
     @extend_schema(
         request={'multipart/form-data': {
@@ -614,9 +667,15 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
                                            '"cleaning", "refill", "repair"'},
                 'photo_0': {'type': 'string', 'format': 'binary',
                             'description': 'Optional photo of item 0 (photo_1 for item 1, ...)'},
+                'client_key': {'type': 'string', 'format': 'uuid',
+                               'description': 'Key chosen by the client, the batch of the visit: '
+                                              'a replay records nothing and answers 200'},
             },
         }, 'application/json': CatchSerializer},
-        responses={201: TrapEventSerializer(many=True)},
+        parameters=[INCLUDE_TRAP],
+        responses={201: TrapEventSerializer(many=True),
+                   200: OpenApiResponse(description='Replay of a visit already recorded under client_key'),
+                   409: OpenApiResponse(description='client_key used by someone else or on another trap')},
     )
     @action(detail=True, methods=['post'], url_path='catches')
     def catches(self, request, pk=None):
@@ -628,15 +687,26 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
             raise PermissionDenied(
                 "Only the owner and the members of the group in charge can record an event."
             )
+        # The key of the client, if any, is the batch of the visit
+        key = idempotency.client_key(request)
+        performed_by = perms.local_user(request)
+        replayed = self._replayed_visit(request, trap, key, performed_by)
+        if replayed:
+            return replayed
         serializer = CatchSerializer(data=request.data, context={'trap': trap})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        performed_by = perms.local_user(request)
-        batch = uuid.uuid4()
+        batch = key or uuid.uuid4()
 
         events, stored = [], []
         try:
             with transaction.atomic():
+                if key:
+                    # A second attempt sent meanwhile waits here, then finds the first one
+                    Trap.objects.select_for_update().filter(pk=trap.pk).first()
+                    replayed = self._replayed_visit(request, trap, key, performed_by)
+                    if replayed:
+                        return replayed
                 for index, item in enumerate(data['items']):
                     event = TrapEvent.objects.create(
                         trap=trap, kind=TrapEvent.KIND_CATCH, performed_at=data['performed_at'],
@@ -681,8 +751,8 @@ class TrapViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
 
         # Read back with their derived quantities, in the order they were created
         events = TrapEvent.objects.filter(pk__in=[event.pk for event in events]).order_by('id')
-        return Response(TrapEventSerializer(events, many=True).data,
-                        status=status.HTTP_201_CREATED)
+        return self._journal_response(request, trap, 'events', TrapEventSerializer(events, many=True).data,
+                                      created=True)
 
     @extend_schema(responses={204: OpenApiResponse(description='Deleted'),
                               404: OpenApiResponse(description='Unknown batch')})
