@@ -17,7 +17,7 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
-from . import nest_alerts
+from . import idempotency, nest_alerts
 from . import nest_permissions as nest_perms
 from . import pending
 from .group_views import _Roster, _full_name
@@ -459,9 +459,17 @@ class NestViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewS
         `comments` and `photos` files. The status of the nest follows.
         """
         nest = self._readable(pk)
+        # Before the checks below: a replay must not be refused for a state
+        # its first attempt changed (a nest its own destruction closed)
+        key = idempotency.client_key(request)
+        user = self._requester()
+        replayed = self._replayed_event(nest, key, user)
+        if replayed:
+            return replayed
         data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
         if hasattr(data, 'pop'):
             data.pop('photos', None)
+            data.pop('client_key', None)
         entry = NestEventInputSerializer(data=data)
         entry.is_valid(raise_exception=True)
         values = entry.validated_data
@@ -474,17 +482,37 @@ class NestViewSet(ArchiveFilterMixin, GeographicFilterMixin, viewsets.ModelViewS
                 not nest_perms.can_reactivate_nest(request) or nest.status in Nest.OPEN_STATUSES):
             raise PermissionDenied("Seul un administrateur réactive un nid neutralisé, écarté ou abandonné.")
         uploaded = self._uploaded_photos()
-        user = self._requester()
         known = {field: values.pop(field) for field in ('nest_type', 'height_class', 'size_class')
                  if values.get(field)}
         basis = values.pop('basis', None)
         details = {**known, **({'basis': basis} if basis else {})}
         action_code = {NestEvent.KIND_VISIT: 'nest.visited', NestEvent.KIND_DESTRUCTION: 'nest.destroyed',
                        NestEvent.KIND_REACTIVATION: 'nest.reactivated'}[kind]
+        with transaction.atomic():
+            if key:
+                # A second attempt sent meanwhile waits here, then finds the first one
+                Nest.objects.select_for_update().filter(pk=nest.pk).first()
+                replayed = self._replayed_event(nest, key, user)
+                if replayed:
+                    return replayed
+            response = self._record_event(request, nest, user, key, kind, values, known, details, basis,
+                                          uploaded, action_code)
+        return response
+
+    def _replayed_event(self, nest, key, user):
+        """The answer to an entry already recorded under `key` (the nest as it is now), None if there is none."""
+        if key is None:
+            return None
+        if not idempotency.check_owner(NestEvent.objects.filter(client_key=key), 'nest', nest.pk, user):
+            return None
+        return Response(self.get_serializer(self._fresh(nest)).data, status=status.HTTP_200_OK)
+
+    def _record_event(self, request, nest, user, key, kind, values, known, details, basis, uploaded, action_code):
         with audit.track(request, action_code, nest) as tracked:
             event = NestEvent.objects.create(
                 nest=nest, kind=kind, performed_at=values.pop('performed_at', None) or timezone.now(),
-                performed_by=user, details=details, **{k: v for k, v in values.items() if k != 'kind'},
+                performed_by=user, details=details, client_key=key,
+                **{k: v for k, v in values.items() if k != 'kind'},
                 # A reactivation tells nobody; the others may (see nest_alerts.py)
                 alerted_at=timezone.now() if kind == NestEvent.KIND_REACTIVATION else None,
             )

@@ -18,6 +18,7 @@ import {
   selectTrapTypes,
   type ManagedTrapsQuery, type Trap, type TrapEventKind, type TrapOrdering, type TrapScope,
 } from '../store/store';
+import { newClientKey } from '../utils/clientKey';
 import { fetchDue, type DueItem } from '../utils/dueApi';
 import { refreshPending } from '../utils/pending';
 import { signInFromCurrentPage } from '../utils/authRedirect';
@@ -168,7 +169,8 @@ export default function Traps() {
     setServiceError(null);
     try {
       await dispatch(addTrapEvent({
-        trapId: serviceChange.trap.id, kind: serviceChange.kind, performed_at: new Date().toISOString(),
+        trapId: serviceChange.trap.id, kind: serviceChange.kind, performed_at: serviceChange.at,
+        client_key: serviceChange.key,
       })).unwrap();
       setServiceChange(null);
       reload();
@@ -190,7 +192,10 @@ export default function Traps() {
     setRecordTrap(trap);
   };
   // Shelving a trap (out of service, no reminder) or putting it back in service
-  const [serviceChange, setServiceChange] = useState<{ trap: Trap; kind: 'removal' | 'installation' } | null>(null);
+  // `at` and `key` are set when the confirmation opens, the same for every attempt
+  const [serviceChange, setServiceChange] = useState<{
+    trap: Trap; kind: 'removal' | 'installation'; at: string; key: string;
+  } | null>(null);
   const [changingService, setChangingService] = useState(false);
   const [serviceError, setServiceError] = useState<string | null>(null);
   const [editTrap, setEditTrap] = useState<Trap | null>(null);
@@ -473,7 +478,9 @@ export default function Traps() {
         onServiceChange={(trap) => {
           setActionsTrap(null);
           setServiceError(null);
-          setServiceChange({ trap, kind: trap.active ? 'removal' : 'installation' });
+          setServiceChange({
+            trap, kind: trap.active ? 'removal' : 'installation', at: new Date().toISOString(), key: newClientKey(),
+          });
         }}
       />
 

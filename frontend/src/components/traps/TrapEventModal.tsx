@@ -6,6 +6,7 @@ import {
 } from '../../store/store';
 import { HelpTip } from '../common';
 import { AppModal } from '../ui';
+import { newClientKey } from '../../utils/clientKey';
 import { formatShortDateTime } from '../../utils/format';
 import PhotoInput from './PhotoInput';
 import SpeciesCard from './SpeciesCard';
@@ -74,6 +75,8 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
 
   const [kind, setKind] = useState<TrapEventKind>(initialKind);
   const [performedAt, setPerformedAt] = useState(nowLocal);
+  // One entry per opening, whatever the number of attempts (see utils/clientKey.ts)
+  const [clientKey] = useState(newClientKey);
   const [lines, setLines] = useState<CatchLine[]>(() => initialLines(trap));
   const [visitActions, setVisitActions] = useState<TrapEventKind[]>([]);
   // Questions asked on saving a reading, one sheet at a time in place of the form:
@@ -148,9 +151,12 @@ export default function TrapEventModal({ onHide, trap, initialKind = 'catch' }: 
           bycatch_counted: bycatch,
           emptied,
           actions: visitActions,
+          client_key: clientKey,
         })).unwrap();
       } else {
-        await dispatch(addTrapEvent({ trapId: trap.id, kind, performed_at, comments, photos })).unwrap();
+        await dispatch(addTrapEvent({
+          trapId: trap.id, kind, performed_at, comments, photos, client_key: clientKey,
+        })).unwrap();
       }
       onHide();
     } catch (submitError) {

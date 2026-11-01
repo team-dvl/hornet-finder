@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../../utils/api';
 import { getAxiosErrorMessage, type AxiosErrorResponse } from '../../utils/axiosTypes';
+import { UPLOAD_TIMEOUT_MS } from '../../utils/clientKey';
 
 // Interface pour les paramètres de géolocalisation
 export interface GeolocationParams {
@@ -92,6 +93,8 @@ export interface NestEventValues {
   fixmystreet_ref?: string;
   means?: NestMeans[];
   comments?: string;
+  /** Kept by the caller across attempts, so that a replay records the entry once (utils/clientKey.ts) */
+  client_key?: string;
 }
 
 // Types pour les données de nid
@@ -308,7 +311,7 @@ export const recordNestEvent = createAsyncThunk(
         else form.append(key, String(value));
       });
       photos.forEach((photo) => form.append('photos', photo));
-      const response = await api.post(`/nests/${id}/events/`, form, MULTIPART);
+      const response = await api.post(`/nests/${id}/events/`, form, { ...MULTIPART, timeout: UPLOAD_TIMEOUT_MS });
       return response.data as Nest;
     } catch (error: unknown) {
       return rejectWithValue(nestErrorMessage(error));

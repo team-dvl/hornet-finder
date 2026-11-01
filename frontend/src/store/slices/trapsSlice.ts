@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../../utils/api';
 import { getAxiosErrorMessage } from '../../utils/axiosTypes';
+import { UPLOAD_TIMEOUT_MS } from '../../utils/clientKey';
 import type { GeolocationParams } from './nestsSlice';
 
 // --- Types -----------------------------------------------------------------
@@ -270,6 +271,9 @@ function trapFormData(values: Partial<TrapFormValues>): FormData {
 }
 
 const MULTIPART = { headers: { 'Content-Type': 'multipart/form-data' } };
+// A journal entry: may carry photos, and answers the trap as it is after it
+// (`include=trap`), which spares a second request
+const JOURNAL_ENTRY = { ...MULTIPART, timeout: UPLOAD_TIMEOUT_MS, params: { include: 'trap' } };
 
 // --- Thunks ----------------------------------------------------------------
 
@@ -373,10 +377,14 @@ export const deleteTrap = createAsyncThunk(
   }
 );
 
-/** Record a journal entry (catch or maintenance), with its optional photos. */
+/**
+ * Record a journal entry (catch or maintenance), with its optional photos.
+ * `client_key` (utils/clientKey.ts) is kept by the caller across attempts.
+ * Answers the entry and the trap as it is after it.
+ */
 export const addTrapEvent = createAsyncThunk(
   'traps/addTrapEvent',
-  async ({ trapId, kind, performed_at, species_slug, quantity, comments, photos }: {
+  async ({ trapId, kind, performed_at, species_slug, quantity, comments, photos, client_key }: {
     trapId: number;
     kind: TrapEventKind;
     performed_at: string;
@@ -384,9 +392,11 @@ export const addTrapEvent = createAsyncThunk(
     quantity?: number;
     comments?: string;
     photos?: File[];
-  }, { rejectWithValue, dispatch }) => {
+    client_key?: string;
+  }, { rejectWithValue }) => {
     try {
       const form = new FormData();
+      if (client_key) form.append('client_key', client_key);
       form.append('kind', kind);
       form.append('performed_at', performed_at);
       if (kind === 'catch') {
@@ -396,10 +406,9 @@ export const addTrapEvent = createAsyncThunk(
       if (comments) form.append('comments', comments);
       (photos ?? []).forEach((photo) => form.append('photos', photo));
 
-      const response = await api.post(`/traps/${trapId}/events/`, form, MULTIPART);
-      // The event may have changed the status or the counter of the trap
-      dispatch(fetchTrapDetail(trapId));
-      return response.data as TrapEvent;
+      // The event may have changed the status or the counter of the trap: it comes back too
+      const response = await api.post(`/traps/${trapId}/events/`, form, JOURNAL_ENTRY);
+      return response.data as { event: TrapEvent; trap: Trap };
     } catch (error: unknown) {
       return rejectWithValue(getAxiosErrorMessage(error));
     }
@@ -419,10 +428,13 @@ export interface CatchItem {
 /**
  * Record one visit: a reading (one journal entry per species, the Asian hornet
  * possibly at zero) and the actions done at the same time, sharing a batch.
+ * `client_key` (utils/clientKey.ts), kept by the caller across attempts,
+ * becomes that batch. Answers the entries and the trap as it is after them.
  */
 export const addTrapCatch = createAsyncThunk(
   'traps/addTrapCatch',
-  async ({ trapId, performed_at, comments, items, bycatch_counted = null, emptied = null, actions = [] }: {
+  async ({ trapId, performed_at, comments, items, bycatch_counted = null, emptied = null, actions = [],
+    client_key }: {
     trapId: number;
     performed_at: string;
     comments?: string;
@@ -433,9 +445,11 @@ export const addTrapCatch = createAsyncThunk(
     emptied?: boolean | null;
     /** Maintenance done during the same visit */
     actions?: TrapEventKind[];
-  }, { rejectWithValue, dispatch }) => {
+    client_key?: string;
+  }, { rejectWithValue }) => {
     try {
       const form = new FormData();
+      if (client_key) form.append('client_key', client_key);
       form.append('performed_at', performed_at);
       if (comments) form.append('comments', comments);
       form.append('items', JSON.stringify(
@@ -450,9 +464,8 @@ export const addTrapCatch = createAsyncThunk(
         if (item.photo) form.append(`photo_${index}`, item.photo);
       });
 
-      const response = await api.post(`/traps/${trapId}/catches/`, form, MULTIPART);
-      dispatch(fetchTrapDetail(trapId));
-      return response.data as TrapEvent[];
+      const response = await api.post(`/traps/${trapId}/catches/`, form, JOURNAL_ENTRY);
+      return response.data as { events: TrapEvent[]; trap: Trap };
     } catch (error: unknown) {
       return rejectWithValue(getAxiosErrorMessage(error));
     }
@@ -793,6 +806,15 @@ const trapsSlice = createSlice({
       .addCase(fetchTrapDetail.fulfilled, (state, action) => {
         state.selectedTrap = action.payload;
         upsert(state, action.payload);
+      })
+      // A journal entry answers the trap as fetchTrapDetail would
+      .addCase(addTrapEvent.fulfilled, (state, action) => {
+        state.selectedTrap = action.payload.trap;
+        upsert(state, action.payload.trap);
+      })
+      .addCase(addTrapCatch.fulfilled, (state, action) => {
+        state.selectedTrap = action.payload.trap;
+        upsert(state, action.payload.trap);
       })
       .addCase(createTrap.fulfilled, (state, action) => {
         state.loading = false;

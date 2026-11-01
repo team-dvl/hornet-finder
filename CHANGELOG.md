@@ -10,6 +10,18 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 
 ## [Unreleased]
 
+### Fixed
+- A trap reading, a trap intervention or a nest verification or destruction sent again after its
+  answer was lost (timeout, dropped connection) is recorded once, not twice: each form sends a key
+  of its own with every attempt (first step towards field work without network, see `doc/OFFLINE.md`).
+- Recording an entry with photos on a weak signal is no longer cut after 10 seconds (60 seconds now).
+- The date of a nest verification is the time it was entered on the phone, not the time the server
+  received it.
+
+### Changed
+- Recording a trap reading or intervention takes one request instead of two: the answer carries the
+  updated trap.
+
 ## [1.6.0] - 2026-11-01
 
 ### Added
