@@ -8,6 +8,7 @@ import { useHistoryAction } from '../../hooks/useHistoryAction';
 import InfestationLevelInput, { InfestationLevel } from '../common/InfestationLevelInput';
 import { AfscaNumber, AuthImage, ClampedText } from '../common';
 import { ApiaryFormModal, ApiaryOwnerModal, ApiarySharingPanel } from '../apiaries';
+import { ApiaryHives } from '../hives';
 import { AppModal, FieldRow, IconButton, SheetActions } from '../ui';
 import { ACTION_ICONS, OBJECT_ICONS } from '../../utils/icons';
 import { formatDate } from '../../utils/format';
@@ -107,6 +108,7 @@ export default function ApiaryInfoPopup({ show, onHide, apiary, onAddAtLocation,
         <div className="mt-3">
           {current.afsca_number && <FieldRow label="N° AFSCA"><AfscaNumber value={current.afsca_number} /></FieldRow>}
           {current.owner && <FieldRow label="Propriétaire">{current.owner.display_name}</FieldRow>}
+          {current.host_name && <FieldRow label="Hébergé chez">{current.host_name}</FieldRow>}
           {!creatorIsOwner && current.created_by && (
             <FieldRow label="Créé par">{current.created_by.display_name}</FieldRow>
           )}
@@ -145,6 +147,8 @@ export default function ApiaryInfoPopup({ show, onHide, apiary, onAddAtLocation,
             )}
           </SheetActions>
         )}
+
+        <ApiaryHives apiaryId={apiaryId} canAdd={mayEdit} />
 
         <ApiarySharingPanel apiary={{ ...current, id: apiaryId }} />
       </AppModal>

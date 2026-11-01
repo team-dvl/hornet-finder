@@ -77,6 +77,37 @@ export default function ApiariesDoc() {
         </p>
       </section>
 
+      <section data-section="hives" className="mb-4">
+        <h5 className="text-primary">
+          <span className="me-2">🐝</span>
+          Les ruches
+        </h5>
+        <p>
+          L'onglet <strong>Ruches</strong> du module liste vos ruches, où qu'elles soient :
+          celles dont vous êtes propriétaire, celles qui vous sont confiées, celles de vos
+          associations, et celles des ruchers que vous voyez. La fiche d'un rucher montre aussi
+          les ruches qui s'y trouvent, avec un bouton pour en ajouter une.
+        </p>
+        <p>
+          Une ruche a un <strong>type</strong> (TBH, TBH Chandler, Warré, ruche tronc, nucleus),
+          qui ne change pas ensuite : les barrettes et les colonies en dépendent. Elle appartient
+          à <strong>vous ou à une de vos associations</strong>, et elle est
+          {' '}<strong>confiée</strong> à un apiculteur, vous à la création. Dans un rucher, elle
+          est <em>en service</em> ; sans rucher, elle est <em>remisée</em>, vide ou en attente
+          d'une colonie ; <em>réformée</em>, elle sort de l'usage.
+        </p>
+        <p>
+          Chaque déplacement, mise en remise et changement d'apiculteur est daté : la fiche en
+          garde l'<strong>historique</strong>, même quand un rucher a été supprimé depuis. Une
+          ruche ne va que dans un rucher que vous pouvez modifier. Un rucher qui contient encore
+          des ruches ne peut pas être supprimé : déplacez-les ou remisez-les d'abord.
+        </p>
+        <p className="mb-0">
+          Le champ <strong>Hébergé chez</strong> d'un rucher nomme la personne qui l'accueille sur
+          son terrain, quand ce n'est pas vous. Ce nom n'apparaît jamais dans le journal d'audit.
+        </p>
+      </section>
+
       <section data-section="sharing" className="mb-4">
         <h5 className="text-primary">
           <span className="me-2">🔒</span>
@@ -105,6 +136,12 @@ export default function ApiariesDoc() {
           <li>
             <strong>Administrateur de la plateforme</strong> : consulter et gérer tous les ruchers,
             réattribuer un rucher à un autre apiculteur
+          </li>
+          <li>
+            <strong>Ruche</strong> : son propriétaire (ou un administrateur de l'association
+            propriétaire) la confie, la réforme et la supprime ; l'apiculteur à qui elle est
+            confiée la modifie, la déplace et la remise ; les membres de l'association
+            propriétaire et ceux qui voient le rucher la consultent
           </li>
         </ul>
       </section>

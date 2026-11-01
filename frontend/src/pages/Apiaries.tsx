@@ -6,7 +6,7 @@ import { PageHeader, PageLayout } from '../components/layout';
 import { mapUrl } from '../components/map/viewModes';
 import { ConfirmationModal } from '../components/modals';
 import {
-  ApiaryActionsSheet, ApiaryFormModal, ApiaryListItem, ApiaryListToolbar, ApiaryOwnerModal,
+  ApiariesTabs, ApiaryActionsSheet, ApiaryFormModal, ApiaryListItem, ApiaryListToolbar, ApiaryOwnerModal,
 } from '../components/apiaries';
 import { ApiaryInfoPopup } from '../components/popups';
 import { IconButton } from '../components/ui';
@@ -198,6 +198,8 @@ export default function Apiaries() {
           </Alert>
         ) : (
           <>
+            <ApiariesTabs active="apiaries" />
+
             <ApiaryListToolbar
               query={query}
               onChange={updateQuery}

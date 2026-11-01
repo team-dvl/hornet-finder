@@ -31,6 +31,8 @@ export interface Apiary {
   photo_url?: string | null;
   photo_thumbnail_url?: string | null;
   comments?: string | null;
+  /** Who welcomes the apiary on their land, when it is not the beekeeper; '' when none */
+  host_name?: string;
   created_at?: string;
   created_by?: { guid: string; display_name: string } | null;
   /** The beekeeper in charge: the creator unless an admin reassigned it */
@@ -49,6 +51,7 @@ export interface ApiaryFormValues {
   infestation_level?: number | null;
   afsca_number?: string;
   comments?: string;
+  host_name?: string;
   photo?: File | null;
 }
 
@@ -317,6 +320,9 @@ export const deleteApiary = createAsyncThunk(
       await api.delete(`/apiaries/${apiaryId}/`);
       return apiaryId;
     } catch (error: unknown) {
+      if ((error as { response?: { status?: number } }).response?.status === 409) {
+        return rejectWithValue("Des ruches sont encore dans ce rucher : déplacez-les ou remisez-les d'abord.");
+      }
       return rejectWithValue(getAxiosErrorMessage(error));
     }
   }

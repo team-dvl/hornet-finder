@@ -38,6 +38,7 @@ export default function ApiaryFormModal({
   const [address, setAddress] = useState(apiary?.address ?? '');
   const [afscaNumber, setAfscaNumber] = useState(apiary?.afsca_number ?? '');
   const [comments, setComments] = useState(apiary?.comments ?? '');
+  const [hostName, setHostName] = useState(apiary?.host_name ?? '');
   const [photo, setPhoto] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +67,7 @@ export default function ApiaryFormModal({
       infestation_level: infestationLevel,
       afsca_number: afscaNumber.trim(),
       comments: comments.trim(),
+      host_name: hostName.trim(),
       photo,
     };
     try {
@@ -159,6 +161,24 @@ export default function ApiaryFormModal({
           value={afscaNumber}
           initialValue={apiary?.afsca_number ?? ''}
           onChange={setAfscaNumber}
+          disabled={saving}
+        />
+      </Form.Group>
+
+      <Form.Group className="mb-3" controlId="apiary-host">
+        <Form.Label className="d-flex align-items-center">
+          Hébergé chez
+          <HelpTip id="apiary-host-help" doc="apiaries#hives" title="Hébergeur">
+            La personne qui accueille le rucher sur son terrain, quand ce n'est pas vous.
+            Facultatif. Ce nom n'apparaît jamais dans le journal d'audit.
+          </HelpTip>
+        </Form.Label>
+        <Form.Control
+          type="text"
+          value={hostName}
+          maxLength={120}
+          autoComplete="off"
+          onChange={(event) => setHostName(event.target.value)}
           disabled={saving}
         />
       </Form.Group>

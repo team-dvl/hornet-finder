@@ -10,6 +10,17 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 
 ## [Unreleased]
 
+### Added
+- Apiaries: hives (first step of the beekeeping module). A "Ruches" tab lists the hives one owns,
+  keeps, or sees through an association or an apiary; the apiary sheet lists the hives standing in it,
+  with a button to add one. A hive has a type (TBH, TBH Chandler, Warré, log hive, nucleus), belongs to
+  its creator or to one of their associations, and is entrusted to a beekeeper. It is moved between
+  apiaries, stored or retired on a given day, and entrusted to another member; the sheet keeps the
+  history of where it stood and who kept it. An apiary still holding hives cannot be deleted. Recorded
+  in the audit trail. See `doc/APICULTURE.md`.
+- Apiaries: "Hébergé chez", the person who welcomes an apiary on their land; never written in the audit trail.
+- Administration: the hive types (bars, colonies held), for the platform admins.
+
 ## [1.6.0] - 2026-11-01
 
 ### Added

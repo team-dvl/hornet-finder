@@ -38,6 +38,13 @@ export const ACTION_LABELS: Record<string, string> = {
   'apiary.share_changed': 'Partage de rucher modifié',
   'apiary.unshared': 'Partage de rucher retiré',
   'apiary.owner_changed': 'Rucher transféré',
+  'hive.created': 'Ruche créée',
+  'hive.updated': 'Ruche modifiée',
+  'hive.moved': 'Ruche déplacée',
+  'hive.stored': 'Ruche remisée',
+  'hive.retired': 'Ruche réformée',
+  'hive.keeper_changed': 'Ruche confiée',
+  'hive.deleted': 'Ruche supprimée',
   'trap.created': 'Piège créé',
   'trap.updated': 'Piège modifié',
   'trap.deleted': 'Piège supprimé',
@@ -59,6 +66,9 @@ export const ACTION_LABELS: Record<string, string> = {
   'trap_type.created': 'Type de piège créé',
   'trap_type.updated': 'Type de piège modifié',
   'trap_type.deleted': 'Type de piège supprimé',
+  'hive_type.created': 'Type de ruche créé',
+  'hive_type.updated': 'Type de ruche modifié',
+  'hive_type.deleted': 'Type de ruche supprimé',
   'species.created': 'Espèce créée',
   'species.updated': 'Espèce modifiée',
   'species.deleted': 'Espèce supprimée',
@@ -92,6 +102,7 @@ export const DOMAINS: Record<string, Domain> = {
   nest: { label: 'Nids', emoji: OBJECT_ICONS.nest },
   hornet: { label: 'Frelons', emoji: OBJECT_ICONS.hornet },
   apiary: { label: 'Ruchers', emoji: OBJECT_ICONS.apiary },
+  hive: { label: 'Ruches', icon: 'hexagon-half' },
   trap: { label: 'Pièges', emoji: OBJECT_ICONS.trap },
   tag: { label: 'QR codes', icon: 'qr-code' },
   group: { label: 'Groupes', icon: 'people' },
@@ -100,6 +111,7 @@ export const DOMAINS: Record<string, Domain> = {
   platform: { label: 'Plateforme', icon: 'speedometer2' },
   stats: { label: 'Exports', icon: 'bar-chart-line' },
   trap_type: { label: 'Types de pièges', icon: 'bullseye' },
+  hive_type: { label: 'Types de ruches', icon: 'hexagon' },
   species: { label: 'Espèces', icon: 'bug' },
   audit: { label: "Journal d'audit", icon: 'clock-history' },
 };
@@ -114,12 +126,14 @@ const OBJECT_NAMES: Record<string, string> = {
   nest: 'Nid',
   nest_photo: 'Photo de nid',
   apiary: 'Rucher',
+  hive: 'Ruche',
   trap: 'Piège',
   trap_event: 'Entrée de journal',
   trap_photo: 'Photo de journal',
   visit: 'Visite',
   tag: 'QR code',
   trap_type: 'Type de piège',
+  hive_type: 'Type de ruche',
   species: 'Espèce',
   invitation: 'Invitation',
   group: 'Groupe',
@@ -131,8 +145,8 @@ const OBJECT_NAMES: Record<string, string> = {
 };
 
 /** Ref types an admin may want the history of (others are details) */
-const HISTORY_TYPES = new Set(['hornet', 'nest', 'apiary', 'trap', 'tag', 'group', 'invitation', 'trap_type',
-  'species', 'user', 'visit', 'export', 'statistic']);
+const HISTORY_TYPES = new Set(['hornet', 'nest', 'apiary', 'hive', 'trap', 'tag', 'group', 'invitation', 'trap_type',
+  'hive_type', 'species', 'user', 'visit', 'export', 'statistic']);
 
 export const hasHistory = (ref: string) => HISTORY_TYPES.has(ref.split(':', 1)[0]);
 
@@ -265,6 +279,18 @@ export const FIELD_LABELS: Record<string, string> = {
   from: 'Reconstitué depuis',
   paused: 'Suspendues',
   resumed: 'Reprises',
+  number: 'N°',
+  hive_type: 'Type de ruche (n°)',
+  apiary: 'Rucher (n°)',
+  owner_group: 'Association (n°)',
+  owner_user: 'Propriétaire',
+  keeper: 'Confiée à',
+  commissioned_on: 'Mise en service',
+  on: 'Le',
+  bar_family: 'Barrettes',
+  max_bars: 'Barrettes au maximum',
+  bars_per_box: 'Barrettes par élément',
+  max_colonies: 'Colonies au plus',
 };
 
 /** Labels that differ for one type of object: the owner of a nest follows it, it is no legal owner */
@@ -277,7 +303,7 @@ export const fieldLabel = (key: string, targetType?: string) =>
 
 /** Fields holding a person's GUID (see PERSON_FIELDS in `audit/views.py`) */
 const PERSON_FIELDS = new Set(['owner', 'created_by', 'performed_by', 'generated_by', 'associated_by',
-  'revoked_by', 'uploaded_by', 'member']);
+  'revoked_by', 'uploaded_by', 'member', 'owner_user', 'keeper']);
 
 /** Kinds of notifications the platform admins hold back or resume */
 const NOTIFICATION_KINDS: Record<string, string> = {
@@ -301,7 +327,10 @@ const VALUE_LABELS: Record<string, Record<string, string>> = {
   infestation_level: { 1: 'Faible', 2: 'Moyen', 3: 'Élevé' },
   status: {
     reported: 'Signalé', confirmed: 'Confirmé', destroyed: 'Neutralisé', rejected: 'Écarté', abandoned: 'Abandonné',
+    // Hives
+    active: 'En service', stored: 'Remisée', retired: 'Réformée',
   },
+  bar_family: { topbar: 'Horizontales', warre: 'Warré', '': 'Sans barrette' },
   nest_type: { primary: 'Primaire', secondary: 'Secondaire' },
   outcome: { active: 'Nid actif', empty: 'Nid vide', other_species: 'Autre espèce', not_found: 'Introuvable' },
   basis: { photos: 'Photos', call: 'Échange avec le signaleur', on_site: 'Sur place' },

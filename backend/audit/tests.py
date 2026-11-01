@@ -14,6 +14,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from hornet import tests as hornet_tests
+from apiculture import urls as apiculture_urls
 from hornet import urls as hornet_urls
 from hornet.invitation_views import MyGroupInvitationViewSet
 from hornet.models import Apiary, GroupInvitation, Hornet, Nest, Tag, Trap, TrapEvent
@@ -101,6 +102,18 @@ AUDITED = {
     ('group-invitation', 'destroy', 'delete'): 'invitation.cancelled',
     ('my-group-invitation', 'accept', 'post'): 'invitation.accepted',
     ('my-group-invitation', 'decline', 'post'): 'invitation.declined',
+    ('hive', 'create', 'post'): 'hive.created',
+    ('hive', 'update', 'put'): 'hive.updated',
+    ('hive', 'partial_update', 'patch'): 'hive.updated',
+    ('hive', 'destroy', 'delete'): 'hive.deleted',
+    ('hive', 'move', 'post'): 'hive.moved',
+    ('hive', 'store', 'post'): 'hive.stored',
+    ('hive', 'retire', 'post'): 'hive.retired',
+    ('hive', 'keeper', 'put'): 'hive.keeper_changed',
+    ('hivetype', 'create', 'post'): 'hive_type.created',
+    ('hivetype', 'update', 'put'): 'hive_type.updated',
+    ('hivetype', 'partial_update', 'patch'): 'hive_type.updated',
+    ('hivetype', 'destroy', 'delete'): 'hive_type.deleted',
 }
 
 NOT_AUDITED = {
@@ -135,7 +148,8 @@ STANDARD = {'create': 'post', 'update': 'put', 'partial_update': 'patch', 'destr
 class CoverageTests(TestCase):
     def test_every_writing_endpoint_is_declared(self):
         found = set()
-        for _, viewset, basename in hornet_urls.router.registry:
+        registry = hornet_urls.router.registry + apiculture_urls.router.registry
+        for _, viewset, basename in registry:
             for name, method in STANDARD.items():
                 if getattr(viewset, name, None):
                     found.add((basename, name, method))
@@ -148,7 +162,8 @@ class CoverageTests(TestCase):
         self.assertEqual(declared - found, set(), "declared endpoints that no longer exist")
 
     def test_every_plain_view_is_declared(self):
-        names = {p.name for p in hornet_urls.urlpatterns if isinstance(p, URLPattern)}
+        names = {p.name for p in hornet_urls.urlpatterns + apiculture_urls.urlpatterns
+                 if isinstance(p, URLPattern)}
         self.assertEqual(names, set(PLAIN_VIEWS))
 
     def test_declared_actions_exist(self):
