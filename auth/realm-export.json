@@ -1816,6 +1816,7 @@
             "full.path": "true",
             "introspection.token.claim": "true",
             "userinfo.token.claim": "true",
+            "multivalued": "true",
             "id.token.claim": "true",
             "lightweight.claim": "false",
             "access.token.claim": "true",
@@ -3591,7 +3592,7 @@
     "actionTokenGeneratedByUserLifespan.reset-credentials": "",
     "darkMode": "false"
   },
-  "keycloakVersion": "26.8.0",
+  "keycloakVersion": "26.8.1",
   "userManagedAccessAllowed": false,
   "organizationsEnabled": false,
   "verifiableCredentialsEnabled": false,
