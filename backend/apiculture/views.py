@@ -24,7 +24,8 @@ from hornet_finder_api import utils as keycloak
 from hornet_finder_api.authentication import HasAnyRole, JWTBearerAuthentication
 
 from . import permissions as perms
-from .models import Hive, HiveCustody, HivePlacement, HiveType
+from . import colony_rules as rules
+from .models import Colony, Hive, HiveCustody, HivePlacement, HiveType
 from .serializers import HiveSerializer, HiveTypeSerializer
 
 
@@ -143,6 +144,8 @@ class HiveViewSet(viewsets.ModelViewSet):
         ).prefetch_related(
             Prefetch('apiary__apiarygrouppermission_set',
                      queryset=ApiaryGroupPermission.objects.select_related('group')),
+            Prefetch('colonies', queryset=Colony.objects.filter(ended_on__isnull=True),
+                     to_attr='living_colonies'),
         )
 
     def get_object(self):
@@ -302,14 +305,19 @@ class HiveViewSet(viewsets.ModelViewSet):
         hive = self.get_object()
         if not perms.can_manage_hive(request, hive):
             raise PermissionDenied("You cannot delete this hive.")
-        with transaction.atomic():
-            changes = audit.snapshot(hive)
-            refs = _hive_refs(hive)
-            label = audit.label_of(hive)
-            pk = hive.pk
-            hive.delete()
-            audit.record(request, 'hive.deleted', ('hive', pk), changes=changes, label=label,
-                         refs=refs)
+        try:
+            with transaction.atomic():
+                changes = audit.snapshot(hive)
+                refs = _hive_refs(hive)
+                label = audit.label_of(hive)
+                pk = hive.pk
+                hive.delete()
+                audit.record(request, 'hive.deleted', ('hive', pk), changes=changes, label=label,
+                             refs=refs)
+        except ProtectedError:
+            # Its colonies keep their history in it: such a hive is retired, not deleted
+            return Response({'error': "This hive has held colonies: retire it instead."},
+                            status=status.HTTP_409_CONFLICT)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     # -- place and status ----------------------------------------------------
@@ -357,6 +365,7 @@ class HiveViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("You cannot store this hive.")
         if hive.status == Hive.STATUS_STORED:
             raise ValidationError({'status': "The hive is already stored."})
+        self._require_empty(hive)
         return self._relocate(request, hive, None, Hive.STATUS_STORED, 'hive.stored')
 
     @extend_schema(request={'application/json': {'type': 'object', 'properties': {'on': _DAY_PARAM}}},
@@ -369,7 +378,41 @@ class HiveViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("You cannot retire this hive.")
         if hive.status == Hive.STATUS_RETIRED:
             raise ValidationError({'status': "The hive is already retired."})
+        self._require_empty(hive)
         return self._relocate(request, hive, None, Hive.STATUS_RETIRED, 'hive.retired')
+
+    @staticmethod
+    def _require_empty(hive):
+        if rules.living(hive).exists():
+            raise ValidationError({'status': "A colony lives in this hive: transfer it or record its end first."})
+
+    @extend_schema(
+        request={'application/json': {'type': 'object', 'properties': {
+            'divider_bar': {'type': 'integer', 'nullable': True,
+                            'description': 'Position of the divider; null removes it'}}}},
+        responses={200: HiveSerializer},
+    )
+    @action(detail=True, methods=['post'])
+    def divider(self, request, pk=None):
+        """Put, move or remove the divider of a top-bar hive (a bar's place)."""
+        hive = self.get_object()
+        if not perms.can_tend_hive(request, hive):
+            raise PermissionDenied("You cannot change this hive.")
+        value = request.data.get('divider_bar')
+        if value in (None, ''):
+            divider = None
+        else:
+            try:
+                divider = int(value)
+            except (TypeError, ValueError):
+                raise ValidationError({'divider_bar': "Expected a bar number."})
+        if divider == hive.divider_bar:
+            return self._fresh(hive)
+        with audit.track(request, 'hive.divider_changed', hive, fields=['divider_bar']):
+            rules.check_divider(hive, divider)
+            hive.divider_bar = divider
+            hive.save(update_fields=['divider_bar', 'updated_at'])
+        return self._fresh(hive)
 
     # -- keeper --------------------------------------------------------------
 

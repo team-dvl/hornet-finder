@@ -6,7 +6,7 @@ from hornet.models import unique_slug
 from hornet.serializers import user_summary
 
 from . import permissions as perms
-from .models import Hive, HiveType
+from .models import Colony, Hive, HiveType
 
 
 class HiveTypeSerializer(serializers.ModelSerializer):
@@ -115,6 +115,17 @@ class HiveSerializer(serializers.ModelSerializer):
         else:
             data['owner'] = None
         data['keeper'] = summary(instance.keeper)
+        hive_type = instance.hive_type
+        data['bar_family'] = hive_type.bar_family
+        data['max_bars'] = hive_type.max_bars
+        data['bars_per_box'] = hive_type.bars_per_box
+        data['max_colonies'] = hive_type.max_colonies
+        data['divider_bar'] = instance.divider_bar
+        # The living colonies, prefetched by the viewset as `living_colonies`
+        living = getattr(instance, 'living_colonies', None)
+        if living is None:
+            living = instance.colonies.filter(ended_on__isnull=True)
+        data['colonies'] = [colony_summary(colony) for colony in sorted(living, key=lambda c: c.compartment)]
         request = self.context.get('request')
         if request is not None:
             manage = perms.can_manage_hive(request, instance)
@@ -129,5 +140,64 @@ class HiveSerializer(serializers.ModelSerializer):
             data['custodies'] = [
                 {'keeper': summary(c.keeper), 'started_on': c.started_on, 'ended_on': c.ended_on}
                 for c in instance.custodies.select_related('keeper')
+            ]
+        return data
+
+
+def colony_summary(colony) -> Optional[dict]:
+    """A colony as named in another object's representation."""
+    if colony is None:
+        return None
+    return {'id': str(colony.pk), 'name': colony.name, 'origin': colony.origin,
+            'compartment': colony.compartment, 'bars': colony.bars, 'started_on': colony.started_on,
+            'ended_on': colony.ended_on, 'requeening_since': colony.requeening_since,
+            'laying_since': colony.laying_since}
+
+
+class ColonySerializer(serializers.ModelSerializer):
+    """
+    A colony as read and edited. Where it lives and how it ends change through
+    the actions of the viewset (`transfer`, `split`, `swarm`, `end`, `laying`),
+    which keep their history; the creation alone sets its place.
+    """
+
+    id = serializers.UUIDField(required=False)
+
+    class Meta:
+        model = Colony
+        fields = ['id', 'name', 'origin', 'compartment', 'bars', 'started_on', 'ended_on', 'end_cause',
+                  'requeening_since', 'laying_since', 'comments', 'created_at', 'updated_at']
+        read_only_fields = ['compartment', 'ended_on', 'end_cause', 'laying_since', 'created_at',
+                            'updated_at']
+        # Default: today, set by the view
+        extra_kwargs = {'started_on': {'required': False}}
+
+    def update(self, instance, validated_data):
+        # The identifier is chosen once, at the creation: a new one would copy the row
+        validated_data.pop('id', None)
+        return super().update(instance, validated_data)
+
+    def validate_name(self, value: str) -> str:
+        return value.strip()
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        hive = instance.hive
+        data['hive'] = {'id': str(hive.pk), 'name': hive.name, 'number': hive.number,
+                        'status': hive.status, 'hive_type_name': hive.hive_type.name,
+                        'bar_family': hive.hive_type.bar_family,
+                        'apiary': _apiary_summary(hive.apiary)}
+        data['parent'] = colony_summary(instance.parent)
+        data['merged_into'] = colony_summary(instance.merged_into)
+        request = self.context.get('request')
+        if request is not None:
+            tend = perms.can_tend_hive(request, hive)
+            data['permissions'] = {'edit': tend, 'manage': perms.can_manage_hive(request, hive)}
+        if self.context.get('with_history'):
+            data['children'] = [colony_summary(child) for child in instance.children.all()]
+            data['occupancies'] = [
+                {'hive': {'id': str(stay.hive_id), 'name': stay.hive.name, 'number': stay.hive.number},
+                 'compartment': stay.compartment, 'started_on': stay.started_on, 'ended_on': stay.ended_on}
+                for stay in instance.occupancies.select_related('hive')
             ]
         return data
