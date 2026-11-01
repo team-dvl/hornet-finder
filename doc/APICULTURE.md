@@ -53,7 +53,7 @@ Inchangé, plus un **hébergeur** facultatif (`host_name`) : un nom en texte lib
 - `status` : en service, remisée, réformée.
 - Propriétaire : `owner_group` **ou** `owner_user` (contrainte de base : exactement un des deux).
 - `keeper` : l'apiculteur à qui la ruche est confiée.
-- `divider_bar` (étape 2) : position de la cloison (numéro de barrette), vide sans cloison.
+- `divider_bar` (étape 2) : position de la cloison, vide sans cloison. La cloison prend la place d'une barrette (confirmé) : avec deux colonies, 23 barrettes au plus à elles deux dans une TBH ou une Chandler ; le compartiment 1 est en deçà de la cloison, le compartiment 2 au-delà.
 - `external_ref` : identifiant dans une source externe (reprise Glide), unique quand renseigné.
 - Historiques datés (du, au) : **emplacements** (`HivePlacement` : ruche, rucher) et **responsables** (`HiveCustody` : ruche, apiculteur). Une ruche remisée n'a pas d'emplacement courant.
 
@@ -158,7 +158,3 @@ Hors de ce module ; ce qu'il en retient pour la conception :
 - dates de début en `JJ/MM/AAAA hh:mm` heure locale, dates de fin en ISO UTC et peu fiables ;
 - photos : stockage Glide (téléchargeable), Google Drive (accès du compte nécessaire), iCloud (perdues) ;
 - l'export contient des noms et des adresses : il ne va jamais dans le dépôt.
-
-## Reste à fournir
-
-- Avec une cloison, celle-ci occupe-t-elle une position de barrette (deux colonies : 23 barrettes au plus à elles deux) ? Hypothèse retenue : oui, `divider_bar` est la position de la cloison, le compartiment 1 en deçà, le compartiment 2 au-delà.
