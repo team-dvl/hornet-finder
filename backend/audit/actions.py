@@ -63,6 +63,16 @@ ACTIONS = {
     'hive.retired': "Hive retired",
     'hive.keeper_changed': "Hive entrusted to another beekeeper",
     'hive.deleted': "Hive deleted",
+    'hive.divider_changed': "Divider of a hive put, moved or removed",
+    # Colonies
+    'colony.created': "Colony put in a hive (caught swarm, package)",
+    'colony.updated': "Colony updated",
+    'colony.split': "Colony divided",
+    'colony.swarmed': "Colony swarmed",
+    'colony.transferred': "Colony transferred to another hive or compartment",
+    'colony.ended': "Colony ended (died, merged, absconded)",
+    'colony.laying': "New queen of a colony seen laying",
+    'colony.deleted': "Colony deleted",
     # QR codes
     'tag.batch_generated': "QR codes generated",
     'tag.associated': "QR code associated with a trap",

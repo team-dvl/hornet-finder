@@ -45,6 +45,15 @@ export const ACTION_LABELS: Record<string, string> = {
   'hive.retired': 'Ruche réformée',
   'hive.keeper_changed': 'Ruche confiée',
   'hive.deleted': 'Ruche supprimée',
+  'hive.divider_changed': 'Cloison posée, déplacée ou retirée',
+  'colony.created': 'Colonie installée',
+  'colony.updated': 'Colonie modifiée',
+  'colony.split': 'Colonie divisée',
+  'colony.swarmed': 'Colonie essaimée',
+  'colony.transferred': 'Colonie transférée',
+  'colony.ended': 'Fin de colonie',
+  'colony.laying': 'Ponte de la nouvelle reine constatée',
+  'colony.deleted': 'Colonie supprimée',
   'trap.created': 'Piège créé',
   'trap.updated': 'Piège modifié',
   'trap.deleted': 'Piège supprimé',
@@ -103,6 +112,7 @@ export const DOMAINS: Record<string, Domain> = {
   hornet: { label: 'Frelons', emoji: OBJECT_ICONS.hornet },
   apiary: { label: 'Ruchers', emoji: OBJECT_ICONS.apiary },
   hive: { label: 'Ruches', icon: 'hexagon-half' },
+  colony: { label: 'Colonies', icon: 'bug' },
   trap: { label: 'Pièges', emoji: OBJECT_ICONS.trap },
   tag: { label: 'QR codes', icon: 'qr-code' },
   group: { label: 'Groupes', icon: 'people' },
@@ -127,6 +137,7 @@ const OBJECT_NAMES: Record<string, string> = {
   nest_photo: 'Photo de nid',
   apiary: 'Rucher',
   hive: 'Ruche',
+  colony: 'Colonie',
   trap: 'Piège',
   trap_event: 'Entrée de journal',
   trap_photo: 'Photo de journal',
@@ -145,7 +156,7 @@ const OBJECT_NAMES: Record<string, string> = {
 };
 
 /** Ref types an admin may want the history of (others are details) */
-const HISTORY_TYPES = new Set(['hornet', 'nest', 'apiary', 'hive', 'trap', 'tag', 'group', 'invitation', 'trap_type',
+const HISTORY_TYPES = new Set(['hornet', 'nest', 'apiary', 'hive', 'colony', 'trap', 'tag', 'group', 'invitation', 'trap_type',
   'hive_type', 'species', 'user', 'visit', 'export', 'statistic']);
 
 export const hasHistory = (ref: string) => HISTORY_TYPES.has(ref.split(':', 1)[0]);
@@ -291,6 +302,22 @@ export const FIELD_LABELS: Record<string, string> = {
   max_bars: 'Barrettes au maximum',
   bars_per_box: 'Barrettes par élément',
   max_colonies: 'Colonies au plus',
+  divider_bar: 'Cloison (barrette)',
+  origin: 'Origine',
+  parent: 'Issue de (n°)',
+  hive: 'Ruche (n°)',
+  compartment: 'Compartiment',
+  bars: 'Barrettes',
+  started_on: 'Depuis le',
+  ended_on: "Jusqu'au",
+  end_cause: 'Fin',
+  merged_into: 'Réunie à (n°)',
+  requeening_since: 'Reine en élevage depuis',
+  laying_since: 'Ponte constatée le',
+  daughter: 'Division (n°)',
+  stayed: 'Souche (n°)',
+  caught: 'Essaim récolté (n°)',
+  queen: 'La reine',
 };
 
 /** Labels that differ for one type of object: the owner of a nest follows it, it is no legal owner */
@@ -331,6 +358,12 @@ const VALUE_LABELS: Record<string, Record<string, string>> = {
     active: 'En service', stored: 'Remisée', retired: 'Réformée',
   },
   bar_family: { topbar: 'Horizontales', warre: 'Warré', '': 'Sans barrette' },
+  origin: {
+    division: 'Division', swarm_parent: 'Souche après essaimage', swarm_caught: 'Essaim récolté',
+    package: 'Essaim nu acheté', unknown: 'Inconnue',
+  },
+  end_cause: { died: 'Morte', merged: 'Réunie', absconded: 'Désertée', swarmed: 'Essaimée', unknown: 'Inconnue' },
+  queen: { parent: 'Reste dans la colonie', daughter: 'Part avec la division', unknown: 'Inconnu' },
   nest_type: { primary: 'Primaire', secondary: 'Secondaire' },
   outcome: { active: 'Nid actif', empty: 'Nid vide', other_species: 'Autre espèce', not_found: 'Introuvable' },
   basis: { photos: 'Photos', call: 'Échange avec le signaleur', on_site: 'Sur place' },

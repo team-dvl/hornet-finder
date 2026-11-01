@@ -42,6 +42,7 @@ TYPES = {
     'statexportjob': 'export',
     'hive': 'hive',
     'hivetype': 'hive_type',
+    'colony': 'colony',
 }
 
 # Business fields kept in snapshots and diffs; technical ones (`point`,
@@ -65,7 +66,9 @@ FIELDS = {
                 'sort_order', 'photo'],
     'tag': ['key_index', 'trap', 'generated_by', 'associated_by', 'revoked_by'],
     'hive': ['name', 'number', 'hive_type', 'status', 'apiary', 'owner_group', 'owner_user', 'keeper',
-             'commissioned_on', 'comments'],
+             'commissioned_on', 'divider_bar', 'comments'],
+    'colony': ['name', 'origin', 'parent', 'hive', 'compartment', 'bars', 'started_on', 'ended_on', 'end_cause',
+               'merged_into', 'requeening_since', 'laying_since', 'comments'],
     'hive_type': ['slug', 'name', 'description', 'sort_order', 'bar_family', 'max_bars', 'bars_per_box',
                   'max_colonies'],
 }
@@ -135,6 +138,10 @@ def default_refs(obj) -> list:
             refs.append(ref('apiary', obj.apiary_id))
         if obj.owner_group_id:
             refs.append(ref('group', obj.owner_group.path))
+    elif kind == 'colony':
+        refs.append(ref('hive', obj.hive_id))
+        if obj.hive.apiary_id:
+            refs.append(ref('apiary', obj.hive.apiary_id))
     return refs
 
 
@@ -153,7 +160,7 @@ def label_of(obj) -> str:
         label = obj.group_name
     elif kind in ('trap_type', 'species', 'hive_type'):
         label = obj.name
-    elif kind == 'hive':
+    elif kind in ('hive', 'colony'):
         label = str(obj)
     else:
         label = ''

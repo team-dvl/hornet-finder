@@ -9,6 +9,7 @@ import { formatDate } from '../../utils/format';
 import {
   HIVE_STATUS_LABELS, apiaryLabel, deleteHive, fetchHive, hiveErrorOf, hiveLabel, type Hive,
 } from '../../utils/hivesApi';
+import { ColonyFormModal, ColonySheet, DividerModal, HiveColonies } from '../colonies';
 import HiveFormModal from './HiveFormModal';
 import HiveKeeperModal from './HiveKeeperModal';
 import HivePlaceModal, { type PlaceMode } from './HivePlaceModal';
@@ -22,7 +23,8 @@ interface HiveSheetProps {
 }
 
 /** Dialog shown in place of the sheet (one dialog at a time) */
-type SubDialog = 'edit' | 'keeper' | 'delete' | PlaceMode;
+type SubDialog = 'edit' | 'keeper' | 'delete' | 'divider' | PlaceMode
+  | { colony: string } | { install: 1 | 2 };
 
 const period = (from: string, to: string | null) =>
   to ? `${formatDate(from)} → ${formatDate(to)}` : `depuis le ${formatDate(from)}`;
@@ -37,6 +39,7 @@ export default function HiveSheet({ hive: listed, onHide, onChanged }: HiveSheet
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const [version, setVersion] = useState(0);
   useEffect(() => {
     let cancelled = false;
     fetchHive(listed.id)
@@ -44,7 +47,13 @@ export default function HiveSheet({ hive: listed, onHide, onChanged }: HiveSheet
       .catch((fetchError) => { if (!cancelled) setError(hiveErrorOf(fetchError)); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [listed.id]);
+  }, [listed.id, version]);
+
+  // A colony changed: the hive's colonies (and the lists showing them) follow
+  const coloniesChanged = () => {
+    setVersion((value) => value + 1);
+    onChanged(hive);
+  };
 
   const changed = (saved: Hive) => {
     setHive(saved);
@@ -114,6 +123,9 @@ export default function HiveSheet({ hive: listed, onHide, onChanged }: HiveSheet
               can.move && hive.status === 'active' && {
                 icon: ACTION_ICONS.shelve, label: 'Remiser', onClick: () => setSub('store'),
               },
+              can.move && hive.bar_family === 'topbar' && hive.max_colonies > 1 && hive.status === 'active' && {
+                icon: 'layout-split', label: 'Cloison', onClick: () => setSub('divider'),
+              },
               can.manage && { icon: 'person-check', label: 'Confier', onClick: () => setSub('keeper') },
               can.manage && hive.status !== 'retired' && {
                 icon: 'x-octagon', label: 'Réformer', tone: 'warning', onClick: () => setSub('retire'),
@@ -132,6 +144,13 @@ export default function HiveSheet({ hive: listed, onHide, onChanged }: HiveSheet
             )}
           </SheetActions>
         )}
+
+        <HiveColonies
+          hive={hive}
+          canEdit={can.move}
+          onOpen={(colony) => setSub({ colony: colony.id })}
+          onInstall={(compartment) => setSub({ install: compartment })}
+        />
 
         {loading && <div className="mt-3"><Spinner animation="border" size="sm" /></div>}
         {(pastPlacements.length > 0 || pastCustodies.length > 0) && (
@@ -157,6 +176,18 @@ export default function HiveSheet({ hive: listed, onHide, onChanged }: HiveSheet
         <HivePlaceModal mode={sub} hive={hive} onHide={() => setSub(null)} onDone={changed} />
       )}
       {sub === 'keeper' && <HiveKeeperModal hive={hive} onHide={() => setSub(null)} onDone={changed} />}
+      {sub === 'divider' && <DividerModal hive={hive} onHide={() => setSub(null)} onDone={changed} />}
+      {typeof sub === 'object' && sub !== null && 'colony' in sub && (
+        <ColonySheet colonyId={sub.colony} onHide={() => setSub(null)} onChanged={coloniesChanged} />
+      )}
+      {typeof sub === 'object' && sub !== null && 'install' in sub && (
+        <ColonyFormModal
+          hive={hive}
+          compartment={sub.install}
+          onHide={() => setSub(null)}
+          onSaved={(colony) => { coloniesChanged(); setSub({ colony: colony.id }); }}
+        />
+      )}
       <ConfirmationModal
         show={sub === 'delete'}
         onHide={() => { setSub(null); setError(null); }}
