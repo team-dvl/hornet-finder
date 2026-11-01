@@ -699,6 +699,13 @@ button.module-card {
   margin-bottom: 0;
 }
 
+/* Default width: roomier on a large screen, where 500 px leaves wrapped rows */
+@media (min-width: 992px) {
+  .app-modal-default .modal-dialog {
+    --bs-modal-width: 700px;
+  }
+}
+
 .app-modal-header {
   padding-top: 0.75rem;
   padding-bottom: 0.75rem;
@@ -1771,18 +1778,6 @@ html[data-platform="material"] .form-switch .form-check-input:checked {
   border-radius: 50%;
   background: var(--bs-danger);
   box-shadow: 0 0 0 2px var(--nav-bg, var(--bs-dark));
-}
-
-/* A reminder of the "À relever" list */
-.due-item .due-icon {
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  display: grid;
-  place-items: center;
-  border-radius: 0.5rem;
-  background: var(--bs-tertiary-bg);
-  font-size: 1.2rem;
 }
 
 /* Position sheet while typing an address: tall enough for the suggestions to stay above the keyboard */

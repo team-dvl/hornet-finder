@@ -98,7 +98,7 @@ export default function AuditEventModal({ event, onHide, onFocus }: AuditEventMo
           <div className="audit-diff">
             {diffs.map(([key, before, after]) => (
               <div key={key} className="audit-diff-row">
-                <div className="small text-muted">{fieldLabel(key)}</div>
+                <div className="small text-muted">{fieldLabel(key, event.target_type)}</div>
                 <span className="audit-old">{formatValue(key, before, event.people)}</span>
                 <i className="bi bi-arrow-right mx-1 text-muted" aria-label="devient" />
                 <span className="audit-new">{formatValue(key, after, event.people)}</span>
@@ -112,7 +112,7 @@ export default function AuditEventModal({ event, onHide, onFocus }: AuditEventMo
         <>
           <h6 className="audit-section-title">{deletion ? 'État au moment de la suppression' : 'Détails'}</h6>
           {facts.map(([key, value]) => (
-            <FieldRow key={key} label={fieldLabel(key)}>{formatValue(key, value, event.people)}</FieldRow>
+            <FieldRow key={key} label={fieldLabel(key, event.target_type)}>{formatValue(key, value, event.people)}</FieldRow>
           ))}
         </>
       )}

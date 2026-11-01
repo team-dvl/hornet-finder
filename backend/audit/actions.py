@@ -25,6 +25,7 @@ ACTIONS = {
     'nest.deleted': "Nest deleted",
     'nest.photo_added': "Nest photos added",
     'nest.photo_removed': "Nest photo removed",
+    'nest.owner_changed': "Nest handed over to another owner",
     'nest.archived': "Nest archived",
     'nest.unarchived': "Nest unarchived",
     'nest.bulk_archived': "Nests of a period archived",
@@ -47,6 +48,7 @@ ACTIONS = {
     'trap.delegated': "Trap delegated to a group",
     'trap.undelegated': "Trap delegation removed",
     'trap.owner_changed': "Trap handed over",
+    'trap.restricted': "Trap restricted: its owner became a beekeeper",
     'trap.event_recorded': "Trap journal entry recorded",
     'trap.visit_recorded': "Trap visit recorded",
     'trap.visit_deleted': "Trap visit deleted",
@@ -81,6 +83,8 @@ ACTIONS = {
     'stats.export_link': "Statistics export requested (direct link)",
     'stats.export_emailed': "Statistics export requested (emailed link)",
     'stats.export_downloaded': "Statistics export downloaded",
+    # Platform settings
+    'platform.notifications_changed': "Notification kinds held back or resumed for everyone",
     # The audit trail itself
     'audit.exported': "Audit trail exported",
 }

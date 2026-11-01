@@ -51,6 +51,45 @@ class User(models.Model):
     def __str__(self):
         return str(self.guid)
 
+    @property
+    def is_beekeeper(self) -> bool:
+        """A beekeeper is a member of `/beekeepers` or of one of its groups, as of the local mirror."""
+        return any(path == BEEKEEPERS_ROOT or path.startswith(BEEKEEPERS_ROOT + '/')
+                   for path in self.group_paths or [])
+
+    def restrict_apiary_bound_traps(self) -> int:
+        """
+        Restrict the public traps of an apiary-bound type of this user once they are a beekeeper:
+        they stand in front of hives. Widens nothing: a beekeeper who leaves keeps them restricted.
+        Nobody asked for it, so each one is recorded as a system event of the audit trail.
+        """
+        if not self.is_beekeeper:
+            return 0
+        from audit import recorder as audit
+        with transaction.atomic():
+            traps = list(self.traps.filter(trap_type__apiary_bound=True, visibility=Trap.VISIBILITY_PUBLIC))
+            for trap in traps:
+                trap.visibility = Trap.VISIBILITY_RESTRICTED
+                trap.save(update_fields=['visibility', 'updated_at'])
+                audit.record(None, 'trap.restricted', trap, refs=[audit.ref('user', self.guid)],
+                             changes={'visibility': [Trap.VISIBILITY_PUBLIC, Trap.VISIBILITY_RESTRICTED]})
+        return len(traps)
+
+
+# Group of the beekeepers' associations; a member of it or of a subgroup is a beekeeper
+BEEKEEPERS_ROOT = '/beekeepers'
+
+
+class BeekeeperOwner(models.Func):
+    """
+    SQL test: the user whose mirrored `group_paths` (JSON) are given is a beekeeper (see
+    `User.is_beekeeper`). `BeekeeperOwner(F('owner__group_paths'))` filters traps by their owner.
+    """
+
+    template = ("COALESCE(jsonb_path_exists(%(expressions)s, "
+                "'$[*] ? (@ like_regex \"^/beekeepers(/|$)\")'), false)")
+    output_field = models.BooleanField()
+
 
 class GeolocatedModel(models.Model):
     latitude = models.FloatField()
@@ -142,8 +181,13 @@ class Nest(GeolocatedModel):
     size_class = models.CharField(max_length=8, choices=SIZE_CHOICES, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL)
+    # Who manages and follows the nest, not a legal owner: the reporter at first,
+    # reassignable by a platform admin or a coordinator of the trappers
+    # (see nest_permissions.can_change_owner)
+    owner = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL,
+                              related_name='owned_nests')
     comments = models.TextField(null=True, blank=True)
-    # For the coordinators only (and the reporter): how to call the reporter back, and
+    # For the coordinators only (and the owner): how to call the reporter back, and
     # what they want the coordinators alone to read. Never in the public list
     contact_phone = models.CharField(max_length=32, blank=True, default='')
     private_comments = models.TextField(blank=True, default='')
@@ -459,12 +503,17 @@ class Species(models.Model):
 class Trap(GeolocatedModel):
     """A trap owned by a trapper or a beekeeper, optionally delegated to a beekeeper group."""
 
+    # What the trap really is, never what it could be: `public` is seen by everyone,
+    # `restricted` by its owner, its delegated group (if any) and the platform admins.
+    # A trap of an apiary-bound type of a beekeeper is always restricted (see `restricted_by_nature`).
     VISIBILITY_PUBLIC = 'public'
-    VISIBILITY_GROUP = 'group'
+    VISIBILITY_RESTRICTED = 'restricted'
     VISIBILITY_CHOICES = [
         (VISIBILITY_PUBLIC, 'Public'),
-        (VISIBILITY_GROUP, 'Group only'),
+        (VISIBILITY_RESTRICTED, 'Restricted'),
     ]
+    # Value used before the rename, still accepted from clients not yet updated
+    LEGACY_VISIBILITY_GROUP = 'group'
 
     id = models.AutoField(primary_key=True)
     owner = models.ForeignKey('User', null=True, blank=True, on_delete=models.SET_NULL,
@@ -472,8 +521,10 @@ class Trap(GeolocatedModel):
     active = models.BooleanField(default=True)
     visibility = models.CharField(max_length=16, choices=VISIBILITY_CHOICES,
                                   default=VISIBILITY_PUBLIC)
-    # Delegation: the group whose members may maintain the trap, e.g. while the
-    # owner is away. Also restricts visibility when visibility is 'group'.
+    # Delegation: the group whose members may maintain (and see) the trap, e.g. while
+    # the owner is away. Independent of the visibility: a restricted trap without a
+    # group (never delegated, group deleted, delegation cleared by a hand-over) is
+    # seen by its owner and the platform admins only.
     group = models.ForeignKey(BeekeeperGroup, null=True, blank=True, on_delete=models.SET_NULL,
                               related_name='traps')
     trap_type = models.ForeignKey(TrapType, on_delete=models.PROTECT, related_name='traps')
@@ -497,10 +548,30 @@ class Trap(GeolocatedModel):
     def __str__(self):
         return f"Trap {self.id} ({self.trap_type_id})"
 
-    def clean(self):
-        super().clean()
-        if self.visibility == self.VISIBILITY_GROUP and self.group_id is None:
-            raise ValidationError({'group': "A group is required when visibility is 'group'."})
+    @staticmethod
+    def restricted_by_nature(trap_type, owner) -> bool:
+        """
+        An apiary-bound trap (electric harp, muzzle...) of a beekeeper stands in front of
+        hives: showing it would reveal an apiary. The same trap of someone who keeps no
+        bees (a trapper with a Jadeprobe) may be public.
+        """
+        return bool(trap_type and trap_type.apiary_bound and owner and owner.is_beekeeper)
+
+    def save(self, *args, **kwargs):
+        # Such a trap is never stored as public
+        if (self.visibility == self.VISIBILITY_PUBLIC and self.trap_type_id
+                and self.restricted_by_nature(self.trap_type, self.owner)):
+            self.visibility = self.VISIBILITY_RESTRICTED
+            if kwargs.get('update_fields') is not None:
+                kwargs['update_fields'] = {*kwargs['update_fields'], 'visibility'}
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def normalize_visibility(cls, value):
+        """`value` as stored (the former `group` is `restricted`), or None when it is not a visibility."""
+        if value == cls.LEGACY_VISIBILITY_GROUP:
+            return cls.VISIBILITY_RESTRICTED
+        return value if value in (cls.VISIBILITY_PUBLIC, cls.VISIBILITY_RESTRICTED) else None
 
     def recompute_catches(self, save=True):
         """
@@ -1033,3 +1104,30 @@ class TrapReminder(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['trap', 'kind'], name='trapreminder_trap_kind')]
+
+
+class PlatformSettings(models.Model):
+    """
+    Platform-wide settings set by the platform admins: a single row (pk 1, read
+    with `load()`), kept in the database because the API and the scheduler are
+    separate processes and both must see a change at once.
+
+    `paused_kinds` lists the kinds of notifications (hornet.notification_kinds)
+    the platform holds back for everyone; the trap reminders and the nest
+    alerts wait for the resumption, a message of a person is refused. The
+    scheduler stamps `scheduler_seen_at` at each pass, so the dashboard can
+    tell when it has stopped.
+    """
+
+    paused_kinds = models.JSONField(default=list, blank=True)
+    updated_at = models.DateTimeField(null=True, blank=True)
+    # Keycloak GUID of the admin, not a foreign key: outlives the account
+    updated_by = models.UUIDField(null=True, blank=True)
+    scheduler_seen_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name_plural = 'platform settings'
+
+    @classmethod
+    def load(cls) -> 'PlatformSettings':
+        return cls.objects.get_or_create(pk=1)[0]

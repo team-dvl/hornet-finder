@@ -14,9 +14,9 @@ Two ideas drive this module:
 
 import logging
 
-from django.db.models import Q
+from django.db.models import F, Q
 
-from .models import User
+from .models import BeekeeperOwner, Trap, User
 
 logger = logging.getLogger(__name__)
 
@@ -119,21 +119,27 @@ def is_owner(user, trap) -> bool:
 
 def is_publicly_visible(trap) -> bool:
     """
-    Public and not of an apiary-bound type: those only stand in front of hives,
-    so showing one would reveal an apiary. Evaluated at read time from the type,
-    so flagging a type protects its existing traps at once.
+    Public and not restricted by nature: an apiary-bound trap of a beekeeper
+    stands in front of hives, so showing one would reveal an apiary. Stored
+    visibility says as much (see `Trap.restricted_by_nature`); this checks the
+    type and the owner again at read time, as a last safeguard.
     """
     return (trap.visibility == trap.VISIBILITY_PUBLIC
-            and not (trap.trap_type_id and trap.trap_type.apiary_bound))
+            and not Trap.restricted_by_nature(trap.trap_type, trap.owner))
+
+
+def restricted_by_nature_q() -> Q:
+    """`Trap.restricted_by_nature` as a filter: an apiary-bound type and an owner who is a beekeeper."""
+    return Q(trap_type__apiary_bound=True) & Q(BeekeeperOwner(F('owner__group_paths')))
 
 
 def readable_traps(request, queryset):
     """
-    The traps of `queryset` the requester may see: public ones (never those of
-    an apiary-bound type, as in `is_publicly_visible`), their own, their
+    The traps of `queryset` the requester may see: public ones (never those
+    restricted by nature, as in `is_publicly_visible`), their own, their
     groups'. Platform admins see everything.
     """
-    public = Q(visibility='public', trap_type__apiary_bound=False)
+    public = Q(visibility='public') & ~restricted_by_nature_q()
     user = getattr(request, 'user', None)
     if not user or not getattr(user, 'is_authenticated', False):
         return queryset.filter(public)
@@ -176,10 +182,53 @@ def can_edit_trap(request, trap) -> bool:
     return is_owner(user, trap) or is_platform_admin(user)
 
 
-def can_change_owner(request) -> bool:
-    """Reassigning a bequeathed trap is an administration task."""
+def transfer_group_of(path: str):
+    """
+    The group a path stands for when handing a trap over: `/trappers` for the
+    trappers and their coordinators, `/beekeepers/<id>` for an association
+    (its `admin` subgroup included), else None.
+    """
+    if is_member_of([path], TRAPPERS_ROOT):
+        return TRAPPERS_ROOT
+    segments = path.strip('/').split('/')
+    if ADMIN_SEGMENT in segments[1:]:
+        segments = segments[:segments.index(ADMIN_SEGMENT, 1)]
+    group = '/' + '/'.join(segments)
+    return group if is_beekeeper_group(group) else None
+
+
+def is_transfer_group(path: str) -> bool:
+    """The groups a trap owner is picked from: the trappers and the beekeeper associations."""
+    return path == TRAPPERS_ROOT or is_beekeeper_group(path)
+
+
+def owner_transfer_groups(request, trap):
+    """
+    Groups within which the requester may hand this trap over: the ones they
+    administer and the current owner belongs to. Unless they own the trap, it
+    must also be delegated to that group: an administrator never reaches a trap
+    their group cannot see. `None` means any group (platform admin).
+    """
     user = getattr(request, 'user', None)
-    return bool(user and getattr(user, 'is_authenticated', False) and is_platform_admin(user))
+    if user is None or not getattr(user, 'is_authenticated', False):
+        return set()
+    if is_platform_admin(user):
+        return None
+    administered = {g for g in administered_groups(membership_paths(request)) if is_transfer_group(g)}
+    if not administered:
+        # Most requesters: no need to look up the owner's groups
+        return set()
+    owner_groups = {g for g in map(transfer_group_of, owner_group_paths(trap.owner)) if g}
+    allowed = administered & owner_groups
+    if is_owner(user, trap):
+        return allowed
+    return allowed & ({trap.group.path} if trap.group_id else set())
+
+
+def can_change_owner(request, trap) -> bool:
+    """Handing a trap over: a platform admin, or the administrator of the owner's group."""
+    allowed = owner_transfer_groups(request, trap)
+    return allowed is None or bool(allowed)
 
 
 def allowed_delegation_groups(request, trap):

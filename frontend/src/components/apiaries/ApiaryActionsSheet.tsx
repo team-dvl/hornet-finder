@@ -10,12 +10,13 @@ interface ApiaryActionsSheetProps {
   onOpen: (apiary: Apiary) => void;
   onLocate: (apiary: Apiary) => void;
   onEdit: (apiary: Apiary) => void;
+  onChangeOwner: (apiary: Apiary) => void;
   onDelete: (apiary: Apiary) => void;
 }
 
 /** The less frequent actions of a row of the apiary manager, in a bottom sheet. */
 export default function ApiaryActionsSheet({
-  apiary, onHide, onOpen, onLocate, onEdit, onDelete,
+  apiary, onHide, onOpen, onLocate, onEdit, onChangeOwner, onDelete,
 }: ApiaryActionsSheetProps) {
   // What the user may do comes from the backend with each apiary
   const actions = apiary ? [
@@ -23,6 +24,9 @@ export default function ApiaryActionsSheet({
     { key: 'locate', icon: ACTION_ICONS.showOnMap, label: 'Voir sur la carte', onClick: () => onLocate(apiary) },
     ...(apiary.permissions?.update
       ? [{ key: 'edit', icon: ACTION_ICONS.edit, label: 'Modifier', onClick: () => onEdit(apiary) }]
+      : []),
+    ...(apiary.permissions?.change_owner
+      ? [{ key: 'owner', icon: ACTION_ICONS.transfer, label: 'Changer de propriétaire', onClick: () => onChangeOwner(apiary) }]
       : []),
     ...(apiary.permissions?.delete
       ? [{ key: 'delete', icon: ACTION_ICONS.delete, label: 'Supprimer', onClick: () => onDelete(apiary), danger: true }]

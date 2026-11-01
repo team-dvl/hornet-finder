@@ -34,8 +34,17 @@ export interface NestPermissions {
   nearby_apiaries: boolean;
   /** Record a visit (coordinators) */
   visit: boolean;
-  /** Record the destruction (coordinators, and the reporter) */
+  /** Record the destruction (coordinators, and whoever follows the nest) */
   destroy: boolean;
+  /** Hand the follow-up over (platform admins, coordinators of the trappers for their own nests) */
+  change_owner: boolean;
+}
+
+/** Who may take the follow-up of a nest over: the trappers (`GET /nests/<id>/owner/`) */
+export interface NestOwnerChoices {
+  owner_guid: string | null;
+  /** First and last name, `null` without any; never an email */
+  members: { guid: string; name: string | null }[];
 }
 
 /** Where a nest stands, derived by the backend from its journal */
@@ -104,6 +113,8 @@ export interface Nest {
   events?: NestEvent[];
   created_at?: string;
   created_by?: { guid: string; display_name: string }; // GUID of the user who created the nest
+  /** Who manages and follows the nest (not a legal owner): the reporter at first */
+  owner?: { guid: string; display_name: string } | null;
   comments?: string | null;
   /** The reporter's phone number and a comment for the coordinators: coordinators and reporter only */
   contact_phone?: string;
@@ -391,6 +402,35 @@ export const archiveNest = createAsyncThunk(
   }
 );
 
+/** Choices for the follow-up of a nest */
+export const fetchNestOwnerChoices = createAsyncThunk(
+  'nests/fetchNestOwnerChoices',
+  async (id: number, { rejectWithValue }) => {
+    try {
+      const response = await api.get(`/nests/${id}/owner/`);
+      return response.data as NestOwnerChoices;
+    } catch (error: unknown) {
+      return rejectWithValue(nestErrorMessage(error));
+    }
+  }
+);
+
+/**
+ * Hand the follow-up of a nest over to a trapper. `keep`: whether the requester
+ * still sees the nest afterwards; otherwise it leaves the loaded list.
+ */
+export const transferNest = createAsyncThunk(
+  'nests/transferNest',
+  async ({ id, ownerGuid, keep }: { id: number; ownerGuid: string; keep: boolean }, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`/nests/${id}/owner/`, { owner_guid: ownerGuid });
+      return { nest: response.data as Nest, keep };
+    } catch (error: unknown) {
+      return rejectWithValue(nestErrorMessage(error));
+    }
+  }
+);
+
 function replaceNest(state: NestsState, nest: Nest) {
   const index = state.nests.findIndex((item) => item.id === nest.id);
   if (index >= 0) state.nests[index] = nest;
@@ -485,6 +525,11 @@ const nestsSlice = createSlice({
       .addCase(fetchNestDetail.fulfilled, (state, action) => replaceNest(state, action.payload))
       .addCase(recordNestEvent.fulfilled, (state, action) => replaceNest(state, action.payload))
       .addCase(deleteNestEvent.fulfilled, (state, action) => replaceNest(state, action.payload))
+      .addCase(transferNest.fulfilled, (state, action) => {
+        const { nest, keep } = action.payload;
+        if (keep) replaceNest(state, nest);
+        else state.nests = state.nests.filter((item) => item.id !== nest.id);
+      })
       // Cas de archiveNest : l'élément archivé disparaît de la vue courante (par défaut non-archivée)
       .addCase(archiveNest.fulfilled, (state, action) => {
         state.nests = state.nests.filter(nest => nest.id !== action.payload.id);

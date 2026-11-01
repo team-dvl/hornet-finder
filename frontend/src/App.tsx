@@ -24,6 +24,8 @@ const StatDetail = lazy(() => import('./pages/stats/StatDetail'));
 const ExportJob = lazy(() => import('./pages/stats/ExportJob'));
 // Platform admins only: kept out of everyone else's bundle
 const AuditTrail = lazy(() => import('./pages/admin/AuditTrail'));
+const PlatformDashboard = lazy(() => import('./pages/admin/PlatformDashboard'));
+const PlatformNotifications = lazy(() => import('./pages/admin/PlatformNotifications'));
 const pageFallback = <div className="text-center py-5"><Spinner animation="border" /></div>;
 
 function App() {
@@ -147,6 +149,14 @@ function App() {
       <Route
         path="/admin/notifications"
         element={<RequireRole roles={['admin']}><NotificationsAdmin /></RequireRole>}
+      />
+      <Route
+        path="/admin/platform"
+        element={<RequireRole roles={[ADMIN]}><Suspense fallback={pageFallback}><PlatformDashboard /></Suspense></RequireRole>}
+      />
+      <Route
+        path="/admin/platform/notifications"
+        element={<RequireRole roles={[ADMIN]}><Suspense fallback={pageFallback}><PlatformNotifications /></Suspense></RequireRole>}
       />
       <Route
         path="/admin/group"

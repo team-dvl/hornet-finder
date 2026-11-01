@@ -99,7 +99,7 @@ class SubscriptionTests(PushTestCase):
         from rest_framework.test import force_authenticate
         force_authenticate(request, user=self.member)
         response = PushViewSet.as_view({'get': 'config'})(request)
-        self.assertEqual(response.data, {'enabled': False, 'public_key': None})
+        self.assertEqual(response.data, {'enabled': False, 'public_key': None, 'paused_kinds': []})
 
     def test_unsubscribing_only_removes_ones_own_device(self):
         mine, theirs = _subscription(self.member), _subscription(self.bee)

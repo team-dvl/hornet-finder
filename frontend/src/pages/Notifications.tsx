@@ -26,6 +26,11 @@ const KIND_INFO: Record<NotificationKind, { icon: string; detail?: string; help:
     help: "Quand l'attractif d'un de vos pièges est à renouveler, selon le délai de son type, aux mêmes heures "
       + 'que les rappels de relevé.',
   },
+  trap_handover: {
+    icon: '🤝',
+    help: "Un piège qui vous est transféré par un administrateur de la plateforme ou de votre groupe : vous en "
+      + 'recevez ensuite les rappels. Prévenu aussitôt, à toute heure.',
+  },
   nest_new: {
     icon: '🏴',
     detail: '9 h–20 h · dimanche dès 10 h',
@@ -124,6 +129,13 @@ export default function Notifications() {
 
         {push.config?.enabled && (
           <>
+            {push.config.paused_kinds.length > 0 && (
+              <Alert variant="warning">
+                {prefs?.every((pref) => push.config?.paused_kinds.includes(pref.id))
+                  ? 'Les administrateurs ont suspendu les notifications pour le moment.'
+                  : 'Les administrateurs ont suspendu certaines notifications pour le moment.'}
+              </Alert>
+            )}
             <h2 className="h6 text-uppercase text-muted mb-2">Sur cet appareil</h2>
             <Card body className="mb-4 py-0">
               <Switch
@@ -174,7 +186,7 @@ export default function Notifications() {
                       id={`kind-${pref.id}`}
                       icon={info?.icon}
                       label={pref.label}
-                      detail={info?.detail}
+                      detail={push.config?.paused_kinds.includes(pref.id) ? 'Suspendu par les administrateurs' : info?.detail}
                       checked={pref.enabled}
                       onChange={(on) => toggle(pref.id, on)}
                       help={info && <HelpTip id={`kind-${pref.id}-help`} title={pref.label}>{info.help}</HelpTip>}

@@ -50,7 +50,7 @@ FIELDS = {
                'linked_nest', 'created_by', 'archived'],
     'nest': ['latitude', 'longitude', 'address', 'public_place', 'status', 'destroyed', 'destroyed_at',
              'nest_type', 'height_class', 'size_class', 'comments', 'private_comments', 'created_by',
-             'archived'],
+             'owner', 'archived'],
     'apiary': ['latitude', 'longitude', 'address', 'infestation_level', 'afsca_number', 'comments',
                'owner', 'photo'],
     'trap': ['latitude', 'longitude', 'address', 'trap_type', 'installed_at', 'active', 'visibility',

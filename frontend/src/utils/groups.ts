@@ -9,6 +9,11 @@ export function memberGroups(paths: string[]): string[] {
 export const BEEKEEPERS_ROOT = '/beekeepers';
 export const TRAPPERS_ROOT = '/trappers';
 
+/** A beekeeper is a member of `/beekeepers` or of one of its groups (as `User.is_beekeeper` in the backend). */
+export function isBeekeeper(paths: string[]): boolean {
+  return paths.some((path) => path === BEEKEEPERS_ROOT || path.startsWith(`${BEEKEEPERS_ROOT}/`));
+}
+
 /**
  * A beekeeper association, `/beekeepers/<id>`: the only groups a trap can be
  * delegated to (same rule as `is_beekeeper_group` in the backend).

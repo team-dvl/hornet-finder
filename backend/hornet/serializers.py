@@ -9,6 +9,7 @@ from rest_framework import serializers
 from . import apiary_permissions as apiary_perms
 from .afsca import AFSCA_DIGITS, AFSCA_FORMAT, normalize_afsca
 from . import nest_permissions as nest_perms
+from . import trap_permissions as trap_perms
 from .trap_permissions import is_publicly_visible
 from .models import (
     Apiary, Hornet, Nest, NestEvent, NestPhoto, Species, Trap, TrapEvent, TrapPhoto, TrapType, User,
@@ -188,10 +189,12 @@ class NestSerializer(GPSValidationMixin, serializers.ModelSerializer):
         fields = ['id', 'longitude', 'latitude', 'public_place', 'address', 'status', 'destroyed', 'destroyed_at',
                   'nest_type', 'height_class', 'size_class', 'created_at', 'created_by', 'comments',
                   'contact_phone', 'private_comments', 'last_event_at', 'archived', 'archived_at', 'photos',
-                  'state']
-        # The reporter is the requester, set by the view: never a form field. The
-        # status follows the journal (POST /nests/<id>/events/)
-        read_only_fields = ['id', 'status', 'created_at', 'created_by', 'last_event_at', 'archived', 'archived_at']
+                  'state', 'owner']
+        # The reporter is the requester, set by the view: never a form field, nor
+        # the owner (PUT /nests/<id>/owner/). The status follows the journal
+        # (POST /nests/<id>/events/)
+        read_only_fields = ['id', 'status', 'created_at', 'created_by', 'owner', 'last_event_at', 'archived',
+                            'archived_at']
     
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -204,6 +207,9 @@ class NestSerializer(GPSValidationMixin, serializers.ModelSerializer):
             }
         else:
             data['created_by'] = None
+        # Most nests are still owned by their reporter: no second Keycloak lookup then
+        data['owner'] = (data['created_by'] if instance.owner_id == instance.created_by_id
+                         else user_summary(instance.owner))
         # What the requester may do, so the UI does not have to redo the rules
         request = self.context.get('request')
         if request is None or not nest_perms.can_see_contact(request, instance):
@@ -218,6 +224,7 @@ class NestSerializer(GPSValidationMixin, serializers.ModelSerializer):
                 'nearby_apiaries': nest_perms.can_see_nearby_apiaries(request),
                 'visit': nest_perms.can_visit_nest(request, instance),
                 'destroy': nest_perms.can_record_destruction(request, instance),
+                'change_owner': nest_perms.can_change_owner(request, instance),
             }
             # The journal comes with one nest, not with a list
             if self.context.get('with_events'):
@@ -638,6 +645,13 @@ class CatchSerializer(serializers.Serializer):
         return attrs
 
 
+class VisibilityField(serializers.ChoiceField):
+    """The visibility of a trap; the former value `group` is read as `restricted`."""
+
+    def to_internal_value(self, data):
+        return super().to_internal_value(Trap.normalize_visibility(data) or data)
+
+
 class TrapSerializer(GPSValidationMixin, serializers.ModelSerializer):
     """Full representation, for users allowed to read the trap."""
 
@@ -650,11 +664,13 @@ class TrapSerializer(GPSValidationMixin, serializers.ModelSerializer):
     last_event_at = serializers.SerializerMethodField()
     tag_short = serializers.SerializerMethodField()
     publicly_visible = serializers.SerializerMethodField()
+    visibility_locked = serializers.SerializerMethodField()
+    visibility = VisibilityField(choices=Trap.VISIBILITY_CHOICES, required=False)
 
     class Meta:
         model = Trap
         fields = ['id', 'latitude', 'longitude', 'address', 'active', 'visibility',
-                  'publicly_visible',
+                  'publicly_visible', 'visibility_locked',
                   'trap_type', 'trap_type_slug', 'photo_url', 'photo_thumbnail_url',
                   'installed_at', 'comments', 'hornet_catch_count', 'contents', 'owner', 'group',
                   'last_event_at', 'tag_short', 'created_at', 'updated_at']
@@ -673,6 +689,10 @@ class TrapSerializer(GPSValidationMixin, serializers.ModelSerializer):
 
     def get_publicly_visible(self, instance) -> bool:
         return is_publicly_visible(instance)
+
+    def get_visibility_locked(self, instance) -> bool:
+        """The trap must stay restricted: an apiary-bound type, and an owner who is a beekeeper."""
+        return Trap.restricted_by_nature(instance.trap_type, instance.owner)
 
     def get_tag_short(self, instance) -> Optional[str]:
         # `active_tags` is prefetched by the trap viewset; query otherwise
@@ -717,16 +737,25 @@ class TrapSerializer(GPSValidationMixin, serializers.ModelSerializer):
             }
             if instance.trap_type_id else None
         )
+        # What the requester may do, so the UI does not have to redo the rules.
+        # The delegation stays out: its groups come from `/delegation/`.
+        request = self.context.get('request')
+        if request is not None:
+            data['permissions'] = {
+                'update': trap_perms.can_edit_trap(request, instance),
+                'act': trap_perms.can_act_on_trap(request, instance),
+                'change_owner': trap_perms.can_change_owner(request, instance),
+            }
         return data
 
     def validate(self, attrs):
-        visibility = attrs.get('visibility', getattr(self.instance, 'visibility', None))
-        group = getattr(self.instance, 'group_id', None)
-        if visibility == Trap.VISIBILITY_GROUP and not group:
-            # Setting a group goes through the delegation endpoint, so a trap
-            # cannot become group-visible before it has one.
+        # An apiary-bound trap of a beekeeper is never public (the stored visibility says what it is)
+        trap_type = attrs.get('trap_type') or getattr(self.instance, 'trap_type', None)
+        request = self.context.get('request')
+        owner = self.instance.owner if self.instance else (trap_perms.local_user(request) if request else None)
+        if attrs.get('visibility') == Trap.VISIBILITY_PUBLIC and Trap.restricted_by_nature(trap_type, owner):
             raise serializers.ValidationError({
-                'visibility': "Delegate the trap to a group before restricting its visibility.",
+                'visibility': "A beekeeper's trap of this type is set up in front of hives: it cannot be public.",
             })
         return attrs
 

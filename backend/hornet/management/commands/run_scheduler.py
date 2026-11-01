@@ -4,8 +4,10 @@ import threading
 
 from django.core.management.base import BaseCommand
 from django.db import DatabaseError, connection
+from django.utils import timezone
 
 from hornet import nest_alerts, nest_season, push, reminders, retention
+from hornet.models import PlatformSettings
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +44,20 @@ class Command(BaseCommand):
                     connection.close()
                 if stop.is_set():
                     break
+            self.stamp()
             stop.wait(every)
         logger.info("Scheduler stopped")
+
+    @staticmethod
+    def stamp():
+        """Tell the platform dashboard the scheduler is alive."""
+        try:
+            PlatformSettings.load()
+            PlatformSettings.objects.filter(pk=1).update(scheduler_seen_at=timezone.now())
+        except DatabaseError as exc:
+            logger.warning("Scheduler heartbeat skipped, database not ready: %s", exc)
+        finally:
+            connection.close()
 
     @staticmethod
     def send_reminders():

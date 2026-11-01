@@ -1,22 +1,27 @@
 """
 Access rules of the nests module.
 
-* Every role reports a nest. Nest hunters, beekeepers and admins see every
-  nest; the others see the destroyed ones and those they reported.
+* Every role reports a nest, and owns it at first. Nest hunters, beekeepers
+  and admins see every nest; the others see the destroyed ones and those they
+  own.
+* The owner is who follows the nest. A platform admin hands any nest over to a
+  trapper; a coordinator of the trappers (`/trappers/admin`), only the nests
+  they own (one they reported for someone else). The reporter stays the
+  reporter.
 * The content of a nest (fields, photos) is managed by the coordinators: the
   platform admins and the administrators of the nest hunters (members of
   `/hunters/admin`, the same `<group>/admin` convention as in
   `trap_permissions.py`). They alone record a verification (from the
   photos, a call with the reporter or on the spot).
-* A destruction is recorded by a coordinator, or declared by whoever reported
-  the nest: they are usually the first to know.
+* A destruction is recorded by a coordinator, or declared by the owner of the
+  nest: they are usually the first to know.
 * A destroyed, rejected or abandoned nest stays so: only a platform admin
   turns it back into a reported one. Deleting and archiving remain admin tasks.
 """
 
 from hornet_finder_api.roles import ADMIN, BEEKEEPER, HUNTER
 
-from .trap_permissions import is_group_admin_of, is_platform_admin, membership_paths
+from .trap_permissions import TRAPPERS_ROOT, is_group_admin_of, is_platform_admin, membership_paths
 
 HUNTERS_ROOT = '/hunters'
 
@@ -39,15 +44,15 @@ def sees_all_nests(request) -> bool:
     return bool(user) and any(role in getattr(user, 'roles', []) for role in ALL_NESTS_ROLES)
 
 
-def is_reporter(request, nest) -> bool:
+def is_owner(request, nest) -> bool:
     user = _authenticated(request)
     guid = getattr(user, 'guid', None) if user else None
-    return bool(nest.created_by_id and guid and str(nest.created_by_id) == str(guid))
+    return bool(nest.owner_id and guid and str(nest.owner_id) == str(guid))
 
 
 def can_read_nest(request, nest) -> bool:
-    """Who sees the full nest (author, photos): every-nest roles and its reporter."""
-    return sees_all_nests(request) or is_reporter(request, nest)
+    """Who sees the full nest (author, photos): every-nest roles and its owner."""
+    return sees_all_nests(request) or is_owner(request, nest)
 
 
 def is_nest_manager(request) -> bool:
@@ -64,8 +69,8 @@ def can_edit_nest(request, nest) -> bool:
 
 
 def can_see_contact(request, nest) -> bool:
-    """The reporter's phone number and the private comment: coordinators, and the reporter."""
-    return is_nest_manager(request) or is_reporter(request, nest)
+    """The reporter's phone number and the private comment: coordinators, and the owner."""
+    return is_nest_manager(request) or is_owner(request, nest)
 
 
 def can_reactivate_nest(request) -> bool:
@@ -80,10 +85,23 @@ def can_visit_nest(request, nest) -> bool:
 
 
 def can_record_destruction(request, nest) -> bool:
-    """Coordinators, and the reporter of the nest; once only."""
+    """Coordinators, and the owner of the nest; once only."""
     if nest.status == nest.STATUS_DESTROYED:
         return False
-    return is_nest_manager(request) or is_reporter(request, nest)
+    return is_nest_manager(request) or is_owner(request, nest)
+
+
+def can_change_owner(request, nest) -> bool:
+    """
+    Handing a nest over: a platform admin, or a coordinator of the trappers for
+    a nest they own. Never an archived nest.
+    """
+    user = _authenticated(request)
+    if user is None or nest.archived:
+        return False
+    if is_platform_admin(user):
+        return True
+    return is_group_admin_of(membership_paths(request), TRAPPERS_ROOT) and is_owner(request, nest)
 
 
 def can_delete_event(request, event) -> bool:

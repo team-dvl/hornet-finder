@@ -6,7 +6,7 @@ import { PageHeader, PageLayout } from '../components/layout';
 import { mapUrl } from '../components/map/viewModes';
 import { ConfirmationModal } from '../components/modals';
 import {
-  DueList, TrapActionsSheet, TrapEventModal, TrapFormModal, TrapInfoPopup, TrapListItem, TrapListToolbar,
+  DueList, TrapActionsSheet, TrapEventModal, TrapFormModal, TrapInfoPopup, TrapListItem, TrapListToolbar, TrapOwnerModal,
 } from '../components/traps';
 import { TagAssociateModal, TagScannerModal } from '../components/tags';
 import { ConfirmDialog, IconButton } from '../components/ui';
@@ -62,7 +62,7 @@ export default function Traps() {
   const navigate = useNavigate();
   const location = useLocation();
   const {
-    isAdmin, groups, userGuid, canAddTrap, canActOnTrap, canEditTrap,
+    isAdmin, groups, userGuid, canAddTrap,
   } = useUserPermissions();
 
   const managed = useAppSelector(selectManagedTraps);
@@ -194,6 +194,7 @@ export default function Traps() {
   const [changingService, setChangingService] = useState(false);
   const [serviceError, setServiceError] = useState<string | null>(null);
   const [editTrap, setEditTrap] = useState<Trap | null>(null);
+  const [ownerTrap, setOwnerTrap] = useState<Trap | null>(null);
   const [deletingTrap, setDeletingTrap] = useState<Trap | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -411,7 +412,7 @@ export default function Traps() {
                   key={trap.id}
                   trap={trap}
                   isMine={Boolean(trap.owner && trap.owner.guid === userGuid)}
-                  canAct={canActOnTrap(trap)}
+                  canAct={Boolean(trap.permissions?.act)}
                   onOpen={setSheetTrap}
                   onLocate={locate}
                   onRecord={record}
@@ -457,18 +458,18 @@ export default function Traps() {
         trap={sheetTrap}
         onLocate={locate}
         onMove={move}
+        onChanged={reload}
       />
 
       <TrapActionsSheet
         trap={actionsTrap}
         onHide={() => setActionsTrap(null)}
-        canEdit={actionsTrap ? canEditTrap(actionsTrap) : false}
         onOpen={(trap) => { setActionsTrap(null); setSheetTrap(trap); }}
         onLocate={(trap) => { setActionsTrap(null); locate(trap); }}
         onMove={(trap) => { setActionsTrap(null); move(trap); }}
         onEdit={(trap) => { setActionsTrap(null); setEditTrap(trap); }}
         onDelete={(trap) => { setActionsTrap(null); setDeleteError(null); setDeletingTrap(trap); }}
-        canAct={actionsTrap ? canActOnTrap(actionsTrap) : false}
+        onChangeOwner={(trap) => { setActionsTrap(null); setOwnerTrap(trap); }}
         onServiceChange={(trap) => {
           setActionsTrap(null);
           setServiceError(null);
@@ -504,6 +505,15 @@ export default function Traps() {
       )}
 
       {editTrap && <TrapFormModal onHide={() => setEditTrap(null)} trap={editTrap} />}
+
+      {ownerTrap && (
+        <TrapOwnerModal
+          onHide={() => setOwnerTrap(null)}
+          trap={ownerTrap}
+          // The previous owner may no longer see it: refresh the list
+          onTransferred={reload}
+        />
+      )}
 
       {newTrapAt && (
         <TrapFormModal

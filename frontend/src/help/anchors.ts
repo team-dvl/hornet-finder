@@ -5,11 +5,11 @@
  * a module or section that is not listed here.
  */
 export const DOC_SECTIONS = {
-  nests: ['who', 'module', 'report', 'status', 'destruction', 'alerts', 'access'],
+  nests: ['who', 'module', 'report', 'status', 'destruction', 'follow', 'alerts', 'access'],
   traps: ['manager', 'reminders', 'placing', 'qr-code', 'journal', 'delegation', 'permissions'],
   apiaries: ['manager', 'adding', 'sharing', 'permissions'],
   stats: ['catches', 'species', 'trap-types', 'ranking', 'view', 'coverage', 'periods', 'scope', 'export'],
-  admin: ['qr-codes', 'groups', 'referentials', 'archiving', 'audit'],
+  admin: ['qr-codes', 'groups', 'referentials', 'archiving', 'audit', 'platform'],
 } as const;
 
 export type DocModuleId = keyof typeof DOC_SECTIONS;

@@ -10,12 +10,63 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-11-01
+
+### Added
+- Platform dashboard for the platform admins (*Administration → Plateforme*): a switch per kind of
+  notification and a general switch to hold them back for everyone, the devices subscribed, what became of the
+  sendings over 24 hours and 7 days, and whether the scheduler still runs. Trap reminders and nest alerts wait for
+  the resumption (nest alerts older than 48 hours are dropped), messages of a group or of the platform are
+  refused meanwhile. Recorded in the audit trail.
+- Notification when a nest is destroyed: the coordinators and the owners of the apiaries within 1 km (and
+  the administrators of their associations) are told, like for a new nest.
+- Traps: handing a trap over. A platform admin, or the administrator of a group the owner belongs to (the trappers, a beekeeper association), hands a trap over to a member of that group: "Changer de propriétaire" in the menu of the list and in the trap sheet. The delegation is cleared with the hand-over (the new owner delegates again), without ever widening who sees the trap (a restricted trap stays restricted: its new owner and the platform admins only, until it is delegated again); the new person is notified at once ("Pièges qui me sont transférés" in the Notifications module). A group administrator only reaches a trap delegated to their group.
+- Nests: "Transférer" is also in the menu of each row of the list, as in the nest sheet.
+- Follow-up of a nest: each nest is followed by a person, its reporter at first. A platform
+  admin hands the follow-up of any nest over to a trapper, a coordinator of the trappers
+  (`/trappers/admin`) the nests they follow (one reported for someone who called): "Transférer"
+  in the menu of the nest sheet. The reporter stays "Signalé par"; the sheet shows
+  "Suivi par" when it is someone else. The new person sees the nest, gets its follow-up
+  notifications and may declare its destruction, and is told at once ("Un nid vous a été
+  transféré"); the former one no longer sees it unless they see every nest. Recorded in the audit
+  trail ("Nid transféré"). Following a nest means managing it, not owning it.
+
+### Security
+- Keycloak 26.8.0 → 26.8.1 (released 2026-10-13): security fixes, among them a 2FA enforcement bypass, a PAR single-use bypass and authorization issues; the Authorization Services are not enabled here. Prod note `0027`.
+- Frontend `npm audit fix` (lockfile only, no change to `package.json`): zod 4.5.4 → 4.6.7 (high), follow-redirects 1.16.0 → 1.16.2 (high), fast-uri 3.1.8 → 3.1.9 (moderate and low), serialize-javascript 7.1.2 → 7.1.4 (low). 8 vulnerabilities (5 low, 1 moderate, 2 high) → 4 low, none in production dependencies (`npm audit --omit=dev`: 0). The remaining four are the `deepmerge` 4.3.1 chain pulled by `workbox-build` (prototype poisoning in `mergeObject()`), with no fix other than a downgrade of `vite-plugin-pwa`; the built `dist` is byte-identical.
+
+### Changed
+- The audit trail and the deliveries of the notifications (device by device) are opened from the platform
+  dashboard (*Administration → Plateforme*), no longer from their own tiles: all are reserved to the platform
+  admins. The dashboard lists its sub-pages (*Notifications*, with the switches and the deliveries, and
+  *Journal d'audit*) above the state of the devices, of the sendings and of the scheduler, whose help tips say
+  how they differ. The addresses `/admin/audit` and `/admin/notifications` are unchanged.
+- API image: Python 3.13 → 3.14 (`python:3.14-alpine3.22`); the 530 backend tests pass on 3.14.6, dependencies unchanged.
+- Pillow 12.3.0 → 13.0.0 (major, Dependabot #26): the removals of 13.0 (`GifImagePlugin._save_netpbm`, `ExifTags.IFD.Makernote`, Python 3.10) are not used here. The upload pipeline (`hornet/images.py`: JPEG/PNG/WebP/GIF, EXIF orientation 1/3/6/8, RGBA and grayscale, thumbnails, avatars) gives the same sizes as on 12.3.0 and the 543 backend tests pass; the release also bounds TIFF tag data and fixes a heap overflow when saving a TIFF to `BytesIO`.
+- TypeScript 5.9.3 → 7.0.2 (major, Dependabot #11): `tsc -b` is the native compiler (the whole `npm run build` goes from about 14 s to 4 s, same output files, same 17 lint errors as before). `typescript-eslint` (8.72) refuses TS 7 and needs the TS 6 API until it supports 7.1, so `package.json` follows Microsoft's side-by-side recipe: `typescript` is an alias of `@typescript/typescript6` (API for the tools, `tsc6` binary) and `@typescript/native` is an alias of `typescript@^7` (the `tsc` binary). Dependabot sees both aliases, never bump `typescript` itself to 7.
+- Frontend dev tools: eslint 10.10.0 → 10.13.0, globals 17.12.0 → 17.13.0, vite 8.3.4 → 8.3.5 (Dependabot #22, #25, #24); build and lint unchanged (same 17 pre-existing lint errors), `npm audit` unchanged (8: 5 low, 1 moderate, 2 high).
+- Frontend image: Node 24 → 26 (`node:26-alpine`, dev server and prod build; Dependabot #13). Node 26.13.0 became LTS on 2026-10-28. Checked on the official 26.13.0 Linux x64 binary (glibc, not the Alpine image): `npm ci`, `npm run build` (same `dist` byte for byte as on Node 22) and the Vite dev server work, lint unchanged; the Alpine image itself is not built yet.
+- reportlab 5.0.1 → 5.1.0 (Dependabot #23): the 543 backend tests pass, among them the tag sheets and the stats PDF.
+- Sign-in screen: the Google and Facebook buttons are at the top, above the identifier and password form, to encourage their use. The "Ou se connecter avec" heading is gone, a rule separates the two.
+- Sign-in screen: the "Se souvenir de moi" checkbox is gone. It changed nothing for the session (same 3-day idle and 7-day maximum limits, tokens kept in `localStorage`), only whether Keycloak's own cookie outlived the browser.
+- Traps: the visibility says what the trap is. It is `public` or `restricted` (its owner, its delegated group if any, and the platform admins; `restricted` replaces `group`, which is still accepted). It no longer depends on the delegation: withdrawing a delegation, or handing a trap over, never makes a trap public, and a restricted trap can have no group. A trap of an apiary-bound type is always restricted when its owner is a beekeeper (it was only hidden at read time before, whoever owned it): the existing ones are migrated (they stay hidden, their owners who keep no bees may open them), asking for "public" is refused, a trap handed to a beekeeper or whose owner joins an association is restricted (in the latter case recorded in the audit trail as a system event, "Piège rendu privé"), and flagging a type as apiary-bound restricts the existing traps of beekeepers (recorded in the audit trail; unflagging restores nothing). Someone who keeps no bees (a trapper with a Jadeprobe) may make such a trap public. The sheet of a trap has a "Piège public" switch for its owner, and the list shows a lock on every restricted trap.
+- Traps: the API now says what the requester may do with each trap (`permissions`: `update`, `act`, `change_owner`), as for apiaries and nests; the app no longer works it out on its own.
+- Dialogs on a large screen (object sheets such as a nest, forms): 700 px wide from 992 px instead of 500 px. Confirmations and phone layout unchanged.
+
+### Fixed
+- Restart: nginx and the API (and, in dev, Vite and the mail proxy) now wait for Keycloak to be healthy (new
+  healthcheck on the realm endpoint), so the site no longer fails on the login while Keycloak is still starting.
+- The "À relever" list shows the photo of the trap, else the one of its type, as a medallion (as the nests
+  and the trap manager do), instead of an icon.
+- Dark mode: white screen on launch or after a reactivation, until the stylesheet had loaded. The page background of the chosen palette and mode (kept locally) is now set inline in `index.html`, so the first paint already has the right colour.
+
 ## [1.5.1] - 2026-10-16
 
 ### Fixed
 - Dark mode, iOS and Android: an off switch was hard to tell from an on one (Bootstrap's dark rule dimmed the off knob). The off state now has an opaque white knob and a lighter track (iOS) or a restated outline (Material), in both palettes.
 - Navbar on a PC: the menu entries, the breadcrumb and the version tag overlapped between 992 and 1200 px wide. The horizontal menu now starts at 1200 px; below it the burger menu is used.
 - Nests: a nest that belongs to several "À traiter" sections (to verify, near one's apiaries, one's own report) was counted once per section in the badges and listed several times. It now counts once and appears once, in the most urgent section.
+- Apiaries: "Changer de propriétaire" was only in the apiary sheet; it is now also in the "Plus d'actions" menu of each row of the list.
 
 ## [1.5.0] - 2026-10-16
 
@@ -447,7 +498,8 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   algorithm-confusion flaws were not reachable; `PyJWKClient` redirect handling
   is fixed.
 
-[Unreleased]: https://github.com/team-dvl/hornet-finder/compare/v1.5.1...HEAD
+[Unreleased]: https://github.com/team-dvl/hornet-finder/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/team-dvl/hornet-finder/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/team-dvl/hornet-finder/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/team-dvl/hornet-finder/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/team-dvl/hornet-finder/compare/v1.3.0...v1.4.0

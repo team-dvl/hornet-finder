@@ -5,7 +5,7 @@ import { useAuth } from 'react-oidc-context';
 import { PageHeader, PageLayout } from '../components/layout';
 import { mapUrl } from '../components/map/viewModes';
 import {
-  ChipChoice, NestActionsSheet, NestEventModal, NestListItem, ReportNestSheet,
+  ChipChoice, NestActionsSheet, NestEventModal, NestListItem, NestOwnerModal, ReportNestSheet,
 } from '../components/nests';
 import AddNestPopup from '../components/popups/AddNestPopup';
 import NestInfoPopup from '../components/popups/NestInfoPopup';
@@ -148,6 +148,7 @@ export default function Nests() {
   const [sheetNest, setSheetNest] = useState<Nest | null>(null);
   const [actionsNest, setActionsNest] = useState<Nest | null>(null);
   const [eventDialog, setEventDialog] = useState<EventDialog | null>(null);
+  const [ownerNest, setOwnerNest] = useState<Nest | null>(null);
   const [placing, setPlacing] = useState(false);
   const [reportAt, setReportAt] = useState<{ lat: number; lng: number } | null>(null);
   const [linkError, setLinkError] = useState<string | null>(null);
@@ -381,7 +382,17 @@ export default function Nests() {
         onLocate={(nest) => { setActionsNest(null); locate(nest); }}
         onVisit={(nest) => { setActionsNest(null); record(nest, 'visit'); }}
         onDestruction={(nest) => { setActionsNest(null); record(nest, 'destruction'); }}
+        onChangeOwner={(nest) => { setActionsNest(null); setOwnerNest(nest); }}
       />
+
+      {ownerNest && (
+        <NestOwnerModal
+          onHide={() => setOwnerNest(null)}
+          nest={{ ...ownerNest, id: ownerNest.id as number }}
+          keepsSight={canSeeAllNests}
+          onTransferred={() => { setOwnerNest(null); reload(); }}
+        />
+      )}
 
       {eventDialog && (
         <NestEventModal

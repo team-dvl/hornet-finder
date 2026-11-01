@@ -14,6 +14,7 @@ import { AppModal, FieldRow, IconButton, SheetActions } from '../ui';
 import { ACTION_ICONS, OBJECT_ICONS } from '../../utils/icons';
 import { formatDate, formatShortDateTime } from '../../utils/format';
 import TrapDelegationPanel from './TrapDelegationPanel';
+import TrapOwnerModal from './TrapOwnerModal';
 import TrapEventModal from './TrapEventModal';
 import { eventKindInfo } from './eventKinds';
 import TrapFormModal from './TrapFormModal';
@@ -27,6 +28,8 @@ interface TrapInfoPopupProps {
   onLocate?: (trap: Trap) => void;
   /** Moves the trap elsewhere than on this screen (the map module, from the trap list) */
   onMove?: (trap: Trap) => void;
+  /** Called after a change that may take the trap out of the caller's list (a hand-over) */
+  onChanged?: () => void;
 }
 
 /** Journal entries shown before "Voir plus" */
@@ -274,18 +277,19 @@ function lastContents(trap: Trap): { count: number; unit: string; note?: string;
 type SubDialog =
   | { kind: 'event'; eventKind: TrapEventKind }
   | { kind: 'edit' }
+  | { kind: 'owner' }
   | { kind: 'delete' }
   | { kind: 'delete-entry'; entry: TrapEvent[] }
   | { kind: 'photo'; url: string };
 
 /** Detail of a trap: identity, journal and the actions the user is allowed to take. */
 export default function TrapInfoPopup({
-  show, onHide, trap, onAddAtLocation, onLocate, onMove,
+  show, onHide, trap, onAddAtLocation, onLocate, onMove, onChanged,
 }: TrapInfoPopupProps) {
   const dispatch = useAppDispatch();
   const auth = useAuth();
   const detailed = useAppSelector(selectSelectedTrap);
-  const { canEditTrap, canActOnTrap, isAdmin, userGuid } = useUserPermissions();
+  const { isAdmin, userGuid } = useUserPermissions();
   const historyAction = useHistoryAction();
 
   const [sub, setSub] = useState<SubDialog | null>(null);
@@ -323,8 +327,9 @@ export default function TrapInfoPopup({
 
   if (!trap || !current) return null;
 
-  const mayEdit = canEditTrap(current);
-  const mayAct = canActOnTrap(current);
+  const mayEdit = Boolean(current.permissions?.update);
+  const mayAct = Boolean(current.permissions?.act);
+  const mayChangeOwner = Boolean(current.permissions?.change_owner);
   const held = current.trap_type.accumulates ? lastContents(current) : null;
   const closeSub = () => setSub(null);
 
@@ -420,7 +425,7 @@ export default function TrapInfoPopup({
           </div>
         </div>
 
-        {auth.isAuthenticated && (mayAct || mayEdit || canAddHere || onLocate || history) && (
+        {auth.isAuthenticated && (mayAct || mayEdit || mayChangeOwner || canAddHere || onLocate || history) && (
           <SheetActions
             className="mb-2"
             more={[
@@ -431,6 +436,7 @@ export default function TrapInfoPopup({
                 label: 'Ajouter à cette position',
                 onClick: () => onAddAtLocation(current.latitude, current.longitude),
               },
+              mayChangeOwner && { icon: ACTION_ICONS.transfer, label: 'Changer de propriétaire', onClick: () => setSub({ kind: 'owner' }) },
               history,
               mayEdit && { icon: ACTION_ICONS.delete, label: 'Supprimer', tone: 'danger', onClick: () => setSub({ kind: 'delete' }) },
             ]}
@@ -542,6 +548,11 @@ export default function TrapInfoPopup({
       )}
 
       {sub?.kind === 'edit' && <TrapFormModal onHide={closeSub} trap={current} />}
+
+      {sub?.kind === 'owner' && (
+        // Whoever hands the trap over may no longer see it: close its sheet
+        <TrapOwnerModal onHide={closeSub} trap={current} onTransferred={() => { onChanged?.(); onHide(); }} />
+      )}
 
       <ConfirmationModal
         show={sub?.kind === 'delete'}

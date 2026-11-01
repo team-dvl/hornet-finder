@@ -10,6 +10,9 @@ each browser with the keys it gave when subscribing (RFC 8291).
 Sending is done off the request: a push service answers in 0.1 to 1 s, and a
 group may hold a few hundred devices.
 
+The platform admins can hold back some kinds of notifications (`paused_kinds`):
+the senders check it, and `_send_one` once more for what was already queued.
+
 Retention (`purge_expired`, run by the scheduler): the history of sent
 notifications for `PUSH_HISTORY_DAYS`, a device for `PUSH_DEVICE_IDLE_DAYS`
 after the app was last opened on it.
@@ -28,7 +31,7 @@ from django.db import connection
 from django.utils import timezone
 from pywebpush import WebPushException, webpush
 
-from .models import PushDelivery, PushNotification, PushSubscription
+from .models import PlatformSettings, PushDelivery, PushNotification, PushSubscription
 
 logger = logging.getLogger(__name__)
 
@@ -36,10 +39,17 @@ TTL_SECONDS = 24 * 3600  # how long a push service keeps a message for an unreac
 TIMEOUT_SECONDS = 10
 WORKERS = 8
 GONE = (404, 410)  # the subscription no longer exists at the push service
+# Not an HTTP code: the platform held the kind back after the delivery was queued
+STATUS_PAUSED = 1
 
 
 def enabled() -> bool:
     return bool(settings.VAPID_PUBLIC_KEY and settings.VAPID_PRIVATE_KEY)
+
+
+def paused_kinds() -> set:
+    """The kinds of notifications the platform admins hold back (`PlatformSettings`), read at each call."""
+    return set(PlatformSettings.objects.values_list('paused_kinds', flat=True).first() or [])
 
 
 def device_label(user_agent: str) -> str:
@@ -81,6 +91,11 @@ def _send_one(delivery_id) -> None:
     delivery = PushDelivery.objects.select_related('notification', 'subscription').get(pk=delivery_id)
     subscription = delivery.subscription
     status, error = None, ''
+    if delivery.notification.kind in paused_kinds():
+        # Queued before the pause: the message is dropped, the device stays subscribed
+        PushDelivery.objects.filter(pk=delivery_id).update(status=STATUS_PAUSED, error='paused by the platform',
+                                                           sent_at=timezone.now())
+        return
     if subscription is None:
         status, error = 410, 'subscription removed'
     else:

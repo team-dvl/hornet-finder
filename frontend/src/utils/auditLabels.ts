@@ -28,6 +28,7 @@ export const ACTION_LABELS: Record<string, string> = {
   'nest.archived': 'Nid archivé',
   'nest.unarchived': 'Nid désarchivé',
   'nest.bulk_archived': 'Nids archivés (période)',
+  'nest.owner_changed': 'Nid transféré',
   'apiary.created': 'Rucher créé',
   'apiary.updated': 'Rucher modifié',
   'apiary.deleted': 'Rucher supprimé',
@@ -45,6 +46,7 @@ export const ACTION_LABELS: Record<string, string> = {
   'trap.delegated': 'Piège délégué',
   'trap.undelegated': 'Délégation retirée',
   'trap.owner_changed': 'Piège transféré',
+  'trap.restricted': 'Piège rendu privé (propriétaire devenu apiculteur)',
   'trap.event_recorded': 'Entrée de journal',
   'trap.visit_recorded': 'Visite enregistrée',
   'trap.visit_deleted': 'Visite supprimée',
@@ -74,6 +76,7 @@ export const ACTION_LABELS: Record<string, string> = {
   'stats.export_link': 'Export demandé',
   'stats.export_emailed': 'Export envoyé par email',
   'stats.export_downloaded': 'Export téléchargé',
+  'platform.notifications_changed': 'Notifications suspendues ou reprises',
   'audit.exported': "Journal d'audit exporté",
 };
 
@@ -94,6 +97,7 @@ export const DOMAINS: Record<string, Domain> = {
   group: { label: 'Groupes', icon: 'people' },
   invitation: { label: 'Invitations', icon: 'envelope' },
   notification: { label: 'Notifications', icon: 'bell' },
+  platform: { label: 'Plateforme', icon: 'speedometer2' },
   stats: { label: 'Exports', icon: 'bar-chart-line' },
   trap_type: { label: 'Types de pièges', icon: 'bullseye' },
   species: { label: 'Espèces', icon: 'bug' },
@@ -122,6 +126,7 @@ const OBJECT_NAMES: Record<string, string> = {
   statistic: 'Statistique',
   export: 'Export',
   user: 'Personne',
+  platform: 'Plateforme',
   audit: "Journal d'audit",
 };
 
@@ -202,6 +207,7 @@ export const FIELD_LABELS: Record<string, string> = {
   visibility: 'Visibilité',
   group: 'Groupe (n°)',
   group_path: 'Groupe',
+  traps_restricted: 'Pièges rendus privés',
   kind: "Type d'entrée",
   performed_at: 'Date',
   performed_by: 'Par',
@@ -257,16 +263,34 @@ export const FIELD_LABELS: Record<string, string> = {
   associated_by: 'Associé par',
   revoked_by: 'Révoqué par',
   from: 'Reconstitué depuis',
+  paused: 'Suspendues',
+  resumed: 'Reprises',
 };
 
-export const fieldLabel = (key: string) => FIELD_LABELS[key] ?? key;
+/** Labels that differ for one type of object: the owner of a nest follows it, it is no legal owner */
+const TYPE_FIELD_LABELS: Record<string, Record<string, string>> = {
+  nest: { owner: 'Suivi par' },
+};
+
+export const fieldLabel = (key: string, targetType?: string) =>
+  (targetType && TYPE_FIELD_LABELS[targetType]?.[key]) ?? FIELD_LABELS[key] ?? key;
 
 /** Fields holding a person's GUID (see PERSON_FIELDS in `audit/views.py`) */
 const PERSON_FIELDS = new Set(['owner', 'created_by', 'performed_by', 'generated_by', 'associated_by',
   'revoked_by', 'uploaded_by', 'member']);
 
+/** Kinds of notifications the platform admins hold back or resume */
+const NOTIFICATION_KINDS: Record<string, string> = {
+  trap_reading: 'Rappels de relevé', trap_refill: "Rappels d'attractif", trap_handover: 'Pièges transférés', nest_new: 'Tous les nouveaux nids',
+  nest_near_apiary: 'Nids près des ruchers', nest_followup: 'Suivi des signalements',
+  group_message: 'Messages de groupe', platform_message: 'Messages de la plateforme',
+};
+
 const VALUE_LABELS: Record<string, Record<string, string>> = {
-  visibility: { public: 'Publique', group: 'Groupe' },
+  // `group` is the former name of `restricted`, kept for the history
+  visibility: { public: 'Publique', restricted: 'Restreinte', group: 'Restreinte au groupe' },
+  paused: NOTIFICATION_KINDS,
+  resumed: NOTIFICATION_KINDS,
   via: { link: 'Lien direct', email: 'Lien envoyé par email' },
   kind: {
     installation: 'Installation', inspection: 'Inspection', cleaning: 'Nettoyage', refill: 'Remplissage',
@@ -354,7 +378,7 @@ export function eventSummary(event: AuditEvent): string {
   } else if (typeof c.count === 'number') {
     parts.push(String(c.count));
   } else if (diffs.length > 0 && !event.action.endsWith('destroyed')) {
-    parts.push(diffs.map(([key]) => fieldLabel(key)).join(', '));
+    parts.push(diffs.map(([key]) => fieldLabel(key, event.target_type)).join(', '));
   }
   return parts.join(' · ');
 }

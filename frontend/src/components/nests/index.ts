@@ -9,5 +9,6 @@ export { default as NestJournal } from './NestJournal';
 export { default as NestEventModal } from './NestEventModal';
 export { default as NestListItem } from './NestListItem';
 export { default as NestActionsSheet } from './NestActionsSheet';
+export { default as NestOwnerModal } from './NestOwnerModal';
 export { default as ReportNestSheet } from './ReportNestSheet';
 export { default as NestContactFields } from './NestContactFields';

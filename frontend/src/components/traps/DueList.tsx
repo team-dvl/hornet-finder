@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Button } from 'react-bootstrap';
-import { HelpTip } from '../common';
+import { AuthImage, HelpTip } from '../common';
 import type { Trap } from '../../store/store';
 import type { DueItem } from '../../utils/dueApi';
 import { ACTION_ICONS } from '../../utils/icons';
@@ -72,6 +72,8 @@ export default function DueList({ items, highlight, onOpen, onRead, onRefill }: 
               {rows.map((item) => {
                 const isHighlighted = item.trap.id === highlight;
                 const refill = item.kind === 'trap_refill';
+                // Its own photo, else the one of its type, as in the trap manager
+                const thumbnail = item.trap.photo_thumbnail_url ?? item.trap.trap_type.photo_thumbnail_url ?? null;
                 return (
                   <div
                     key={`${item.trap.id}-${item.kind}`}
@@ -84,7 +86,9 @@ export default function DueList({ items, highlight, onOpen, onRead, onRefill }: 
                       onClick={() => onOpen(item.trap)}
                       aria-label={`Fiche du piège #${item.trap.id}`}
                     >
-                      <span className="due-icon" aria-hidden="true">{refill ? '🧪' : '🐝'}</span>
+                      <span className="manager-list-thumb flex-shrink-0 rounded">
+                        {thumbnail ? <AuthImage src={thumbnail} alt="" className="rounded" /> : <span aria-hidden="true">🪤</span>}
+                      </span>
                       <span className="d-block min-w-0">
                         <span className="d-block text-truncate">
                           <strong>#{item.trap.id}</strong> · {item.trap.trap_type.name}

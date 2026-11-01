@@ -53,7 +53,7 @@ class NestAlertTestCase(TestCase):
 
     def report(self, by=None, outcome='', created=None, **fields):
         nest = Nest.objects.create(latitude=50.5, longitude=4.5, created_by=by or self.reporter,
-                                   address='Rue de Hemptinne 3, 5020 Vedrin, Namur', **fields)
+                                   owner=by or self.reporter, address='Rue de Hemptinne 3, 5020 Vedrin, Namur', **fields)
         event = NestEvent.objects.create(nest=nest, kind='report', performed_at=nest.created_at,
                                          performed_by=by or self.reporter, outcome=outcome)
         if created:
@@ -173,6 +173,24 @@ class FollowupTests(NestAlertTestCase):
             ("Votre signalement a avancé", f"Le nid #{self.nest.pk} a été neutralisé le 20 octobre. Merci !"),
         ])
 
+    def test_who_is_told_of_a_destroyed_nest(self):
+        self.record('destruction', self.hunter, performed_at=at(20, 9))
+        nest_alerts.run(now=at(20, 11))
+        pk = self.nest.pk
+        self.assertEqual(self.received(self.reporter)[0][0], "Votre signalement a avancé")
+        self.assertEqual(self.received(self.coordinator), [("Nid neutralisé", f"Nid #{pk} à Vedrin a été neutralisé.")])
+        self.assertEqual(len(self.received(self.admin)), 1)
+        self.assertEqual(self.received(self.owner)[0][0], "Nid neutralisé près de votre rucher")
+        self.assertEqual(self.received(self.association_admin)[0][0],
+                         "Nid neutralisé près d'un rucher de votre association")
+        for user in (self.beekeeper, self.hunter, self.no_device):
+            self.assertEqual(self.received(user), [])
+
+    def test_the_coordinator_who_destroyed_it_is_not_told(self):
+        self.record('destruction', self.coordinator, performed_at=at(20, 9))
+        nest_alerts.run(now=at(20, 11))
+        self.assertEqual(self.received(self.coordinator), [])
+
     def test_not_when_they_declared_it_themselves(self):
         self.record('destruction', self.reporter)
         nest_alerts.run(now=at(20))
@@ -184,6 +202,13 @@ class FollowupTests(NestAlertTestCase):
         self.record('visit', self.coordinator, outcome='not_found')
         nest_alerts.run(now=at(20))
         self.assertEqual(self.received(self.reporter), [])
+
+    def test_the_owner_follows_it_once_handed_over(self):
+        Nest.objects.filter(pk=self.nest.pk).update(owner=self.hunter)
+        self.record('visit', self.coordinator, outcome='active')
+        nest_alerts.run(now=at(20))
+        self.assertEqual(self.received(self.reporter), [])
+        self.assertEqual([title for title, _ in self.received(self.hunter)], ["Votre signalement a avancé"])
 
 
 class SeasonEndTests(TestCase):

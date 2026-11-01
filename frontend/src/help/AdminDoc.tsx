@@ -4,7 +4,7 @@ export default function AdminDoc() {
     <>
       <p className="lead text-muted">
         Les outils de la plateforme : vos QR Codes et votre groupe pour chacun, les référentiels,
-        l&apos;archivage et le journal d&apos;audit pour les administrateurs de la plateforme.
+        l&apos;archivage, la plateforme et le journal d&apos;audit pour les administrateurs de la plateforme.
       </p>
 
       <section data-section="qr-codes" className="mb-4">
@@ -62,6 +62,41 @@ export default function AdminDoc() {
         </p>
       </section>
 
+      <section data-section="platform" className="mb-4">
+        <h5 className="text-primary">
+          <span className="me-2">🎛️</span>
+          Plateforme
+        </h5>
+        <p>
+          Réservé aux administrateurs de la plateforme : <em>Administration → Plateforme</em> ouvre les
+          pages <em>Notifications</em> et <em>Journal d&apos;audit</em>, et montre l&apos;état : les appareils
+          abonnés, les envois, le planificateur.
+        </p>
+        <p>
+          <strong>Envois et planificateur.</strong> Le planificateur est le service qui décide d&apos;envoyer,
+          toutes les 10 minutes : rappels de pièges, alertes de nids, fin de saison, ménage. Les envois sont le
+          résultat : ce que le service de notification du navigateur ou du téléphone a répondu pour chaque
+          message, quel qu&apos;en soit l&apos;origine (automatique, écrit par une personne, essai). Des envois
+          vides ne disent donc pas que le planificateur est en panne (rien n&apos;était dû, ou hors des heures
+          d&apos;envoi) ; un planificateur à l&apos;arrêt coupe les envois automatiques, pas les messages écrits.
+          Le détail appareil par appareil est dans <em>Notifications → Envois</em>, avec le délai
+          d&apos;affichage mesuré sur l&apos;appareil.
+        </p>
+        <p>
+          <strong>Suspendre des notifications</strong> (<em>Plateforme → Notifications</em>). Un interrupteur
+          par sorte, et un interrupteur général qui les bascule toutes. Suspendre coupe la sorte pour tout le
+          monde, sans toucher aux réglages de chacun ni aux abonnements des appareils. Les rappels de pièges et
+          les alertes de nids attendent la reprise (les rappels partent alors, dans les heures d&apos;envoi) ;
+          une alerte de nid de plus de 48 heures est perdue. Un message écrit par une personne (groupe,
+          plateforme) est refusé tant que sa sorte est suspendue, et l&apos;avis de transfert d&apos;un nid
+          n&apos;est pas gardé. Ce qui est déjà parti chez le service de notification n&apos;est pas rappelé.
+          L&apos;essai de l&apos;appareil n&apos;est jamais suspendu.
+        </p>
+        <p className="mb-0">
+          Chaque changement est inscrit au journal d&apos;audit (qui, quand, quelles sortes).
+        </p>
+      </section>
+
       <section data-section="audit" className="mb-4">
         <h5 className="text-primary">
           <span className="me-2">🕘</span>
@@ -71,7 +106,8 @@ export default function AdminDoc() {
           Chaque action faite dans l&apos;application est enregistrée : signalement, modification ou
           suppression d&apos;un nid, d&apos;un frelon, d&apos;un rucher ou d&apos;un piège, visites et
           destructions des nids (et le passage des nids non traités à « abandonné » en fin de saison), relevés et
-          entrées du journal des pièges, partages, délégations et transferts, QR Codes, membres et
+          entrées du journal des pièges, partages, délégations et transferts (et le passage en privé d&apos;un piège
+          d&apos;un type lié à un rucher quand son propriétaire devient apiculteur, enregistré comme une action du système), QR Codes, membres et
           invitations des groupes, notifications envoyées à un groupe ou à un membre (le titre et le nombre
           de destinataires, jamais le texte), exports de statistiques et leurs téléchargements. Le journal
           retient qui a agi, quand, sur quel objet, et ce qui a changé (avant → après).
@@ -83,7 +119,7 @@ export default function AdminDoc() {
           dans votre compte au moment de la consultation.
         </p>
         <p>
-          <strong>Consulter</strong> (administrateurs) : <em>Administration → Journal d&apos;audit</em>,
+          <strong>Consulter</strong> (administrateurs) : <em>Administration → Plateforme → Journal d&apos;audit</em>,
           du plus récent au plus ancien (l&apos;icône de tri inverse l&apos;ordre), filtré par période,
           domaine, action, personne, source ou texte.
           L&apos;icône <i className="bi bi-clock-history" aria-hidden="true" /> <em>Historique</em> d&apos;une

@@ -54,6 +54,7 @@ AUDITED = {
     ('nest', 'delete_photo', 'delete'): 'nest.photo_removed',
     ('nest', 'events', 'post'): 'nest.visited / nest.destroyed / nest.reactivated',
     ('nest', 'delete_event', 'delete'): 'nest.event_deleted',
+    ('nest', 'owner', 'put'): 'nest.owner_changed',
     ('apiary', 'create', 'post'): 'apiary.created',
     ('apiary', 'update', 'put'): 'apiary.updated',
     ('apiary', 'partial_update', 'patch'): 'apiary.updated',
@@ -94,6 +95,7 @@ AUDITED = {
     ('group', 'member_admin', 'put'): 'group.admin_named',
     ('group', 'dismiss_admin', 'delete'): 'group.admin_dismissed',
     ('push', 'send', 'post'): 'notification.sent',
+    ('platform', 'set_notifications', 'put'): 'platform.notifications_changed',
     ('group-invitation', 'create', 'post'): 'invitation.sent',
     ('group-invitation', 'remind', 'post'): 'invitation.reminded',
     ('group-invitation', 'destroy', 'delete'): 'invitation.cancelled',
@@ -291,7 +293,10 @@ class TrapAuditTests(ApiTestCase):
             f'/api/traps/{self.trap.id}/owner/', {'owner_guid': str(self.member_guid)}, format='json')
         self.assertEqual(response.status_code, 200)
         [handed] = _events('trap.owner_changed')
-        self.assertEqual(handed.changes, {'owner': [str(self.owner_guid), str(self.member_guid)]})
+        self.assertEqual(handed.changes['owner'], [str(self.owner_guid), str(self.member_guid)])
+        # The delegation is cleared with the hand-over: the new owner delegates again
+        self.assertEqual(handed.changes['group_path'], [self.group_path, None])
+        self.assertIn(f'group:{self.group_path}', handed.refs)
         self.assertEqual(handed.actor_roles, ['admin'])
 
         # Everything about the trap, in one query

@@ -11,10 +11,11 @@ interface NestActionsSheetProps {
   onLocate: (nest: Nest) => void;
   onVisit: (nest: Nest) => void;
   onDestruction: (nest: Nest) => void;
+  onChangeOwner: (nest: Nest) => void;
 }
 
 /** The actions of a row of the nest list, in a bottom sheet; what the user may do comes from `permissions`. */
-export default function NestActionsSheet({ nest, onHide, onOpen, onLocate, onVisit, onDestruction }: NestActionsSheetProps) {
+export default function NestActionsSheet({ nest, onHide, onOpen, onLocate, onVisit, onDestruction, onChangeOwner }: NestActionsSheetProps) {
   const permissions = nest?.permissions;
   const actions = nest ? [
     { key: 'open', icon: ACTION_ICONS.sheet, label: 'Fiche et journal', onClick: () => onOpen(nest) },
@@ -26,6 +27,9 @@ export default function NestActionsSheet({ nest, onHide, onOpen, onLocate, onVis
       label: permissions.visit ? 'Enregistrer la neutralisation' : 'Signaler la neutralisation',
       onClick: () => onDestruction(nest),
     }] : []),
+    ...(permissions?.change_owner
+      ? [{ key: 'owner', icon: ACTION_ICONS.transfer, label: 'Transférer', onClick: () => onChangeOwner(nest) }]
+      : []),
   ] : [];
 
   return (

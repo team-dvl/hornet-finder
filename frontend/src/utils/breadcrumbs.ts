@@ -12,8 +12,13 @@ const ADMIN_SECTIONS: Record<string, string> = {
   archiving: 'Archivage',
   tags: 'QR Codes',
   group: 'Groupe',
+  platform: 'Plateforme',
+  notifications: 'Envois',
   audit: "Journal d'audit",
 };
+
+/** Pages reached from the platform dashboard: its crumb comes first. */
+const UNDER_PLATFORM = new Set(['audit']);
 
 /** Statistics with a page, for the breadcrumb trail (short names). */
 export const STAT_SECTIONS: Record<string, string> = {
@@ -28,7 +33,9 @@ export const STAT_SECTIONS: Record<string, string> = {
 /**
  * Breadcrumb trail for the current route, derived from the module config:
  * `/nests` → [Nids],
- * `/admin/trap-types` → [Administration, Types de pièges]. The site name
+ * `/admin/trap-types` → [Administration, Types de pièges], `/admin/audit` →
+ * [Administration, Plateforme, Journal d'audit], `/admin/notifications` →
+ * [Administration, Plateforme, Notifications, Envois]. The site name
  * (link to `/`) is prepended by the navbar itself.
  */
 export function getBreadcrumbs(pathname: string): Crumb[] {
@@ -44,9 +51,18 @@ export function getBreadcrumbs(pathname: string): Crumb[] {
     }
   }
   if (module.id === 'admin' && segments[1]) {
-    const section = ADMIN_SECTIONS[segments[1]];
-    if (section) {
-      crumbs.push({ label: section, path: `/admin/${segments[1]}` });
+    const path = segments.slice(0, 2).join('/');
+    if (segments[1] === 'platform' && segments[2] === 'notifications') {
+      crumbs.push({ label: ADMIN_SECTIONS.platform, path: '/admin/platform' },
+        { label: 'Notifications', path: '/admin/platform/notifications' });
+    } else if (segments[1] === 'notifications') {
+      // The deliveries: reached from the notification switches
+      crumbs.push({ label: ADMIN_SECTIONS.platform, path: '/admin/platform' },
+        { label: 'Notifications', path: '/admin/platform/notifications' },
+        { label: ADMIN_SECTIONS.notifications, path: `/${path}` });
+    } else if (ADMIN_SECTIONS[segments[1]]) {
+      if (UNDER_PLATFORM.has(segments[1])) crumbs.push({ label: ADMIN_SECTIONS.platform, path: '/admin/platform' });
+      crumbs.push({ label: ADMIN_SECTIONS[segments[1]], path: `/${path}` });
     }
   }
   return crumbs;

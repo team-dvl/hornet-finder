@@ -346,13 +346,13 @@ class TrapVisibilityTests(TrapTestCase):
         self.assertNotIn('comments', response.data[0])
 
     def test_anonymous_does_not_see_group_traps(self):
-        self.trap.visibility = Trap.VISIBILITY_GROUP
+        self.trap.visibility = Trap.VISIBILITY_RESTRICTED
         self.trap.group = self.group
         self.trap.save()
         self.assertEqual(self._list().data, [])
 
     def test_group_trap_visible_to_member_owner_and_admin(self):
-        self.trap.visibility = Trap.VISIBILITY_GROUP
+        self.trap.visibility = Trap.VISIBILITY_RESTRICTED
         self.trap.group = self.group
         self.trap.save()
         for user in (self.owner_user, self.member_user, self.group_admin_user,
@@ -362,7 +362,7 @@ class TrapVisibilityTests(TrapTestCase):
                 self.assertEqual(ids, {self.trap.id})
 
     def test_group_trap_invisible_to_stranger(self):
-        self.trap.visibility = Trap.VISIBILITY_GROUP
+        self.trap.visibility = Trap.VISIBILITY_RESTRICTED
         self.trap.group = self.group
         self.trap.save()
         self.assertEqual(self._list(self.stranger_user).data, [])
@@ -401,12 +401,18 @@ class ApiaryBoundTrapTests(TrapTestCase):
     def test_electric_harp_is_flagged_by_the_migration(self):
         self.assertTrue(TrapType.objects.get(slug='electric-harp').apiary_bound)
 
-    def test_hidden_from_anonymous_and_strangers_despite_public_visibility(self):
-        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_PUBLIC)
+    def test_it_is_stored_as_restricted_and_hidden_from_anonymous_and_strangers(self):
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_RESTRICTED)
         self.assertEqual(self._list_ids(), {self.public_trap.id})
         self.assertEqual(self._list_ids(self.stranger_user), {self.public_trap.id})
         self.assertIn(self._retrieve().status_code, (403, 404))
         self.assertIn(self._retrieve(self.stranger_user).status_code, (403, 404))
+
+    def test_a_row_stored_as_public_is_still_hidden_at_read_time(self):
+        # Defense in depth: a row written around the model (bulk update, old data)
+        Trap.objects.filter(pk=self.trap.pk).update(visibility=Trap.VISIBILITY_PUBLIC)
+        self.assertEqual(self._list_ids(), {self.public_trap.id})
+        self.assertIn(self._retrieve().status_code, (403, 404))
 
     def test_visible_to_owner_delegated_group_and_admin(self):
         for user in (self.owner_user, self.member_user, self.group_admin_user,
@@ -439,6 +445,222 @@ class ApiaryBoundTrapTests(TrapTestCase):
         allowed = self.factory.get(f'/api/media/{path}')
         force_authenticate(allowed, user=self.member_user)
         self.assertEqual(media_view(allowed, path=path).status_code, 200)
+
+
+class TrapVisibilityInvariantTests(TrapTestCase):
+    """The stored visibility is what the trap is: an apiary-bound trap is never `public`."""
+
+    def setUp(self):
+        super().setUp()
+        self.harp = TrapType.objects.get(slug='electric-harp')
+
+    def _patch(self, user, payload):
+        request = self.factory.patch(f'/traps/{self.trap.id}/', payload)
+        force_authenticate(request, user=user)
+        return TrapViewSet.as_view({'patch': 'partial_update'})(request, pk=self.trap.id)
+
+    def test_the_model_stores_an_apiary_bound_trap_as_restricted(self):
+        trap = Trap.objects.create(latitude=50.5, longitude=4.5, owner=self.owner, trap_type=self.harp,
+                                   installed_at=timezone.now().date(), visibility=Trap.VISIBILITY_PUBLIC)
+        trap.refresh_from_db()
+        self.assertEqual(trap.visibility, Trap.VISIBILITY_RESTRICTED)
+
+    def test_a_partial_save_cannot_leave_it_public(self):
+        trap = Trap.objects.create(latitude=50.5, longitude=4.5, owner=self.owner, trap_type=self.harp,
+                                   installed_at=timezone.now().date())
+        Trap.objects.filter(pk=trap.pk).update(visibility=Trap.VISIBILITY_PUBLIC)
+        trap.refresh_from_db()
+        trap.comments = 'x'
+        trap.save(update_fields=['comments'])
+        trap.refresh_from_db()
+        self.assertEqual(trap.visibility, Trap.VISIBILITY_RESTRICTED)
+
+    def test_creating_an_apiary_bound_trap_through_the_api_restricts_it(self):
+        request = self.factory.post('/traps/', {
+            'latitude': 50.5, 'longitude': 4.5, 'trap_type_slug': 'electric-harp',
+            'installed_at': timezone.now().date().isoformat()})
+        force_authenticate(request, user=self.owner_user)
+        response = TrapViewSet.as_view({'post': 'create'})(request)
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data['visibility'], Trap.VISIBILITY_RESTRICTED)
+
+    def test_asking_for_public_on_an_apiary_bound_trap_is_refused(self):
+        self.trap.trap_type = self.harp
+        self.trap.save()
+        self.assertEqual(self._patch(self.owner_user, {'visibility': 'public'}).status_code, 400)
+        self.trap.refresh_from_db()
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_RESTRICTED)
+
+    def test_switching_a_trap_to_an_apiary_bound_type_restricts_it(self):
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_PUBLIC)
+        response = self._patch(self.owner_user, {'trap_type_slug': 'electric-harp'})
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['visibility'], Trap.VISIBILITY_RESTRICTED)
+        self.assertFalse(response.data['publicly_visible'])
+        # Becoming a type that can be public again restores nothing
+        response = self._patch(self.owner_user, {'trap_type_slug': 'homemade'})
+        self.assertEqual(response.data['visibility'], Trap.VISIBILITY_RESTRICTED)
+
+    def test_an_ordinary_trap_goes_public_and_back(self):
+        for value in ('restricted', 'public'):
+            response = self._patch(self.owner_user, {'visibility': value})
+            self.assertEqual((response.status_code, response.data['visibility']), (200, value))
+
+    def test_only_the_owner_or_an_admin_changes_the_visibility(self):
+        self.assertEqual(self._patch(self.member_user, {'visibility': 'restricted'}).status_code, 403)
+        self.assertEqual(self._patch(self.admin_user, {'visibility': 'restricted'}).status_code, 200)
+
+    def test_the_former_group_value_is_read_as_restricted(self):
+        response = self._patch(self.owner_user, {'visibility': 'group'})
+        self.assertEqual((response.status_code, response.data['visibility']), (200, Trap.VISIBILITY_RESTRICTED))
+
+    def test_flagging_a_trap_type_restricts_its_public_traps_and_is_audited(self):
+        from audit.models import AuditEvent
+        other = Trap.objects.create(latitude=50.5, longitude=4.5, owner=self.owner, trap_type=self.trap_type,
+                                    installed_at=timezone.now().date(), visibility=Trap.VISIBILITY_RESTRICTED)
+        trapper = User.objects.create(guid=uuid_module.uuid4(), group_paths=['/trappers'])
+        kept = Trap.objects.create(latitude=50.5, longitude=4.5, owner=trapper, trap_type=self.trap_type,
+                                   installed_at=timezone.now().date())
+        request = self.factory.patch(f'/trap-types/{self.trap_type.id}/', {'apiary_bound': 'true'})
+        force_authenticate(request, user=self.admin_user)
+        response = TrapTypeViewSet.as_view({'patch': 'partial_update'})(request, pk=self.trap_type.id)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.trap.refresh_from_db()
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_RESTRICTED)
+        # The trap of someone who keeps no bees may stay public
+        kept.refresh_from_db()
+        self.assertEqual(kept.visibility, Trap.VISIBILITY_PUBLIC)
+        [event] = AuditEvent.objects.filter(action='trap_type.updated')
+        self.assertEqual(event.changes['traps_restricted'], 1)
+        self.assertIn(f'trap:{self.trap.id}', event.refs)
+        self.assertNotIn(f'trap:{other.id}', event.refs)
+        # Unflagging restores nothing
+        request = self.factory.patch(f'/trap-types/{self.trap_type.id}/', {'apiary_bound': 'false'})
+        force_authenticate(request, user=self.admin_user)
+        TrapTypeViewSet.as_view({'patch': 'partial_update'})(request, pk=self.trap_type.id)
+        self.trap.refresh_from_db()
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_RESTRICTED)
+
+    def test_the_migration_restricts_former_group_traps_and_apiary_bound_ones(self):
+        import importlib
+        from django.apps import apps
+        migration = importlib.import_module('hornet.migrations.0034_trap_visibility_restricted')
+        former_group = self.trap
+        bound = Trap.objects.create(latitude=50.5, longitude=4.5, owner=self.owner, trap_type=self.harp,
+                                    installed_at=timezone.now().date())
+        public = Trap.objects.create(latitude=50.5, longitude=4.5, owner=self.owner, trap_type=self.trap_type,
+                                     installed_at=timezone.now().date())
+        # Hidden until now whoever owns it: it stays so, its owner may open it
+        trapper = User.objects.create(guid=uuid_module.uuid4(), group_paths=['/trappers'])
+        bound_of_trapper = Trap.objects.create(latitude=50.5, longitude=4.5, owner=trapper, trap_type=self.harp,
+                                               installed_at=timezone.now().date())
+        Trap.objects.filter(pk=former_group.pk).update(visibility='group')
+        Trap.objects.filter(pk__in=[bound.pk, bound_of_trapper.pk]).update(visibility='public')
+        migration.forwards(apps, None)
+        stored = dict(Trap.objects.values_list('pk', 'visibility'))
+        self.assertEqual(stored, {former_group.pk: 'restricted', bound.pk: 'restricted',
+                                  bound_of_trapper.pk: 'restricted', public.pk: 'public'})
+
+
+class TrapOfSomeoneWithoutBeesTests(TrapTestCase):
+    """A trapper with a Jadeprobe keeps no bees: an apiary-bound type may be public for them."""
+
+    def setUp(self):
+        super().setUp()
+        self.harp = TrapType.objects.get(slug='electric-harp')
+        self.trapper_guid = uuid_module.uuid4()
+        self.trapper = User.objects.create(guid=self.trapper_guid, group_paths=['/trappers'])
+        self.trapper_user = FakeTrapUser(['trapper'], self.trapper_guid, ['/trappers'])
+        self.trap = Trap.objects.create(latitude=50.5, longitude=4.5, owner=self.trapper, trap_type=self.harp,
+                                        installed_at=timezone.now().date())
+
+    def _retrieve(self, user=None):
+        request = self.factory.get(f'/traps/{self.trap.id}/')
+        if user:
+            force_authenticate(request, user=user)
+        return TrapViewSet.as_view({'get': 'retrieve'})(request, pk=self.trap.id)
+
+    def _patch(self, user, payload):
+        request = self.factory.patch(f'/traps/{self.trap.id}/', payload)
+        force_authenticate(request, user=user)
+        return TrapViewSet.as_view({'patch': 'partial_update'})(request, pk=self.trap.id)
+
+    def test_it_is_stored_and_shown_as_public(self):
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_PUBLIC)
+        response = self._retrieve()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['id'], self.trap.id)
+        owner_view = self._retrieve(self.trapper_user).data
+        self.assertTrue(owner_view['publicly_visible'])
+        self.assertFalse(owner_view['visibility_locked'])
+
+    def test_creating_one_through_the_api_is_public_by_default(self):
+        request = self.factory.post('/traps/', {
+            'latitude': 50.5, 'longitude': 4.5, 'trap_type_slug': 'electric-harp',
+            'installed_at': timezone.now().date().isoformat()})
+        force_authenticate(request, user=self.trapper_user)
+        response = TrapViewSet.as_view({'post': 'create'})(request)
+        self.assertEqual((response.status_code, response.data['visibility']), (201, Trap.VISIBILITY_PUBLIC))
+
+    def test_the_owner_chooses_the_visibility(self):
+        for value in ('restricted', 'public'):
+            response = self._patch(self.trapper_user, {'visibility': value})
+            self.assertEqual((response.status_code, response.data['visibility']), (200, value))
+
+    def test_it_is_restricted_once_the_owner_is_a_beekeeper(self):
+        ordinary = Trap.objects.create(latitude=50.5, longitude=4.5, owner=self.trapper, trap_type=self.trap_type,
+                                       installed_at=timezone.now().date())
+        self.assertEqual(self.trapper.restrict_apiary_bound_traps(), 0)
+        self.trapper.group_paths = ['/trappers', self.group_path]
+        self.trapper.save()
+        # Until the mirror is synchronised, reads already hide it
+        self.assertIn(self._retrieve().status_code, (403, 404))
+        self.assertEqual(self.trapper.restrict_apiary_bound_traps(), 1)
+        self.assertEqual(self.trapper.restrict_apiary_bound_traps(), 0)
+        self.trap.refresh_from_db()
+        ordinary.refresh_from_db()
+        self.assertEqual((self.trap.visibility, ordinary.visibility),
+                         (Trap.VISIBILITY_RESTRICTED, Trap.VISIBILITY_PUBLIC))
+        self.assertTrue(self._retrieve(self.trapper_user).data['visibility_locked'])
+
+    def test_joining_an_association_restricts_it_at_the_next_request(self):
+        from unittest.mock import MagicMock
+        from hornet_finder_api.authentication import JWTBearerAuthentication
+        token = {'sub': str(self.trapper_guid), 'realm_access': {'roles': ['trapper', 'beekeeper']},
+                 'membership': ['/trappers', self.group_path]}
+        request = MagicMock(META={'HTTP_AUTHORIZATION': 'Bearer x'})
+        with patch.object(JWTBearerAuthentication, 'JWKS_CLIENT', MagicMock()), \
+                patch('hornet_finder_api.authentication.jwt.decode', return_value=token):
+            JWTBearerAuthentication().authenticate(request)
+        self.trap.refresh_from_db()
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_RESTRICTED)
+        # Recorded as the system's doing: nobody asked for it
+        from audit.models import AuditEvent
+        [event] = AuditEvent.objects.filter(action='trap.restricted')
+        self.assertEqual((event.source, event.actor), ('system', None))
+        self.assertEqual(event.target_id, str(self.trap.id))
+        self.assertEqual(event.changes, {'visibility': ['public', 'restricted']})
+        self.assertIn(f'user:{self.trapper_guid}', event.refs)
+        self.assertIn(f'trap:{self.trap.id}', event.refs)
+        # A second request changes nothing, so records nothing more
+        with patch.object(JWTBearerAuthentication, 'JWKS_CLIENT', MagicMock()), \
+                patch('hornet_finder_api.authentication.jwt.decode', return_value=token):
+            JWTBearerAuthentication().authenticate(request)
+        self.assertEqual(AuditEvent.objects.filter(action='trap.restricted').count(), 1)
+
+    def test_a_beekeeper_who_leaves_keeps_it_restricted(self):
+        self.trapper.group_paths = [self.group_path]
+        self.trapper.save()
+        self.trapper.restrict_apiary_bound_traps()
+        self.trapper.group_paths = ['/trappers']
+        self.trapper.save()
+        self.trapper.restrict_apiary_bound_traps()
+        self.trap.refresh_from_db()
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_RESTRICTED)
+        self.assertIn(self._retrieve().status_code, (403, 404))
+        # No longer a beekeeper: its owner may open it
+        self.assertEqual(self._patch(self.trapper_user, {'visibility': 'public'}).status_code, 200)
+        self.assertEqual(self._retrieve().status_code, 200)
 
 
 class TrapCreationTests(TrapTestCase):
@@ -674,15 +896,35 @@ class TrapDelegationTests(TrapTestCase):
         self.assertFalse(response.data['can_set_delegation'])
         self.assertEqual(response.data['allowed_groups'], [])
 
-    def test_withdrawal_resets_group_and_visibility(self):
-        self._put(self.owner_user, self.group_path, visibility=Trap.VISIBILITY_GROUP)
+    def _withdraw(self):
         request = self.factory.delete(f'/traps/{self.trap.id}/delegation/')
         force_authenticate(request, user=self.owner_user)
         response = TrapViewSet.as_view({'delete': 'delegation'})(request, pk=self.trap.id)
         self.assertEqual(response.status_code, 200)
         self.trap.refresh_from_db()
+
+    def test_withdrawal_keeps_a_restricted_trap_restricted(self):
+        # `group`, the former name of `restricted`, is still accepted
+        self._put(self.owner_user, self.group_path, visibility='group')
+        self.trap.refresh_from_db()
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_RESTRICTED)
+        self._withdraw()
+        self.assertIsNone(self.trap.group)
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_RESTRICTED)
+
+    def test_withdrawal_keeps_a_public_trap_public(self):
+        self._put(self.owner_user, self.group_path)
+        self._withdraw()
         self.assertIsNone(self.trap.group)
         self.assertEqual(self.trap.visibility, Trap.VISIBILITY_PUBLIC)
+
+    def test_an_apiary_bound_trap_cannot_be_delegated_as_public(self):
+        self.trap.trap_type = TrapType.objects.get(slug='electric-harp')
+        self.trap.save()
+        self.assertEqual(self._put(self.owner_user, self.group_path, visibility='public').status_code, 400)
+        self.assertEqual(self._put(self.owner_user, self.group_path).status_code, 200)
+        self.trap.refresh_from_db()
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_RESTRICTED)
 
     def test_allowed_groups_listing(self):
         request = self.factory.get(f'/traps/{self.trap.id}/delegation/')
@@ -773,6 +1015,240 @@ class TrapOwnerChangeTests(TrapTestCase):
         self.assertEqual(self._put(self.admin_user, uuid_module.uuid4()).status_code, 400)
 
 
+class _FakeRoster:
+    """Stand-in for the Keycloak roster of a group: the given guids are its members."""
+
+    def __init__(self, *guids):
+        self.users = {str(g): {'id': str(g), 'firstName': 'Prénom', 'lastName': f'Nom{i}'}
+                      for i, g in enumerate(guids)}
+
+    def __contains__(self, guid):
+        return guid in self.users
+
+
+class TrapOwnerTransferTests(TrapTestCase):
+    """Group administrators hand traps over within the owner's groups; platform admins anywhere."""
+
+    def setUp(self):
+        super().setUp()
+        # The trap is delegated to the group, so its administrator can see it
+        self.trap.group = self.group
+        self.trap.visibility = Trap.VISIBILITY_RESTRICTED
+        self.trap.save()
+        self.colleague_guid = uuid_module.uuid4()
+        User.objects.create(guid=self.colleague_guid, group_paths=[self.group_path])
+        roster = patch('hornet.trap_views._Roster',
+                       side_effect=lambda path, group: _FakeRoster(self.colleague_guid, self.member_guid))
+        keycloak_group = patch.object(TrapViewSet, '_keycloak_group', return_value={'id': '1'})
+        for patcher in (roster, keycloak_group):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def _get(self, user, query=''):
+        request = self.factory.get(f'/traps/{self.trap.id}/owner/{query}')
+        force_authenticate(request, user=user)
+        return TrapViewSet.as_view({'get': 'owner'})(request, pk=self.trap.id)
+
+    def _put(self, user, guid, group_path=None):
+        payload = {'owner_guid': str(guid)}
+        if group_path:
+            payload['group_path'] = group_path
+        request = self.factory.put(f'/traps/{self.trap.id}/owner/', payload)
+        force_authenticate(request, user=user)
+        return TrapViewSet.as_view({'put': 'owner'})(request, pk=self.trap.id)
+
+    def test_group_admin_hands_over_to_a_member_and_the_delegation_is_cleared(self):
+        response = self._put(self.group_admin_user, self.colleague_guid, self.group_path)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.trap.refresh_from_db()
+        self.assertEqual(self.trap.owner_id, self.colleague_guid)
+        self.assertIsNone(self.trap.group)
+        # Never widened: still restricted, now to its owner and the platform admins
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_RESTRICTED)
+        self.assertIsNone(response.data['group'])
+
+    def _retrieve_status(self, user=None):
+        request = self.factory.get(f'/traps/{self.trap.id}/')
+        if user:
+            force_authenticate(request, user=user)
+        return TrapViewSet.as_view({'get': 'retrieve'})(request, pk=self.trap.id).status_code
+
+    def _listed(self, user=None):
+        request = self.factory.get('/traps/?lat=50.5&lon=4.5&radius=5')
+        if user:
+            force_authenticate(request, user=user)
+        return self.trap.id in {t['id'] for t in TrapViewSet.as_view({'get': 'list'})(request).data}
+
+    def test_a_trap_restricted_to_its_group_does_not_become_public(self):
+        new_owner = FakeTrapUser(['trapper'], self.colleague_guid, [self.group_path])
+        self.assertEqual(self._put(self.group_admin_user, self.colleague_guid, self.group_path).status_code, 200)
+        for user in (None, self.stranger_user, self.member_user, self.group_admin_user):
+            with self.subTest(user=getattr(user, 'roles', 'anonymous')):
+                self.assertIn(self._retrieve_status(user), (403, 404))
+                self.assertFalse(self._listed(user))
+        for user in (new_owner, self.admin_user):
+            with self.subTest(user=user.roles):
+                self.assertEqual(self._retrieve_status(user), 200)
+                self.assertTrue(self._listed(user))
+
+    def test_an_apiary_bound_trap_is_never_public_through_a_hand_over(self):
+        self.trap.trap_type = TrapType.objects.get(slug='electric-harp')
+        for visibility in (Trap.VISIBILITY_RESTRICTED, Trap.VISIBILITY_PUBLIC):
+            with self.subTest(visibility=visibility):
+                self.trap.owner, self.trap.group, self.trap.visibility = self.owner, self.group, visibility
+                self.trap.save()
+                response = self._put(self.group_admin_user, self.colleague_guid, self.group_path)
+                self.assertEqual(response.status_code, 200)
+                for user in (None, self.stranger_user, self.member_user):
+                    self.assertIn(self._retrieve_status(user), (403, 404))
+                    self.assertFalse(self._listed(user))
+                self.assertFalse(response.data['publicly_visible'])
+
+    def test_the_new_owner_can_still_edit_a_trap_left_restricted(self):
+        self._put(self.group_admin_user, self.colleague_guid, self.group_path)
+        request = self.factory.patch(f'/traps/{self.trap.id}/', {'comments': 'ok'})
+        force_authenticate(request, user=FakeTrapUser(['trapper'], self.colleague_guid, [self.group_path]))
+        response = TrapViewSet.as_view({'patch': 'partial_update'})(request, pk=self.trap.id)
+        self.assertEqual(response.status_code, 200, response.data)
+        # And restrict or open it up again, as any owner
+        for value, expected in (('public', 'public'), ('restricted', 'restricted')):
+            request = self.factory.patch(f'/traps/{self.trap.id}/', {'visibility': value})
+            force_authenticate(request, user=FakeTrapUser(['trapper'], self.colleague_guid, [self.group_path]))
+            response = TrapViewSet.as_view({'patch': 'partial_update'})(request, pk=self.trap.id)
+            self.assertEqual((response.status_code, response.data['visibility']), (200, expected))
+
+    def _bequeath_a_public_apiary_bound_trap(self, owner_groups):
+        self.owner.group_paths = owner_groups
+        self.owner.save()
+        self.trap.trap_type = TrapType.objects.get(slug='electric-harp')
+        self.trap.group, self.trap.visibility = None, Trap.VISIBILITY_PUBLIC
+        self.trap.save()
+        self.trap.refresh_from_db()
+
+    def test_a_public_apiary_bound_trap_is_restricted_when_a_beekeeper_takes_it(self):
+        from audit.models import AuditEvent
+        self._bequeath_a_public_apiary_bound_trap(['/trappers'])
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_PUBLIC)
+        # Never signed in: the association they were picked from tells they are a beekeeper
+        User.objects.filter(guid=self.colleague_guid).update(group_paths=[])
+        response = self._put(self.admin_user, self.colleague_guid, self.group_path)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['visibility'], Trap.VISIBILITY_RESTRICTED)
+        self.assertTrue(response.data['visibility_locked'])
+        self.assertFalse(self._listed())
+        [event] = AuditEvent.objects.filter(action='trap.owner_changed')
+        self.assertEqual(event.changes['visibility'], [Trap.VISIBILITY_PUBLIC, Trap.VISIBILITY_RESTRICTED])
+
+    def test_a_restricted_apiary_bound_trap_stays_so_with_someone_who_keeps_no_bees(self):
+        self._bequeath_a_public_apiary_bound_trap([self.group_path])
+        self.assertEqual(self.trap.visibility, Trap.VISIBILITY_RESTRICTED)
+        trapper_guid = uuid_module.uuid4()
+        with patch('hornet.trap_views._Roster', side_effect=lambda path, group: _FakeRoster(trapper_guid)):
+            response = self._put(self.admin_user, trapper_guid, '/trappers')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['visibility'], Trap.VISIBILITY_RESTRICTED)
+        self.assertFalse(response.data['visibility_locked'])
+
+    def test_a_public_apiary_bound_trap_stays_public_between_people_without_bees(self):
+        self._bequeath_a_public_apiary_bound_trap(['/trappers'])
+        trapper_guid = uuid_module.uuid4()
+        with patch('hornet.trap_views._Roster', side_effect=lambda path, group: _FakeRoster(trapper_guid)):
+            response = self._put(self.admin_user, trapper_guid, '/trappers')
+        self.assertEqual((response.status_code, response.data['visibility']), (200, Trap.VISIBILITY_PUBLIC))
+
+    def test_choices_are_the_owners_groups_then_their_members(self):
+        groups = self._get(self.group_admin_user)
+        self.assertEqual([g['path'] for g in groups.data['groups']], [self.group_path])
+        self.assertNotIn('members', groups.data)
+        members = self._get(self.group_admin_user, f'?group_path={self.group_path}')
+        self.assertEqual(len(members.data['members']), 2)
+        self.assertEqual(members.data['owner_guid'], str(self.owner_guid))
+
+    def test_group_admin_cannot_use_a_group_they_do_not_administer(self):
+        self.assertEqual(self._get(self.group_admin_user, '?group_path=/beekeepers/other').status_code, 403)
+        self.assertEqual(self._put(self.group_admin_user, self.colleague_guid, '/beekeepers/other').status_code, 403)
+
+    def test_group_admin_needs_the_group_of_the_owner(self):
+        self.owner.group_paths = ['/beekeepers/elsewhere']
+        self.owner.save()
+        self.assertEqual(self._put(self.group_admin_user, self.colleague_guid, self.group_path).status_code, 403)
+
+    def test_group_admin_does_not_reach_a_trap_their_group_cannot_see(self):
+        self.trap.group = None
+        self.trap.visibility = Trap.VISIBILITY_PUBLIC
+        self.trap.save()
+        self.assertEqual(self._put(self.group_admin_user, self.colleague_guid, self.group_path).status_code, 403)
+
+    def test_owner_and_members_cannot_hand_over(self):
+        self.assertEqual(self._put(self.owner_user, self.colleague_guid, self.group_path).status_code, 403)
+        self.assertEqual(self._put(self.member_user, self.colleague_guid, self.group_path).status_code, 403)
+
+    def test_the_new_owner_must_belong_to_the_group(self):
+        response = self._put(self.group_admin_user, uuid_module.uuid4(), self.group_path)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self._put(self.group_admin_user, self.colleague_guid).status_code, 400)
+
+    def test_platform_admin_picks_from_the_trappers_too(self):
+        with patch('hornet.trap_views._group_choices', return_value=[]) as choices:
+            self.assertEqual(self._get(self.admin_user).status_code, 200)
+        self.assertEqual(choices.call_args.kwargs['extra'], ['/trappers'])
+        self.assertEqual(self._put(self.admin_user, self.colleague_guid, '/trappers').status_code, 200)
+
+    def test_trappers_coordinator_hands_over_their_own_trap(self):
+        self.owner.group_paths = ['/trappers']
+        self.owner.save()
+        coordinator = FakeTrapUser(['trapper'], self.owner_guid, ['/trappers/admin'])
+        self.assertEqual(self._put(coordinator, self.colleague_guid, '/trappers').status_code, 200)
+
+    def test_handing_a_trap_to_its_owner_is_refused(self):
+        self.assertEqual(self._put(self.admin_user, self.owner_guid, self.group_path).status_code, 400)
+
+    def test_the_new_owner_is_notified(self):
+        from hornet.models import PushNotification
+        with patch('hornet.reminders.push.enabled', return_value=True), \
+                patch('hornet.reminders.push.queue', return_value=1), \
+                patch('hornet.reminders.push.dispatch'), \
+                self.captureOnCommitCallbacks(execute=True):
+            self.assertEqual(self._put(self.group_admin_user, self.colleague_guid, self.group_path).status_code, 200)
+        [notification] = PushNotification.objects.filter(kind='trap_handover')
+        self.assertEqual(str(notification.recipient), str(self.colleague_guid))
+        self.assertEqual(notification.url, f'/traps?trap={self.trap.id}')
+
+    def test_a_kind_held_back_by_the_platform_is_neither_sent_nor_kept(self):
+        from hornet.models import PlatformSettings, PushNotification
+        PlatformSettings.objects.create(pk=1, paused_kinds=['trap_handover'])
+        with patch('hornet.reminders.push.enabled', return_value=True), \
+                patch('hornet.reminders.push.queue', return_value=1) as queue, \
+                patch('hornet.reminders.push.dispatch'):
+            # The hand-over itself is not held back
+            self.assertEqual(self._put(self.group_admin_user, self.colleague_guid, self.group_path).status_code, 200)
+        self.assertFalse(queue.called)
+        self.assertFalse(PushNotification.objects.filter(kind='trap_handover').exists())
+
+    def test_a_person_who_turned_the_kind_off_is_not_notified(self):
+        from hornet.models import PushNotification
+        colleague = User.objects.get(guid=self.colleague_guid)
+        colleague.notification_prefs = {'trap_handover': False}
+        colleague.save()
+        with patch('hornet.reminders.push.enabled', return_value=True), \
+                patch('hornet.reminders.push.queue', return_value=1), \
+                patch('hornet.reminders.push.dispatch'):
+            self._put(self.group_admin_user, self.colleague_guid, self.group_path)
+        self.assertFalse(PushNotification.objects.filter(kind='trap_handover').exists())
+
+    def test_permissions_come_with_the_trap(self):
+        def permissions(user):
+            request = self.factory.get(f'/traps/{self.trap.id}/')
+            force_authenticate(request, user=user)
+            return TrapViewSet.as_view({'get': 'retrieve'})(request, pk=self.trap.id).data['permissions']
+
+        self.assertEqual(permissions(self.owner_user), {'update': True, 'act': True, 'change_owner': False})
+        self.assertEqual(permissions(self.member_user), {'update': False, 'act': True, 'change_owner': False})
+        self.assertEqual(permissions(self.group_admin_user),
+                         {'update': False, 'act': True, 'change_owner': True})
+        self.assertEqual(permissions(self.admin_user), {'update': True, 'act': False, 'change_owner': True})
+
+
 class TrapPhotoTests(TrapTestCase):
     def test_upload_is_resized_and_served_to_allowed_users_only(self):
         request = self.factory.post(f'/traps/{self.trap.id}/photo/',
@@ -788,7 +1264,7 @@ class TrapPhotoTests(TrapTestCase):
         self.addCleanup(self.trap.photo_thumbnail.delete, save=False)
 
         path = self.trap.photo.name
-        self.trap.visibility = Trap.VISIBILITY_GROUP
+        self.trap.visibility = Trap.VISIBILITY_RESTRICTED
         self.trap.group = self.group
         self.trap.save()
 
@@ -1091,7 +1567,7 @@ class TagApiTests(TrapTestCase):
     def test_a_group_trap_is_hidden_from_strangers(self):
         value = self._new_tag()
         self._associate(value, self.owner_user, self.trap.id)
-        self.trap.group, self.trap.visibility = self.group, Trap.VISIBILITY_GROUP
+        self.trap.group, self.trap.visibility = self.group, Trap.VISIBILITY_RESTRICTED
         self.trap.save()
         with self.assertLogs('hornet.tag_views', level='WARNING'):
             self.assertEqual(self._resolve(value, self.stranger_user).status_code, 403)
@@ -3108,6 +3584,7 @@ class TradeSeparationTests(TestCase):
         self.hunter_user = FakeTrapUser(['hunter'], uuid_module.uuid4())
         self.own_nest = _make_nest(timezone.now().year)
         self.own_nest.created_by = self.trapper
+        self.own_nest.owner = self.trapper
         self.own_nest.save()
         self.other_nest = _make_nest(timezone.now().year)
 
@@ -3270,7 +3747,7 @@ class NestManagementTests(TestCase):
         self.stranger_user = FakeTrapUser(['trapper'], uuid_module.uuid4(), ['/trappers'])
 
         self.nest = Nest.objects.create(latitude=50.5, longitude=4.5, created_by=self.reporter,
-                                        comments='Dans le chêne')
+                                        owner=self.reporter, comments='Dans le chêne')
 
     def _call(self, method, path, actions, user, data=None, fmt=None, **kwargs):
         request = getattr(self.factory, method)(path, data, format=fmt) if data is not None \
@@ -3358,7 +3835,7 @@ class NestManagementTests(TestCase):
                               self.coordinator_user)
         self.assertEqual(response.data[0]['permissions'], {
             'update': True, 'photos': True, 'reactivate': False, 'delete': False,
-            'nearby_apiaries': True, 'visit': True, 'destroy': True,
+            'nearby_apiaries': True, 'visit': True, 'destroy': True, 'change_owner': False,
         })
         response = self._call('get', '/nests/?lat=50.5&lon=4.5&radius=5', {'get': 'list'},
                               self.hunter_user)
