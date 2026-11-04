@@ -99,3 +99,58 @@ def keeper_groups(request, hive):
     if hive.owner_group_id:
         return [hive.owner_group.path]
     return owner_group_choices(request)
+
+
+# -- visits ------------------------------------------------------------------
+
+def can_read_visit(request, visit) -> bool:
+    """
+    Who came (its author, its participants), who sees its apiary, and who
+    sees one of the hives inspected.
+    """
+    user = _user(request)
+    if user is None:
+        return False
+    guid = getattr(user, 'guid', None)
+    if is_platform_admin(user) or _is(guid, visit.created_by_id):
+        return True
+    if any(_is(guid, p.pk) for p in visit.participants.all()):
+        return True
+    if visit.apiary_id and apiary_perms.has_apiary_permission(request, visit.apiary, apiary_perms.READ):
+        return True
+    return any(i.hive_id and can_read_hive(request, i.hive) for i in visit.inspections.all())
+
+
+def can_edit_visit(request, visit) -> bool:
+    """Its author, its participants with an account, platform admins."""
+    user = _user(request)
+    if user is None:
+        return False
+    guid = getattr(user, 'guid', None)
+    return (is_platform_admin(user) or _is(guid, visit.created_by_id)
+            or any(_is(guid, p.pk) for p in visit.participants.all()))
+
+
+def can_record_visit(request, apiary) -> bool:
+    """A visit is recorded by who maintains the apiary or tends a hive standing in it."""
+    user = _user(request)
+    if user is None:
+        return False
+    if is_platform_admin(user) or apiary_perms.has_apiary_permission(request, apiary, apiary_perms.UPDATE):
+        return True
+    return any(can_tend_hive(request, hive)
+               for hive in apiary.hives.select_related('owner_group'))
+
+
+def readable_visits_q(request) -> Q:
+    user = _user(request)
+    if user is None:
+        return Q(pk__in=[])
+    if is_platform_admin(user):
+        return Q()
+    guid = getattr(user, 'guid', None)
+    from .models import Hive
+    hives = Hive.objects.filter(readable_hives_q(request)).values('pk')
+    return (Q(created_by_id=guid) | Q(participants__guid=guid)
+            | Q(apiary__in=Apiary.objects.filter(apiary_perms.readable_apiaries_q(request)).values('pk'))
+            | Q(inspections__hive__in=hives))
