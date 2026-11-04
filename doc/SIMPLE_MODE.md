@@ -142,8 +142,9 @@ piège.
 ne pas changer. Ordre de grandeur : un Code 128 de 44 caractères fait environ 520 modules (barres élémentaires), marges
 comprises ~540 ; sur une étiquette de 50 mm cela donne ≈ 0,09 mm par module, bien en deçà de ce qu'une caméra de
 téléphone lit de façon fiable en extérieur (de l'ordre de 0,2 mm ou plus, selon distance, lumière et appareil : marge
-d'un facteur 2). Un QR Code portant l'adresse complète (~70 caractères) fait environ 35 modules de côté : à 25 mm, ≈ 0,7 mm
-par module. Il a de plus l'avantage de porter une adresse, donc d'ouvrir l'appli quand on le scanne avec l'appareil photo
+d'un facteur 2). Le QR Code actuel porte l'adresse complète (69 octets en prod, `https://velutina.ovh/tag/` + 44) au niveau de
+correction Q : version 6, soit 41 modules de côté plus 2 de marge de chaque côté ; imprimé sur 36 mm (`tag_pdf.py`),
+≈ 0,8 mm par module, environ quatre fois le seuil ci-dessus. Il a de plus l'avantage de porter une adresse, donc d'ouvrir l'appli quand on le scanne avec l'appareil photo
 du système (Android, appli installée). Un lecteur de codes-barres matériel n'est pas visé.
 
 **Accès rapide : un tap, depuis n'importe quel écran.**
@@ -197,6 +198,58 @@ déjà posée, révoquée, falsifiée, et absence de piège créé en cas de ref
 - Caméra : l'image n'est ni enregistrée ni envoyée (décodage local par `qr-scanner`) ; l'autorisation est demandée par le
   navigateur, en HTTPS uniquement. Rien à ajouter à l'article 9 de la politique de confidentialité.
 
+### 4.8 Imprimer un QR Code tout de suite
+
+**Ce qui existe** : planche A4 de 4 × 6 étiquettes de 45 mm (QR Code de 36 mm, traits de coupe ; `hornet/tag_pdf.py`),
+générée par lots de 1 à 48 étiquettes vierges (`POST /tags/batch/`), réimpression des codes en service, et un bouton PDF
+(`SheetPdfButton`) qui gère déjà l'appli installée sur iPhone (feuille de partage, d'où « Imprimer »). Tout cela vit dans
+`/admin/tags`, ouvert aux `trapper` mais absent du mode simple, et une étiquette imprimée seule occupe la case 1 : une
+planche adhésive entamée est perdue.
+
+**Quatre besoins, chacun au plus près du geste :**
+
+| Besoin | Entrée | Effet |
+|---|---|---|
+| Un piège **sans** QR Code (créé par 4.3, ou avant les étiquettes) | Fiche du piège → « QR Code » (maquette P) | **Imprimer un QR Code pour ce piège** : le code naît **déjà associé** (légende « Piège #12 »), aucun scan à faire ensuite (Q) |
+| Étiquette **abîmée** | Fiche du piège → « QR Code » (R) | **Réimprimer le même code** : rien ne change côté serveur |
+| Étiquette **perdue ou volée** | Idem (R) | **Remplacer** : nouveau code associé, l'ancien révoqué (confirmation, flux `replace` existant) |
+| En avoir **d'avance** pour le terrain | Profil → « Imprimer des étiquettes vierges » (S, H) | Lot de 1, 4, 12 ou 24 ; liste des vierges déjà imprimées, à réimprimer |
+
+Après « Ajouter un piège » (4.3) sans étiquette, l'écran de confirmation propose « Imprimer son QR Code » en action
+secondaire : c'est l'entrée P, sans détour.
+
+**Case de départ** (Q, S) : une grille 4 × 6 où l'on touche la première case libre de la planche ; les étiquettes
+suivent dans l'ordre de lecture. Le dernier choix est retenu sur l'appareil (préférence locale, donc une clé
+`localStorage` de plus à l'article 9 de la politique de confidentialité). Cases de 44 px au moins : la grille fait
+~190 × 285 px.
+
+**Deux temps, sur iPhone surtout.** Créer et associer le code est une écriture : premier tap. Le PDF ne peut s'ouvrir, ou
+la feuille de partage s'afficher, que pendant le geste de l'utilisateur, et Safari perd ce geste après une requête
+réseau : d'où un second tap « Imprimer » sur un lien déjà préparé, comme le fait `SheetPdfButton` aujourd'hui. Fusionner
+les deux en un tap n'est fiable que dans un navigateur de bureau.
+
+**Ce qu'on peut dire de l'impression elle-même** (hors de notre contrôle, à signaler dans l'aide, pas à l'écran) :
+- **Taille réelle (100 %)** : « Ajuster à la page » réduit le PDF de quelques pour cent (de l'ordre de 3 à 6 % selon les
+  marges de l'imprimante). Le QR Code reste lisible (≈ 0,75 mm par module au lieu de 0,8), mais les étiquettes ne
+  tombent plus dans les cases d'une planche adhésive.
+- **Tenue à l'extérieur** : un papier ordinaire sous la pluie se dégrade en jours ou semaines ; une étiquette adhésive
+  vinyle, ou du papier sous adhésif transparent, tient une saison. Ce sont des ordres de grandeur, non mesurés ici.
+- **Sans imprimante** : le PDF se partage (courriel, messagerie) depuis la même feuille de partage, à imprimer ailleurs.
+  Le piège reste relevable sans étiquette, depuis « À faire » et « Mes pièges ».
+
+**Backend :**
+- `POST /api/traps/<id>/tag/` (`{"replace": bool}`) : génère une étiquette avec la clé active et l'associe au piège dans
+  la même transaction ; même règle de remplacement que `associate` (`trap_has_tag` sans `replace`, révocation de
+  l'ancienne avec). Droit : `can_edit_trap`. Réponse : l'étiquette (`_tag_payload`), que le client passe à `sheet`.
+  Audit : la paire existante `tag.batch_generated` (nombre 1) + `tag.associated`, dans la transaction ; c'est un nouvel
+  endpoint d'écriture, à déclarer dans `audit.tests.CoverageTests` (skill `audited-endpoint`).
+- `POST /tags/sheet/` et `render_sheet` : paramètre `skip` (0 à 23, cases laissées vides en tête de la première page).
+  Lecture seule, pas d'audit.
+- Aucune migration, aucune note de migration prod.
+
+Hors périmètre : un format « une étiquette par page » pour imprimante d'étiquettes. Il se fait en peu de lignes dans
+`tag_pdf.py` (page de 45 × 45 mm) si une association en a l'usage ; je ne l'ajoute pas sans ce besoin.
+
 ## 5. Architecture envisagée
 
 - `utils/uiMode.ts` : lecture/écriture de la préférence + défaut par rôle, sur le modèle de `utils/theme.ts` (store
@@ -217,14 +270,17 @@ déjà posée, révoquée, falsifiée, et absence de piège créé en cas de ref
   `TagScannerModal` passe de `Traps.tsx` à un hôte global (le scan doit marcher depuis tout écran, aujourd'hui seule la page
   des pièges le monte) ; `TagAssociateModal` gagne la branche « nouveau piège » ; `TrapFormModal` accepte une valeur `tag`
   et sa précision GPS ; le relevé direct réutilise `TrapEventModal`.
-- Backend : champ `tag` de `POST /api/traps/` (4.7) et champ `User.ui_mode` (section 9). Pas d'autre ajout.
+- Impression (4.8) : une feuille « QR Code » dans la fiche du piège et un écran « Étiquettes vierges » réutilisant
+  `SheetPdfButton` ; un composant de grille « case de départ » partagé avec `/admin/tags`.
+- Backend : champ `tag` de `POST /api/traps/` (4.7), `POST /api/traps/<id>/tag/` et paramètre `skip` de la planche (4.8),
+  champ `User.ui_mode` (section 9). Pas d'autre ajout.
 
 ## 6. Découpage proposé
 
 | Phase | Contenu | Valeur pour la campagne |
 |---|---|---|
 | 1 | `uiMode` + bascule + accueil « À faire » + barre à 3 onglets **et bouton Scanner (hôte global du scanner, bouton de la barre du haut en interface complète)** + feuille profil | L'essentiel du gain de simplicité |
-| 2 | Relevé à zéro en un tap, ajout de piège à 2 champs, **QR Code : étiquette vierge → nouveau piège, scan → relevé direct** (backend `tag`) | Alimente directement le reporting des captures |
+| 2 | Relevé à zéro en un tap, ajout de piège à 2 champs, **QR Code : étiquette vierge → nouveau piège, scan → relevé direct** (backend `tag`), **impression d'un QR Code depuis la fiche et étiquettes vierges depuis le profil** (4.8) | Alimente directement le reporting des captures |
 | 3 | Statistiques simplifiées (2 cartes, saison, « mes pièges ») + notifications réduites | Retour d'information au piégeur |
 | 4 | Onboarding en 3 étapes | Adoption, à caler sur la date de lancement |
 
@@ -270,12 +326,14 @@ occasionnels sur la phase 1 donnera un ordre de grandeur plus fiable que n'impor
    non tranchée : il évite d'exposer les relevés d'une seule personne ; à valider.
 5. **Délais de rappel** : supposés définis pour les types de piège proposés. À contrôler une fois avant la campagne, pas à
    concevoir.
-
 6. **QR Codes** (section 4.7, demandé après coup) : scanner accessible en un tap ; étiquette vierge → nouveau piège ou piège
    existant. **À trancher : la distribution des étiquettes physiques.** Les options (non exclusives) : (a) l'administrateur
    imprime des planches et les remet (les étiquettes ne sont liées à personne tant qu'elles sont vierges) ; (b) un lien
    « Imprimer mes étiquettes » dans la feuille profil pour les piégeurs qui ont une imprimante (la page `/admin/tags` leur est
    déjà ouverte) ; (c) autre canal (association, point de retrait). Je ne sais pas laquelle s'applique à votre campagne.
+   L'option (b) est désormais maquettée (4.8, S) ; elle n'exclut pas (a).
    Seuils de précision GPS de 4.7 : à valider.
 
-Maquettes : `doc/mockups/simple-mode.html` (15 écrans, clair et sombre selon le système ; K à O : QR Codes).
+7. **Impression rapide** (section 4.8) : imprimer un QR Code au besoin, depuis la fiche du piège ou le profil.
+
+Maquettes : `doc/mockups/simple-mode.html` (19 écrans, clair et sombre selon le système ; K à O : scan, P à S : impression).

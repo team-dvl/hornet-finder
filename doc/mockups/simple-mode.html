@@ -129,6 +129,12 @@
   .gps i { font-style:normal; }
   .tagbar { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:10px; background:var(--pri-soft); font-size:.88rem; margin-bottom:6px; }
   .tagbar code { font-weight:700; }
+  .grid46 { display:grid; grid-template-columns:repeat(4,1fr); gap:4px; width:188px; }
+  .grid46 i { aspect-ratio:1; border:1px dashed var(--muted); border-radius:3px; }
+  .grid46 i.used { background:var(--line); border-style:solid; border-color:var(--line); }
+  .grid46 i.on { background:var(--pri); border:1px solid var(--pri); }
+  .label { width:120px; padding:8px 8px 4px; background:#fff; color:#000; border:1px dashed #9aa; text-align:center; font:11px/1.2 ui-monospace,monospace; flex-shrink:0; }
+  .label small { display:block; font:9px system-ui,sans-serif; }
 </style>
 </head>
 <body>
@@ -324,6 +330,7 @@
       <h2>Mon profil</h2>
       <div class="card" style="margin-top:10px">
         <div class="field"><span>🔔 Notifications</span><span style="color:var(--muted)">›</span></div>
+        <div class="field"><span>🖨️ Imprimer des étiquettes vierges</span><span style="color:var(--muted)">›</span></div>
         <div class="field"><span>🏴 Signaler un nid</span><span style="color:var(--muted)">›</span></div>
         <div class="field"><span>❓ Aide</span><span style="color:var(--muted)">›</span></div>
         <div class="field"><span>👋 Revoir la présentation</span><span style="color:var(--muted)">›</span></div>
@@ -481,6 +488,86 @@
       <div class="alert">Ce QR Code est déjà associé à un objet.<div class="btn block" style="margin-top:8px">Scanner un autre code</div></div>
     </div>
     <div class="tabs"><div><i>✅</i>À faire</div><div><i>🪤</i>Mes pièges</div><div class="scan"><span><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3z"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z" fill="currentColor"/></svg></span>Scanner</div><div><i>📊</i>Chiffres</div></div>
+  </div>
+</figure>
+
+</div>
+
+<h2 class="group">5 · Imprimer un QR Code tout de suite</h2>
+<div class="board">
+
+<figure>
+  <figcaption><b>P · Piège sans QR Code</b> (fiche du piège → « QR Code »). Deux voies : en <b>imprimer un</b>, déjà associé
+  à ce piège (aucun scan ensuite), ou scanner une étiquette vierge que l'on a sous la main (L).</figcaption>
+  <div class="phone">
+    <div class="top"><b>Velutina</b><span class="sp"></span><span class="me">👤</span></div>
+    <div class="body" style="opacity:.5"></div>
+    <div class="veil"></div>
+    <div class="sheet">
+      <h2>QR Code · Verger, chemin du Bois</h2>
+      <div class="sub">Ce piège n'a pas encore de QR Code.</div>
+      <div class="btn pri block" style="min-height:56px;font-size:1.05rem">🖨️ Imprimer un QR Code pour ce piège</div>
+      <div class="btn block" style="min-height:56px">Scanner une étiquette vierge</div>
+    </div>
+  </div>
+</figure>
+
+<figure>
+  <figcaption><b>Q · Prêt à imprimer</b>. Le code est créé et associé au premier tap ; le PDF part au second (sur iPhone,
+  l'appli installée ne peut ouvrir le PDF qu'au geste même, d'où les deux temps). <b>Case de départ</b> : pour réutiliser une
+  planche déjà entamée. Le reste de la feuille reste blanc.</figcaption>
+  <div class="phone">
+    <div class="full">
+      <div class="hd">QR Code du piège<span>✕</span></div>
+      <div class="in">
+        <div class="tagbar">✓ QR Code <code>k3Zp9Qa1</code> associé à ce piège</div>
+        <div style="display:flex;gap:14px;align-items:flex-start;margin-top:10px">
+          <div class="label"><svg viewBox="0 0 29 29" width="104" height="104" shape-rendering="crispEdges" style="display:block;margin:0 auto"><rect width="29" height="29" fill="#fff"/><g fill="#000"><path d="M2 2h7v7H2zM20 2h7v7h-7zM2 20h7v7H2z"/></g><g fill="#fff"><path d="M3 3h5v5H3zM21 3h5v5h-5zM3 21h5v5H3z"/></g><g fill="#000"><path d="M4 4h3v3H4zM22 4h3v3h-3zM4 22h3v3H4zM11 2h2v2h-2zM14 4h2v3h-2zM11 8h3v2h-3zM2 11h2v3H2zM6 11h3v2H6zM11 12h2v3h-2zM15 11h3v2h-3zM20 12h2v2h-2zM24 11h3v3h-3zM12 17h3v2h-3zM17 15h2v4h-2zM21 17h3v2h-3zM11 21h2v3h-2zM15 22h3v2h-3zM20 21h3v2h-3zM24 24h3v3h-3zM13 25h2v2h-2z"/></g></svg>k3Zp9Qa1<small>Piège #12</small></div>
+          <div class="note">Étiquette de 45 mm, QR Code de 36 mm. Imprimer en <b>taille réelle (100 %)</b>.</div>
+        </div>
+        <div class="lbl">Case de départ sur la planche A4 (4 × 6) <span class="help">?</span></div>
+        <div class="grid46"><i class="used"></i><i class="used"></i><i class="used"></i><i class="used"></i><i class="used"></i><i class="on"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></div>
+        <div class="note" style="margin-top:6px">5 cases déjà utilisées : impression en case 6.</div>
+      </div>
+      <div style="padding:12px;border-top:1px solid var(--line)"><div class="btn pri block" style="margin:0">🖨️ Imprimer</div></div>
+    </div>
+  </div>
+</figure>
+
+<figure>
+  <figcaption><b>R · Piège avec QR Code</b>. Étiquette abîmée : <b>réimprimer le même code</b> (rien ne change). Étiquette
+  perdue ou volée : <b>remplacer</b>, l'ancien est révoqué ; c'est la seule action avec confirmation.</figcaption>
+  <div class="phone">
+    <div class="top"><b>Velutina</b><span class="sp"></span><span class="me">👤</span></div>
+    <div class="body" style="opacity:.5"></div>
+    <div class="veil"></div>
+    <div class="sheet">
+      <h2>QR Code · Jardin, rue des Vignes</h2>
+      <div class="sub">QR Code <code>Qm71xWb0</code> posé le 2 mai</div>
+      <div class="btn pri block" style="min-height:56px;font-size:1.05rem">🖨️ Réimprimer le même QR Code</div>
+      <div class="btn block" style="min-height:56px">Remplacer par un nouveau QR Code</div>
+      <div class="note" style="margin-top:8px">Remplacer : l'ancien QR Code ne pourra plus être scanné.</div>
+    </div>
+  </div>
+</figure>
+
+<figure>
+  <figcaption><b>S · Étiquettes vierges</b> (profil). Pour en avoir d'avance sur le terrain : nombre en puces, même choix de
+  case de départ. Elles ne sont liées à aucun piège tant qu'on ne les a pas scannées (L).</figcaption>
+  <div class="phone">
+    <div class="full">
+      <div class="hd">Étiquettes vierges<span>✕</span></div>
+      <div class="in">
+        <div class="lbl" style="margin-top:0">Combien ?</div>
+        <div class="chips"><div class="chip">1</div><div class="chip on">4</div><div class="chip">12</div><div class="chip">24</div></div>
+        <div class="lbl">Case de départ sur la planche A4 (4 × 6)</div>
+        <div class="grid46"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></div>
+        <div class="note" style="margin-top:6px">4 étiquettes, cases 1 à 4.</div>
+        <div class="lbl">Déjà imprimées, pas encore posées</div>
+        <div class="card"><div class="field"><span>3 étiquettes vierges</span><span style="color:var(--muted)">Réimprimer ›</span></div></div>
+      </div>
+      <div style="padding:12px;border-top:1px solid var(--line)"><div class="btn pri block" style="margin:0">Créer 4 étiquettes</div></div>
+    </div>
   </div>
 </figure>
 
