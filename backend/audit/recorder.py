@@ -55,7 +55,7 @@ FIELDS = {
     'nest': ['latitude', 'longitude', 'address', 'public_place', 'status', 'destroyed', 'destroyed_at',
              'nest_type', 'height_class', 'size_class', 'comments', 'private_comments', 'created_by',
              'owner', 'archived'],
-    'apiary': ['latitude', 'longitude', 'address', 'infestation_level', 'afsca_number', 'comments',
+    'apiary': ['name', 'latitude', 'longitude', 'address', 'infestation_level', 'afsca_number', 'comments',
                'owner', 'photo'],
     'trap': ['latitude', 'longitude', 'address', 'trap_type', 'installed_at', 'active', 'visibility',
              'group', 'owner', 'comments', 'photo'],
@@ -158,7 +158,7 @@ def label_of(obj) -> str:
     if kind in ('nest', 'trap'):
         label = obj.address
     elif kind == 'apiary':
-        label = ' · '.join(part for part in (obj.afsca_number, obj.address) if part)
+        label = ' · '.join(part for part in (obj.name, obj.afsca_number, obj.address) if part)
     elif kind == 'trap_event':
         label = obj.trap.address if obj.trap_id else ''
     elif kind == 'tag':

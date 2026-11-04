@@ -308,7 +308,7 @@ class ApiarySerializer(GPSValidationMixin, serializers.ModelSerializer):
 
     class Meta:
         model = Apiary
-        fields = ['id', 'longitude', 'latitude', 'address', 'infestation_level', 'afsca_number',
+        fields = ['id', 'name', 'longitude', 'latitude', 'address', 'infestation_level', 'afsca_number',
                   'photo_url', 'photo_thumbnail_url', 'created_at', 'created_by', 'owner',
                   'comments', 'host_name']
         # The creator and the owner are set by the server, never by a form
@@ -368,6 +368,9 @@ class ApiarySerializer(GPSValidationMixin, serializers.ModelSerializer):
         )
 
     def validate_address(self, value: str) -> str:
+        return value.strip()
+
+    def validate_name(self, value: str) -> str:
         return value.strip()
 
     def validate_host_name(self, value: str) -> str:

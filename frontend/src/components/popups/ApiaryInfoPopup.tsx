@@ -84,7 +84,7 @@ export default function ApiaryInfoPopup({ show, onHide, apiary, onAddAtLocation,
         show={show && sub === null}
         onHide={onHide}
         icon={OBJECT_ICONS.apiary}
-        title={`Rucher #${apiaryId}`}
+        title={current.name || `Rucher #${apiaryId}`}
       >
         {error && <Alert variant="danger" className="py-2">{error}</Alert>}
 

@@ -8,7 +8,7 @@ import { VisitFormModal, VisitListItem, VisitSheet } from '../components/visits'
 import { IconButton } from '../components/ui';
 import { signInFromCurrentPage } from '../utils/authRedirect';
 import { ACTION_ICONS } from '../utils/icons';
-import { hiveErrorOf } from '../utils/hivesApi';
+import { apiaryLabel, hiveErrorOf } from '../utils/hivesApi';
 import { fetchVisits, type Visit } from '../utils/visitsApi';
 
 /**
@@ -60,7 +60,8 @@ export default function Visits() {
     if (searchParams.get('add')) setParam('add', null);
   }, [searchParams, setParam]);
 
-  const where = visits?.find((visit) => visit.apiary?.id === apiaryId)?.apiary?.address || `Rucher #${apiaryId}`;
+  const shown = visits?.find((visit) => visit.apiary?.id === apiaryId)?.apiary;
+  const where = shown ? apiaryLabel(shown) : `Rucher #${apiaryId}`;
 
   return (
     <PageLayout>

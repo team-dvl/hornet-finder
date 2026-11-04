@@ -1879,3 +1879,26 @@ html[data-platform="material"] .form-switch .form-check-input:checked {
   min-width: 2.75rem;
   min-height: 2.75rem;
 }
+
+/* Apiary picker (components/apiaries/ApiaryPicker.tsx): name, address, photo */
+.apiary-picker-current {
+  width: 100%;
+  min-height: 3.5rem;
+  text-align: start;
+}
+
+.apiary-picker-option {
+  min-height: 2.75rem;
+  text-align: start;
+  color: var(--bs-body-color);
+}
+
+/* An address standing for the name may take two lines */
+.apiary-picker-label {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}

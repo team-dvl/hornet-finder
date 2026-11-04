@@ -396,6 +396,8 @@ class Apiary(GeolocatedModel):
                               related_name='owned_apiaries')
     # Registration number at the Belgian food safety agency (AFSCA / FAVV)
     afsca_number = models.CharField(max_length=32, blank=True, default='')
+    # What the beekeepers call it ("Verger", "Fond du jardin"); '' when unnamed
+    name = models.CharField(max_length=120, blank=True, default='')
     # Describes the position, filled from it by the form and editable by hand
     address = models.CharField(max_length=255, blank=True, default='')
     photo = models.ImageField(upload_to=apiary_photo_path, null=True, blank=True)

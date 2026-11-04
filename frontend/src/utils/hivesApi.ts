@@ -30,6 +30,8 @@ export type HiveStatus = 'active' | 'stored' | 'retired';
 
 export interface ApiarySummary {
   id: number;
+  /** What the beekeepers call it; '' when unnamed */
+  name: string;
   address: string;
   afsca_number: string;
 }
@@ -285,38 +287,50 @@ export function hiveErrorOf(error: unknown): string {
   return 'Une erreur est survenue.';
 }
 
-export interface PlaceableApiary {
+/** An apiary offered in a picker: how it reads, and its photo. */
+export interface ApiaryChoice {
   id: number;
-  label: string;
+  name: string;
+  address: string;
+  thumbnail_url: string | null;
 }
 
 /**
- * The apiaries the user may put a hive in: their own and those an
- * association lets them update (platform admins: every apiary).
+ * The apiaries the user sees (their own and those shared with them; platform
+ * admins: every apiary), by name then address. With `updatable`, only those
+ * they may change, where a hive can be put.
  */
-export async function fetchPlaceableApiaries(isAdmin: boolean): Promise<PlaceableApiary[]> {
+export async function fetchApiaryChoices(isAdmin: boolean, updatable = false): Promise<ApiaryChoice[]> {
   const scopes = isAdmin ? ['all'] : ['mine', 'shared'];
   const pages = await Promise.all(scopes.map((scope) => api.get('/apiaries/managed/', {
     params: { scope, ordering: 'address', page_size: 200 },
   })));
   const seen = new Set<number>();
-  const result: PlaceableApiary[] = [];
+  const result: ApiaryChoice[] = [];
   for (const page of pages) {
     for (const apiary of page.data.results as {
-      id: number; address?: string; host_name?: string; permissions?: { update: boolean };
+      id: number; name?: string; address?: string; photo_thumbnail_url?: string | null;
+      permissions?: { update: boolean };
     }[]) {
-      if (seen.has(apiary.id) || !apiary.permissions?.update) continue;
+      if (seen.has(apiary.id) || (updatable && !apiary.permissions?.update)) continue;
       seen.add(apiary.id);
-      const place = apiary.address || `Rucher #${apiary.id}`;
-      result.push({ id: apiary.id, label: apiary.host_name ? `${place} (${apiary.host_name})` : place });
+      result.push({
+        id: apiary.id, name: apiary.name ?? '', address: apiary.address ?? '',
+        thumbnail_url: apiary.photo_thumbnail_url ?? null,
+      });
     }
   }
-  return result;
+  return result.sort((a, b) => apiaryLabel(a).localeCompare(apiaryLabel(b), 'fr', { sensitivity: 'base', numeric: true }));
 }
 
-/** How an apiary reads in a hive sheet or list. */
-export function apiaryLabel(apiary: ApiarySummary): string {
-  return apiary.address || `Rucher #${apiary.id}`;
+/** The apiaries the user may put a hive in: their own and those an association lets them update. */
+export function fetchPlaceableApiaries(isAdmin: boolean): Promise<ApiaryChoice[]> {
+  return fetchApiaryChoices(isAdmin, true);
+}
+
+/** An apiary by its name, else its address, else its number. */
+export function apiaryLabel(apiary: { id: number; name?: string; address?: string }): string {
+  return apiary.name || apiary.address || `Rucher #${apiary.id}`;
 }
 
 /** The associations a new hive may belong to (besides the user). */

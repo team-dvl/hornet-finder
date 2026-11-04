@@ -6,7 +6,7 @@ import { AppModal, FieldRow, IconButton, SheetActions } from '../ui';
 import { useHistoryAction } from '../../hooks/useHistoryAction';
 import { ACTION_ICONS } from '../../utils/icons';
 import { formatDateTime } from '../../utils/format';
-import { hiveErrorOf } from '../../utils/hivesApi';
+import { apiaryLabel, hiveErrorOf } from '../../utils/hivesApi';
 import {
   KIND_LABELS, deleteVisit, deleteVisitPhoto, fetchVisit, inspectionSummary, visitLabel, weatherLine,
   type Visit, type VisitPhoto,
@@ -74,7 +74,7 @@ export default function VisitSheet({ visitId, onHide, onChanged }: VisitSheetPro
 
   const canEdit = Boolean(visit?.permissions?.edit);
   const history = visit && historyAction(`apiary_visit:${visit.id}`, `Visite du ${formatDateTime(visit.started_at)}`);
-  const where = visit?.apiary ? (visit.apiary.address || `Rucher #${visit.apiary.id}`) : visit?.apiary_label;
+  const where = visit?.apiary ? apiaryLabel(visit.apiary) : visit?.apiary_label;
   const people = visit ? [...visit.participants.map((person) => person.display_name), visit.guest_names].filter(Boolean) : [];
 
   return (

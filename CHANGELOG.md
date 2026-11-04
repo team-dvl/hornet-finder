@@ -11,6 +11,9 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ## [Unreleased]
 
 ### Added
+- Apiaries: an optional name ("Verger", "Fond du jardin"), shown before the address in the lists and the
+  sheet. A visit, a new hive or a hive move chooses its apiary by name, with the address in grey below and
+  the photo of the apiary, in a list that opens in the form (with a search above 8 apiaries).
 - Visits: the report and the notes on each colony take Markdown (bold, italic, titles, lists, links), with a
   toolbar over the native text field and a preview; shown formatted in the visit sheet. Raw HTML shows as
   typed text, never run; no image; a line break stays a line break. The renderer is loaded only when a visit shows Markdown.

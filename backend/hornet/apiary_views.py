@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 MANAGED_ORDERINGS = {
     'infestation_level': 'infestation_level',
     'created_at': 'created_at',
+    'name': 'name',
     'address': 'address',
     'id': 'id',
 }
@@ -151,7 +152,8 @@ class ApiaryViewSet(GeographicFilterMixin, viewsets.ModelViewSet):
                 raise DRFValidationError({'infestation_level': "Expected 1, 2, 3 or 'none'."})
         search = params.get('q', '').strip().lstrip('#')
         if search:
-            match = (Q(address__icontains=search) | Q(afsca_number__icontains=search)
+            match = (Q(name__icontains=search) | Q(address__icontains=search)
+                     | Q(afsca_number__icontains=search)
                      | Q(comments__icontains=search))
             # An AFSCA number is found by its digits too, typed without the dots
             digits = afsca_digits(search)

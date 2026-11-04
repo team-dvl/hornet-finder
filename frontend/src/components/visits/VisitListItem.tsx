@@ -1,4 +1,5 @@
 import { formatDateTime } from '../../utils/format';
+import { apiaryLabel } from '../../utils/hivesApi';
 import { visitLabel, type Visit } from '../../utils/visitsApi';
 
 interface VisitListItemProps {
@@ -10,7 +11,7 @@ interface VisitListItemProps {
 
 /** One row of a visit list: when, what, where, how many colonies were looked at. */
 export default function VisitListItem({ visit, onOpen, inApiary = false }: VisitListItemProps) {
-  const where = visit.apiary ? (visit.apiary.address || `Rucher #${visit.apiary.id}`) : visit.apiary_label;
+  const where = visit.apiary ? apiaryLabel(visit.apiary) : visit.apiary_label;
   const count = visit.inspections.length;
   return (
     <button

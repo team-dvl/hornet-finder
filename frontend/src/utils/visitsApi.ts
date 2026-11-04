@@ -1,6 +1,6 @@
 import api from './api';
 import type { BarFamily, PersonSummary } from './hivesApi';
-import { newHiveId } from './hivesApi';
+import { fetchApiaryChoices, newHiveId, type ApiaryChoice } from './hivesApi';
 
 /**
  * Visits to the apiaries, see `backend/apiculture/visit_views.py`: when, who
@@ -62,7 +62,7 @@ export interface VisitPhoto {
 
 export interface Visit extends VisitWeather {
   id: string;
-  apiary: { id: number; address: string; afsca_number: string } | null;
+  apiary: { id: number; name: string; address: string; afsca_number: string } | null;
   /** How the apiary read: all that is left once it is deleted */
   apiary_label: string;
   started_at: string;
@@ -191,22 +191,8 @@ export function toLocalInput(iso: string): string {
 }
 
 /** The apiaries the user sees (their own and those shared with them), to record a visit in. */
-export async function fetchVisitableApiaries(isAdmin: boolean): Promise<{ id: number; label: string }[]> {
-  const scopes = isAdmin ? ['all'] : ['mine', 'shared'];
-  const pages = await Promise.all(scopes.map((scope) => api.get('/apiaries/managed/', {
-    params: { scope, ordering: 'address', page_size: 200 },
-  })));
-  const seen = new Set<number>();
-  const result: { id: number; label: string }[] = [];
-  for (const page of pages) {
-    for (const apiary of page.data.results as { id: number; address?: string; host_name?: string }[]) {
-      if (seen.has(apiary.id)) continue;
-      seen.add(apiary.id);
-      const place = apiary.address || `Rucher #${apiary.id}`;
-      result.push({ id: apiary.id, label: apiary.host_name ? `${place} (${apiary.host_name})` : place });
-    }
-  }
-  return result;
+export function fetchVisitableApiaries(isAdmin: boolean): Promise<ApiaryChoice[]> {
+  return fetchApiaryChoices(isAdmin);
 }
 
 /** What was seen of a colony, in a few words, for a sheet or a list. */
