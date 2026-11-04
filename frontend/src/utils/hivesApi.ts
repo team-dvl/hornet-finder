@@ -82,6 +82,9 @@ export interface Hive {
   portable: boolean;
   /** Position of the divider (it takes a bar's place); null without one */
   divider_bar: number | null;
+  /** One picture of the hive, served by the media view */
+  photo_url: string | null;
+  photo_thumbnail_url: string | null;
   /** The living colonies, by compartment */
   colonies: ColonySummary[];
   /** Detail only */
@@ -169,6 +172,17 @@ export async function updateHive(id: string, values: Partial<HiveValues>): Promi
 
 export async function deleteHive(id: string): Promise<void> {
   await api.delete(`/hives/${id}/`);
+}
+
+/** Set or replace the photo of a hive. */
+export async function setHivePhoto(id: string, photo: File): Promise<Hive> {
+  const form = new FormData();
+  form.append('photo', photo);
+  return (await api.post(`/hives/${id}/photo/`, form, { headers: { 'Content-Type': 'multipart/form-data' } })).data;
+}
+
+export async function removeHivePhoto(id: string): Promise<Hive> {
+  return (await api.delete(`/hives/${id}/photo/`)).data;
 }
 
 export async function moveHive(id: string, apiary: number, on: string): Promise<Hive> {

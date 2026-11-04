@@ -1,16 +1,18 @@
 import datetime
+import tempfile
 import uuid
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
 from audit.models import AuditEvent
 from hornet.models import Apiary, ApiaryGroupPermission, BeekeeperGroup, User
-from hornet.tests import FakeTrapUser
+from hornet.tests import FakeTrapUser, _image_file
 
 from .models import Hive, HiveCustody, HivePlacement, HiveType
+from .views import can_read_hive_file
 
 ENA = '/beekeepers/ena'
 OTHER = '/beekeepers/other'
@@ -408,3 +410,62 @@ class ApiaryNameTests(HiveTestCase):
         hive = self._hive(apiary=self.apiary.pk, number='9')
         response = self._as(self.member).get(f'/api/hives/{hive.pk}/')
         self.assertEqual(response.data['apiary']['name'], 'Verger')
+
+
+@override_settings(MEDIA_USE_X_ACCEL=False, MEDIA_ROOT=tempfile.mkdtemp(prefix='hive-photos-'))
+class HivePhotoTests(HiveTestCase):
+    def _photo(self, hive, user=None):
+        return self._as(user or self.member).post(f'/api/hives/{hive.pk}/photo/',
+                                                  {'photo': _image_file()}, format='multipart')
+
+    def test_a_photo_is_set_replaced_and_removed_with_its_files(self):
+        hive = self._hive(apiary=self.apiary.pk, number='5')
+        response = self._photo(hive)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertTrue(response.data['photo_url'])
+        self.assertTrue(response.data['photo_thumbnail_url'])
+        hive.refresh_from_db()
+        first = [hive.photo.name, hive.photo_thumbnail.name]
+        self.assertTrue(first[0].startswith(f'hives/{hive.pk}/'))
+        storage = hive.photo.storage
+        self.assertTrue(all(storage.exists(name) for name in first))
+
+        self.assertEqual(self._photo(hive).status_code, 200)
+        hive.refresh_from_db()
+        self.assertNotEqual(hive.photo.name, first[0])
+        self.assertFalse(any(storage.exists(name) for name in first))
+
+        second = [hive.photo.name, hive.photo_thumbnail.name]
+        response = self._as(self.member).delete(f'/api/hives/{hive.pk}/photo/')
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.data['photo_url'])
+        self.assertFalse(any(storage.exists(name) for name in second))
+        self.assertEqual(
+            list(AuditEvent.objects.filter(action__startswith='hive.photo').values_list('action', flat=True)
+                 .order_by('id')),
+            ['hive.photo_set', 'hive.photo_set', 'hive.photo_removed'])
+
+    def test_who_reads_the_hive_sees_the_photo_and_only_its_tenders_change_it(self):
+        hive = self._hive(apiary=self.apiary.pk, number='6')
+        self.assertEqual(self._photo(hive).status_code, 200)
+        hive.refresh_from_db()
+        request = type('R', (), {'user': self.member})()
+        self.assertTrue(can_read_hive_file(request, hive.photo.name))
+        request.user = self.stranger
+        self.assertFalse(can_read_hive_file(request, hive.photo.name))
+        self.assertFalse(can_read_hive_file(request, 'hives/not-a-uuid/x.jpg'))
+        # A stranger does not even learn that the hive exists
+        self.assertEqual(self._photo(hive, self.stranger).status_code, 404)
+
+    def test_a_deleted_hive_takes_its_photo_files_along(self):
+        hive = self._hive(apiary=self.apiary.pk, number='7')
+        self._photo(hive)
+        hive.refresh_from_db()
+        names, storage = [hive.photo.name, hive.photo_thumbnail.name], hive.photo.storage
+        self.assertEqual(self._as(self.member).delete(f'/api/hives/{hive.pk}/').status_code, 204)
+        self.assertFalse(any(storage.exists(name) for name in names))
+
+    def test_a_request_without_a_file_is_refused(self):
+        hive = self._hive(apiary=self.apiary.pk, number='8')
+        response = self._as(self.member).post(f'/api/hives/{hive.pk}/photo/', {}, format='multipart')
+        self.assertEqual(response.status_code, 400)

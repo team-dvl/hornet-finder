@@ -49,6 +49,11 @@ class HiveType(models.Model):
         return self.name
 
 
+def hive_photo_path(instance, filename):
+    """The photo of a hive lives under `hives/<hive id>/`: the media view resolves its rights from the path."""
+    return f"hives/{instance.pk}/{uuid.uuid4().hex}.jpg"
+
+
 class Hive(models.Model):
     STATUS_ACTIVE = 'active'
     STATUS_STORED = 'stored'
@@ -82,6 +87,9 @@ class Hive(models.Model):
     # compartment 1 lies below it, compartment 2 above. Empty without a divider.
     divider_bar = models.PositiveSmallIntegerField(null=True, blank=True)
     comments = models.TextField(blank=True, default='')
+    # One picture of the hive, to tell it apart (its colonies' pictures go with the visits)
+    photo = models.ImageField(upload_to=hive_photo_path, null=True, blank=True)
+    photo_thumbnail = models.ImageField(upload_to=hive_photo_path, null=True, blank=True)
     # Identifier in an imported source (Glide), unique when set
     external_ref = models.CharField(max_length=64, null=True, blank=True, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)

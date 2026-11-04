@@ -1,6 +1,7 @@
 """API of the hives and of their types. Access rules: `permissions.py`."""
 
 import datetime
+import re
 import uuid
 
 from django.db import transaction
@@ -16,6 +17,7 @@ from rest_framework.response import Response
 from audit import recorder as audit
 from hornet.apiary_permissions import READ as APIARY_READ, has_apiary_permission
 from hornet.group_views import _Roster, _full_name
+from hornet.images import delete_files, store_photo
 from hornet.invitation_views import _keycloak, _sort_key
 from hornet.models import Apiary, ApiaryGroupPermission, User
 from hornet.trap_permissions import is_beekeeper_group, local_user
@@ -120,6 +122,19 @@ def _hive_refs(hive) -> list:
 
 _DAY_PARAM = {'type': 'string', 'format': 'date',
               'description': 'The day it happened (default: today)'}
+
+
+HIVE_FILE_RE = re.compile(r'^hives/(?P<hive_id>[0-9a-f-]{36})/[^/]+$')
+
+
+def can_read_hive_file(request, path) -> bool:
+    """The media view's check for `hives/<hive id>/…` (see `apps.py`)."""
+    match = HIVE_FILE_RE.match(path)
+    if not match:
+        return False
+    hive = Hive.objects.filter(pk=match.group('hive_id')).select_related(
+        'apiary', 'owner_group').first()
+    return hive is not None and perms.can_read_hive(request, hive)
 
 
 class HiveViewSet(viewsets.ModelViewSet):
@@ -312,6 +327,7 @@ class HiveViewSet(viewsets.ModelViewSet):
                 refs = _hive_refs(hive)
                 label = audit.label_of(hive)
                 pk = hive.pk
+                files = (hive.photo, hive.photo_thumbnail)
                 hive.delete()
                 audit.record(request, 'hive.deleted', ('hive', pk), changes=changes, label=label,
                              refs=refs)
@@ -319,7 +335,49 @@ class HiveViewSet(viewsets.ModelViewSet):
             # Its colonies keep their history in it: such a hive is retired, not deleted
             return Response({'error': "This hive has held colonies: retire it instead."},
                             status=status.HTTP_409_CONFLICT)
+        delete_files(*files)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    # -- photo ---------------------------------------------------------------
+
+    @extend_schema(
+        request={'multipart/form-data': {'type': 'object', 'properties': {
+            'photo': {'type': 'string', 'format': 'binary'}}}},
+        responses={200: HiveSerializer},
+    )
+    @action(detail=True, methods=['post', 'delete'], url_path='photo')
+    def photo(self, request, pk=None):
+        """POST: set or replace the photo of the hive (`photo` file). DELETE: remove it."""
+        hive = self.get_object()
+        if not perms.can_tend_hive(request, hive):
+            raise PermissionDenied("You cannot change this hive.")
+        storage = Hive._meta.get_field('photo').storage
+        # The files of the previous photo, removed once the change is saved
+        previous = [field.name for field in (hive.photo, hive.photo_thumbnail) if field]
+        if request.method == 'DELETE':
+            if not previous:
+                return self._fresh(hive)
+            with audit.track(request, 'hive.photo_removed', hive, fields=['photo']):
+                hive.photo = None
+                hive.photo_thumbnail = None
+                hive.save(update_fields=['photo', 'photo_thumbnail', 'updated_at'])
+        else:
+            uploaded = request.FILES.get('photo')
+            if not uploaded:
+                raise ValidationError({'photo': "No file received."})
+            try:
+                with audit.track(request, 'hive.photo_set', hive, fields=['photo']):
+                    store_photo(hive, 'photo', 'photo_thumbnail', uploaded)
+                    hive.save(update_fields=['photo', 'photo_thumbnail', 'updated_at'])
+            except Exception:
+                # Files written for a change that did not go through are not kept
+                for field in (hive.photo, hive.photo_thumbnail):
+                    if field and field.name not in previous:
+                        storage.delete(field.name)
+                raise
+        for name in previous:
+            storage.delete(name)
+        return self._fresh(hive)
 
     # -- place and status ----------------------------------------------------
 

@@ -95,7 +95,10 @@ export default function ApiariesDoc() {
           à <strong>vous ou à une de vos associations</strong>, et elle est
           {' '}<strong>confiée</strong> à un apiculteur, vous à la création. Dans un rucher, elle
           est <em>en service</em> ; sans rucher, elle est <em>remisée</em>, vide ou en attente
-          d'une colonie ; <em>réformée</em>, elle sort de l'usage.
+          d'une colonie ; <em>réformée</em>, elle sort de l'usage. Une <strong>photo</strong>
+          facultative (formulaire de la ruche) la fait reconnaître dans les listes et en tête de sa
+          fiche ; touchée, elle s'agrandit et peut y être retirée. Les photos des colonies vont avec
+          les visites.
         </p>
         <p>
           Chaque déplacement, mise en remise et changement d'apiculteur est daté : la fiche en

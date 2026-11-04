@@ -67,7 +67,7 @@ FIELDS = {
                 'sort_order', 'photo'],
     'tag': ['key_index', 'trap', 'generated_by', 'associated_by', 'revoked_by'],
     'hive': ['name', 'number', 'hive_type', 'status', 'apiary', 'owner_group', 'owner_user', 'keeper',
-             'commissioned_on', 'divider_bar', 'comments'],
+             'commissioned_on', 'divider_bar', 'comments', 'photo'],
     'colony': ['name', 'origin', 'parent', 'hive', 'compartment', 'bars', 'started_on', 'ended_on', 'end_cause',
                'merged_into', 'requeening_since', 'laying_since', 'comments'],
     # Never `guest_names`: the names of people without an account

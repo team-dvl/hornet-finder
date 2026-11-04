@@ -125,6 +125,8 @@ class HiveSerializer(serializers.ModelSerializer):
         data['max_colonies'] = hive_type.max_colonies
         data['portable'] = hive_type.portable
         data['divider_bar'] = instance.divider_bar
+        data['photo_url'] = instance.photo.url if instance.photo else None
+        data['photo_thumbnail_url'] = instance.photo_thumbnail.url if instance.photo_thumbnail else None
         # The living colonies, prefetched by the viewset as `living_colonies`
         living = getattr(instance, 'living_colonies', None)
         if living is None:

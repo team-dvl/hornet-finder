@@ -64,6 +64,8 @@ ACTIONS = {
     'hive.keeper_changed': "Hive entrusted to another beekeeper",
     'hive.deleted': "Hive deleted",
     'hive.divider_changed': "Divider of a hive put, moved or removed",
+    'hive.photo_set': "Hive photo set",
+    'hive.photo_removed': "Hive photo removed",
     # Colonies
     'colony.created': "Colony put in a hive (caught swarm, package)",
     'colony.updated': "Colony updated",

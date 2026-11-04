@@ -111,6 +111,8 @@ AUDITED = {
     ('hive', 'retire', 'post'): 'hive.retired',
     ('hive', 'keeper', 'put'): 'hive.keeper_changed',
     ('hive', 'divider', 'post'): 'hive.divider_changed',
+    ('hive', 'photo', 'post'): 'hive.photo_set',
+    ('hive', 'photo', 'delete'): 'hive.photo_removed',
     ('colony', 'create', 'post'): 'colony.created',
     ('colony', 'partial_update', 'patch'): 'colony.updated',
     ('colony', 'destroy', 'delete'): 'colony.deleted',

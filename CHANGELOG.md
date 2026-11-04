@@ -11,6 +11,8 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ## [Unreleased]
 
 ### Added
+- Hives: a photo, set or replaced from the hive form and removed from the enlarged view; it heads the hive
+  sheet and stands for the hive icon in the lists. It is seen by whoever sees the hive.
 - Apiaries: an optional name ("Verger", "Fond du jardin"), shown before the address in the lists and the
   sheet. A visit, a new hive or a hive move chooses its apiary by name, with the address in grey below and
   the photo of the apiary, in a list that opens in the form (with a search above 8 apiaries).
