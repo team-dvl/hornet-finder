@@ -60,7 +60,7 @@
   .btn.block { display:flex; width:100%; margin-top:8px; }
   .btn.sm { padding:8px 12px; flex-shrink:0; }
   .btn.ghost { border-color:transparent; color:var(--muted); }
-  .fab { position:absolute; left:12px; right:12px; bottom:10px; }
+  .fab { position:absolute; left:12px; right:12px; bottom:30px; }
   .chips { display:flex; flex-wrap:wrap; gap:8px; }
   .chip { padding:8px 14px; min-height:44px; border:1px solid var(--line); border-radius:99px; display:flex;
           align-items:center; gap:6px; background:var(--card); }
@@ -113,6 +113,22 @@
   .tilegrid .card { padding:12px; min-height:92px; font-size:.9rem; }
   .tilegrid .card i { display:block; font-style:normal; font-size:1.5rem; }
   .tilegrid .card.off { opacity:.45; }
+  /* Scan: the one raised entry of the bar, always within thumb reach */
+  .tabs div.scan { flex:0 0 76px; padding-top:0; color:var(--pri-ink); }
+  .tabs div.scan span { display:grid; place-items:center; width:56px; height:56px; margin:-18px auto 2px; border-radius:50%;
+          background:var(--pri); color:var(--pri-ink); box-shadow:0 2px 8px rgba(0,0,0,.35); border:3px solid var(--app); }
+  .tabs div.scan { color:var(--pri); font-weight:600; }
+  .cam { flex:1; background:#0c0c0c; position:relative; overflow:hidden; }
+  .cam .frame { position:absolute; left:50%; top:42%; width:230px; height:230px; margin:-115px 0 0 -115px;
+          border:3px solid #fff; border-radius:18px; box-shadow:0 0 0 999px rgba(0,0,0,.55); }
+  .cam .hint { position:absolute; left:0; right:0; top:calc(42% + 140px); text-align:center; color:#fff; font-size:.95rem; }
+  .qr { display:block; margin:0 auto; }
+  .alert { border:1px solid var(--line); border-left:4px solid var(--warn); border-radius:10px; padding:10px 12px; margin-bottom:8px; background:var(--card); }
+  .alert.bad { border-left-color:var(--danger); } .alert.info { border-left-color:var(--pri); }
+  .gps { display:flex; align-items:center; gap:8px; font-size:.82rem; }
+  .gps i { font-style:normal; }
+  .tagbar { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:10px; background:var(--pri-soft); font-size:.88rem; margin-bottom:6px; }
+  .tagbar code { font-weight:700; }
 </style>
 </head>
 <body>
@@ -150,7 +166,7 @@
       </div>
       <div class="btn pri block fab">＋ Ajouter un piège</div>
     </div>
-    <div class="tabs"><div class="on"><i>✅</i>À faire<span class="cnt">2</span></div><div><i>🪤</i>Mes pièges</div><div><i>📊</i>Chiffres</div></div>
+    <div class="tabs"><div class="on"><i>✅</i>À faire<span class="cnt">2</span></div><div><i>🪤</i>Mes pièges</div><div class="scan"><span><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3z"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z" fill="currentColor"/></svg></span>Scanner</div><div><i>📊</i>Chiffres</div></div>
   </div>
 </figure>
 
@@ -194,7 +210,7 @@
         <div class="sub">Remisé le 3 sept.</div></div><div class="btn sm">Remettre</div></div></div>
       <div class="btn pri block fab">＋ Ajouter un piège</div>
     </div>
-    <div class="tabs"><div><i>✅</i>À faire<span class="cnt">2</span></div><div class="on"><i>🪤</i>Mes pièges</div><div><i>📊</i>Chiffres</div></div>
+    <div class="tabs"><div><i>✅</i>À faire<span class="cnt">2</span></div><div class="on"><i>🪤</i>Mes pièges</div><div class="scan"><span><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3z"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z" fill="currentColor"/></svg></span>Scanner</div><div><i>📊</i>Chiffres</div></div>
   </div>
 </figure>
 
@@ -247,7 +263,7 @@
           <u style="left:26%;top:46%"></u><u style="left:62%;top:56%"></u><u style="left:78%;top:24%"></u></div>
       </div>
     </div>
-    <div class="tabs"><div><i>✅</i>À faire<span class="cnt">2</span></div><div><i>🪤</i>Mes pièges</div><div class="on"><i>📊</i>Chiffres</div></div>
+    <div class="tabs"><div><i>✅</i>À faire<span class="cnt">2</span></div><div><i>🪤</i>Mes pièges</div><div class="scan"><span><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3z"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z" fill="currentColor"/></svg></span>Scanner</div><div class="on"><i>📊</i>Chiffres</div></div>
   </div>
 </figure>
 
@@ -266,7 +282,7 @@
       <div class="card" style="padding:12px"><div class="sub">La saison vient de commencer : les chiffres de la communauté s'affichent
         dès qu'au moins 3 personnes ont relevé un piège.</div></div>
     </div>
-    <div class="tabs"><div><i>✅</i>À faire</div><div><i>🪤</i>Mes pièges</div><div class="on"><i>📊</i>Chiffres</div></div>
+    <div class="tabs"><div><i>✅</i>À faire</div><div><i>🪤</i>Mes pièges</div><div class="scan"><span><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3z"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z" fill="currentColor"/></svg></span>Scanner</div><div class="on"><i>📊</i>Chiffres</div></div>
   </div>
 </figure>
 
@@ -281,7 +297,7 @@
   <div class="phone">
     <div class="top"><b>Velutina</b><span class="sp"></span><span class="me">👤</span></div>
     <div class="body"><div class="empty"><div class="e">✅</div>Rien à faire pour l'instant.</div></div>
-    <div class="tabs"><div class="on"><i>✅</i>À faire</div><div><i>🪤</i>Mes pièges</div><div><i>📊</i>Chiffres</div></div>
+    <div class="tabs"><div class="on"><i>✅</i>À faire</div><div><i>🪤</i>Mes pièges</div><div class="scan"><span><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3z"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z" fill="currentColor"/></svg></span>Scanner</div><div><i>📊</i>Chiffres</div></div>
     <div class="veil"></div>
     <div class="sheet">
       <div class="dots"><i></i><i class="on"></i><i></i></div>
@@ -368,6 +384,103 @@
       <div class="lbl">Interface</div>
       <div class="seg"><span>Simplifiée</span><span class="on">Complète</span></div>
     </div>
+  </div>
+</figure>
+
+</div>
+
+<h2 class="group">4 · Les QR Codes : scanner d'abord</h2>
+<div class="board">
+
+<figure>
+  <figcaption><b>K · Scanner</b>. Un tap sur le bouton central de la barre, <b>depuis n'importe quel écran</b>. La caméra
+  s'ouvre à l'écran (<code>TagScannerModal</code>, existant) ; aucune autre étape. Sur iPhone c'est la seule entrée : l'appli
+  installée ne capte pas un lien scanné avec l'appareil photo du système.</figcaption>
+  <div class="phone">
+    <div class="full">
+      <div class="hd">Scanner un QR Code<span>✕</span></div>
+      <div class="cam"><div class="frame"></div><div class="hint">Visez le QR Code collé sur le piège</div></div>
+    </div>
+  </div>
+</figure>
+
+<figure>
+  <figcaption><b>L · Étiquette vierge</b>. Le QR Code n'est encore sur aucun piège : deux choix. Le premier (nouveau piège) est
+  le geste de terrain ; le second ne liste que <b>mes</b> pièges encore sans étiquette. Rien à saisir avant de choisir.</figcaption>
+  <div class="phone">
+    <div class="top"><b>Velutina</b><span class="sp"></span><span class="me">👤</span></div>
+    <div class="body" style="opacity:.5"></div>
+    <div class="veil"></div>
+    <div class="sheet">
+      <h2>Nouveau QR Code <code>k3Zp9Qa1</code></h2>
+      <div class="sub">Il n'est pas encore posé sur un piège.</div>
+      <div class="btn pri block" style="min-height:56px;font-size:1.05rem">＋ C'est un nouveau piège</div>
+      <div class="btn block" style="min-height:56px">🪤 Il est sur un de mes pièges</div>
+      <div class="lbl">Mes pièges sans QR Code</div>
+      <div class="card">
+        <div class="row" style="min-height:56px"><div class="ph">🪤</div><div class="grow"><div class="name">Jardin, rue des Vignes</div><div class="sub">Bouteille</div></div><span style="color:var(--muted)">›</span></div>
+        <div class="row" style="min-height:56px"><div class="ph">🪤</div><div class="grow"><div class="name">Verger, chemin du Bois</div><div class="sub">Vespa-catch</div></div><span style="color:var(--muted)">›</span></div>
+      </div>
+      <div class="note" style="margin-top:8px">Un piège qui a déjà un QR Code reste proposé, avec une confirmation avant de remplacer l'ancien.</div>
+    </div>
+  </div>
+</figure>
+
+<figure>
+  <figcaption><b>M · Nouveau piège depuis l'étiquette</b>. Le formulaire D, avec le QR Code déjà acquis et la position
+  <b>« Ma position » préchoisie</b> (la personne est devant le piège). La précision du GPS est affichée en mètres : un ordre de
+  grandeur honnête vaut mieux qu'un point qui paraît exact.</figcaption>
+  <div class="phone">
+    <div class="full">
+      <div class="hd">Nouveau piège<span>✕</span></div>
+      <div class="in">
+        <div class="tagbar">🏷️ QR Code <code>k3Zp9Qa1</code> · sera posé sur ce piège</div>
+        <div class="lbl">Type de piège</div>
+        <div class="chips"><div class="chip on">🪤 Bouteille</div><div class="chip">🪤 JadeProbe</div><div class="chip">🪤 Vespa-catch</div><div class="chip">Autre</div></div>
+        <div class="lbl">Où est-il ?</div>
+        <div class="seg"><span class="on">📍 Ma position</span><span>🔎 Une adresse</span></div>
+        <div class="map" style="height:130px"><u style="left:48%;top:44%"></u><b style="left:28%;top:16%;width:100px;height:100px"></b></div>
+        <div class="gps" style="margin-top:6px"><i>🎯</i><span>Précision environ <b>± 12 m</b></span><span class="pill ok">Correcte</span></div>
+        <div class="sub">Rue des Vignes 12, 5020 Vedrin</div>
+      </div>
+      <div style="padding:12px;border-top:1px solid var(--line)"><div class="btn pri block" style="margin:0">Enregistrer et poser le QR Code</div></div>
+    </div>
+  </div>
+</figure>
+
+<figure>
+  <figcaption><b>N · Étiquette déjà posée</b>. Dans le mode simple, le scan d'un de mes pièges ouvre <b>directement le
+  relevé</b> (B), sans passer par la fiche : scanner, puis « Rien dans le piège » = deux gestes après le bouton. La fiche reste
+  à un tap, par le nom du piège.</figcaption>
+  <div class="phone">
+    <div class="top"><b>Velutina</b><span class="sp"></span><span class="me">👤</span></div>
+    <div class="body" style="opacity:.5"></div>
+    <div class="veil"></div>
+    <div class="sheet">
+      <h2>Relever · Verger, chemin du Bois</h2>
+      <div class="sub">QR Code <code>k3Zp9Qa1</code> · dernier relevé il y a 14 j</div>
+      <div class="btn pri block" style="min-height:56px;font-size:1.05rem">✓ Rien dans le piège</div>
+      <div class="lbl">Ou : frelons asiatiques trouvés</div>
+      <div class="chips"><div class="chip">1</div><div class="chip">2</div><div class="chip">3</div><div class="chip">4</div><div class="chip">5</div><div class="chip">6+</div></div>
+      <div class="btn block ghost" style="justify-content:flex-start;margin-top:12px">Voir la fiche du piège ›</div>
+    </div>
+  </div>
+</figure>
+
+<figure>
+  <figcaption><b>O · Cas d'erreur</b> (messages existants de <code>tagsApi.ts</code>, affichés en bandeau sur l'écran d'où
+  l'on scanne). Pas de nouveau code : seul le <b>retour au scanner</b> est ajouté, pour enchaîner plusieurs pièges d'une même
+  tournée.</figcaption>
+  <div class="phone">
+    <div class="top"><b>Velutina</b><span class="sp"></span><span class="me">👤</span></div>
+    <div class="body">
+      <div class="alert">Ce QR Code n'appartient pas à Velutina.<div class="btn block" style="margin-top:8px">Scanner un autre code</div></div>
+      <div class="alert bad">Ce QR Code a été révoqué et n'est plus valable.<div class="btn block" style="margin-top:8px">Scanner un autre code</div></div>
+      <div class="alert bad">Vous n'avez pas accès à l'objet de ce QR Code.<div class="btn block" style="margin-top:8px">Scanner un autre code</div></div>
+      <div class="alert info">Impossible de joindre le serveur. Réessayez une fois connecté au réseau.<div class="btn block" style="margin-top:8px">Réessayer</div></div>
+      <div class="alert">Ce QR Code est déjà associé à un objet.<div class="btn block" style="margin-top:8px">Scanner un autre code</div></div>
+    </div>
+    <div class="tabs"><div><i>✅</i>À faire</div><div><i>🪤</i>Mes pièges</div><div class="scan"><span><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3z"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z" fill="currentColor"/></svg></span>Scanner</div><div><i>📊</i>Chiffres</div></div>
   </div>
 </figure>
 

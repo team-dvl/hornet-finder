@@ -52,7 +52,7 @@ Le tronc commun existe déjà et est de bonne qualité : `DueList`, `TrapEventMo
 
 ## 4. Le mode simple
 
-### 4.1 Navigation : une barre de 3 onglets en bas (téléphone)
+### 4.1 Navigation : une barre de 3 onglets et un bouton « Scanner » en bas (téléphone)
 
 Au pouce, au lieu du menu déroulant de la barre du haut. Sur ordinateur, les mêmes 3 entrées dans la barre du haut.
 
@@ -60,6 +60,7 @@ Au pouce, au lieu du menu déroulant de la barre du haut. Sur ordinateur, les m�
 |---|---|---|
 | **À faire** (accueil) | `/` | Liste « À relever » (`DueList`) + bouton principal **« Ajouter un piège »** ; pastille rouge = `pending.traps`, déjà calculée |
 | **Mes pièges** | `/traps` | Liste des pièges du piégeur, **portée `mine` fixée**, sans filtres ni tri exposés ; tap = fiche, actions « Relever », « Recharger », « Remiser » |
+| **Scanner** (bouton central, en relief) | `/scan` | Ouvre la caméra sur tout écran ; voir 4.7 |
 | **Chiffres** | `/stats` | 2 cartes seulement (voir 4.4) |
 
 Réglages (notifications, apparence, aide, compte, bascule d'interface) : **un seul bouton « profil »** en haut à
@@ -118,9 +119,83 @@ Une `BottomSheet` de 3 étapes à la première connexion du mode simple, rejouab
 dédié, jamais bloquante (fermeture possible à tout moment, comme les autres feuilles) :
 1. **Installer** l'application (`InstallSheet` existe) ;
 2. **Activer les rappels** (`usePush().enable()`) ;
-3. **Mon premier piège** : « Ajouter un piège » (4.3) ou « Je n'en ai pas encore ».
+3. **Mon premier piège** : « Scanner le QR Code collé sur mon piège » (4.7) en premier choix, puis « Ajouter un piège » (4.3)
+   ou « Je n'en ai pas encore ».
 
 L'état « onboarding vu » suit la même règle de stockage que la bascule (section 3).
+
+### 4.7 QR Codes : scanner en un geste
+
+**Ce qui existe déjà** (lecture du code, rien n'est à inventer côté étiquette) : QR Codes signés (HMAC, valeur de 44
+caractères, `hornet/tags.py`), scanner intégré `TagScannerModal`, routes `/scan` et `/tag/<valeur>`, raccourci
+« Scanner » de l'icône de l'appli installée (`vite.config.ts`), `TagAssociateModal` (étiquette vierge → **un piège
+existant**), contrôle serveur de chaque valeur avec journal des refus. Scanner une étiquette déjà posée ouvre la fiche du
+piège.
+
+**Ce qui manque pour le besoin** :
+1. une étiquette vierge ne permet pas de **créer** le piège : il faut d'abord le placer sur la carte, puis l'associer ;
+2. le scanner est à deux gestes au mieux (liste des pièges → « Scanner », ou carte → « + » → « Scanner ») et absent du
+   mode simple ;
+3. une étiquette posée ouvre la fiche, pas le relevé.
+
+**Vocabulaire et format.** L'application utilise des **QR Codes** (2D), pas des codes-barres linéaires. Je recommande de
+ne pas changer. Ordre de grandeur : un Code 128 de 44 caractères fait environ 520 modules (barres élémentaires), marges
+comprises ~540 ; sur une étiquette de 50 mm cela donne ≈ 0,09 mm par module, bien en deçà de ce qu'une caméra de
+téléphone lit de façon fiable en extérieur (de l'ordre de 0,2 mm ou plus, selon distance, lumière et appareil : marge
+d'un facteur 2). Un QR Code portant l'adresse complète (~70 caractères) fait environ 35 modules de côté : à 25 mm, ≈ 0,7 mm
+par module. Il a de plus l'avantage de porter une adresse, donc d'ouvrir l'appli quand on le scanne avec l'appareil photo
+du système (Android, appli installée). Un lecteur de codes-barres matériel n'est pas visé.
+
+**Accès rapide : un tap, depuis n'importe quel écran.**
+- Mode simple : bouton central de la barre du bas (maquette K), toujours visible, hors des listes comme dedans. Il
+  remplace le passage par la liste des pièges. Conséquence de mise en page : le bouton dépasse de ~18 px au-dessus de la
+  barre, le bouton « Ajouter un piège » des listes monte d'autant (maquette A).
+- Interface complète : un bouton-icône « Scanner » dans la barre du haut, à gauche du bouton de menu (téléphone,
+  `pointer: coarse`). Règle de la barre : une seule ligne, le bouton de menu ne bouge pas ; la place est à mesurer à
+  320 px de large avec le fil d'Ariane et la bannière d'accessibilité.
+- Raccourci de l'icône de l'appli installée : existe (`/scan`) ; à signaler à l'onboarding. À ma connaissance, iOS ne
+  prend pas en charge les raccourcis du manifeste : à vérifier sur appareil, c'est pourquoi le bouton de l'appli compte.
+- Hors appli, l'appareil photo du système ouvre `/tag/<valeur>` ; sur iPhone l'appli installée ne capte pas ce lien
+  (documenté dans `TagScannerModal`), d'où le scanner intégré.
+
+**Que fait un scan** (le serveur décide, le client route) :
+
+| QR Code lu | Mode simple | Interface complète |
+|---|---|---|
+| Étiquette **vierge** | Feuille « Nouveau QR Code » (L) : « C'est un nouveau piège » ou « Il est sur un de mes pièges » | Même choix dans `TagAssociateModal` |
+| Posée sur un de **mes** pièges | **Relevé directement** (N), fiche à un tap | Fiche du piège (inchangé) |
+| Piège que je ne peux pas lire | Message existant (O) | Idem |
+| Faux, inconnu, révoqué, pas Velutina | Messages existants (O), puis retour au scanner pour enchaîner une tournée | Idem |
+
+**Étiquette vierge → nouveau piège** (L puis M). C'est le formulaire de 4.3, avec trois différences : l'étiquette est déjà
+acquise (bandeau), **« Ma position » est préchoisie** (la personne est devant le piège) et la **précision du GPS** est
+affichée en mètres (`coords.accuracy`). Ordres de grandeur indicatifs d'un smartphone : quelques mètres (≈ 3 à 10 m) en
+extérieur dégagé, 15 à 50 m ou davantage sous couvert végétal ou contre des bâtiments ; l'appareil et la minute comptent.
+**Proposition de seuils, à valider** : jusqu'à 25 m « correcte » ; de 25 à 100 m un avertissement avec le choix d'attendre
+ou de passer à l'adresse ; au-delà de 100 m, « ma position » seule n'est plus acceptée.
+
+**Étiquette vierge → piège existant** : la liste existante, limitée à **mes** pièges et triée par « sans QR Code » d'abord.
+Un piège qui a déjà un QR Code reste proposé, avec la confirmation « remplacer » actuelle (l'ancien est révoqué).
+
+**Backend** (seul ajout, pour que « nouveau piège + étiquette » soit atomique) : `POST /api/traps/` accepte un champ
+optionnel `tag` (la valeur scannée). Dans la transaction déjà ouverte par `TrapViewSet.create`, mêmes contrôles que
+`TagViewSet._checked_tag` (signature, présence, étiquette libre, non révoquée ; la fonction est à extraire pour être
+partagée, avec son journal des refus), association, et `audit.record(…, 'tag.associated', …)` à côté de `trap.created`.
+Si l'étiquette vient d'être prise (409 `already_associated`), **aucun piège n'est créé**. Pas de nouvel endpoint :
+`audit.tests.CoverageTests` ne bouge pas (l'action `tag.associated` existe). Tests à écrire : étiquette libre,
+déjà posée, révoquée, falsifiée, et absence de piège créé en cas de refus.
+
+**Limites à connaître.**
+- Résoudre une étiquette et créer un piège exigent le serveur : sans réseau, le message « Impossible de joindre le
+  serveur » existant s'affiche et rien n'est enregistré. Il n'y a pas de file d'attente hors ligne dans cette proposition.
+  Si une part notable des pièges est en zone sans réseau, c'est un frein direct à l'adoption ; je ne peux pas la chiffrer
+  d'ici, elle se mesure pendant le test de la phase 1 (section 8).
+- **Distribution des étiquettes physiques.** Aujourd'hui, une étiquette vierge peut être posée par quiconque la scanne
+  (`retrieve` ne regarde pas qui l'a générée) et un `trapper` peut générer et imprimer ses planches (`/admin/tags`,
+  48 étiquettes au plus par lot), mais cette page n'est pas dans le mode simple. Comment les étiquettes parviennent-elles
+  aux piégeurs occasionnels ? Voir la question 6 de la section 9.
+- Caméra : l'image n'est ni enregistrée ni envoyée (décodage local par `qr-scanner`) ; l'autorisation est demandée par le
+  navigateur, en HTTPS uniquement. Rien à ajouter à l'article 9 de la politique de confidentialité.
 
 ## 5. Architecture envisagée
 
@@ -138,14 +213,18 @@ L'état « onboarding vu » suit la même règle de stockage que la bascule (sec
   (`period`, `mine`) via les paramètres d'adresse existants.
 - `help/` : une section « Interface simplifiée » dans `TrapsDoc.tsx` (+ ancre dans `anchors.ts`), pas de nouvelle
   documentation.
-- Backend : **rien** en v1. Pas de note de migration prod.
+- QR Codes (4.7) : `SimpleTabBar` monte le bouton `/scan` ; `NavbarComponent` un bouton-icône sur téléphone ;
+  `TagScannerModal` passe de `Traps.tsx` à un hôte global (le scan doit marcher depuis tout écran, aujourd'hui seule la page
+  des pièges le monte) ; `TagAssociateModal` gagne la branche « nouveau piège » ; `TrapFormModal` accepte une valeur `tag`
+  et sa précision GPS ; le relevé direct réutilise `TrapEventModal`.
+- Backend : champ `tag` de `POST /api/traps/` (4.7) et champ `User.ui_mode` (section 9). Pas d'autre ajout.
 
 ## 6. Découpage proposé
 
 | Phase | Contenu | Valeur pour la campagne |
 |---|---|---|
-| 1 | `uiMode` + bascule + accueil « À faire » + barre à 3 onglets + feuille profil | L'essentiel du gain de simplicité |
-| 2 | Relevé à zéro en un tap, ajout de piège à 2 champs | Alimente directement le reporting des captures |
+| 1 | `uiMode` + bascule + accueil « À faire » + barre à 3 onglets **et bouton Scanner (hôte global du scanner, bouton de la barre du haut en interface complète)** + feuille profil | L'essentiel du gain de simplicité |
+| 2 | Relevé à zéro en un tap, ajout de piège à 2 champs, **QR Code : étiquette vierge → nouveau piège, scan → relevé direct** (backend `tag`) | Alimente directement le reporting des captures |
 | 3 | Statistiques simplifiées (2 cartes, saison, « mes pièges ») + notifications réduites | Retour d'information au piégeur |
 | 4 | Onboarding en 3 étapes | Adoption, à caler sur la date de lancement |
 
@@ -192,4 +271,11 @@ occasionnels sur la phase 1 donnera un ordre de grandeur plus fiable que n'impor
 5. **Délais de rappel** : supposés définis pour les types de piège proposés. À contrôler une fois avant la campagne, pas à
    concevoir.
 
-Maquettes : `doc/mockups/simple-mode.html` (10 écrans, clair et sombre selon le système).
+6. **QR Codes** (section 4.7, demandé après coup) : scanner accessible en un tap ; étiquette vierge → nouveau piège ou piège
+   existant. **À trancher : la distribution des étiquettes physiques.** Les options (non exclusives) : (a) l'administrateur
+   imprime des planches et les remet (les étiquettes ne sont liées à personne tant qu'elles sont vierges) ; (b) un lien
+   « Imprimer mes étiquettes » dans la feuille profil pour les piégeurs qui ont une imprimante (la page `/admin/tags` leur est
+   déjà ouverte) ; (c) autre canal (association, point de retrait). Je ne sais pas laquelle s'applique à votre campagne.
+   Seuils de précision GPS de 4.7 : à valider.
+
+Maquettes : `doc/mockups/simple-mode.html` (15 écrans, clair et sombre selon le système ; K à O : QR Codes).
