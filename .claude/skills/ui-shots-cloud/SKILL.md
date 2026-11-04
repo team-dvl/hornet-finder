@@ -21,6 +21,7 @@ For a branch, fall back on what the container can do: `cd frontend && npm ci && 
 1. The script needs, in the cloud environment: `APP_ENV` (must be `dev`), `HOST`, `KC_HOSTNAME`, `KC_TEST_CLIENT_ID`, `KC_TEST_CLIENT_SECRET`, `KC_TEST_USER_PASSWORD`, `KC_TEST_TOTP_SECRET`. It lists the missing ones and stops: report them to the developer, do not retry or invent values. Never print them.
 2. It starts `dockerd` itself in a web session and routes through the session HTTPS proxy. Playwright image: `mcr.microsoft.com/playwright:v<PW_VERSION>-noble` (`PW_VERSION` is set at the top of `ui-shots.sh`). If the proxy blocks a host, the script reports it as a blocked host: relay it.
 3. It creates fixtures (2 traps, a nest, a hornet, an apiary) on the dev server and deletes them on exit through a `trap`. Never run it against prod (it refuses unless `APP_ENV=dev`).
+4. A run cut short leaves its fixtures (comment exactly `ui-shots`) where the next run puts its own, which can break the map steps (`overlap`: another cluster caught the tap). The script lists them at start (`WARN: leftover fixtures…`) and deletes them only with `-c`: pass `-c` only with the developer's agreement, it deletes data on the dev server. Leftover hornets carry no comment and are not found.
 
 ## Choosing the run
 
@@ -51,7 +52,7 @@ docker ps -q --filter ancestor=mcr.microsoft.com/playwright:v<PW_VERSION>-noble 
 sleep 5; pgrep -af ui-shots.sh || echo "script gone"
 ```
 
-Fixture ids are printed on the `Fixtures:` line; if the script died abruptly, check them with a `GET` (404 means already deleted) rather than assuming.
+Fixture ids are printed on the `Fixtures:` line; if the script died abruptly, check them with a `GET` (404 means already deleted) rather than assuming. The next run lists the traps, nests and apiaries left behind, and `-c` deletes them.
 
 ## Reporting
 

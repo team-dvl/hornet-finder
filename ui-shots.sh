@@ -11,11 +11,16 @@
 # cost. Pass -d (repeatable) for se, w320 or galaxy when a change specifically
 # needs them.
 #
-# A few fixtures (two traps on the same spot, a nest, a hornet) are created
-# through the API beforehand so that every sheet can be opened, and deleted
-# on exit, like smoke-traps.sh does.
+# A few fixtures (two traps on the same spot, a nest, a hornet, an apiary) are
+# created through the API beforehand so that every sheet can be opened, and
+# deleted on exit, like smoke-traps.sh does. A run cut short leaves them
+# behind (comment "ui-shots"), where the next run puts its own: they are
+# listed at start, and deleted only with -c.
 #
-# Usage: ./ui-shots.sh [-d <device>]... [-s <step>]... [-x <step>]... [-o <out_dir>]
+# Usage: ./ui-shots.sh [-c] [-d <device>]... [-s <step>]... [-x <step>]... [-o <out_dir>]
+#   -c  first delete the fixtures left by earlier runs (traps, nests and
+#       apiaries whose comment is exactly "ui-shots"); without it they are
+#       only listed
 #   -d  only this device (repeatable): ip14, se, w320, pixel7, galaxy
 #       (default: ip14 pixel7)
 #   -s  only the steps whose label contains this text (repeatable), e.g.
@@ -60,8 +65,10 @@ OUT="ui-shots"
 DEVICES=()
 ONLY_STEPS=()
 SKIP_STEPS=()
-while getopts "d:s:x:o:" opt; do
+CLEAN_STALE=0
+while getopts "cd:s:x:o:" opt; do
     case "$opt" in
+        c) CLEAN_STALE=1 ;;
         d) DEVICES+=("$OPTARG") ;;
         s) ONLY_STEPS+=("$OPTARG") ;;
         x) SKIP_STEPS+=("$OPTARG") ;;
@@ -91,6 +98,40 @@ read -r APIARY_LAT APIARY_LNG <<< "$(at -0.000064 -0.005473)"
 # t-admin carries mfa-required: its password grant needs the TOTP code
 TOKEN=$(kc_test_token "$USER_EMAIL" otp) || exit 1
 H=(-H "Authorization: Bearer $TOKEN")
+
+# Fixtures of an earlier run cut short (its exit trap never ran): same comment,
+# same spot as this run's, so they would join its map clusters. Listed through
+# the managers, keeping only the rows whose comment is exactly "ui-shots".
+# stale <manager path>: prints their ids
+stale() {
+    curl -sk -m 30 "$BASE$1" "${H[@]}" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+except ValueError:
+    sys.exit(0)
+rows = data.get('results', []) if isinstance(data, dict) else data
+print(' '.join(str(r['id']) for r in rows if (r.get('comments') or '').strip() == 'ui-shots'))"
+}
+declare -A STALE=(
+    [traps]="$(stale '/traps/managed/?scope=all&active=all&q=ui-shots&page_size=200')"
+    [nests]="$(stale '/nests/managed/?show=all&q=ui-shots&page_size=200')"
+    [apiaries]="$(stale '/apiaries/managed/?scope=all&q=ui-shots&page_size=200')"
+)
+if [[ -n "${STALE[traps]}${STALE[nests]}${STALE[apiaries]}" ]]; then
+    for kind in traps nests apiaries; do
+        [[ -n "${STALE[$kind]}" ]] || continue
+        if (( CLEAN_STALE )); then
+            for id in ${STALE[$kind]}; do
+                code=$(curl -sk -o /dev/null -w '%{http_code}' -X DELETE "$BASE/$kind/$id/" "${H[@]}")
+                echo "Leftover fixture $kind/$id deleted (HTTP $code)."
+            done
+        else
+            echo "WARN: leftover fixtures of an earlier run, $kind: ${STALE[$kind]}" >&2
+        fi
+    done
+    (( CLEAN_STALE )) || echo "WARN: they may sit among this run's fixtures on the map; rerun with -c to delete them." >&2
+fi
 
 # create <path> <curl args...>: prints the id of the created object
 create() {

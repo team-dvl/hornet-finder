@@ -255,10 +255,15 @@ async function walk(name) {
     await escape();
   });
 
-  /** Tap the fixture traps on the map: through their cluster first when they are grouped */
+  /**
+   * Tap the fixture traps on the map: through their cluster first when they are
+   * grouped. Only a cluster holding traps (its 🪤 symbol): other objects on the
+   * left of the map (an apiary) must not catch the tap
+   */
+  const TRAP_CLUSTER = '.map-cluster:has-text("🪤")';
   const tapFixtureTrap = async (label) => {
-    if (await page.locator('.map-cluster').count()) {
-      await tapAt(...(await markerAt('.map-cluster')));
+    if (await page.locator(TRAP_CLUSTER).count()) {
+      await tapAt(...(await markerAt(TRAP_CLUSTER)));
       await page.waitForTimeout(1500);
       if (label) await shot(label, 300);
     }
