@@ -16,6 +16,7 @@ const KIND_ICONS: Record<NotificationKind, string> = {
   nest_new: '🏴',
   nest_near_apiary: '🍯',
   nest_followup: '📍',
+  visit_reminder: '📅',
   group_message: '👥',
   platform_message: '📣',
 };

@@ -9,6 +9,9 @@ import { fetchApiaryChoices, newHiveId, type ApiaryChoice } from './hivesApi';
  * record its laying.
  */
 
+/** Planned, then done once it took place (never back) */
+export type VisitStatus = 'planned' | 'done';
+
 export type VisitKind = 'control' | 'feeding' | 'division' | 'swarm_catch' | 'transfer' | 'entrance_guard' | 'other';
 export type Temper = '' | 'calm' | 'nervous' | 'aggressive';
 export type Activity = '' | 'low' | 'normal' | 'high';
@@ -62,6 +65,7 @@ export interface VisitPhoto {
 
 export interface Visit extends VisitWeather {
   id: string;
+  status: VisitStatus;
   apiary: { id: number; name: string; address: string; afsca_number: string } | null;
   /** How the apiary read: all that is left once it is deleted */
   apiary_label: string;
@@ -81,6 +85,7 @@ export interface Visit extends VisitWeather {
 }
 
 export interface VisitValues extends VisitWeather {
+  status: VisitStatus;
   apiary?: number;
   started_at: string;
   duration_minutes: number | null;
@@ -138,12 +143,27 @@ export function blankInspection(hive: string, colony: string | null, bars: numbe
   };
 }
 
+/** Where a planned visit stands, from the local day: late, today, tomorrow, or later (null). */
+export function plannedWhen(visit: Pick<Visit, 'status' | 'started_at'>, now = new Date()): 'late' | 'today' | 'tomorrow' | null {
+  if (visit.status !== 'planned') return null;
+  const day = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const days = Math.round((day(new Date(visit.started_at)) - day(now)) / 86_400_000);
+  if (days < 0) return 'late';
+  return days === 0 ? 'today' : days === 1 ? 'tomorrow' : null;
+}
+
+export const PLANNED_WHEN_LABELS = { late: 'En retard', today: "Aujourd'hui", tomorrow: 'Demain' } as const;
+
 /** The title of a visit, else its kinds, else "Visite". */
 export function visitLabel(visit: Pick<Visit, 'title' | 'kinds'>): string {
   return visit.title || visit.kinds.map((kind) => KIND_LABELS[kind]).join(', ') || 'Visite';
 }
 
-export async function fetchVisits(params: { apiary?: number; colony?: string; hive?: string; page?: number } = {}): Promise<VisitPage> {
+export async function fetchVisits(params: {
+  apiary?: number; colony?: string; hive?: string; page?: number;
+  /** 'done' by default (the journal, newest first); 'planned' soonest first */
+  status?: VisitStatus | 'all';
+} = {}): Promise<VisitPage> {
   return (await api.get('/visits/', { params })).data;
 }
 

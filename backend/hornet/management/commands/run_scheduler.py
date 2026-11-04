@@ -6,7 +6,7 @@ from django.core.management.base import BaseCommand
 from django.db import DatabaseError, connection
 from django.utils import timezone
 
-from hornet import nest_alerts, nest_season, push, reminders, retention
+from hornet import nest_alerts, nest_season, push, reminders, retention, scheduled
 from hornet.models import PlatformSettings
 
 logger = logging.getLogger(__name__)
@@ -30,9 +30,10 @@ class Command(BaseCommand):
             signal.signal(sig, lambda *_: stop.set())
         while not stop.is_set():
             # Each job on its own: one failing does not hold back the others
-            for name, job in (('reminders', self.send_reminders), ('nest season', nest_season.run),
-                              ('nest alerts', self.send_nest_alerts), ('push retention', push.purge_expired),
-                              ('observations retention', retention.purge_archived)):
+            jobs = [('reminders', self.send_reminders), ('nest season', nest_season.run),
+                    ('nest alerts', self.send_nest_alerts), ('push retention', push.purge_expired),
+                    ('observations retention', retention.purge_archived), *scheduled.JOBS]
+            for name, job in jobs:
                 try:
                     job()
                 except DatabaseError as exc:

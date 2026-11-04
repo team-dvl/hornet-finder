@@ -98,7 +98,10 @@ body {
   margin-bottom: 0.25rem;
 }
 
-.visit-duration-field { width: 8rem; }
+.visit-duration-field { width: 6.5rem; }
+
+/* A native date field keeps an intrinsic width: let it shrink beside the duration */
+#visit-started { min-width: 0; }
 
 .obs-label {
   font-size: 0.875rem;

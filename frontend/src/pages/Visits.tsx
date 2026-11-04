@@ -1,25 +1,31 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Button, Container, Spinner } from 'react-bootstrap';
+import { Alert, Badge, Button, ButtonGroup, Container, Spinner } from 'react-bootstrap';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 import { PageHeader, PageLayout } from '../components/layout';
 import { ApiariesTabs } from '../components/apiaries';
 import { VisitFormModal, VisitListItem, VisitSheet } from '../components/visits';
 import { IconButton } from '../components/ui';
+import { usePendingCounts } from '../hooks/usePendingCounts';
 import { signInFromCurrentPage } from '../utils/authRedirect';
+import { refreshPending } from '../utils/pending';
 import { ACTION_ICONS } from '../utils/icons';
 import { apiaryLabel, hiveErrorOf } from '../utils/hivesApi';
 import { fetchVisits, type Visit } from '../utils/visitsApi';
 
 /**
- * The journal of the apiaries: the visits the user may see, newest first.
- * `?apiary=<id>` keeps those of one apiary, `?visit=<id>` opens a sheet,
- * `?add=1` (with `apiary`) the form of a new visit.
+ * The visits of the apiaries, in two views: those to come (« À venir », the
+ * planned ones, soonest first, late ones on top) and the journal (those that
+ * took place, newest first, `?view=journal`). `?apiary=<id>` keeps those of
+ * one apiary, `?visit=<id>` opens a sheet, `?add=1` (with `apiary`) the form
+ * of a new visit, `?plan=1` that of a planned one.
  */
 export default function Visits() {
   const auth = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const apiaryId = Number(searchParams.get('apiary')) || undefined;
+  const view: 'agenda' | 'journal' = searchParams.get('view') === 'journal' ? 'journal' : 'agenda';
+  const waiting = usePendingCounts().apiaries ?? 0;
 
   const setParam = useCallback((key: string, value: string | null) => {
     setSearchParams((current) => {
@@ -35,12 +41,12 @@ export default function Visits() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
-  const reload = () => { setPage(1); setVersion((value) => value + 1); };
+  const reload = () => { setPage(1); setVersion((value) => value + 1); refreshPending(); };
 
   useEffect(() => {
     if (!auth.isAuthenticated) return;
     let cancelled = false;
-    fetchVisits({ ...(apiaryId ? { apiary: apiaryId } : {}), page })
+    fetchVisits({ ...(apiaryId ? { apiary: apiaryId } : {}), status: view === 'agenda' ? 'planned' : 'done', page })
       .then((found) => {
         if (cancelled) return;
         setVisits((current) => (page === 1 || !current ? found.results : [...current, ...found.results]));
@@ -50,15 +56,24 @@ export default function Visits() {
       .catch((fetchError) => { if (!cancelled) setError(hiveErrorOf(fetchError)); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [auth.isAuthenticated, apiaryId, page, version]);
+  }, [auth.isAuthenticated, apiaryId, view, page, version]);
 
   // `?visit=<id>` and `?add=1`: one-off requests, dropped once read
   const [sheetId, setSheetId] = useState<string | null>(() => searchParams.get('visit'));
-  const [adding, setAdding] = useState(() => Boolean(searchParams.get('add')));
+  const [adding, setAdding] = useState<'record' | 'plan' | null>(() => (
+    searchParams.get('add') ? 'record' : searchParams.get('plan') ? 'plan' : null));
   useEffect(() => {
-    if (searchParams.get('visit')) setParam('visit', null);
-    if (searchParams.get('add')) setParam('add', null);
+    for (const key of ['visit', 'add', 'plan']) {
+      if (searchParams.get(key)) setParam(key, null);
+    }
   }, [searchParams, setParam]);
+
+  const showView = (next: 'agenda' | 'journal') => {
+    if (next === view) return;
+    setVisits(null);
+    setPage(1);
+    setParam('view', next === 'journal' ? 'journal' : null);
+  };
 
   const shown = visits?.find((visit) => visit.apiary?.id === apiaryId)?.apiary;
   const where = shown ? apiaryLabel(shown) : `Rucher #${apiaryId}`;
@@ -68,9 +83,10 @@ export default function Visits() {
       <Container className="pb-5">
         <PageHeader
           title="Visites"
-          help="Le journal de vos ruchers : ce qui a été fait et vu à chaque visite."
-          actions={auth.isAuthenticated && (
-            <IconButton variant="primary" icon={ACTION_ICONS.add} label="Ajouter" onClick={() => setAdding(true)} />
+          help="Les visites prévues de vos ruchers, et le journal de ce qui a été fait et vu à chaque visite."
+          actions={auth.isAuthenticated && (view === 'agenda'
+            ? <IconButton variant="primary" icon="calendar-plus" label="Prévoir" onClick={() => setAdding('plan')} />
+            : <IconButton variant="primary" icon={ACTION_ICONS.add} label="Ajouter" onClick={() => setAdding('record')} />
           )}
         />
 
@@ -86,6 +102,18 @@ export default function Visits() {
         ) : (
           <>
             <ApiariesTabs active="visits" />
+
+            <ButtonGroup className="d-flex mb-3 visit-view-switch" role="tablist" aria-label="Visites">
+              <Button variant={view === 'agenda' ? 'secondary' : 'outline-secondary'} role="tab"
+                aria-selected={view === 'agenda'} onClick={() => showView('agenda')}>
+                À venir
+                {waiting > 0 && <Badge pill bg="danger" className="ms-1" aria-label={`${waiting} à faire`}>{waiting}</Badge>}
+              </Button>
+              <Button variant={view === 'journal' ? 'secondary' : 'outline-secondary'} role="tab"
+                aria-selected={view === 'journal'} onClick={() => showView('journal')}>
+                Journal
+              </Button>
+            </ButtonGroup>
 
             {apiaryId && (
               <Button
@@ -104,8 +132,8 @@ export default function Visits() {
             {!visits && !error && <Spinner animation="border" role="status" />}
             {visits?.length === 0 && (
               <div className="text-center text-muted py-5">
-                <i className="bi bi-journal-text hive-icon display-6 d-block" aria-hidden="true" />
-                Aucune visite enregistrée.
+                <i className={`bi ${view === 'agenda' ? 'bi-calendar-event' : 'bi-journal-text'} hive-icon display-6 d-block`} aria-hidden="true" />
+                {view === 'agenda' ? 'Aucune visite prévue.' : 'Aucune visite enregistrée.'}
               </div>
             )}
 
@@ -134,8 +162,9 @@ export default function Visits() {
       {adding && (
         <VisitFormModal
           apiaryId={apiaryId ?? null}
-          onHide={() => setAdding(false)}
-          onSaved={(saved) => { setAdding(false); reload(); setSheetId(saved.id); }}
+          mode={adding}
+          onHide={() => setAdding(null)}
+          onSaved={(saved) => { setAdding(null); reload(); setSheetId(saved.id); }}
         />
       )}
     </PageLayout>

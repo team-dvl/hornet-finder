@@ -304,10 +304,11 @@ class VisitSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(required=False)
     apiary = serializers.PrimaryKeyRelatedField(queryset=Apiary.objects.all(), required=False)
     kinds = serializers.ListField(child=serializers.ChoiceField(choices=Visit.KINDS), required=False)
+    status = serializers.ChoiceField(choices=Visit.STATUSES, required=False)
 
     class Meta:
         model = Visit
-        fields = ['id', 'apiary', 'started_at', 'duration_minutes', 'title', 'kinds', 'report', 'guest_names',
+        fields = ['id', 'status', 'apiary', 'started_at', 'duration_minutes', 'title', 'kinds', 'report', 'guest_names',
                   'weather_temperature', 'weather_precipitation', 'weather_wind', 'weather_cloud_cover',
                   'weather_summary', 'weather_source', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
@@ -325,10 +326,17 @@ class VisitSerializer(serializers.ModelSerializer):
         validated_data.pop('apiary', None)
         return super().update(instance, validated_data)
 
-    def validate_started_at(self, value):
-        if value > timezone.now() + datetime.timedelta(minutes=15):
-            raise serializers.ValidationError("A visit recorded here has taken place: not in the future.")
-        return value
+    def validate(self, attrs):
+        current = self.instance.status if self.instance is not None else None
+        status = attrs.get('status', current or Visit.STATUS_DONE)
+        if current == Visit.STATUS_DONE and status == Visit.STATUS_PLANNED:
+            raise serializers.ValidationError({'status': "A visit that took place cannot be planned again."})
+        started_at = attrs.get('started_at', self.instance.started_at if self.instance is not None else None)
+        if (status == Visit.STATUS_DONE and started_at is not None
+                and started_at > timezone.now() + datetime.timedelta(minutes=15)):
+            raise serializers.ValidationError(
+                {'started_at': "A visit that took place is not in the future."})
+        return attrs
 
     def validate_title(self, value):
         return value.strip()

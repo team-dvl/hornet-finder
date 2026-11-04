@@ -50,6 +50,14 @@ const KIND_INFO: Record<NotificationKind, { icon: string; detail?: string; help:
     help: "Ce que devient un nid que vous avez signalé : confirmé, écarté, trouvé vide ou neutralisé. Rien quand c'est "
       + 'vous qui le signalez neutralisé.',
   },
+  visit_reminder: {
+    icon: '📅',
+    detail: 'La veille dès 18 h',
+    help: "Une visite prévue dont vous êtes l'auteur ou un participant : un rappel la veille à partir de 18 h, "
+      + "jamais entre 21 h et 7 h (une visite prévue tard le soir pour le lendemain est rappelée aussitôt, ou à 7 h). "
+      + "Un seul rappel par visite ; déplacée, elle est rappelée de nouveau. L'écran verrouillé montre le nom du "
+      + "rucher, jamais son adresse.",
+  },
   group_message: {
     icon: '👥',
     help: 'Les messages des administrateurs de vos associations et du coordinateur des piégeurs.',

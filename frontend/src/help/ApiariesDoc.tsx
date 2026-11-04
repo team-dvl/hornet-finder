@@ -208,6 +208,34 @@ export default function ApiariesDoc() {
         </p>
       </section>
 
+      <section data-section="planning" className="mb-4">
+        <h5 className="text-primary">
+          <span className="me-2">📅</span>
+          Les visites prévues
+        </h5>
+        <p>
+          L'onglet <strong>Visites</strong> s'ouvre sur <strong>À venir</strong> : les visites prévues,
+          la plus proche en tête, les visites en retard marquées en rouge. Le bouton
+          {' '}<strong>Prévoir</strong> (ou « Prévoir une visite » dans la fiche d'un rucher) en fixe le
+          rucher, le jour et l'heure (demain 9 h par défaut), ce qu'il y aura à faire, les participants et
+          des notes de préparation. Le <strong>Journal</strong> garde les visites faites.
+        </p>
+        <p>
+          Le jour venu, <strong>Réaliser</strong> dans la fiche de la visite ouvre son compte rendu, à
+          l'heure prévue (ou maintenant si elle n'est pas encore passée) : la météo, les colonies vues,
+          le compte rendu. Enregistrée, elle passe au journal et met à jour les colonies, comme une
+          visite saisie directement ; une visite faite ne redevient pas prévue. Une visite prévue ne
+          change rien aux colonies. Pour l'annuler, supprimez-la.
+        </p>
+        <p className="mb-0">
+          Un <strong>rappel</strong> (notification) part la veille à partir de 18 h vers l'auteur et les
+          participants qui ont activé « Rappels de visites prévues » dans le module Notifications,
+          jamais entre 21 h et 7 h ; déplacée, la visite est rappelée de nouveau. Le nombre rouge du
+          module, sur sa tuile, dans le menu et sur l'onglet Visites, compte les visites prévues
+          aujourd'hui ou en retard dont vous êtes l'auteur ou un participant.
+        </p>
+      </section>
+
       <section data-section="sharing" className="mb-4">
         <h5 className="text-primary">
           <span className="me-2">🔒</span>

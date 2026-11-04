@@ -77,6 +77,8 @@ ACTIONS = {
     'colony.deleted': "Colony deleted",
     # Visits to the apiaries
     'apiary_visit.created': "Apiary visit recorded",
+    'apiary_visit.planned': "Apiary visit planned",
+    'apiary_visit.completed': "Planned apiary visit recorded as done",
     'apiary_visit.updated': "Apiary visit updated",
     'apiary_visit.deleted': "Apiary visit deleted",
     'apiary_visit.photo_added': "Apiary visit photos added",

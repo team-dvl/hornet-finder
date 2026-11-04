@@ -6,9 +6,11 @@ import { AppModal, FieldRow, IconButton, SheetActions } from '../ui';
 import { useHistoryAction } from '../../hooks/useHistoryAction';
 import { ACTION_ICONS } from '../../utils/icons';
 import { formatDateTime } from '../../utils/format';
+import { refreshPending } from '../../utils/pending';
 import { apiaryLabel, hiveErrorOf } from '../../utils/hivesApi';
 import {
-  KIND_LABELS, deleteVisit, deleteVisitPhoto, fetchVisit, inspectionSummary, visitLabel, weatherLine,
+  KIND_LABELS, PLANNED_WHEN_LABELS, deleteVisit, deleteVisitPhoto, fetchVisit, inspectionSummary, plannedWhen,
+  visitLabel, weatherLine,
   type Visit, type VisitPhoto,
 } from '../../utils/visitsApi';
 import VisitFormModal from './VisitFormModal';
@@ -21,7 +23,7 @@ interface VisitSheetProps {
   onChanged: (visit: Visit | null) => void;
 }
 
-type SubDialog = 'edit' | 'photos' | 'delete' | { photo: VisitPhoto };
+type SubDialog = 'edit' | 'complete' | 'photos' | 'delete' | { photo: VisitPhoto };
 
 /** Sheet of a visit: when, who, what was done, what was seen of each colony, the photos. */
 export default function VisitSheet({ visitId, onHide, onChanged }: VisitSheetProps) {
@@ -43,6 +45,7 @@ export default function VisitSheet({ visitId, onHide, onChanged }: VisitSheetPro
     setVisit(next);
     setSub(null);
     onChanged(next);
+    refreshPending();
   };
 
   const handleDelete = async () => {
@@ -52,6 +55,7 @@ export default function VisitSheet({ visitId, onHide, onChanged }: VisitSheetPro
     try {
       await deleteVisit(visit.id);
       onChanged(null);
+      refreshPending();
       onHide();
     } catch (deleteError) {
       setError(hiveErrorOf(deleteError));
@@ -73,6 +77,8 @@ export default function VisitSheet({ visitId, onHide, onChanged }: VisitSheetPro
   };
 
   const canEdit = Boolean(visit?.permissions?.edit);
+  const planned = visit?.status === 'planned';
+  const when = visit ? plannedWhen(visit) : null;
   const history = visit && historyAction(`apiary_visit:${visit.id}`, `Visite du ${formatDateTime(visit.started_at)}`);
   const where = visit?.apiary ? apiaryLabel(visit.apiary) : visit?.apiary_label;
   const people = visit ? [...visit.participants.map((person) => person.display_name), visit.guest_names].filter(Boolean) : [];
@@ -84,6 +90,12 @@ export default function VisitSheet({ visitId, onHide, onChanged }: VisitSheetPro
         onHide={onHide}
         icon={<i className="bi bi-journal-text hive-icon" aria-hidden="true" />}
         title={visit ? visitLabel(visit) : 'Visite'}
+        badges={planned && (
+          <Badge bg={when === 'late' ? 'danger' : when === 'today' ? 'warning' : 'secondary'}
+            text={when === 'today' ? 'dark' : undefined}>
+            {when ? PLANNED_WHEN_LABELS[when] : 'Prévue'}
+          </Badge>
+        )}
       >
         {error && <Alert variant="danger" className="py-2">{error}</Alert>}
         {!visit && !error && <Spinner animation="border" size="sm" />}
@@ -115,7 +127,11 @@ export default function VisitSheet({ visitId, onHide, onChanged }: VisitSheetPro
                   canEdit && { icon: ACTION_ICONS.delete, label: 'Supprimer', tone: 'danger', onClick: () => setSub('delete') },
                 ]}
               >
-                {canEdit && (
+                {canEdit && planned && (
+                  <IconButton variant="success" icon="check2-square" label="Réaliser" showLabel="always"
+                    onClick={() => setSub('complete')} />
+                )}
+                {canEdit && !planned && (
                   <IconButton variant="outline-primary" icon="camera" label="Photos" onClick={() => setSub('photos')} />
                 )}
               </SheetActions>
@@ -158,12 +174,15 @@ export default function VisitSheet({ visitId, onHide, onChanged }: VisitSheetPro
       </AppModal>
 
       {visit && sub === 'edit' && <VisitFormModal visit={visit} onHide={() => setSub(null)} onSaved={changed} />}
+      {visit && sub === 'complete' && (
+        <VisitFormModal visit={visit} mode="record" onHide={() => setSub(null)} onSaved={changed} />
+      )}
       {visit && sub === 'photos' && <VisitPhotosModal visit={visit} onHide={() => setSub(null)} onDone={changed} />}
       <ConfirmationModal
         show={sub === 'delete'}
         onHide={() => { setSub(null); setError(null); }}
         onConfirm={handleDelete}
-        itemName={visit ? `la visite du ${formatDateTime(visit.started_at)}` : ''}
+        itemName={visit ? `la visite ${planned ? 'prévue ' : ''}du ${formatDateTime(visit.started_at)}` : ''}
         isDeleting={busy}
         deleteError={error}
       />
