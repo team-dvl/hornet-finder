@@ -129,6 +129,17 @@ class VisitEditTests(VisitTestCase):
         self.assertEqual(self.colony.bars, 12)
         self.assertIn('inspections', AuditEvent.objects.get(action='apiary_visit.updated').changes)
 
+    def test_a_visit_of_a_hive_deleted_since_stays_editable(self):
+        visit = self._created()
+        inspection = visit.inspections.get(colony=self.waiting)
+        Inspection.objects.filter(pk=inspection.pk).update(hive=None, colony=None)
+        items = [{'id': i.pk, 'hive': str(i.hive_id) if i.hive_id else None,
+                  'colony': str(i.colony_id) if i.colony_id else None} for i in visit.inspections.all()]
+        response = self._as(self.member).patch(f'/api/visits/{visit.pk}/', {'inspections': items}, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+        kept = Inspection.objects.get(pk=inspection.pk)
+        self.assertEqual(kept.hive_label, 'Nucleus 1')
+
     @override_settings(MEDIA_USE_X_ACCEL=False)
     def test_photos_are_seen_by_who_sees_the_visit(self):
         visit = self._created()

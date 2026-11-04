@@ -263,7 +263,8 @@ class InspectionSerializer(serializers.ModelSerializer):
             if colony.hive_id != hive.pk:
                 raise serializers.ValidationError({'colony': "This colony does not live in this hive."})
             attrs['hive'] = hive
-        if hive is None:
+        if hive is None and (self.instance is None or self.instance.hive_label == ''):
+            # An inspection kept from a hive deleted since stays as it reads
             raise serializers.ValidationError({'hive': "An inspection is about a hive or a colony."})
         if not attrs.get('feeding'):
             attrs['feeding_amount'], attrs['feeding_unit'] = None, ''

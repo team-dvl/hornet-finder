@@ -179,8 +179,8 @@ class VisitViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.Li
             serializer = InspectionSerializer(existing, data=item)
             serializer.is_valid(raise_exception=True)
             data = serializer.validated_data
-            hive, colony = data['hive'], data.get('colony')
-            if existing is None or existing.hive_id != hive.pk:
+            hive, colony = data.get('hive'), data.get('colony')
+            if hive is not None and (existing is None or existing.hive_id != hive.pk):
                 if hive.apiary_id != visit.apiary_id:
                     raise ValidationError({'inspections': f"The hive {hive} does not stand in this apiary."})
             if colony is not None:
@@ -198,9 +198,12 @@ class VisitViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.Li
             for name, value in data.items():
                 if name != 'id':
                     setattr(inspection, name, value)
-            inspection.hive_label = str(inspection.hive)[:160]
-            inspection.colony_label = str(inspection.colony)[:160] if inspection.colony_id else ''
-            inspection.compartment = inspection.colony.compartment if inspection.colony_id else 1
+            if inspection.hive_id:
+                inspection.hive_label = str(inspection.hive)[:160]
+            if inspection.colony_id:
+                inspection.colony_label = str(inspection.colony)[:160]
+            if inspection.colony_id:
+                inspection.compartment = inspection.colony.compartment
             inspection.save()
             kept.append(inspection.pk)
             if inspection.colony_id:
