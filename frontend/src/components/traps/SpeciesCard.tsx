@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Button, Form } from 'react-bootstrap';
 import type { Species } from '../../store/store';
-import { resizeImage } from '../../utils/imageResize';
+import { usePhotoPicker } from '../../hooks/usePhotoPicker';
 
 /** Square picture of a species, or a placeholder when it has none. */
 export function SpeciesImage({ src, name, credit }: { src: string | null; name: string; credit?: string }) {
@@ -48,30 +48,21 @@ export default function SpeciesCard({
   species, fallbackName, quantity, baseline, max, photo = null, onQuantityChange: setQuantity, onPhotoChange,
   onRemove, disabled,
 }: SpeciesCardProps) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
   // Preview of the photo, created and revoked by the handlers like PhotoInput does
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
-  const [preparing, setPreparing] = useState(false);
 
   const name = species?.name ?? fallbackName;
   const full = max !== undefined && quantity >= max;
   const onQuantityChange = (value: number) => setQuantity(max === undefined ? value : Math.min(max, value));
 
-  const handleFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    setPreparing(true);
-    try {
-      const resized = await resizeImage(file);
+  const picker = usePhotoPicker({
+    onPicked: ([resized]) => {
       if (photoUrl) URL.revokeObjectURL(photoUrl);
       setPhotoUrl(URL.createObjectURL(resized));
       onPhotoChange?.(resized);
-    } finally {
-      setPreparing(false);
-      event.target.value = '';
-    }
-  };
+    },
+  });
 
   const clearPhoto = () => {
     if (photoUrl) URL.revokeObjectURL(photoUrl);
@@ -169,8 +160,8 @@ export default function SpeciesCard({
             variant="link"
             size="sm"
             className={`flex-fill text-decoration-none py-2 ${photo ? 'text-success' : 'text-secondary'}`}
-            onClick={() => (photo ? clearPhoto() : inputRef.current?.click())}
-            disabled={disabled || preparing}
+            onClick={() => (photo ? clearPhoto() : picker.open())}
+            disabled={disabled || picker.preparing}
             title={photo ? 'Retirer la photo' : 'Photographier cette capture'}
           >
             <i className={`bi ${photo ? 'bi-camera-fill' : 'bi-camera'}`} aria-hidden="true" />
@@ -188,15 +179,7 @@ export default function SpeciesCard({
         </Button>
       </div>
 
-      {onPhotoChange && (
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          className="d-none"
-          onChange={handleFile}
-        />
-      )}
+      {onPhotoChange && picker.input}
     </div>
   );
 }

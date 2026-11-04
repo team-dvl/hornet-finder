@@ -3,7 +3,7 @@ import { Alert, Button, Form, Spinner } from 'react-bootstrap';
 import { AppModal } from '../ui';
 import { useAppDispatch } from '../../store/hooks';
 import { createSpecies, updateSpecies, type Species } from '../../store/store';
-import { PhotoInput } from '../traps';
+import { PhotoInput } from '../common';
 
 interface SpeciesFormModalProps {
   /** Mounted only while open, so every opening starts from the right values */

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Alert, Button, Form, Spinner } from 'react-bootstrap';
-import { PhotoInput } from '../traps';
+import { PhotoInput } from '../common';
 import { AppModal } from '../ui';
 import { hiveErrorOf } from '../../utils/hivesApi';
 import { addVisitPhotos, type Visit } from '../../utils/visitsApi';

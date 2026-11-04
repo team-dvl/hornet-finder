@@ -1902,3 +1902,48 @@ html[data-platform="material"] .form-switch .form-check-input:checked {
   overflow: hidden;
   overflow-wrap: anywhere;
 }
+
+/* Thumbnails of PhotoInput (components/common/PhotoInput.tsx), each removable */
+.photo-input-thumb {
+  position: relative;
+  width: 3.5rem;
+  height: 3.5rem;
+  flex-shrink: 0;
+  /* Room for the remove target, which overhangs the corner by 0.875rem */
+  margin-right: 0.5rem;
+}
+
+.photo-input-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: var(--bs-border-radius);
+}
+
+/* A 44 px touch target over the corner, showing a small round badge */
+.photo-input-remove {
+  position: absolute;
+  top: -0.875rem;
+  right: -0.875rem;
+  width: 2.75rem;
+  height: 2.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.photo-input-remove i {
+  width: 1.375rem;
+  height: 1.375rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  border-radius: 50%;
+  color: var(--on-primary);
+  background-color: var(--bs-danger);
+  box-shadow: 0 0 0 2px var(--bs-body-bg);
+}

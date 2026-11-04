@@ -1,9 +1,9 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Spinner } from 'react-bootstrap';
 import { useAppDispatch } from '../../store/hooks';
 import { addNestPhotos, type Nest, type NestPhoto } from '../../store/store';
 import { AuthImage } from '../common';
-import { resizeImage } from '../../utils/imageResize';
+import { usePhotoPicker } from '../../hooks/usePhotoPicker';
 
 interface NestPhotosProps {
   nestId: number;
@@ -20,19 +20,12 @@ interface NestPhotosProps {
 /** Thumbnails of a nest's photos, with a tile to add some (camera on a phone). */
 export default function NestPhotos({ nestId, photos, canAdd, onOpen, onError, onChanged }: NestPhotosProps) {
   const dispatch = useAppDispatch();
-  const inputRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  if (photos.length === 0 && !canAdd) return null;
-
-  const handleFiles = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(event.target.files ?? []);
-    event.target.value = '';
-    if (selected.length === 0) return;
+  const upload = async (resized: File[]) => {
     setUploading(true);
     onError(null);
     try {
-      const resized = await Promise.all(selected.map((file) => resizeImage(file)));
       const nest = await dispatch(addNestPhotos({ id: nestId, photos: resized })).unwrap();
       onChanged?.(nest);
     } catch (uploadError) {
@@ -41,6 +34,10 @@ export default function NestPhotos({ nestId, photos, canAdd, onOpen, onError, on
       setUploading(false);
     }
   };
+  const picker = usePhotoPicker({ multiple: true, onPicked: upload });
+
+  if (photos.length === 0 && !canAdd) return null;
+
 
   return (
     <div className="nest-photo-grid mb-2">
@@ -60,23 +57,16 @@ export default function NestPhotos({ nestId, photos, canAdd, onOpen, onError, on
           <button
             type="button"
             className="nest-photo-tile nest-photo-add"
-            onClick={() => inputRef.current?.click()}
-            disabled={uploading}
+            onClick={picker.open}
+            disabled={uploading || picker.preparing}
             aria-label="Ajouter des photos"
             title="Ajouter des photos"
           >
-            {uploading
+            {uploading || picker.preparing
               ? <Spinner animation="border" size="sm" />
               : <i className="bi bi-camera" aria-hidden="true" />}
           </button>
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="d-none"
-            onChange={handleFiles}
-          />
+          {picker.input}
         </>
       )}
     </div>

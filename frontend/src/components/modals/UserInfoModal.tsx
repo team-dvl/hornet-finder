@@ -1,4 +1,3 @@
-import { useRef } from 'react';
 import { Button, Badge, Alert, Spinner } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
 import { jwtDecode } from 'jwt-decode';
@@ -10,6 +9,7 @@ import { formatDateTime } from '../../utils/format';
 import { accountConsoleUrl } from '../../utils/authRedirect';
 import { ROLE_LABELS, appRoles } from '../../utils/roles';
 import { useAvatarUrl } from '../../hooks/useAvatarUrl';
+import { usePhotoPicker } from '../../hooks/usePhotoPicker';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   uploadAvatar, deleteAvatar, clearProfileError, selectProfileSaving, selectProfileError,
@@ -38,14 +38,10 @@ export default function UserInfoModal({ show, onHide }: UserInfoModalProps) {
   const avatarUrl = useAvatarUrl();
   const saving = useAppSelector(selectProfileSaving);
   const photoError = useAppSelector(selectProfileError);
-  const fileInput = useRef<HTMLInputElement>(null);
 
-  const handlePhotoChosen = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    // Reset so that choosing the same file again still fires a change
-    event.target.value = '';
-    if (file) void dispatch(uploadAvatar(file));
-  };
+  const picker = usePhotoPicker({
+    onPicked: ([file]) => { void dispatch(uploadAvatar(file)); },
+  });
 
   if (!auth.user) {
     return null;
@@ -88,8 +84,8 @@ export default function UserInfoModal({ show, onHide }: UserInfoModalProps) {
               icon="camera"
               label={avatarUrl ? 'Changer la photo' : 'Ajouter une photo'}
               showLabel="always"
-              disabled={saving}
-              onClick={() => fileInput.current?.click()}
+              disabled={saving || picker.preparing}
+              onClick={picker.open}
             />
             {avatarUrl && (
               <IconButton
@@ -108,13 +104,7 @@ export default function UserInfoModal({ show, onHide }: UserInfoModalProps) {
             </HelpTip>
           </div>
         </div>
-        <input
-          ref={fileInput}
-          type="file"
-          accept="image/*"
-          className="d-none"
-          onChange={handlePhotoChosen}
-        />
+        {picker.input}
       </div>
       {photoError && (
         <Alert variant="danger" dismissible onClose={() => dispatch(clearProfileError())}>

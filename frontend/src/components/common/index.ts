@@ -17,3 +17,4 @@ export { default as AfscaNumber } from './AfscaNumber';
 export { default as AfscaNumberInput } from './AfscaNumberInput';
 export { default as Markdown } from './Markdown';
 export { default as MarkdownEditor } from './MarkdownEditor';
+export { default as PhotoInput } from './PhotoInput';
