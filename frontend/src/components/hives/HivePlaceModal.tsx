@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { Alert, Button, Form, Spinner } from 'react-bootstrap';
 import { HelpTip } from '../common';
 import { AppModal } from '../ui';
+import ApiaryPicker from '../apiaries/ApiaryPicker';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import {
   fetchPlaceableApiaries, hiveErrorOf, hiveLabel, moveHive, retireHive, storeHive, today,
-  type Hive, type PlaceableApiary,
+  type Hive, type ApiaryChoice,
 } from '../../utils/hivesApi';
 
 export type PlaceMode = 'move' | 'store' | 'retire';
@@ -36,7 +37,7 @@ interface HivePlaceModalProps {
  */
 export default function HivePlaceModal({ mode, hive, onHide, onDone }: HivePlaceModalProps) {
   const { isAdmin } = useUserPermissions();
-  const [apiaries, setApiaries] = useState<PlaceableApiary[] | null>(null);
+  const [apiaries, setApiaries] = useState<ApiaryChoice[] | null>(null);
   const [apiary, setApiary] = useState<number | null>(null);
   const [on, setOn] = useState(today());
   const [saving, setSaving] = useState(false);
@@ -93,8 +94,8 @@ export default function HivePlaceModal({ mode, hive, onHide, onDone }: HivePlace
       <p className="fw-semibold mb-3">{hiveLabel(hive)}</p>
 
       {mode === 'move' && (
-        <Form.Group className="mb-3" controlId="hive-move-apiary">
-          <Form.Label className="d-flex align-items-center">
+        <Form.Group className="mb-3">
+          <Form.Label htmlFor="hive-move-apiary" className="d-flex align-items-center">
             Vers le rucher
             <HelpTip id="hive-move-help" doc="apiaries#hives" title="Déplacer une ruche">
               Seuls les ruchers que vous pouvez modifier sont proposés : les vôtres, et ceux que
@@ -104,15 +105,8 @@ export default function HivePlaceModal({ mode, hive, onHide, onDone }: HivePlace
           {apiaries === null && !error && <div><Spinner animation="border" size="sm" /></div>}
           {apiaries?.length === 0 && <p className="text-muted mb-0">Aucun autre rucher.</p>}
           {apiaries && apiaries.length > 0 && (
-            <Form.Select
-              value={apiary ?? ''}
-              onChange={(event) => setApiary(event.target.value ? Number(event.target.value) : null)}
-              disabled={saving}
-              required
-            >
-              <option value="">Choisir…</option>
-              {apiaries.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-            </Form.Select>
+            <ApiaryPicker id="hive-move-apiary" options={apiaries} value={apiary} onChange={setApiary}
+              disabled={saving} />
           )}
         </Form.Group>
       )}

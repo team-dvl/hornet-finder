@@ -3,9 +3,12 @@ import { Alert, Button, Form, Spinner } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
 import { HelpTip, MarkdownEditor } from '../common';
 import { AppModal, IconButton, Switch } from '../ui';
+import ApiaryPicker from '../apiaries/ApiaryPicker';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { colonyLabel } from '../../utils/coloniesApi';
-import { fetchHives, hiveErrorOf, hiveLabel, type BarFamily, type PersonSummary } from '../../utils/hivesApi';
+import {
+  apiaryLabel, fetchHives, hiveErrorOf, hiveLabel, type ApiaryChoice, type BarFamily, type PersonSummary,
+} from '../../utils/hivesApi';
 import {
   KIND_LABELS, WEATHER_LABELS, blankInspection, createVisit, fetchVisitableApiaries, fetchWeather, toLocalInput,
   updateVisit, type Inspection, type Visit, type VisitKind, type VisitWeather, type WeatherSummary,
@@ -42,7 +45,7 @@ const keyOf = (hive: string | null, colony: string | null) => colony ?? `hive:${
 export default function VisitFormModal({ onHide, onSaved, visit = null, apiaryId = null }: VisitFormModalProps) {
   const auth = useAuth();
   const { isAdmin, userGuid } = useUserPermissions();
-  const [apiaries, setApiaries] = useState<{ id: number; label: string }[] | null>(null);
+  const [apiaries, setApiaries] = useState<ApiaryChoice[] | null>(null);
   const [apiary, setApiary] = useState<number | null>(visit?.apiary?.id ?? apiaryId);
   const [startedAt, setStartedAt] = useState(visit ? toLocalInput(visit.started_at) : toLocalInput(new Date().toISOString()));
   const [duration, setDuration] = useState(visit?.duration_minutes ? String(visit.duration_minutes) : '');
@@ -187,16 +190,17 @@ export default function VisitFormModal({ onHide, onSaved, visit = null, apiaryId
       {error && <Alert variant="danger">{error}</Alert>}
 
       {visit ? (
-        <p className="fw-semibold mb-3">{visit.apiary ? visit.apiary.address || `Rucher #${visit.apiary.id}` : visit.apiary_label}</p>
+        <div className="mb-3">
+          <div className="fw-semibold text-truncate">{visit.apiary ? apiaryLabel(visit.apiary) : visit.apiary_label}</div>
+          {visit.apiary?.name && visit.apiary.address && (
+            <div className="small text-muted text-truncate">{visit.apiary.address}</div>
+          )}
+        </div>
       ) : (
-        <Form.Group className="mb-3" controlId="visit-apiary">
-          <Form.Label>Rucher</Form.Label>
-          <Form.Select value={apiary ?? ''} disabled={saving || apiaries === null}
-            onChange={(event) => { setApiary(Number(event.target.value) || null); setInspections({}); }}>
-            {apiaries === null && <option value="">Chargement…</option>}
-            {apiaryId && !apiaries?.some((option) => option.id === apiaryId) && <option value={apiaryId}>Rucher #{apiaryId}</option>}
-            {apiaries?.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-          </Form.Select>
+        <Form.Group className="mb-3">
+          <Form.Label htmlFor="visit-apiary">Rucher</Form.Label>
+          <ApiaryPicker id="visit-apiary" options={apiaries} value={apiary} disabled={saving}
+            onChange={(next) => { if (next !== apiary) { setApiary(next); setInspections({}); } }} />
         </Form.Group>
       )}
 

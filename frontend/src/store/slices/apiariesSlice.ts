@@ -22,6 +22,8 @@ export interface Apiary {
   id?: number;
   latitude: number;
   longitude: number;
+  /** What the beekeepers call it ("Verger"); '' when unnamed */
+  name?: string;
   /** Describes the position; '' when unknown */
   address?: string;
   /** 1 light, 2 medium, 3 high; null when not assessed (the level is optional) */
@@ -44,6 +46,7 @@ export interface Apiary {
 
 /** Payload shared by the create and update forms. */
 export interface ApiaryFormValues {
+  name?: string;
   latitude?: number;
   longitude?: number;
   address?: string;

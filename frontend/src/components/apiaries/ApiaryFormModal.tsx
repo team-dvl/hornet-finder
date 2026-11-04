@@ -35,6 +35,7 @@ export default function ApiaryFormModal({
   const [infestationLevel, setInfestationLevel] = useState<1 | 2 | 3 | null>(apiary?.infestation_level ?? null);
   const [lat, setLat] = useState(apiary?.latitude ?? latitude ?? 0);
   const [lng, setLng] = useState(apiary?.longitude ?? longitude ?? 0);
+  const [name, setName] = useState(apiary?.name ?? '');
   const [address, setAddress] = useState(apiary?.address ?? '');
   const [afscaNumber, setAfscaNumber] = useState(apiary?.afsca_number ?? '');
   const [comments, setComments] = useState(apiary?.comments ?? '');
@@ -61,6 +62,7 @@ export default function ApiaryFormModal({
     setSaving(true);
     setError(null);
     const values = {
+      name: name.trim(),
       latitude: lat,
       longitude: lng,
       address: address.trim(),
@@ -109,6 +111,24 @@ export default function ApiaryFormModal({
       )}
     >
       {error && <Alert variant="danger">{error}</Alert>}
+
+      <Form.Group className="mb-3" controlId="apiary-name">
+        <Form.Label className="d-flex align-items-center">
+          Nom
+          <HelpTip id="apiary-name-help" doc="apiaries#adding" title="Nom du rucher">
+            Le nom sous lequel vous connaissez le rucher (« Verger », « Fond du jardin ») : il le
+            désigne dans les listes, avant son adresse. Facultatif.
+          </HelpTip>
+        </Form.Label>
+        <Form.Control
+          type="text"
+          value={name}
+          maxLength={120}
+          autoComplete="off"
+          onChange={(event) => setName(event.target.value)}
+          disabled={saving}
+        />
+      </Form.Group>
 
       <Form.Group className="mb-3">
         <Form.Label>Infestation</Form.Label>

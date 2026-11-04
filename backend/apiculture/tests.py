@@ -382,3 +382,29 @@ class ApiaryHostTests(HiveTestCase):
         self.assertEqual(response.data['host_name'], 'Marie D.')
         event = AuditEvent.objects.get(action='apiary.updated')
         self.assertEqual(set(event.changes), {'address'})
+
+
+class ApiaryNameTests(HiveTestCase):
+    def test_the_name_is_trimmed_audited_and_labels_the_apiary(self):
+        response = self._as(self.member).patch(f'/api/apiaries/{self.apiary.pk}/',
+                                               {'name': ' Verger '}, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['name'], 'Verger')
+        event = AuditEvent.objects.get(action='apiary.updated')
+        self.assertEqual(event.changes['name'], ['', 'Verger'])
+        self.assertTrue(event.target_label.startswith('Verger'))
+
+    def test_the_manager_finds_an_apiary_by_its_name(self):
+        self.apiary.name = 'Fond du jardin'
+        self.apiary.save()
+        response = self._as(self.member).get('/api/apiaries/managed/',
+                                             {'scope': 'mine', 'q': 'jardin', 'ordering': 'name'})
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual([row['id'] for row in response.data['results']], [self.apiary.pk])
+
+    def test_a_hive_carries_the_name_of_its_apiary(self):
+        self.apiary.name = 'Verger'
+        self.apiary.save()
+        hive = self._hive(apiary=self.apiary.pk, number='9')
+        response = self._as(self.member).get(f'/api/hives/{hive.pk}/')
+        self.assertEqual(response.data['apiary']['name'], 'Verger')

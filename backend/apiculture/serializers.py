@@ -56,7 +56,7 @@ class HiveTypeSerializer(serializers.ModelSerializer):
 def _apiary_summary(apiary) -> Optional[dict]:
     if apiary is None:
         return None
-    return {'id': apiary.id, 'address': apiary.address, 'afsca_number': apiary.afsca_number}
+    return {'id': apiary.id, 'name': apiary.name, 'address': apiary.address, 'afsca_number': apiary.afsca_number}
 
 
 class HiveSerializer(serializers.ModelSerializer):

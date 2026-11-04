@@ -54,6 +54,7 @@ export default function ApiaryListItem({
               </Badge>
             )}
           </span>
+          {apiary.name && <span className="d-block fw-semibold text-truncate">{apiary.name}</span>}
           {apiary.address && <span className="d-block small text-muted text-truncate">{apiary.address}</span>}
           {!isMine && apiary.owner && (
             <span className="d-block small text-muted text-truncate">{apiary.owner.display_name}</span>

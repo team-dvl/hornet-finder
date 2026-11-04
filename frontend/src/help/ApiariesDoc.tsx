@@ -65,9 +65,10 @@ export default function ApiariesDoc() {
           Le bouton <strong>+</strong> de la liste ouvre le formulaire à votre position actuelle ;
           sa recherche d'adresse sert quand vous n'êtes pas au rucher. Dans le module
           {' '}<em>Carte</em>, touchez aussi l'endroit voulu puis choisissez « Rucher ». L'adresse
-          est complétée depuis la position ; le niveau d'infestation (« Non évalué » par défaut),
+          est complétée depuis la position ; le nom, le niveau d'infestation (« Non évalué » par défaut),
           la photo, le numéro d'enregistrement AFSCA et le commentaire sont facultatifs. Vous en devenez le
-          propriétaire.
+          propriétaire. Le nom (« Verger », « Fond du jardin ») désigne le rucher partout où on le
+          choisit (une visite, une ruche à placer), avec son adresse en dessous et sa photo.
         </p>
         <p className="mb-0">
           Tout se modifie ensuite depuis la fiche du rucher (bouton ✏️), position comprise : une

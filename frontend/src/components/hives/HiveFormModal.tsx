@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { Alert, Button, Form, Spinner } from 'react-bootstrap';
 import { HelpTip } from '../common';
 import { AppModal } from '../ui';
+import ApiaryPicker from '../apiaries/ApiaryPicker';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import {
   createHive, fetchHiveTypes, fetchOwnerGroups, fetchPlaceableApiaries, hiveErrorOf, today, updateHive,
-  type Hive, type HiveType, type PlaceableApiary,
+  type Hive, type HiveType, type ApiaryChoice,
 } from '../../utils/hivesApi';
 
 interface HiveFormModalProps {
@@ -28,7 +29,7 @@ export default function HiveFormModal({ onHide, hive = null, apiaryId = null, on
   const { isAdmin } = useUserPermissions();
   const isEdit = Boolean(hive);
   const [types, setTypes] = useState<HiveType[] | null>(null);
-  const [apiaries, setApiaries] = useState<PlaceableApiary[] | null>(null);
+  const [apiaries, setApiaries] = useState<ApiaryChoice[] | null>(null);
   const [ownerGroups, setOwnerGroups] = useState<{ path: string; name: string }[]>([]);
 
   const [hiveType, setHiveType] = useState(hive?.hive_type ?? 0);
@@ -91,8 +92,6 @@ export default function HiveFormModal({ onHide, hive = null, apiaryId = null, on
     }
   };
 
-  // The apiary it was opened from stays offered even before the list arrives
-  const apiaryOptions = apiaries ?? [];
 
   return (
     <AppModal
@@ -157,25 +156,16 @@ export default function HiveFormModal({ onHide, hive = null, apiaryId = null, on
 
       {!isEdit && (
         <>
-          <Form.Group className="mb-3" controlId="hive-apiary">
-            <Form.Label className="d-flex align-items-center">
+          <Form.Group className="mb-3">
+            <Form.Label htmlFor="hive-apiary" className="d-flex align-items-center">
               Rucher
               <HelpTip id="hive-apiary-help" doc="apiaries#hives" title="Où se trouve la ruche">
                 Une ruche dans un rucher est en service. Sans rucher, elle est remisée : vide, ou en
                 attente d'une colonie. Seuls les ruchers que vous pouvez modifier sont proposés.
               </HelpTip>
             </Form.Label>
-            <Form.Select
-              value={apiary ?? ''}
-              onChange={(event) => setApiary(event.target.value ? Number(event.target.value) : null)}
-              disabled={saving || apiaries === null}
-            >
-              <option value="">Aucun : remisée</option>
-              {apiaryId && !apiaryOptions.some((option) => option.id === apiaryId) && (
-                <option value={apiaryId}>Rucher #{apiaryId}</option>
-              )}
-              {apiaryOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-            </Form.Select>
+            <ApiaryPicker id="hive-apiary" options={apiaries} value={apiary} onChange={setApiary}
+              disabled={saving} noneLabel="Aucun : remisée" />
           </Form.Group>
 
           {apiary && (
