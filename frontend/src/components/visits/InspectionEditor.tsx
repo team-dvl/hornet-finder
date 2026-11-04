@@ -1,4 +1,5 @@
 import { Form } from 'react-bootstrap';
+import { MarkdownEditor } from '../common';
 import { countLabel } from '../../utils/coloniesApi';
 import type { BarFamily } from '../../utils/hivesApi';
 import {
@@ -72,11 +73,10 @@ export default function InspectionEditor({ inspection, family, onChange, disable
             onChange={(event) => set('bars', event.target.value === '' ? null : Number(event.target.value))} />
         </Form.Group>
       )}
-      <Form.Group className="mb-1" controlId={`${idPrefix}-notes`}>
-        <Form.Label className="obs-label mb-1">Notes</Form.Label>
-        <Form.Control as="textarea" rows={2} value={inspection.notes} disabled={disabled}
-          onChange={(event) => set('notes', event.target.value)} />
-      </Form.Group>
+      <div className="mb-1">
+        <MarkdownEditor id={`${idPrefix}-notes`} rows={3} value={inspection.notes} disabled={disabled}
+          onChange={(notes) => set('notes', notes)} label={<span className="obs-label">Notes</span>} />
+      </div>
     </div>
   );
 }

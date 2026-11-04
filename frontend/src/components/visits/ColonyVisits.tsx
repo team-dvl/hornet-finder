@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatDateTime } from '../../utils/format';
+import { markdownToPlain } from '../../utils/markdown';
 import { fetchVisits, inspectionSummary, type Visit } from '../../utils/visitsApi';
 
 interface ColonyVisitsProps {
@@ -33,7 +34,7 @@ export default function ColonyVisits({ colonyId }: ColonyVisitsProps) {
               onClick={() => navigate(`/apiaries/visits?visit=${visit.id}`)}>
               <span className="d-block small fw-semibold">{formatDateTime(visit.started_at)}</span>
               {summary.length > 0 && <span className="d-block small text-muted">{summary.join(' · ')}</span>}
-              {inspection?.notes && <span className="d-block small text-truncate">{inspection.notes}</span>}
+              {inspection?.notes && <span className="d-block small text-truncate">{markdownToPlain(inspection.notes)}</span>}
             </button>
           );
         })}

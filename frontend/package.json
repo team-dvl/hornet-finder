@@ -24,9 +24,12 @@
     "react-bootstrap": "^2.10.9",
     "react-dom": "^19.3.1",
     "react-leaflet": "^5.0.0",
+    "react-markdown": "^10.1.0",
     "react-oidc-context": "^3.3.0",
     "react-redux": "^9.2.0",
-    "react-router-dom": "^7.18.4"
+    "react-router-dom": "^7.18.4",
+    "remark-breaks": "^4.0.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -194,6 +194,14 @@ export default function ApiariesDoc() {
           de la visite, pour tout le rucher ou pour une colonie. Voient une visite : ses
           participants, ceux qui voient le rucher, et ceux qui voient une des ruches inspectées.
         </p>
+        <p className="mb-0">
+          <strong>Mise en forme</strong> : le compte rendu et les notes de chaque colonie acceptent
+          le Markdown, mis en forme à l'affichage : <code>**gras**</code>, <code>_italique_</code>,
+          {' '}<code>### titre</code>, <code>- liste</code>, <code>1. liste numérotée</code>,
+          {' '}<code>[texte](https://…)</code> pour un lien. La barre d'outils au-dessus du champ
+          l'écrit autour de la sélection ; <em>Aperçu</em> montre le résultat. Un retour à la ligne
+          reste un retour à la ligne. Les images ne s'affichent pas : ajoutez vos photos à la visite.
+        </p>
       </section>
 
       <section data-section="sharing" className="mb-4">
