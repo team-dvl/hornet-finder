@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Form, Spinner } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
-import { HelpTip } from '../common';
+import { HelpTip, MarkdownEditor } from '../common';
 import { AppModal, IconButton, Switch } from '../ui';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { colonyLabel } from '../../utils/coloniesApi';
@@ -318,11 +318,19 @@ export default function VisitFormModal({ onHide, onSaved, visit = null, apiaryId
         );
       })}
 
-      <Form.Group className="mt-3 mb-0" controlId="visit-report">
-        <Form.Label>Compte rendu</Form.Label>
-        <Form.Control as="textarea" rows={4} value={report} disabled={saving}
-          onChange={(event) => setReport(event.target.value)} />
-      </Form.Group>
+      <div className="mt-3">
+        <MarkdownEditor id="visit-report" rows={5} value={report} onChange={setReport} disabled={saving}
+          label={(
+            <span className="d-inline-flex align-items-center">
+              Compte rendu
+              <HelpTip id="visit-markdown-help" doc="apiaries#visits" title="Mise en forme">
+                Le texte accepte le Markdown : **gras**, _italique_, ### titre, - liste, 1. liste
+                numérotée, [lien](https://…). La barre d'outils l'écrit pour vous ; « Aperçu » montre
+                le rendu.
+              </HelpTip>
+            </span>
+          )} />
+      </div>
     </AppModal>
   );
 }

@@ -11,6 +11,11 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ## [Unreleased]
 
 ### Added
+- Visits: the report and the notes on each colony take Markdown (bold, italic, titles, lists, links), with a
+  toolbar over the native text field and a preview; shown formatted in the visit sheet. Raw HTML shows as
+  typed text, never run; no image; a line break stays a line break. The renderer is loaded only when a visit shows Markdown.
+
+### Added
 - Visits: the weather (temperature, wind, cloud cover, rain, general weather such as stormy), typed or filled
   for the hour of the visit from Open-Meteo, asked by the server with the position rounded to about 1 km.
   `WEATHER_ENABLED=False` in `.env` makes the server decline the lookup where it has no outbound access.

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Alert, Badge, Spinner } from 'react-bootstrap';
-import { AuthImage } from '../common';
+import { AuthImage, Markdown } from '../common';
 import { ConfirmationModal } from '../modals';
 import { AppModal, FieldRow, IconButton, SheetActions } from '../ui';
 import { useHistoryAction } from '../../hooks/useHistoryAction';
@@ -104,7 +104,7 @@ export default function VisitSheet({ visitId, onHide, onChanged }: VisitSheetPro
                 {visit.kinds.map((kind) => <Badge key={kind} bg="secondary">{KIND_LABELS[kind]}</Badge>)}
               </div>
             )}
-            {visit.report && <p className="small mt-2 mb-0 text-break visit-report">{visit.report}</p>}
+            {visit.report && <Markdown text={visit.report} className="small mt-2" />}
 
             {(canEdit || history) && (
               <SheetActions
@@ -132,7 +132,7 @@ export default function VisitSheet({ visitId, onHide, onChanged }: VisitSheetPro
                         <strong className="d-block text-truncate">{inspection.colony_label || inspection.hive_label}</strong>
                         {inspection.colony_label && <span className="d-block small text-muted text-truncate">{inspection.hive_label}</span>}
                         {summary.length > 0 && <span className="d-block small">{summary.join(' · ')}</span>}
-                        {inspection.notes && <span className="d-block small text-break mt-1">{inspection.notes}</span>}
+                        {inspection.notes && <Markdown text={inspection.notes} className="small mt-1" />}
                       </div>
                     );
                   })}
