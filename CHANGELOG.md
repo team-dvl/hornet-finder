@@ -15,6 +15,12 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   for the hour of the visit from Open-Meteo, asked by the server with the position rounded to about 1 km.
   `WEATHER_ENABLED=False` in `.env` makes the server decline the lookup where it has no outbound access.
 
+### Fixed
+- Installed app: a new version reaches a phone when the app comes back to the front (and every hour while it
+  stays there), instead of after the system closed it and two launches. The app reloads itself when nothing
+  can be lost (no dialog open, nothing typed on the page), otherwise at the next change of page. nginx serves
+  `sw.js` and the manifest without long-term cache (prod migration note 0029).
+
 ### Changed
 - Colonies: where a division, a swarm or a transfer goes is chosen by hive name and number, without the
   address of its apiary.

@@ -13,6 +13,7 @@ import HelpHost from './help/HelpHost';
 import { initIOSViewportFix } from './utils/iosViewportFix';
 import { useUrlCleaner } from './utils/urlCleaner';
 import { useSessionGuard } from './hooks/useSessionGuard';
+import { noteNavigation } from './utils/appUpdate';
 import { useReachabilityMonitor } from './hooks/useReachability';
 import { usePushBadgeReset, usePushRebind } from './hooks/usePushRebind';
 import { useNotificationClicks } from './hooks/useNotificationClicks';
@@ -50,6 +51,11 @@ function App() {
   usePushBadgeReset();
   // A tap on a notification while the app is open leads to its page
   useNotificationClicks();
+
+  // A new version waiting for a safe moment loads on a change of page
+  useEffect(() => {
+    noteNavigation();
+  }, [location.pathname]);
 
   // Initialiser la correction iOS pour le viewport
   useEffect(() => {

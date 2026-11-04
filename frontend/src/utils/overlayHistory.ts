@@ -24,6 +24,7 @@ let ignoreNextPop = false;
 let timer: number | null = null;
 let nextId = 1;
 let listening = false;
+const listeners = new Set<() => void>();
 
 function onPopState() {
   if (ignoreNextPop) {
@@ -55,7 +56,20 @@ function sync() {
         window.history.back();
       }
     }
+    // Told once the stack has settled, never between an overlay and its replacement
+    listeners.forEach((listener) => listener());
   }, 0);
+}
+
+/** Number of dialogs and sheets open right now. */
+export function openOverlayCount(): number {
+  return stack.length;
+}
+
+/** Calls `listener` after overlays open or close; returns the unsubscribe function. */
+export function subscribeOverlays(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => { listeners.delete(listener); };
 }
 
 /** Register an open overlay; returns the function that unregisters it. */
