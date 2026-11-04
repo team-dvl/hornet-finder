@@ -11,6 +11,14 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ## [Unreleased]
 
 ### Added
+- Apiaries: visits (fourth step of the beekeeping module). A "Visites" tab keeps the journal of the
+  apiaries; the apiary sheet shows the latest visit and records a new one, the colony sheet lists the visits
+  where it was looked at. A visit says when, how long, what was done (control, feeding, division, swarm
+  catch, transfer, entrance guard), who came (members of one's associations, and names of guests kept out of
+  the audit trail) and a report, with an inspection per colony: queen, eggs, brood, queen cells, temper,
+  activity and pollen at the entrance, hornets, entrance guard, feeding with its amount, and the count of
+  bars after the visit, prefilled. The latest visit sets the colony's count; eggs seen in a colony raising a
+  queen record its laying. Photos, of the apiary or of a colony. Recorded in the audit trail.
 - Colonies: the nucleus is a carrying hive ("Ruche de transport", a new setting of the hive types). A
   colony in a nucleus shows since when it waits there (J+n). "Installer une colonie" in a hive also takes
   a colony from another hive or from a nucleus (those waiting in a nucleus first): a transfer, which keeps

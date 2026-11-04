@@ -157,6 +157,35 @@ export default function ApiariesDoc() {
         </p>
       </section>
 
+      <section data-section="visits" className="mb-4">
+        <h5 className="text-primary">
+          <span className="me-2">📓</span>
+          Les visites
+        </h5>
+        <p>
+          L'onglet <strong>Visites</strong> tient le journal de vos ruchers ; la fiche d'un rucher
+          ouvre une nouvelle visite, celle d'une colonie liste les visites où elle a été vue. Une
+          visite dit quand, combien de temps, ce qui a été fait (contrôle, nourrissage, division,
+          récolte d'essaim, transvasement, muselière…), qui était là et un compte rendu libre.
+        </p>
+        <p>
+          Pour chaque colonie regardée, une <strong>inspection</strong> note ce qui a été vu, tout
+          étant facultatif : reine, œufs, couvain, cellules royales, comportement, activité et
+          pollen au trou de vol, frelons devant l'entrée, muselière, nourrissage (sirop, candi,
+          quantité), et le nombre de barrettes (ou d'éléments) après la visite, prérempli avec celui
+          de la colonie. La visite la plus récente donne ce nombre à la colonie. Des
+          {' '}<strong>œufs vus</strong> dans une colonie qui élève une reine enregistrent sa
+          ponte : la rupture de ponte se termine ce jour-là.
+        </p>
+        <p className="mb-0">
+          <strong>Participants</strong> : les membres de vos associations ; ils voient la visite et
+          peuvent la compléter. Les personnes sans compte se nomment en texte libre, sans jamais
+          apparaître dans le journal d'audit. Les <strong>photos</strong> s'ajoutent depuis la fiche
+          de la visite, pour tout le rucher ou pour une colonie. Voient une visite : ses
+          participants, ceux qui voient le rucher, et ceux qui voient une des ruches inspectées.
+        </p>
+      </section>
+
       <section data-section="sharing" className="mb-4">
         <h5 className="text-primary">
           <span className="me-2">🔒</span>

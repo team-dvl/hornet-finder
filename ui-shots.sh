@@ -11,16 +11,17 @@
 # cost. Pass -d (repeatable) for se, w320 or galaxy when a change specifically
 # needs them.
 #
-# A few fixtures (two traps on the same spot, a nest, a hornet, an apiary) are
+# A few fixtures (two traps on the same spot, a nest, a hornet, an apiary with
+# three hives and their colonies) are
 # created through the API beforehand so that every sheet can be opened, and
 # deleted on exit, like smoke-traps.sh does. A run cut short leaves them
 # behind (comment "ui-shots"), where the next run puts its own: they are
 # listed at start, and deleted only with -c.
 #
 # Usage: ./ui-shots.sh [-c] [-d <device>]... [-s <step>]... [-x <step>]... [-o <out_dir>]
-#   -c  first delete the fixtures left by earlier runs (traps, nests and
-#       apiaries whose comment is exactly "ui-shots"); without it they are
-#       only listed
+#   -c  first delete the fixtures left by earlier runs (visits, colonies,
+#       hives, traps, nests and apiaries marked "ui-shots");
+#       without it they are only listed
 #   -d  only this device (repeatable): ip14, se, w320, pixel7, galaxy
 #       (default: ip14 pixel7)
 #   -s  only the steps whose label contains this text (repeatable), e.g.
@@ -111,15 +112,20 @@ try:
 except ValueError:
     sys.exit(0)
 rows = data.get('results', []) if isinstance(data, dict) else data
-print(' '.join(str(r['id']) for r in rows if (r.get('comments') or '').strip() == 'ui-shots'))"
+# A visit carries the mark in its report, the other fixtures in their comment
+print(' '.join(str(r['id']) for r in rows if (r.get('comments') or r.get('report') or '').strip() == 'ui-shots'))"
 }
 declare -A STALE=(
+    [visits]="$(stale '/visits/?page_size=100')"
+    [colonies]="$(stale '/colonies/?status=all')"
+    [hives]="$(stale '/hives/?status=all&q=ui-shots')"
     [traps]="$(stale '/traps/managed/?scope=all&active=all&q=ui-shots&page_size=200')"
     [nests]="$(stale '/nests/managed/?show=all&q=ui-shots&page_size=200')"
     [apiaries]="$(stale '/apiaries/managed/?scope=all&q=ui-shots&page_size=200')"
 )
-if [[ -n "${STALE[traps]}${STALE[nests]}${STALE[apiaries]}" ]]; then
-    for kind in traps nests apiaries; do
+if [[ -n "${STALE[visits]}${STALE[colonies]}${STALE[hives]}${STALE[traps]}${STALE[nests]}${STALE[apiaries]}" ]]; then
+    # In this order: a colony keeps its hive from being deleted, a hive its apiary
+    for kind in visits colonies hives traps nests apiaries; do
         [[ -n "${STALE[$kind]}" ]] || continue
         if (( CLEAN_STALE )); then
             for id in ${STALE[$kind]}; do
@@ -156,7 +162,34 @@ APIARY=$(create /apiaries/ -F "latitude=$APIARY_LAT" -F "longitude=$APIARY_LNG" 
 [[ -n "$APIARY" ]] && curl -sk -o /dev/null -X PUT "$BASE/apiaries/$APIARY/sharing/" "${H[@]}" \
     -H "Content-Type: application/json" -d '{"group_path": "/beekeepers/vsab", "can_update": true}'
 
+# Hives in that apiary: a TBH split by a divider with a colony on each side, a
+# nucleus holding a colony that waits there, and an empty Warré
+hive_type() {
+    curl -sk "$BASE/hive-types/" "${H[@]}" | python3 -c "import sys,json;print(next((t['id'] for t in json.load(sys.stdin) if t['slug']=='$1'),''))"
+}
+post_json() { create "$1" -H "Content-Type: application/json" -d "$2"; }
+HIVES=()
+COLONIES=()
+if [[ -n "$APIARY" ]]; then
+    for spec in "tbh|ui-shots TBH|1" "nucleus|ui-shots nucleus|N1" "warre|ui-shots Warré|2"; do
+        IFS='|' read -r slug name number <<< "$spec"
+        HIVES+=("$(post_json /hives/ "{\"hive_type\": $(hive_type "$slug"), \"name\": \"$name\", \"number\": \"$number\", \"apiary\": $APIARY, \"comments\": \"ui-shots\"}")")
+    done
+    curl -sk -o /dev/null -X POST "$BASE/hives/${HIVES[0]}/divider/" "${H[@]}" \
+        -H "Content-Type: application/json" -d '{"divider_bar": 13}'
+    for spec in "0|1|ui-shots A|package|10" "0|2|ui-shots B|swarm_caught|8" "1|1|ui-shots C|swarm_caught|5"; do
+        IFS='|' read -r hive compartment name origin bars <<< "$spec"
+        COLONIES+=("$(post_json /colonies/ "{\"hive\": \"${HIVES[$hive]}\", \"compartment\": $compartment, \"name\": \"$name\", \"origin\": \"$origin\", \"bars\": $bars, \"comments\": \"ui-shots\"}")")
+    done
+    # A visit of that apiary, two colonies inspected (its report marks it as a fixture)
+    VISIT=$(post_json /visits/ "{\"apiary\": $APIARY, \"started_at\": \"$(date -u -d '-2 hours' +%Y-%m-%dT%H:%M:%SZ)\", \"duration_minutes\": 45, \"title\": \"ui-shots visite\", \"kinds\": [\"control\", \"feeding\"], \"guest_names\": \"Invité\", \"report\": \"ui-shots\", \"inspections\": [{\"colony\": \"${COLONIES[0]}\", \"queen_seen\": true, \"eggs_seen\": true, \"temper\": \"calm\", \"feeding\": \"syrup\", \"feeding_amount\": \"1\", \"feeding_unit\": \"l\", \"bars\": 10, \"notes\": \"ui-shots\"}, {\"colony\": \"${COLONIES[1]}\", \"hornets\": \"few\", \"entrance_guard\": true}]}")
+fi
+
 cleanup() {
+    local id
+    [[ -n "${VISIT:-}" ]] && curl -sk -o /dev/null -X DELETE "$BASE/visits/$VISIT/" "${H[@]}"
+    for id in "${COLONIES[@]}"; do [[ -n "$id" ]] && curl -sk -o /dev/null -X DELETE "$BASE/colonies/$id/" "${H[@]}"; done
+    for id in "${HIVES[@]}"; do [[ -n "$id" ]] && curl -sk -o /dev/null -X DELETE "$BASE/hives/$id/" "${H[@]}"; done
     [[ -n "$TRAP1" ]] && curl -sk -o /dev/null -X DELETE "$BASE/traps/$TRAP1/" "${H[@]}"
     [[ -n "$TRAP2" ]] && curl -sk -o /dev/null -X DELETE "$BASE/traps/$TRAP2/" "${H[@]}"
     [[ -n "$NEST" ]] && curl -sk -o /dev/null -X DELETE "$BASE/nests/$NEST/" "${H[@]}"
@@ -164,7 +197,7 @@ cleanup() {
     [[ -n "$APIARY" ]] && curl -sk -o /dev/null -X DELETE "$BASE/apiaries/$APIARY/" "${H[@]}"
 }
 trap cleanup EXIT
-echo "Fixtures: traps $TRAP1 $TRAP2, nest $NEST, hornet $HORNET, apiary $APIARY"
+echo "Fixtures: traps $TRAP1 $TRAP2, nest $NEST, hornet $HORNET, apiary $APIARY, hives ${#HIVES[@]}, colonies ${#COLONIES[@]}, visit ${VISIT:-none}"
 
 mkdir -p "$OUT" .cache/ui-shots
 

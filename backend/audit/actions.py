@@ -73,6 +73,12 @@ ACTIONS = {
     'colony.ended': "Colony ended (died, merged, absconded)",
     'colony.laying': "New queen of a colony seen laying",
     'colony.deleted': "Colony deleted",
+    # Visits to the apiaries
+    'apiary_visit.created': "Apiary visit recorded",
+    'apiary_visit.updated': "Apiary visit updated",
+    'apiary_visit.deleted': "Apiary visit deleted",
+    'apiary_visit.photo_added': "Apiary visit photos added",
+    'apiary_visit.photo_removed': "Apiary visit photo removed",
     # QR codes
     'tag.batch_generated': "QR codes generated",
     'tag.associated': "QR code associated with a trap",

@@ -10,6 +10,7 @@ import uuid
 
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
 
 
 class HiveType(models.Model):
@@ -245,3 +246,107 @@ class ColonyOccupancy(models.Model):
             models.UniqueConstraint(fields=['colony'], condition=Q(ended_on__isnull=True),
                                     name='colonyoccupancy_one_open'),
         ]
+
+
+def visit_photo_path(instance, filename):
+    """Every file of a visit lives under `visits/<visit id>/`: the media view resolves its rights from the path."""
+    return f"visits/{instance.visit_id}/{uuid.uuid4().hex}.jpg"
+
+
+class Visit(models.Model):
+    """
+    A visit to an apiary: when, who came, what was done, and one inspection
+    per colony looked at. Participants without an account are only named
+    (`guest_names`), never written in the audit trail.
+    """
+
+    KIND_CONTROL = 'control'
+    KIND_FEEDING = 'feeding'
+    KIND_DIVISION = 'division'
+    KIND_SWARM_CATCH = 'swarm_catch'
+    KIND_TRANSFER = 'transfer'
+    KIND_ENTRANCE_GUARD = 'entrance_guard'
+    KIND_OTHER = 'other'
+    KINDS = [KIND_CONTROL, KIND_FEEDING, KIND_DIVISION, KIND_SWARM_CATCH, KIND_TRANSFER,
+             KIND_ENTRANCE_GUARD, KIND_OTHER]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # Kept as a label when the apiary is deleted afterwards
+    apiary = models.ForeignKey('hornet.Apiary', null=True, blank=True, on_delete=models.SET_NULL,
+                               related_name='visits')
+    apiary_label = models.CharField(max_length=255, blank=True, default='')
+    started_at = models.DateTimeField(db_index=True)
+    duration_minutes = models.PositiveSmallIntegerField(null=True, blank=True)
+    title = models.CharField(max_length=120, blank=True, default='')
+    kinds = models.JSONField(default=list, blank=True)
+    report = models.TextField(blank=True, default='')
+    participants = models.ManyToManyField('hornet.User', blank=True, related_name='visits')
+    guest_names = models.CharField(max_length=255, blank=True, default='')
+    created_by = models.ForeignKey('hornet.User', null=True, blank=True, on_delete=models.SET_NULL,
+                                   related_name='created_visits')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-started_at']
+
+    def __str__(self):
+        return self.title or f"Visite du {timezone.localtime(self.started_at):%d/%m/%Y}"
+
+
+class Inspection(models.Model):
+    """
+    What was seen of one colony during a visit. Every observation is optional:
+    the notes come first. The count of bars (or boxes) is the colony's after
+    the visit.
+    """
+
+    TEMPERS = ['calm', 'nervous', 'aggressive']
+    ACTIVITIES = ['low', 'normal', 'high']
+    HORNETS = ['none', 'few', 'many']
+    FEEDINGS = ['syrup', 'candy', 'other']
+    UNITS = ['l', 'kg']
+
+    visit = models.ForeignKey(Visit, on_delete=models.CASCADE, related_name='inspections')
+    # Kept as labels when the hive or the colony is deleted afterwards
+    hive = models.ForeignKey(Hive, null=True, blank=True, on_delete=models.SET_NULL, related_name='inspections')
+    hive_label = models.CharField(max_length=160, blank=True, default='')
+    colony = models.ForeignKey(Colony, null=True, blank=True, on_delete=models.SET_NULL,
+                               related_name='inspections')
+    colony_label = models.CharField(max_length=160, blank=True, default='')
+    compartment = models.PositiveSmallIntegerField(default=1)
+    queen_seen = models.BooleanField(null=True, blank=True)
+    eggs_seen = models.BooleanField(null=True, blank=True)
+    brood_seen = models.BooleanField(null=True, blank=True)
+    queen_cells = models.BooleanField(null=True, blank=True)
+    temper = models.CharField(max_length=16, blank=True, default='')
+    activity = models.CharField(max_length=16, blank=True, default='')
+    pollen = models.BooleanField(null=True, blank=True)
+    hornets = models.CharField(max_length=16, blank=True, default='')
+    entrance_guard = models.BooleanField(null=True, blank=True)
+    feeding = models.CharField(max_length=16, blank=True, default='')
+    feeding_amount = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    feeding_unit = models.CharField(max_length=4, blank=True, default='')
+    bars = models.PositiveSmallIntegerField(null=True, blank=True)
+    notes = models.TextField(blank=True, default='')
+
+    class Meta:
+        ordering = ['hive_label', 'compartment', 'id']
+        constraints = [
+            models.UniqueConstraint(fields=['visit', 'colony'], condition=Q(colony__isnull=False),
+                                    name='inspection_once_per_colony'),
+        ]
+
+
+class VisitPhoto(models.Model):
+    visit = models.ForeignKey(Visit, on_delete=models.CASCADE, related_name='photos')
+    inspection = models.ForeignKey(Inspection, null=True, blank=True, on_delete=models.SET_NULL,
+                                   related_name='photos')
+    image = models.ImageField(upload_to=visit_photo_path)
+    thumbnail = models.ImageField(upload_to=visit_photo_path, null=True, blank=True)
+    uploaded_by = models.ForeignKey('hornet.User', null=True, blank=True, on_delete=models.SET_NULL,
+                                    related_name='visit_photos')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at', 'id']

@@ -220,6 +220,12 @@ export function today(): string {
 
 // The server's messages a user may meet, in French
 const MESSAGES: [RegExp, string | ((match: RegExpMatchArray) => string)][] = [
+  [/has taken place: not in the future/, 'Une visite enregistrée ici a eu lieu : pas dans le futur.'],
+  [/does not stand in this apiary/, "Une des ruches n'est pas dans ce rucher."],
+  [/inspected once per visit/, 'Une colonie ne figure qu\'une fois par visite.'],
+  [/Only members of your associations/, 'Seuls des membres de vos associations peuvent participer.'],
+  [/cannot record a visit/, 'Vous ne pouvez pas enregistrer de visite dans ce rucher.'],
+  [/does not live in this hive/, "Cette colonie ne vit pas dans cette ruche."],
   [/Only a hive split by a divider has a second compartment/, 'Le compartiment 2 demande une cloison.'],
   [/already holds a colony/, 'Ce compartiment abrite déjà une colonie.'],
   [/This hive has no bars/, "Cette ruche n'a pas de barrettes."],

@@ -26,6 +26,7 @@ const ExportJob = lazy(() => import('./pages/stats/ExportJob'));
 const AuditTrail = lazy(() => import('./pages/admin/AuditTrail'));
 const HiveTypesAdmin = lazy(() => import('./pages/admin/HiveTypesAdmin'));
 const Hives = lazy(() => import('./pages/Hives'));
+const Visits = lazy(() => import('./pages/Visits'));
 const PlatformDashboard = lazy(() => import('./pages/admin/PlatformDashboard'));
 const PlatformNotifications = lazy(() => import('./pages/admin/PlatformNotifications'));
 const pageFallback = <div className="text-center py-5"><Spinner animation="border" /></div>;
@@ -109,6 +110,10 @@ function App() {
       <Route
         path="/apiaries"
         element={<RequireRole roles={['beekeeper', 'admin']}><Apiaries /></RequireRole>}
+      />
+      <Route
+        path="/apiaries/visits"
+        element={<RequireRole roles={['beekeeper', 'admin']}><Suspense fallback={pageFallback}><Visits /></Suspense></RequireRole>}
       />
       <Route
         path="/apiaries/hives"

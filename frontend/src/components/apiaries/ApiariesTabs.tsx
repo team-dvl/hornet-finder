@@ -2,10 +2,10 @@ import { Button, ButtonGroup } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 
 interface ApiariesTabsProps {
-  active: 'apiaries' | 'hives';
+  active: 'apiaries' | 'hives' | 'visits';
 }
 
-/** The two lists of the apiaries module: the apiaries, and the hives wherever they stand. */
+/** The lists of the apiaries module: the apiaries, the hives wherever they stand, the visits. */
 export default function ApiariesTabs({ active }: ApiariesTabsProps) {
   const navigate = useNavigate();
   const tab = (id: ApiariesTabsProps['active'], label: string, path: string) => (
@@ -22,6 +22,7 @@ export default function ApiariesTabs({ active }: ApiariesTabsProps) {
     <ButtonGroup className="d-flex mb-3" role="tablist" aria-label="Vue">
       {tab('apiaries', 'Ruchers', '/apiaries')}
       {tab('hives', 'Ruches', '/apiaries/hives')}
+      {tab('visits', 'Visites', '/apiaries/visits')}
     </ButtonGroup>
   );
 }

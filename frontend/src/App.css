@@ -78,6 +78,47 @@ body {
 /* The number of a hive, next to its name in the form */
 .hive-number-field { width: 6rem; }
 
+/* Visits: chips and observation rows of an inspection (touch targets of 44 px) */
+.visit-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.visit-chips .btn {
+  min-height: 2.75rem;
+}
+
+.obs-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.visit-duration-field { width: 8rem; }
+
+.obs-label {
+  font-size: 0.875rem;
+  color: var(--bs-secondary-color);
+}
+
+/* Photos of a visit: a grid of thumbnails, two to four per row */
+.visit-photos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));
+  gap: 0.375rem;
+}
+
+.visit-photos img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: var(--bs-border-radius);
+}
+
 /* Module tiles on the landing page */
 .module-card {
   transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -1790,4 +1831,9 @@ html[data-platform="material"] .form-switch .form-check-input:checked {
 .locate-sheet-searching {
   min-height: 70vh;
   min-height: 70dvh;
+}
+
+/* The report of a visit keeps its line breaks */
+.visit-report {
+  white-space: pre-line;
 }

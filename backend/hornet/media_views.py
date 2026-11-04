@@ -32,6 +32,11 @@ TRAP_FILE_RE = re.compile(r'^traps/(?P<trap_id>\d+)/[^/]+$')
 APIARY_FILE_RE = re.compile(r'^apiaries/(?P<apiary_id>\d+)/[^/]+$')
 # And for a nest, under `nests/<nest id>/`: those who see the whole nest
 NEST_FILE_RE = re.compile(r'^nests/(?P<nest_id>\d+)/[^/]+$')
+# Files of other apps, by path prefix: `prefix -> can_read(request, path)`.
+# An app registers its own in `AppConfig.ready()` (see `apiculture/apps.py`),
+# so this view needs no knowledge of it.
+MEDIA_RESOLVERS = {}
+
 # Profile photos are public too: the Keycloak account console loads them
 # without any token, and their file names are random.
 PUBLIC_PREFIXES = ('trap-types/', 'species/', 'avatars/')
@@ -78,7 +83,10 @@ def media_view(request, path):
             if nest is None or not nest_permissions.can_read_nest(request, nest):
                 raise Http404
         else:
-            raise Http404
+            resolver = next((can_read for prefix, can_read in MEDIA_RESOLVERS.items()
+                             if path.startswith(prefix)), None)
+            if resolver is None or not resolver(request, path):
+                raise Http404
 
     full_path = settings.MEDIA_ROOT / path
     if not full_path.is_file():

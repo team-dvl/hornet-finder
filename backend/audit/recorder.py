@@ -43,6 +43,7 @@ TYPES = {
     'hive': 'hive',
     'hivetype': 'hive_type',
     'colony': 'colony',
+    'visit': 'apiary_visit',
 }
 
 # Business fields kept in snapshots and diffs; technical ones (`point`,
@@ -69,6 +70,8 @@ FIELDS = {
              'commissioned_on', 'divider_bar', 'comments'],
     'colony': ['name', 'origin', 'parent', 'hive', 'compartment', 'bars', 'started_on', 'ended_on', 'end_cause',
                'merged_into', 'requeening_since', 'laying_since', 'comments'],
+    # Never `guest_names`: the names of people without an account
+    'apiary_visit': ['apiary', 'started_at', 'duration_minutes', 'title', 'kinds', 'report', 'created_by'],
     'hive_type': ['slug', 'name', 'description', 'sort_order', 'bar_family', 'max_bars', 'bars_per_box',
                   'max_colonies', 'portable'],
 }
@@ -138,6 +141,8 @@ def default_refs(obj) -> list:
             refs.append(ref('apiary', obj.apiary_id))
         if obj.owner_group_id:
             refs.append(ref('group', obj.owner_group.path))
+    elif kind == 'apiary_visit' and obj.apiary_id:
+        refs.append(ref('apiary', obj.apiary_id))
     elif kind == 'colony':
         refs.append(ref('hive', obj.hive_id))
         if obj.hive.apiary_id:
@@ -160,7 +165,7 @@ def label_of(obj) -> str:
         label = obj.group_name
     elif kind in ('trap_type', 'species', 'hive_type'):
         label = obj.name
-    elif kind in ('hive', 'colony'):
+    elif kind in ('hive', 'colony', 'apiary_visit'):
         label = str(obj)
     else:
         label = ''
