@@ -19,8 +19,8 @@
 # listed at start, and deleted only with -c.
 #
 # Usage: ./ui-shots.sh [-c] [-d <device>]... [-s <step>]... [-x <step>]... [-o <out_dir>]
-#   -c  first delete the fixtures left by earlier runs (colonies, hives,
-#       traps, nests and apiaries whose comment is exactly "ui-shots");
+#   -c  first delete the fixtures left by earlier runs (visits, colonies,
+#       hives, traps, nests and apiaries marked "ui-shots");
 #       without it they are only listed
 #   -d  only this device (repeatable): ip14, se, w320, pixel7, galaxy
 #       (default: ip14 pixel7)
@@ -112,18 +112,20 @@ try:
 except ValueError:
     sys.exit(0)
 rows = data.get('results', []) if isinstance(data, dict) else data
-print(' '.join(str(r['id']) for r in rows if (r.get('comments') or '').strip() == 'ui-shots'))"
+# A visit carries the mark in its report, the other fixtures in their comment
+print(' '.join(str(r['id']) for r in rows if (r.get('comments') or r.get('report') or '').strip() == 'ui-shots'))"
 }
 declare -A STALE=(
+    [visits]="$(stale '/visits/?page_size=100')"
     [colonies]="$(stale '/colonies/?status=all')"
     [hives]="$(stale '/hives/?status=all&q=ui-shots')"
     [traps]="$(stale '/traps/managed/?scope=all&active=all&q=ui-shots&page_size=200')"
     [nests]="$(stale '/nests/managed/?show=all&q=ui-shots&page_size=200')"
     [apiaries]="$(stale '/apiaries/managed/?scope=all&q=ui-shots&page_size=200')"
 )
-if [[ -n "${STALE[colonies]}${STALE[hives]}${STALE[traps]}${STALE[nests]}${STALE[apiaries]}" ]]; then
+if [[ -n "${STALE[visits]}${STALE[colonies]}${STALE[hives]}${STALE[traps]}${STALE[nests]}${STALE[apiaries]}" ]]; then
     # In this order: a colony keeps its hive from being deleted, a hive its apiary
-    for kind in colonies hives traps nests apiaries; do
+    for kind in visits colonies hives traps nests apiaries; do
         [[ -n "${STALE[$kind]}" ]] || continue
         if (( CLEAN_STALE )); then
             for id in ${STALE[$kind]}; do
@@ -179,10 +181,13 @@ if [[ -n "$APIARY" ]]; then
         IFS='|' read -r hive compartment name origin bars <<< "$spec"
         COLONIES+=("$(post_json /colonies/ "{\"hive\": \"${HIVES[$hive]}\", \"compartment\": $compartment, \"name\": \"$name\", \"origin\": \"$origin\", \"bars\": $bars, \"comments\": \"ui-shots\"}")")
     done
+    # A visit of that apiary, two colonies inspected (its report marks it as a fixture)
+    VISIT=$(post_json /visits/ "{\"apiary\": $APIARY, \"started_at\": \"$(date -u -d '-2 hours' +%Y-%m-%dT%H:%M:%SZ)\", \"duration_minutes\": 45, \"title\": \"ui-shots visite\", \"kinds\": [\"control\", \"feeding\"], \"guest_names\": \"Invité\", \"report\": \"ui-shots\", \"inspections\": [{\"colony\": \"${COLONIES[0]}\", \"queen_seen\": true, \"eggs_seen\": true, \"temper\": \"calm\", \"feeding\": \"syrup\", \"feeding_amount\": \"1\", \"feeding_unit\": \"l\", \"bars\": 10, \"notes\": \"ui-shots\"}, {\"colony\": \"${COLONIES[1]}\", \"hornets\": \"few\", \"entrance_guard\": true}]}")
 fi
 
 cleanup() {
     local id
+    [[ -n "${VISIT:-}" ]] && curl -sk -o /dev/null -X DELETE "$BASE/visits/$VISIT/" "${H[@]}"
     for id in "${COLONIES[@]}"; do [[ -n "$id" ]] && curl -sk -o /dev/null -X DELETE "$BASE/colonies/$id/" "${H[@]}"; done
     for id in "${HIVES[@]}"; do [[ -n "$id" ]] && curl -sk -o /dev/null -X DELETE "$BASE/hives/$id/" "${H[@]}"; done
     [[ -n "$TRAP1" ]] && curl -sk -o /dev/null -X DELETE "$BASE/traps/$TRAP1/" "${H[@]}"
@@ -192,7 +197,7 @@ cleanup() {
     [[ -n "$APIARY" ]] && curl -sk -o /dev/null -X DELETE "$BASE/apiaries/$APIARY/" "${H[@]}"
 }
 trap cleanup EXIT
-echo "Fixtures: traps $TRAP1 $TRAP2, nest $NEST, hornet $HORNET, apiary $APIARY, hives ${#HIVES[@]}, colonies ${#COLONIES[@]}"
+echo "Fixtures: traps $TRAP1 $TRAP2, nest $NEST, hornet $HORNET, apiary $APIARY, hives ${#HIVES[@]}, colonies ${#COLONIES[@]}, visit ${VISIT:-none}"
 
 mkdir -p "$OUT" .cache/ui-shots
 

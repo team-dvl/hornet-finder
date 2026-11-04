@@ -9,6 +9,7 @@ import InfestationLevelInput, { InfestationLevel } from '../common/InfestationLe
 import { AfscaNumber, AuthImage, ClampedText } from '../common';
 import { ApiaryFormModal, ApiaryOwnerModal, ApiarySharingPanel } from '../apiaries';
 import { ApiaryHives } from '../hives';
+import { ApiaryVisits } from '../visits';
 import { AppModal, FieldRow, IconButton, SheetActions } from '../ui';
 import { ACTION_ICONS, OBJECT_ICONS } from '../../utils/icons';
 import { formatDate } from '../../utils/format';
@@ -149,6 +150,7 @@ export default function ApiaryInfoPopup({ show, onHide, apiary, onAddAtLocation,
         )}
 
         <ApiaryHives apiaryId={apiaryId} canAdd={mayEdit} />
+        <ApiaryVisits apiaryId={apiaryId} />
 
         <ApiarySharingPanel apiary={{ ...current, id: apiaryId }} />
       </AppModal>

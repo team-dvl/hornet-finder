@@ -54,6 +54,11 @@ export const ACTION_LABELS: Record<string, string> = {
   'colony.ended': 'Fin de colonie',
   'colony.laying': 'Ponte de la nouvelle reine constatée',
   'colony.deleted': 'Colonie supprimée',
+  'apiary_visit.created': 'Visite de rucher enregistrée',
+  'apiary_visit.updated': 'Visite de rucher modifiée',
+  'apiary_visit.deleted': 'Visite de rucher supprimée',
+  'apiary_visit.photo_added': 'Photos de visite ajoutées',
+  'apiary_visit.photo_removed': 'Photo de visite retirée',
   'trap.created': 'Piège créé',
   'trap.updated': 'Piège modifié',
   'trap.deleted': 'Piège supprimé',
@@ -113,6 +118,7 @@ export const DOMAINS: Record<string, Domain> = {
   apiary: { label: 'Ruchers', emoji: OBJECT_ICONS.apiary },
   hive: { label: 'Ruches', icon: 'hexagon-half' },
   colony: { label: 'Colonies', icon: 'bug' },
+  apiary_visit: { label: 'Visites de rucher', icon: 'journal-text' },
   trap: { label: 'Pièges', emoji: OBJECT_ICONS.trap },
   tag: { label: 'QR codes', icon: 'qr-code' },
   group: { label: 'Groupes', icon: 'people' },
@@ -138,6 +144,7 @@ const OBJECT_NAMES: Record<string, string> = {
   apiary: 'Rucher',
   hive: 'Ruche',
   colony: 'Colonie',
+  apiary_visit: 'Visite de rucher',
   trap: 'Piège',
   trap_event: 'Entrée de journal',
   trap_photo: 'Photo de journal',
@@ -156,7 +163,7 @@ const OBJECT_NAMES: Record<string, string> = {
 };
 
 /** Ref types an admin may want the history of (others are details) */
-const HISTORY_TYPES = new Set(['hornet', 'nest', 'apiary', 'hive', 'colony', 'trap', 'tag', 'group', 'invitation', 'trap_type',
+const HISTORY_TYPES = new Set(['hornet', 'nest', 'apiary', 'hive', 'colony', 'apiary_visit', 'trap', 'tag', 'group', 'invitation', 'trap_type',
   'hive_type', 'species', 'user', 'visit', 'export', 'statistic']);
 
 export const hasHistory = (ref: string) => HISTORY_TYPES.has(ref.split(':', 1)[0]);
@@ -319,6 +326,13 @@ export const FIELD_LABELS: Record<string, string> = {
   stayed: 'Souche (n°)',
   caught: 'Essaim récolté (n°)',
   queen: 'La reine',
+  started_at: 'Le',
+  duration_minutes: 'Durée (min)',
+  title: 'Intitulé',
+  kinds: 'Fait pendant la visite',
+  report: 'Compte rendu',
+  participants: 'Participants',
+  inspections: 'Colonies inspectées',
 };
 
 /** Labels that differ for one type of object: the owner of a nest follows it, it is no legal owner */
@@ -331,7 +345,7 @@ export const fieldLabel = (key: string, targetType?: string) =>
 
 /** Fields holding a person's GUID (see PERSON_FIELDS in `audit/views.py`) */
 const PERSON_FIELDS = new Set(['owner', 'created_by', 'performed_by', 'generated_by', 'associated_by',
-  'revoked_by', 'uploaded_by', 'member', 'owner_user', 'keeper']);
+  'revoked_by', 'uploaded_by', 'member', 'owner_user', 'keeper', 'participants']);
 
 /** Kinds of notifications the platform admins hold back or resume */
 const NOTIFICATION_KINDS: Record<string, string> = {
@@ -365,6 +379,10 @@ const VALUE_LABELS: Record<string, Record<string, string>> = {
   },
   end_cause: { died: 'Morte', merged: 'Réunie', absconded: 'Désertée', swarmed: 'Essaimée', unknown: 'Inconnue' },
   queen: { parent: 'Reste dans la colonie', daughter: 'Part avec la division', unknown: 'Inconnu' },
+  kinds: {
+    control: 'Contrôle', feeding: 'Nourrissage', division: 'Division', swarm_catch: "Récolte d'essaim",
+    transfer: 'Transvasement', entrance_guard: 'Muselière', other: 'Autre',
+  },
   nest_type: { primary: 'Primaire', secondary: 'Secondaire' },
   outcome: { active: 'Nid actif', empty: 'Nid vide', other_species: 'Autre espèce', not_found: 'Introuvable' },
   basis: { photos: 'Photos', call: 'Échange avec le signaleur', on_site: 'Sur place' },

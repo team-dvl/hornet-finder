@@ -586,6 +586,43 @@ async function walk(name) {
     });
   }
 
+  // Visits: the journal, the fixture visit's sheet, the form of a new one with
+  // a colony switched on (nothing is submitted)
+  await step('visits-list', async () => {
+    await open('/apiaries/visits');
+    await shotSettled('visits-list', 800);
+  });
+
+  await step('visit-sheet', async () => {
+    await open('/apiaries/visits');
+    await settled(800);
+    await tap(page.locator('.list-group-item').filter({ hasText: 'ui-shots visite' }));
+    await page.waitForSelector('.modal.show .modal-title:has-text("ui-shots visite")', { timeout: 15000 });
+    await shotSettled('visit-sheet', 500);
+    await scrollDown();
+    await shot('visit-sheet-bottom', 400);
+    await escape();
+  });
+
+  await step('visit-form', async () => {
+    await open('/apiaries/visits');
+    await settled(500);
+    await tap(page.locator('[aria-label="Ajouter"]').first());
+    await page.waitForSelector('.modal.show .modal-title:has-text("Nouvelle visite")', { timeout: 15000 });
+    await shotSettled('visit-form', 800);
+    // The fixture apiary, then its first colony switched on to show the inspection
+    const option = await page.locator('.modal.show #visit-apiary option').filter({ hasText: "Rue de l'Essai" }).first().getAttribute('value');
+    if (option) await page.locator('.modal.show #visit-apiary').selectOption(option);
+    await settled(800);
+    await tap(page.locator('.modal.show .app-switch-row').filter({ hasText: 'ui-shots A' }));
+    await page.waitForTimeout(400);
+    await page.locator('.modal.show .app-switch-row').filter({ hasText: 'ui-shots A' }).first().scrollIntoViewIfNeeded();
+    await shot('visit-form-inspection', 400);
+    await scrollDown();
+    await shot('visit-form-bottom', 400);
+    await escape();
+  });
+
   // Statistics: catalogue, the catches table with its sheets, each table in
   // list and chart view (the export sheet is opened, nothing is emailed)
   await step('stats', async () => {

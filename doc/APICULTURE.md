@@ -2,7 +2,7 @@
 
 Gestion des ruches et des colonies, à côté de la lutte contre le frelon : ruchers, ruches, colonies, visites (planifiées puis rapportées), photos. Public : les petits ruchers familiaux, conduits pour le maintien de l'espèce et la pollinisation, sans orientation miel. Le varroa est géré par la rupture de ponte (division, essaimage), sans traitement chimique.
 
-Statut : **étapes 1 (ruches) et 2 (colonies) implémentées** (app Django `apiculture`, onglet *Ruches* du module *Ruchers*), étapes suivantes à venir. La reprise des données de l'application Glide actuelle est un projet séparé (voir « Reprise Glide » en fin de document) ; ce module lui réserve seulement un point d'ancrage.
+Statut : **étapes 1 (ruches), 2 (colonies) et 4 (journal de visites) implémentées ; l'étape 3 (hors ligne) est traitée à part, dans une autre PR** (app Django `apiculture`, onglet *Ruches* du module *Ruchers*), étapes suivantes à venir. La reprise des données de l'application Glide actuelle est un projet séparé (voir « Reprise Glide » en fin de document) ; ce module lui réserve seulement un point d'ancrage.
 
 ## Décisions
 
@@ -13,7 +13,7 @@ Statut : **étapes 1 (ruches) et 2 (colonies) implémentées** (app Django `apic
 | 2 | Hébergeur et apiculteur responsable | Deux notions distinctes : l'hébergeur (qui accueille le rucher) est un attribut du rucher, l'apiculteur responsable (à qui la ruche est confiée) un attribut de la ruche |
 | 3 | Propriété d'une ruche | Un groupe **ou** une personne, mutuellement exclusifs |
 | 4 | Public du module | Tous les apiculteurs (rôle `beekeeper`) |
-| 5 | Réseau aux ruchers | Pas garanti : **la saisie de terrain fonctionne hors ligne** |
+| 5 | Réseau aux ruchers | Pas garanti : la saisie de terrain fonctionnera hors ligne, travail mené à part (PR `feat/offline-phase0`) |
 | 6 | Compatibilité des barrettes | Nucleus, TBH et TBH Chandler interchangeables entre eux. Les Warré ont aussi des barrettes (pas de cadres), non interchangeables avec les autres. La ruche tronc n'en a pas |
 | 7 | Trou de vol avec cloison | Un par compartiment : les observations d'entrée se notent par colonie |
 | 8 | Nombre maximal de barrettes | Fixe par type : 24 pour TBH et Chandler (partagées entre les deux colonies quand il y a une cloison), 12 pour le nucleus, 8 par élément de Warré |
@@ -143,8 +143,8 @@ Chaque étape est livrable seule, avec ses tests, son audit, son aide (section `
 |---|---|---|
 | 1 ✅ | Ruches | `HiveType` (référentiel et administration), `Hive`, emplacements et responsables datés, hébergeur du rucher, liste des ruches par rucher, fiche ruche. Reportés : photo de ruche (la vue des médias résout les droits par chemin, à étendre au module), changement de propriétaire d'une ruche |
 | 2 ✅ | Colonies | occupation par compartiment, cloison, événements (division, essaimage, transfert, fin, ponte constatée), généalogie. Une colonie ne vit que dans une ruche en service ; une ruche qui a abrité une colonie se réforme, elle ne se supprime pas |
-| 3 | Socle hors ligne | cache de lecture, file d'envoi, photos en attente, indicateur, persistance du stockage |
-| 4 | Journal de visites | visite d'un rucher, inspections par colonie, participants, photos, reprise de configuration, le tout par la file d'envoi |
+| 3 ⏸ | Socle hors ligne | traité à part (PR `feat/offline-phase0`), plus tard : cache de lecture, file d'envoi, photos en attente, indicateur, persistance du stockage. Les objets créés sur le terrain gardent un identifiant choisi par le client, pour s'y raccorder |
+| 4 ✅ | Journal de visites | visite d'un rucher, inspections par colonie, participants, photos, reprise du nombre de barrettes ; en ligne pour l'instant (étape 3 à part). La visite la plus récente donne son nombre de barrettes à la colonie ; des œufs vus dans une colonie qui élève une reine enregistrent sa ponte |
 | 5 | Planification | visites prévues, agenda, rappels push (planificateur), compteur « À faire » dans `pending.py` ; en option un flux iCal |
 | 6 | Vues par type de ruche | barrettes d'une TBH, Chandler ou nucleus (cloison, deux colonies), éléments d'une Warré |
 

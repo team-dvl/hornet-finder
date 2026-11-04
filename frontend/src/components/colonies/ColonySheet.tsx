@@ -9,6 +9,7 @@ import {
   END_LABELS, ORIGIN_LABELS, colonyLabel, countLabel, daysBetween, deleteColony, fetchColony, type Colony,
 } from '../../utils/coloniesApi';
 import { apiaryLabel, hiveErrorOf, hiveLabel, today, type ColonySummary } from '../../utils/hivesApi';
+import { ColonyVisits } from '../visits';
 import BroodBreak from './BroodBreak';
 import ColonyEventModal, { type ColonyEventMode } from './ColonyEventModal';
 import ColonyFormModal from './ColonyFormModal';
@@ -163,6 +164,8 @@ export default function ColonySheet({ colonyId, onHide, onChanged }: ColonySheet
                 )}
               </section>
             )}
+
+            <ColonyVisits colonyId={colony.id} />
 
             {(colony.occupancies?.length ?? 0) > 1 && (
               <details className="mt-3">
