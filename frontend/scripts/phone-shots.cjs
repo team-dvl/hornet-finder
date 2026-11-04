@@ -502,6 +502,90 @@ async function walk(name) {
     await escape();
   });
 
+  // Hives and colonies (fixtures: a TBH with a divider and two colonies, a
+  // nucleus with a colony waiting in it, an empty Warré). Dialogs are opened,
+  // never submitted. Every step starts from the hive list.
+  const FIXTURE_HIVES = '/apiaries/hives?q=ui-shots';
+  const openHive = async (name) => {
+    await open(FIXTURE_HIVES);
+    await settled(800);
+    await tap(page.locator('.list-group-item').filter({ hasText: name }));
+    await page.waitForSelector('.modal.show', { timeout: 15000 });
+    await settled(600);
+  };
+  const openColony = async (hive, colony) => {
+    await openHive(hive);
+    await tap(page.locator('.modal.show .list-group-item').filter({ hasText: colony }));
+    await page.waitForSelector('.modal.show .modal-title:has-text("' + colony + '")', { timeout: 15000 });
+    await settled(600);
+  };
+
+  await step('hives-list', async () => {
+    await open(FIXTURE_HIVES);
+    await shotSettled('hives-list', 800);
+  });
+
+  await step('hive-sheet', async () => {
+    await openHive('ui-shots TBH');
+    await shot('hive-sheet', 300);
+    await scrollDown();
+    await shot('hive-sheet-bottom', 400);
+    await escape();
+  });
+
+  await step('hive-divider', async () => {
+    await openHive('ui-shots TBH');
+    await sheetMenu('Cloison');
+    await shot('hive-divider', 800);
+    await escape();
+  });
+
+  await step('hive-install', async () => {
+    await openHive('ui-shots Warré');
+    await tap(page.locator('.modal.show [aria-label="Installer une colonie"]'));
+    await page.waitForSelector('.modal.show .modal-title:has-text("Installer une colonie")', { timeout: 15000 });
+    await shotSettled('hive-install', 600);
+    await tap(page.locator('.modal.show button:has-text("Nouvelle colonie")'));
+    await shot('hive-install-new', 500);
+    await escape();
+  });
+
+  await step('hive-form', async () => {
+    await open('/apiaries/hives');
+    await settled(500);
+    await tap(page.locator('[aria-label="Ajouter"]').first());
+    await page.waitForSelector('.modal.show', { timeout: 15000 });
+    await shotSettled('hive-form', 600);
+    await escape();
+  });
+
+  await step('colony-sheet', async () => {
+    await openColony('ui-shots TBH', 'ui-shots A');
+    await shot('colony-sheet', 300);
+    await escape();
+  });
+
+  await step('colony-nucleus', async () => {
+    await openColony('ui-shots nucleus', 'ui-shots C');
+    await shot('colony-nucleus', 300);
+    await escape();
+  });
+
+  for (const [label, action] of [
+    ['colony-split', null], ['colony-swarm', 'Essaimage'], ['colony-transfer', 'Transvaser'], ['colony-end', 'Fin de la colonie'],
+  ]) {
+    await step(label, async () => {
+      await openColony('ui-shots TBH', 'ui-shots A');
+      if (action) await sheetMenu(action);
+      else await tap(page.locator('.modal.show [aria-label="Diviser"]'));
+      await page.waitForTimeout(500);
+      await shotSettled(label, 600);
+      await scrollDown();
+      await shot(`${label}-bottom`, 400);
+      await escape();
+    });
+  }
+
   // Statistics: catalogue, the catches table with its sheets, each table in
   // list and chart view (the export sheet is opened, nothing is emailed)
   await step('stats', async () => {
