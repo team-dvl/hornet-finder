@@ -172,7 +172,7 @@ du système (Android, appli installée). Un lecteur de codes-barres matériel n'
 acquise (bandeau), **« Ma position » est préchoisie** (la personne est devant le piège) et la **précision du GPS** est
 affichée en mètres (`coords.accuracy`). Ordres de grandeur indicatifs d'un smartphone : quelques mètres (≈ 3 à 10 m) en
 extérieur dégagé, 15 à 50 m ou davantage sous couvert végétal ou contre des bâtiments ; l'appareil et la minute comptent.
-**Proposition de seuils, à valider** : jusqu'à 25 m « correcte » ; de 25 à 100 m un avertissement avec le choix d'attendre
+**Seuils (validés, section 9)** : jusqu'à 25 m « correcte » ; de 25 à 100 m un avertissement avec le choix d'attendre
 ou de passer à l'adresse ; au-delà de 100 m, « ma position » seule n'est plus acceptée.
 
 **Étiquette vierge → piège existant** : la liste existante, limitée à **mes** pièges et triée par « sans QR Code » d'abord.
@@ -188,9 +188,7 @@ déjà posée, révoquée, falsifiée, et absence de piège créé en cas de ref
 
 **Limites à connaître.**
 - Résoudre une étiquette et créer un piège exigent le serveur : sans réseau, le message « Impossible de joindre le
-  serveur » existant s'affiche et rien n'est enregistré. Il n'y a pas de file d'attente hors ligne dans cette proposition.
-  Si une part notable des pièges est en zone sans réseau, c'est un frein direct à l'adoption ; je ne peux pas la chiffrer
-  d'ici, elle se mesure pendant le test de la phase 1 (section 8).
+  serveur » existant s'affiche et rien n'est enregistré. La gestion hors ligne est traitée sur une autre branche (section 9, point 8).
 - **Distribution des étiquettes physiques.** Aujourd'hui, une étiquette vierge peut être posée par quiconque la scanne
   (`retrieve` ne regarde pas qui l'a générée) et un `trapper` peut générer et imprimer ses planches (`/admin/tags`,
   48 étiquettes au plus par lot), mais cette page n'est pas dans le mode simple. Comment les étiquettes parviennent-elles
@@ -322,18 +320,21 @@ occasionnels sur la phase 1 donnera un ordre de grandeur plus fiable que n'impor
    - « Onboarding vu » suit le même chemin (second champ ou clé dans le même JSON).
 3. **Signaler un nid** : oui, depuis le profil (maquette H).
 4. **Pas d'historique** (saison de lancement) : les statistiques sont vides au début. Maquette F : état vide qui dit ce qui va
-   apparaître. Le seuil « au moins 3 personnes » pour les chiffres de la communauté est une **proposition de la maquette**,
-   non tranchée : il évite d'exposer les relevés d'une seule personne ; à valider.
+   apparaître. Le seuil « au moins 3 personnes » distinctes (zone et période affichées) pour les chiffres « Tous » est
+   **validé** ; en dessous : « Pas encore assez de piégeurs ici ».
 5. **Délais de rappel** : supposés définis pour les types de piège proposés. À contrôler une fois avant la campagne, pas à
    concevoir.
 6. **QR Codes** (section 4.7, demandé après coup) : scanner accessible en un tap ; étiquette vierge → nouveau piège ou piège
-   existant. **À trancher : la distribution des étiquettes physiques.** Les options (non exclusives) : (a) l'administrateur
-   imprime des planches et les remet (les étiquettes ne sont liées à personne tant qu'elles sont vierges) ; (b) un lien
-   « Imprimer mes étiquettes » dans la feuille profil pour les piégeurs qui ont une imprimante (la page `/admin/tags` leur est
-   déjà ouverte) ; (c) autre canal (association, point de retrait). Je ne sais pas laquelle s'applique à votre campagne.
-   L'option (b) est désormais maquettée (4.8, S) ; elle n'exclut pas (a).
-   Seuils de précision GPS de 4.7 : à valider.
-
+   existant. **Distribution des étiquettes : les trois canaux, cumulés** : planches imprimées et remises par
+   l'administrateur ou l'association, auto-impression d'étiquettes vierges depuis le profil (4.8, S), impression du
+   QR Code d'un piège depuis sa fiche (4.8, P). L'onboarding met donc « Scanner l'étiquette de mon piège » en premier,
+   « Ajouter un piège » ensuite.
+   **Seuils de précision GPS validés** : ≤ 25 m accepté, 25 à 100 m avertissement (attendre ou saisir l'adresse),
+   > 100 m « Ma position » refusée.
 7. **Impression rapide** (section 4.8) : imprimer un QR Code au besoin, depuis la fiche du piège ou le profil.
+8. **Hors ligne** : hors du périmètre de ce document, traité sur une autre branche. Le mode simple garde le comportement
+   actuel (message « Impossible de joindre le serveur »).
+
+Toutes les questions de conception sont tranchées ; reste le contrôle des délais de rappel (point 5) avant la campagne.
 
 Maquettes : `doc/mockups/simple-mode.html` (19 écrans, clair et sombre selon le système ; K à O : scan, P à S : impression).
