@@ -218,7 +218,8 @@ export default function VisitFormModal({ onHide, onSaved, visit = null, apiaryId
           Météo
           <HelpTip id="visit-weather-help" doc="apiaries#visits" title="Météo">
             Le bouton demande à Open-Meteo (données ouvertes) la météo de l'heure de la visite autour du
-            rucher : des valeurs de modèle à environ 1 à 10 km près, pas une mesure sur place. Seule une
+            rucher : des valeurs de modèle à l'heure près, sur une grille de quelques kilomètres (plus
+            grossière pour les dates de plus de 80 jours), pas une mesure sur place. Seule une
             position arrondie au kilomètre est envoyée, par le serveur. Corrigez-les librement.
           </HelpTip>
         </span>

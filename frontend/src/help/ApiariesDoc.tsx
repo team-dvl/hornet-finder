@@ -180,8 +180,9 @@ export default function ApiariesDoc() {
         <p>
           <strong>Météo</strong> : température, vent, couverture nuageuse, pluie et temps général
           (ensoleillé, couvert, averses, orageux…). Le bouton <em>Open-Meteo</em> les remplit pour
-          l'heure de la visite : ce sont les valeurs d'un modèle météo à environ 1 à 10 km près et à
-          l'heure près, pas une mesure au rucher ; corrigez-les si besoin, la visite indique alors
+          l'heure de la visite : ce sont les valeurs d'un modèle météo à l'heure près, sur une grille
+          de quelques kilomètres pour les jours récents et plus grossière (10 à 30 km) au-delà de
+          80 jours, pas une mesure au rucher ; corrigez-les si besoin, la visite indique alors
           qu'elles ont été saisies. Seule une position arrondie au kilomètre part vers Open-Meteo,
           envoyée par notre serveur. Données météo :{' '}
           <a href="https://open-meteo.com" target="_blank" rel="noreferrer">Open-Meteo.com</a> (CC BY 4.0).

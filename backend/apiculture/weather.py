@@ -1,7 +1,9 @@
 """
 The weather at an apiary at a given hour, from Open-Meteo (open data, CC BY
-4.0, no key): https://open-meteo.com. Values of a weather model at about 1 to
-10 km and to the hour, not a measurement on the spot.
+4.0, no key): https://open-meteo.com. Values of weather models to the hour,
+not a measurement on the spot: a grid of a few km for recent days (forecast
+models), coarser for days older than RECENT_DAYS (reanalysis, about 10 to
+30 km).
 
 The server asks, never the browser: the person's IP address stays with us,
 and the position sent is rounded to 0.01° (about 1 km), so the apiary itself
