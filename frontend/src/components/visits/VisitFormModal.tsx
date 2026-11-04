@@ -2,13 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Form, Spinner } from 'react-bootstrap';
 import { useAuth } from 'react-oidc-context';
 import { HelpTip } from '../common';
-import { AppModal, Switch } from '../ui';
+import { AppModal, IconButton, Switch } from '../ui';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import { colonyLabel } from '../../utils/coloniesApi';
 import { fetchHives, hiveErrorOf, hiveLabel, type BarFamily, type PersonSummary } from '../../utils/hivesApi';
 import {
-  KIND_LABELS, blankInspection, createVisit, fetchVisitableApiaries, toLocalInput, updateVisit,
-  type Inspection, type Visit, type VisitKind,
+  KIND_LABELS, WEATHER_LABELS, blankInspection, createVisit, fetchVisitableApiaries, fetchWeather, toLocalInput,
+  updateVisit, type Inspection, type Visit, type VisitKind, type VisitWeather, type WeatherSummary,
 } from '../../utils/visitsApi';
 import InspectionEditor from './InspectionEditor';
 import ParticipantsPicker from './ParticipantsPicker';
@@ -52,6 +52,36 @@ export default function VisitFormModal({ onHide, onSaved, visit = null, apiaryId
     ?? (userGuid ? [{ guid: userGuid, display_name: auth.user?.profile.name ?? 'Moi' }] : []));
   const [guests, setGuests] = useState(visit?.guest_names ?? '');
   const [report, setReport] = useState(visit?.report ?? '');
+  const [weather, setWeather] = useState<VisitWeather>(() => ({
+    weather_temperature: visit?.weather_temperature ?? null,
+    weather_precipitation: visit?.weather_precipitation ?? null,
+    weather_wind: visit?.weather_wind ?? null,
+    weather_cloud_cover: visit?.weather_cloud_cover ?? null,
+    weather_summary: visit?.weather_summary ?? '',
+    weather_source: visit?.weather_source ?? '',
+  }));
+  const [fetchingWeather, setFetchingWeather] = useState(false);
+  // A value typed by hand: the weather no longer reads as Open-Meteo's
+  const setWeatherField = <K extends keyof VisitWeather>(name: K, value: VisitWeather[K]) =>
+    setWeather((current) => ({ ...current, [name]: value, weather_source: '' }));
+  const fillWeather = async () => {
+    if (!apiary || !startedAt) return;
+    setFetchingWeather(true);
+    setError(null);
+    try {
+      const found = await fetchWeather(apiary, new Date(startedAt).toISOString());
+      const text = (value: number | null) => (value === null ? null : String(value));
+      setWeather({
+        weather_temperature: text(found.temperature), weather_precipitation: text(found.precipitation),
+        weather_wind: text(found.wind), weather_cloud_cover: found.cloud_cover, weather_summary: found.summary,
+        weather_source: 'open-meteo',
+      });
+    } catch (weatherError) {
+      setError(hiveErrorOf(weatherError));
+    } finally {
+      setFetchingWeather(false);
+    }
+  };
   // The inspections chosen, by colony (or hive, for a hive without a known colony)
   const [inspections, setInspections] = useState<Record<string, Inspection>>(() => Object.fromEntries(
     (visit?.inspections ?? []).map((inspection) => [keyOf(inspection.hive, inspection.colony), inspection]),
@@ -127,6 +157,7 @@ export default function VisitFormModal({ onHide, onSaved, visit = null, apiaryId
       guest_names: guests.trim(),
       participants: participants.map((person) => person.guid),
       inspections: Object.values(inspections),
+      ...weather,
     };
     try {
       onSaved(visit ? await updateVisit(visit.id, values) : await createVisit({ ...values, apiary }));
@@ -181,6 +212,55 @@ export default function VisitFormModal({ onHide, onSaved, visit = null, apiaryId
             onChange={(event) => setDuration(event.target.value)} />
         </Form.Group>
       </div>
+
+      <div className="d-flex align-items-center mb-1">
+        <span className="obs-label flex-grow-1 d-flex align-items-center">
+          Météo
+          <HelpTip id="visit-weather-help" doc="apiaries#visits" title="Météo">
+            Le bouton demande à Open-Meteo (données ouvertes) la météo de l'heure de la visite autour du
+            rucher : des valeurs de modèle à l'heure près, sur une grille de quelques kilomètres (plus
+            grossière pour les dates de plus de 80 jours), pas une mesure sur place. Seule une
+            position arrondie au kilomètre est envoyée, par le serveur. Corrigez-les librement.
+          </HelpTip>
+        </span>
+        <IconButton variant="outline-secondary" icon="cloud-download" label="Open-Meteo"
+          disabled={saving || fetchingWeather || !apiary} onClick={() => void fillWeather()} />
+      </div>
+      <div className="d-flex gap-2">
+        <Form.Group className="mb-2 flex-fill" controlId="visit-temperature">
+          <Form.Label className="obs-label mb-1">Température (°C)</Form.Label>
+          <Form.Control type="number" inputMode="decimal" step="0.1" value={weather.weather_temperature ?? ''}
+            disabled={saving} onChange={(event) => setWeatherField('weather_temperature', event.target.value || null)} />
+        </Form.Group>
+        <Form.Group className="mb-2 flex-fill" controlId="visit-wind">
+          <Form.Label className="obs-label mb-1">Vent (km/h)</Form.Label>
+          <Form.Control type="number" inputMode="decimal" min={0} step="0.1" value={weather.weather_wind ?? ''}
+            disabled={saving} onChange={(event) => setWeatherField('weather_wind', event.target.value || null)} />
+        </Form.Group>
+      </div>
+      <div className="d-flex gap-2">
+        <Form.Group className="mb-2 flex-fill" controlId="visit-clouds">
+          <Form.Label className="obs-label mb-1">Nuages (%)</Form.Label>
+          <Form.Control type="number" inputMode="numeric" min={0} max={100} value={weather.weather_cloud_cover ?? ''}
+            disabled={saving}
+            onChange={(event) => setWeatherField('weather_cloud_cover', event.target.value === '' ? null : Number(event.target.value))} />
+        </Form.Group>
+        <Form.Group className="mb-2 flex-fill" controlId="visit-rain">
+          <Form.Label className="obs-label mb-1">Pluie (mm)</Form.Label>
+          <Form.Control type="number" inputMode="decimal" min={0} step="0.1" value={weather.weather_precipitation ?? ''}
+            disabled={saving} onChange={(event) => setWeatherField('weather_precipitation', event.target.value || null)} />
+        </Form.Group>
+      </div>
+      <Form.Group className="mb-3" controlId="visit-weather">
+        <Form.Label className="obs-label mb-1">Temps</Form.Label>
+        <Form.Select value={weather.weather_summary} disabled={saving}
+          onChange={(event) => setWeatherField('weather_summary', event.target.value as WeatherSummary)}>
+          <option value="">—</option>
+          {(Object.entries(WEATHER_LABELS) as [WeatherSummary, string][]).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </Form.Select>
+      </Form.Group>
 
       <Form.Group className="mb-3" controlId="visit-title">
         <Form.Label>Intitulé</Form.Label>

@@ -306,9 +306,16 @@ class VisitSerializer(serializers.ModelSerializer):
     class Meta:
         model = Visit
         fields = ['id', 'apiary', 'started_at', 'duration_minutes', 'title', 'kinds', 'report', 'guest_names',
-                  'created_at', 'updated_at']
+                  'weather_temperature', 'weather_precipitation', 'weather_wind', 'weather_cloud_cover',
+                  'weather_summary', 'weather_source', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
-        extra_kwargs = {'duration_minutes': {'min_value': 1, 'max_value': 24 * 60}}
+        extra_kwargs = {
+            'duration_minutes': {'min_value': 1, 'max_value': 24 * 60},
+            'weather_temperature': {'min_value': -40, 'max_value': 50},
+            'weather_precipitation': {'min_value': 0, 'max_value': 500},
+            'weather_wind': {'min_value': 0, 'max_value': 300},
+            'weather_cloud_cover': {'min_value': 0, 'max_value': 100},
+        }
 
     def update(self, instance, validated_data):
         validated_data.pop('id', None)
@@ -323,6 +330,16 @@ class VisitSerializer(serializers.ModelSerializer):
 
     def validate_title(self, value):
         return value.strip()
+
+    def validate_weather_summary(self, value):
+        if value and value not in Visit.WEATHER_SUMMARIES:
+            raise serializers.ValidationError(f"Expected one of {', '.join(Visit.WEATHER_SUMMARIES)}.")
+        return value
+
+    def validate_weather_source(self, value):
+        if value and value not in Visit.WEATHER_SOURCES:
+            raise serializers.ValidationError("Expected 'open-meteo' or nothing.")
+        return value
 
     def validate_guest_names(self, value):
         return value.strip()

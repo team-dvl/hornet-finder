@@ -1,5 +1,6 @@
 import datetime
 import uuid
+from unittest.mock import patch
 
 from django.test import override_settings
 from django.utils import timezone
@@ -166,3 +167,57 @@ class VisitEditTests(VisitTestCase):
         self.assertEqual(event.changes['title'], 'Contrôle')
         self.assertEqual(len(event.changes['inspections']), 2)
         self.assertIn(f'colony:{self.colony.pk}', event.refs)
+
+
+OPEN_METEO_DAY = {
+    'hourly': {
+        'time': [f'2026-05-10T{hour:02d}:00' for hour in range(24)],
+        'temperature_2m': [10 + hour * 0.5 for hour in range(24)],
+        'precipitation': [0.0] * 14 + [1.2] + [0.0] * 9,
+        'cloud_cover': [40] * 24,
+        'wind_speed_10m': [12.5] * 24,
+        'weather_code': [2] * 14 + [95] + [2] * 9,
+    },
+}
+
+
+class VisitWeatherTests(VisitTestCase):
+    def _weather(self, at, user=None):
+        return self._as(user or self.member).get(f'/api/visits/weather/?apiary={self.apiary.pk}&at={at}')
+
+    def test_the_weather_of_the_hour_nearest_the_visit(self):
+        with patch('apiculture.weather._get', return_value=OPEN_METEO_DAY) as get:
+            response = self._weather('2026-05-10T14:20:00Z')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data, {
+            'temperature': 17.0, 'precipitation': 1.2, 'wind': 12.5, 'cloud_cover': 40,
+            'summary': 'thunderstorm', 'hour': '2026-05-10T14:00:00+00:00', 'source': 'open-meteo'})
+        url, params = get.call_args.args
+        # The position goes out rounded (about 1 km): the apiary is not given away
+        self.assertEqual((params['latitude'], params['longitude']), (50.5, 4.5))
+        self.assertEqual((params['start_date'], params['end_date']), ('2026-05-10', '2026-05-10'))
+        with patch('apiculture.weather._get', return_value=OPEN_METEO_DAY):
+            self.assertEqual(self._weather('2026-05-10T14:40:00Z').data['summary'], 'partly_cloudy')
+
+    def test_old_days_come_from_the_archive(self):
+        with patch('apiculture.weather._get', return_value={'hourly': {
+                'time': ['2024-06-01T10:00'], 'temperature_2m': [20.1], 'weather_code': [0]}}) as get:
+            response = self._weather('2024-06-01T10:05:00Z')
+        self.assertEqual(response.data['summary'], 'clear')
+        self.assertIn('archive', get.call_args.args[0])
+
+    def test_no_answer_and_no_access(self):
+        with patch('apiculture.weather._get', side_effect=OSError('unreachable')):
+            self.assertEqual(self._weather('2026-05-10T14:20:00Z').status_code, 503)
+        with patch('apiculture.weather._get', return_value=OPEN_METEO_DAY):
+            self.assertEqual(self._weather('2026-05-10T14:20:00Z', user=self.stranger).status_code, 404)
+            self.assertEqual(self._weather('pas une date').status_code, 400)
+
+    def test_a_visit_keeps_its_weather(self):
+        visit = self._created(weather_temperature='17.5', weather_wind='12.5', weather_cloud_cover=40,
+                              weather_summary='thunderstorm', weather_source='open-meteo')
+        self.assertEqual((float(visit.weather_temperature), visit.weather_summary), (17.5, 'thunderstorm'))
+        self.assertEqual(self._visit(weather_summary='tornado').status_code, 400)
+        self.assertEqual(self._visit(weather_cloud_cover=140).status_code, 400)
+        event = AuditEvent.objects.get(action='apiary_visit.created')
+        self.assertEqual(event.changes['weather_summary'], 'thunderstorm')

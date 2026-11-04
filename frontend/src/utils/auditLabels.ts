@@ -333,6 +333,12 @@ export const FIELD_LABELS: Record<string, string> = {
   report: 'Compte rendu',
   participants: 'Participants',
   inspections: 'Colonies inspectées',
+  weather_temperature: 'Température (°C)',
+  weather_precipitation: 'Pluie (mm)',
+  weather_wind: 'Vent (km/h)',
+  weather_cloud_cover: 'Nuages (%)',
+  weather_summary: 'Temps',
+  weather_source: 'Source de la météo',
 };
 
 /** Labels that differ for one type of object: the owner of a nest follows it, it is no legal owner */
@@ -379,6 +385,11 @@ const VALUE_LABELS: Record<string, Record<string, string>> = {
   },
   end_cause: { died: 'Morte', merged: 'Réunie', absconded: 'Désertée', swarmed: 'Essaimée', unknown: 'Inconnue' },
   queen: { parent: 'Reste dans la colonie', daughter: 'Part avec la division', unknown: 'Inconnu' },
+  weather_summary: {
+    clear: 'Ensoleillé', mostly_clear: 'Plutôt dégagé', partly_cloudy: 'Partiellement nuageux', overcast: 'Couvert',
+    fog: 'Brouillard', drizzle: 'Bruine', rain: 'Pluie', showers: 'Averses', snow: 'Neige', thunderstorm: 'Orageux',
+  },
+  weather_source: { 'open-meteo': 'Open-Meteo', '': 'Saisie' },
   kinds: {
     control: 'Contrôle', feeding: 'Nourrissage', division: 'Division', swarm_catch: "Récolte d'essaim",
     transfer: 'Transvasement', entrance_guard: 'Muselière', other: 'Autre',

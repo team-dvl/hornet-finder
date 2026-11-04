@@ -8,7 +8,7 @@ import { ACTION_ICONS } from '../../utils/icons';
 import { formatDateTime } from '../../utils/format';
 import { hiveErrorOf } from '../../utils/hivesApi';
 import {
-  KIND_LABELS, deleteVisit, deleteVisitPhoto, fetchVisit, inspectionSummary, visitLabel,
+  KIND_LABELS, deleteVisit, deleteVisitPhoto, fetchVisit, inspectionSummary, visitLabel, weatherLine,
   type Visit, type VisitPhoto,
 } from '../../utils/visitsApi';
 import VisitFormModal from './VisitFormModal';
@@ -93,6 +93,11 @@ export default function VisitSheet({ visitId, onHide, onChanged }: VisitSheetPro
             <FieldRow label="Le">{formatDateTime(visit.started_at)}</FieldRow>
             {visit.duration_minutes && <FieldRow label="Durée">{visit.duration_minutes} min</FieldRow>}
             {where && <FieldRow label="Rucher">{where}</FieldRow>}
+            {weatherLine(visit) && (
+              <FieldRow label="Météo">
+                {weatherLine(visit)}{visit.weather_source === 'open-meteo' ? ' (Open-Meteo)' : ''}
+              </FieldRow>
+            )}
             {people.length > 0 && <FieldRow label="Participants">{people.join(', ')}</FieldRow>}
             {visit.kinds.length > 0 && (
               <div className="d-flex flex-wrap gap-1 my-2">

@@ -11,6 +11,15 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ## [Unreleased]
 
 ### Added
+- Visits: the weather (temperature, wind, cloud cover, rain, general weather such as stormy), typed or filled
+  for the hour of the visit from Open-Meteo, asked by the server with the position rounded to about 1 km.
+  `WEATHER_ENABLED=False` in `.env` makes the server decline the lookup where it has no outbound access.
+
+### Changed
+- Colonies: where a division, a swarm or a transfer goes is chosen by hive name and number, without the
+  address of its apiary.
+
+### Added
 - Apiaries: visits (fourth step of the beekeeping module). A "Visites" tab keeps the journal of the
   apiaries; the apiary sheet shows the latest visit and records a new one, the colony sheet lists the visits
   where it was looked at. A visit says when, how long, what was done (control, feeding, division, swarm

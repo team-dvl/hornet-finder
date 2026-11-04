@@ -7,11 +7,13 @@ after the latest visit is the colony's, and eggs seen in a colony raising a
 queen mean the new queen lays (the end of the brood break).
 """
 
+import datetime
 import re
 import uuid
 
 from django.db import transaction
 from django.db.models import Prefetch
+from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import mixins, status, viewsets
@@ -25,13 +27,15 @@ from audit import recorder as audit
 from hornet.group_views import _full_name
 from hornet.images import delete_files, store_photo
 from hornet.invitation_views import _sort_key
-from hornet.models import ApiaryGroupPermission, User
+from hornet.apiary_permissions import READ as APIARY_READ, has_apiary_permission
+from hornet.models import Apiary, ApiaryGroupPermission, User
 from hornet.trap_permissions import local_user
 from hornet.trap_views import _group_choices
 from hornet_finder_api.authentication import HasAnyRole, JWTBearerAuthentication
 
 from . import colony_rules as rules
 from . import permissions as perms
+from . import weather
 from .models import Inspection, Visit, VisitPhoto
 from .serializers import InspectionSerializer, VisitSerializer
 from .views import HiveViewSet, _apiary_label
@@ -368,6 +372,37 @@ class VisitViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.Li
             photo.delete()
         delete_files(photo.image, photo.thumbnail)
         return self._fresh(visit)
+
+    # -- weather -------------------------------------------------------------
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(name='apiary', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, required=True),
+            OpenApiParameter(name='at', type=OpenApiTypes.DATETIME, location=OpenApiParameter.QUERY, required=True),
+        ],
+        responses={200: OpenApiResponse(description='{temperature, precipitation, wind, cloud_cover, summary, hour, source}'),
+                   503: OpenApiResponse(description='Open-Meteo did not answer')},
+    )
+    @action(detail=False, methods=['get'])
+    def weather(self, request):
+        """
+        The weather at an apiary at the hour of a visit, from Open-Meteo: values
+        of a weather model, offered to fill the form (see `weather.py`).
+        """
+        try:
+            apiary = Apiary.objects.get(pk=int(request.query_params.get('apiary', '')))
+            when = datetime.datetime.fromisoformat(request.query_params.get('at', '').replace('Z', '+00:00'))
+        except (ValueError, Apiary.DoesNotExist):
+            raise ValidationError({'detail': "Expected an apiary and a date-time."})
+        if not has_apiary_permission(request, apiary, APIARY_READ):
+            raise NotFound()
+        if timezone.is_naive(when):
+            when = timezone.make_aware(when)
+        try:
+            return Response(weather.at_apiary(apiary.latitude, apiary.longitude, when))
+        except weather.WeatherUnavailable:
+            return Response({'detail': "No weather from Open-Meteo for this hour."},
+                            status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
     # -- participants --------------------------------------------------------
 

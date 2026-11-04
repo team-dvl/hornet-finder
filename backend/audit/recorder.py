@@ -71,7 +71,9 @@ FIELDS = {
     'colony': ['name', 'origin', 'parent', 'hive', 'compartment', 'bars', 'started_on', 'ended_on', 'end_cause',
                'merged_into', 'requeening_since', 'laying_since', 'comments'],
     # Never `guest_names`: the names of people without an account
-    'apiary_visit': ['apiary', 'started_at', 'duration_minutes', 'title', 'kinds', 'report', 'created_by'],
+    'apiary_visit': ['apiary', 'started_at', 'duration_minutes', 'title', 'kinds', 'report', 'weather_temperature',
+                     'weather_precipitation', 'weather_wind', 'weather_cloud_cover', 'weather_summary',
+                     'weather_source', 'created_by'],
     'hive_type': ['slug', 'name', 'description', 'sort_order', 'bar_family', 'max_bars', 'bars_per_box',
                   'max_colonies', 'portable'],
 }

@@ -220,6 +220,7 @@ export function today(): string {
 
 // The server's messages a user may meet, in French
 const MESSAGES: [RegExp, string | ((match: RegExpMatchArray) => string)][] = [
+  [/No weather from Open-Meteo/, "Open-Meteo n'a pas de météo pour cette heure : saisissez-la."],
   [/has taken place: not in the future/, 'Une visite enregistrée ici a eu lieu : pas dans le futur.'],
   [/does not stand in this apiary/, "Une des ruches n'est pas dans ce rucher."],
   [/inspected once per visit/, 'Une colonie ne figure qu\'une fois par visite.'],
