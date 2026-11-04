@@ -285,6 +285,11 @@ class Visit(models.Model):
     STATUS_PLANNED = 'planned'
     STATUS_DONE = 'done'
     STATUSES = [STATUS_PLANNED, STATUS_DONE]
+    # What a planned visit follows up (`planning.py`): the move of a colony out
+    # of its nucleus, or the check that a colony raising a queen lays again
+    FOLLOW_UP_NUCLEUS = 'nucleus_transfer'
+    FOLLOW_UP_LAYING = 'laying_check'
+    FOLLOW_UPS = [FOLLOW_UP_NUCLEUS, FOLLOW_UP_LAYING]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     status = models.CharField(max_length=8, default=STATUS_DONE, db_index=True)
@@ -311,6 +316,9 @@ class Visit(models.Model):
                                    related_name='created_visits')
     # When the reminder of a planned visit went out (`planning.py`); cleared when it moves
     reminded_at = models.DateTimeField(null=True, blank=True)
+    follow_up = models.CharField(max_length=20, blank=True, default='')
+    follow_up_colony = models.ForeignKey('Colony', null=True, blank=True, on_delete=models.SET_NULL,
+                                         related_name='follow_ups')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

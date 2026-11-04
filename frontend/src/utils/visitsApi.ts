@@ -9,6 +9,26 @@ import { fetchApiaryChoices, newHiveId, type ApiaryChoice } from './hivesApi';
  * record its laying.
  */
 
+/** What a planned visit follows up: the move out of a nucleus, or the check that a new queen lays */
+export type FollowUp = 'nucleus_transfer' | 'laying_check';
+
+/** A follow-up visit the server proposes after an event of a colony */
+export interface FollowUpProposal {
+  follow_up: FollowUp;
+  colony: string;
+  colony_label: string;
+  hive: string;
+  hive_label: string;
+  apiary: number;
+  /** ISO date-time: nucleus + 3 days at 7:30, laying + 25 days at 11:00, tomorrow at the earliest */
+  suggested_at: string;
+}
+
+export const FOLLOW_UP_LABELS: Record<FollowUp, string> = {
+  nucleus_transfer: 'Transvasement',
+  laying_check: 'Contrôle de ponte',
+};
+
 /** Planned, then done once it took place (never back) */
 export type VisitStatus = 'planned' | 'done';
 
@@ -66,6 +86,11 @@ export interface VisitPhoto {
 export interface Visit extends VisitWeather {
   id: string;
   status: VisitStatus;
+  follow_up: FollowUp | '';
+  follow_up_colony: {
+    id: string; label: string; ended: boolean; hive: string | null; hive_label: string;
+    in_nucleus: boolean; bars: number | null;
+  } | null;
   apiary: { id: number; name: string; address: string; afsca_number: string } | null;
   /** How the apiary read: all that is left once it is deleted */
   apiary_label: string;
@@ -86,6 +111,10 @@ export interface Visit extends VisitWeather {
 
 export interface VisitValues extends VisitWeather {
   status: VisitStatus;
+  follow_up?: FollowUp;
+  follow_up_colony?: string;
+  /** Doing a nucleus follow-up: where its colony goes */
+  transfer?: { hive: string; compartment: 1 | 2; bars?: number | null };
   apiary?: number;
   started_at: string;
   duration_minutes: number | null;
@@ -264,4 +293,18 @@ export function weatherLine(visit: VisitWeather): string {
     visit.weather_cloud_cover !== null && `nuages ${visit.weather_cloud_cover} %`,
     visit.weather_precipitation !== null && `${number(visit.weather_precipitation)} mm`,
   ].filter(Boolean).join(' · ');
+}
+
+/** Plan the follow-up visit of a proposal, at `at` (ISO), with `participant` (the user). */
+export async function planFollowUp(proposal: FollowUpProposal, at: string, participant: string | null): Promise<Visit> {
+  return createVisit({
+    status: 'planned', apiary: proposal.apiary, started_at: at, duration_minutes: null,
+    title: `${FOLLOW_UP_LABELS[proposal.follow_up]} · ${proposal.colony_label}`.slice(0, 120),
+    kinds: proposal.follow_up === 'nucleus_transfer' ? ['transfer'] : ['control'],
+    report: '', guest_names: '', participants: participant ? [participant] : [],
+    inspections: [blankInspection(proposal.hive, proposal.colony, null)],
+    follow_up: proposal.follow_up, follow_up_colony: proposal.colony,
+    weather_temperature: null, weather_precipitation: null, weather_wind: null, weather_cloud_cover: null,
+    weather_summary: '', weather_source: '',
+  });
 }

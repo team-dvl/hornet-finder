@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, ButtonGroup, Form, Spinner } from 'react-bootstrap';
 import { HelpTip } from '../common';
 import { AppModal } from '../ui';
+import FollowUpProposals from '../visits/FollowUpProposals';
 import {
   colonyLabel, compartmentCapacity, countLabel, countOf, createColony, daysBetween, fetchColonies, transferColony,
   updateColony, type Colony, type NewColonyValues,
@@ -48,6 +49,8 @@ export default function ColonyFormModal({ onHide, onSaved, colony = null, hive, 
   const [candidates, setCandidates] = useState<Colony[] | null>(null);
   const [chosenSource, setChosenSource] = useState<Source | null>(null);
   const [movedId, setMovedId] = useState('');
+  // Saved, with follow-up visits to propose before closing
+  const [result, setResult] = useState<Colony | null>(null);
 
   useEffect(() => {
     if (!creating || !hive) return;
@@ -86,12 +89,17 @@ export default function ColonyFormModal({ onHide, onSaved, colony = null, hive, 
             ...(keepsBars && bars === '' ? {} : { bars: values.bars }),
           })
           : await createColony({ ...values, hive: hive!.id, compartment, origin, started_on: startedOn });
-      onSaved(saved);
+      if (saved.proposals?.length) setResult(saved);
+      else onSaved(saved);
     } catch (submitError) {
       setError(hiveErrorOf(submitError));
       setSaving(false);
     }
   };
+
+  if (result?.proposals?.length) {
+    return <FollowUpProposals proposals={result.proposals} onDone={() => onSaved(result)} />;
+  }
 
   return (
     <AppModal

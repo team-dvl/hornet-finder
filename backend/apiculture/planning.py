@@ -146,3 +146,88 @@ def register() -> None:
     pending.COUNTERS['apiaries'] = due_count
     if not any(name == 'visit reminders' for name, _ in scheduled.JOBS):
         scheduled.JOBS.append(('visit reminders', run))
+
+
+# -- follow-ups ---------------------------------------------------------------
+#
+# Some events call for a visit a few days later; the server proposes it in the
+# answer of the event (`proposals`), the beekeeper confirms or moves it:
+#
+# * a colony put in a nucleus (a portable hive): its transfer to a hive after
+#   `NUCLEUS_DAYS` days of rest, early in the morning (`NUCLEUS_HOUR`);
+# * a colony raising a queen (a division, the part of a swarm that stays): the
+#   check that the new queen lays, `LAYING_CHECK_DAYS` days after. An
+#   emergency queen emerges about 12-16 days after the division, mates 5-10
+#   days later and lays 2-4 days after that: first eggs about 20-30 days on.
+#
+# A follow-up that no longer has a reason to be (the colony left its nucleus
+# another way, ended, or was seen laying) is deleted with the event that made
+# it pointless (`settle`), and the audit trail says why.
+
+NUCLEUS_DAYS = 3
+NUCLEUS_HOUR = (7, 30)
+LAYING_CHECK_DAYS = 25
+LAYING_CHECK_HOUR = (11, 0)
+
+
+def _at(day, hour) -> datetime.datetime:
+    return timezone.make_aware(datetime.datetime.combine(day, datetime.time(*hour)))
+
+
+def _planned_follow_ups(colony, kinds_):
+    return Visit.objects.filter(status=Visit.STATUS_PLANNED, follow_up_colony=colony, follow_up__in=kinds_)
+
+
+def proposals(colonies, day) -> list:
+    """The follow-up visits to propose for `colonies` after an event of `day`."""
+    found = []
+    tomorrow = _at(timezone.localdate() + datetime.timedelta(days=1), NUCLEUS_HOUR)
+    for colony in colonies:
+        if colony is None or colony.ended_on is not None:
+            continue
+        hive = colony.hive
+        apiary = hive.apiary if hive is not None else None
+        if apiary is None:
+            continue
+        base = {'colony': str(colony.pk), 'colony_label': str(colony), 'hive': str(hive.pk),
+                'hive_label': str(hive), 'apiary': apiary.pk}
+        if hive.hive_type.portable and not _planned_follow_ups(colony, [Visit.FOLLOW_UP_NUCLEUS]).exists():
+            at = max(_at(day + datetime.timedelta(days=NUCLEUS_DAYS), NUCLEUS_HOUR), tomorrow)
+            found.append({**base, 'follow_up': Visit.FOLLOW_UP_NUCLEUS, 'suggested_at': at.isoformat()})
+        if (colony.requeening_since and not colony.laying_since
+                and not _planned_follow_ups(colony, [Visit.FOLLOW_UP_LAYING]).exists()):
+            at = _at(colony.requeening_since + datetime.timedelta(days=LAYING_CHECK_DAYS), LAYING_CHECK_HOUR)
+            found.append({**base, 'follow_up': Visit.FOLLOW_UP_LAYING,
+                          'suggested_at': max(at, tomorrow).isoformat()})
+    return found
+
+
+def stale_follow_up(visit) -> str:
+    """Why a planned follow-up no longer has a reason to be, or ''."""
+    colony = visit.follow_up_colony
+    if colony is None or colony.ended_on is not None:
+        return 'colony_ended'
+    if visit.follow_up == Visit.FOLLOW_UP_NUCLEUS and not colony.hive.hive_type.portable:
+        return 'left_nucleus'
+    if visit.follow_up == Visit.FOLLOW_UP_LAYING and colony.laying_since:
+        return 'laying_seen'
+    return ''
+
+
+def settle(request, colony, keep=None) -> int:
+    """Delete the planned follow-ups of `colony` an event made pointless (but `keep`). Returns how many."""
+    from audit import recorder as audit
+    dropped = 0
+    for visit in (Visit.objects.filter(status=Visit.STATUS_PLANNED, follow_up_colony=colony)
+                  .exclude(follow_up='').select_related('follow_up_colony__hive__hive_type')):
+        if keep is not None and visit.pk == keep.pk:
+            continue
+        reason = stale_follow_up(visit)
+        if not reason:
+            continue
+        changes, label, pk = {**audit.snapshot(visit), 'reason': reason}, audit.label_of(visit), visit.pk
+        refs = [audit.ref('colony', colony.pk)] + ([audit.ref('apiary', visit.apiary_id)] if visit.apiary_id else [])
+        visit.delete()
+        audit.record(request, 'apiary_visit.deleted', ('apiary_visit', pk), changes=changes, label=label, refs=refs)
+        dropped += 1
+    return dropped

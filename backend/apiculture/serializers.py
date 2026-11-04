@@ -305,10 +305,12 @@ class VisitSerializer(serializers.ModelSerializer):
     apiary = serializers.PrimaryKeyRelatedField(queryset=Apiary.objects.all(), required=False)
     kinds = serializers.ListField(child=serializers.ChoiceField(choices=Visit.KINDS), required=False)
     status = serializers.ChoiceField(choices=Visit.STATUSES, required=False)
+    follow_up = serializers.ChoiceField(choices=Visit.FOLLOW_UPS, required=False)
+    follow_up_colony = serializers.PrimaryKeyRelatedField(queryset=Colony.objects.all(), required=False)
 
     class Meta:
         model = Visit
-        fields = ['id', 'status', 'apiary', 'started_at', 'duration_minutes', 'title', 'kinds', 'report', 'guest_names',
+        fields = ['id', 'status', 'follow_up', 'follow_up_colony', 'apiary', 'started_at', 'duration_minutes', 'title', 'kinds', 'report', 'guest_names',
                   'weather_temperature', 'weather_precipitation', 'weather_wind', 'weather_cloud_cover',
                   'weather_summary', 'weather_source', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
@@ -322,11 +324,17 @@ class VisitSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         validated_data.pop('id', None)
-        # A visit stays where it took place
+        # A visit stays where it took place, and follows up what it was planned for
         validated_data.pop('apiary', None)
+        validated_data.pop('follow_up', None)
+        validated_data.pop('follow_up_colony', None)
         return super().update(instance, validated_data)
 
     def validate(self, attrs):
+        if self.instance is None and bool(attrs.get('follow_up')) != bool(attrs.get('follow_up_colony')):
+            raise serializers.ValidationError({'follow_up': "A follow-up names its colony, and the reverse."})
+        if self.instance is None and attrs.get('follow_up') and attrs.get('status') != Visit.STATUS_PLANNED:
+            raise serializers.ValidationError({'follow_up': "A follow-up is a planned visit."})
         current = self.instance.status if self.instance is not None else None
         status = attrs.get('status', current or Visit.STATUS_DONE)
         if current == Visit.STATUS_DONE and status == Visit.STATUS_PLANNED:
@@ -358,6 +366,14 @@ class VisitSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         data['apiary'] = _apiary_summary(instance.apiary) if instance.apiary_id else None
         data['apiary_label'] = instance.apiary_label
+        colony = instance.follow_up_colony
+        data['follow_up_colony'] = None if colony is None else {
+            'id': str(colony.pk), 'label': str(colony), 'ended': colony.ended_on is not None,
+            'hive': str(colony.hive_id) if colony.hive_id else None,
+            'hive_label': str(colony.hive) if colony.hive_id else '',
+            'in_nucleus': bool(colony.hive_id and colony.hive.hive_type.portable),
+            'bars': colony.bars,
+        }
         data['created_by'] = user_summary(instance.created_by)
         data['participants'] = [user_summary(user) for user in instance.participants.all()]
         data['inspections'] = InspectionSerializer(instance.inspections.all(), many=True).data

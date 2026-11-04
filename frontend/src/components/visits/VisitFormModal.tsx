@@ -5,9 +5,9 @@ import { HelpTip, MarkdownEditor } from '../common';
 import { AppModal, IconButton, Switch } from '../ui';
 import ApiaryPicker from '../apiaries/ApiaryPicker';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
-import { colonyLabel } from '../../utils/coloniesApi';
+import { colonyLabel, countLabel, countOf, freeCompartments } from '../../utils/coloniesApi';
 import {
-  apiaryLabel, fetchHives, hiveErrorOf, hiveLabel, type ApiaryChoice, type BarFamily, type PersonSummary,
+  apiaryLabel, fetchHives, hiveErrorOf, hiveLabel, type ApiaryChoice, type BarFamily, type Hive, type PersonSummary,
 } from '../../utils/hivesApi';
 import {
   KIND_LABELS, WEATHER_LABELS, blankInspection, createVisit, fetchVisitableApiaries, fetchWeather, toLocalInput,
@@ -116,6 +116,12 @@ export default function VisitFormModal({ onHide, onSaved, visit = null, apiaryId
     (visit?.inspections ?? []).map((inspection) => [keyOf(inspection.hive, inspection.colony), inspection]),
   ));
   const [loadedFor, setLoadedFor] = useState<{ apiary: number; list: Candidate[] } | null>(null);
+  // Doing a nucleus follow-up: the hive its colony goes to, chosen on the day
+  const movesColony = completing && visit?.follow_up === 'nucleus_transfer'
+    && Boolean(visit.follow_up_colony?.in_nucleus) && !visit.follow_up_colony?.ended;
+  const [targets, setTargets] = useState<Hive[] | null>(null);
+  const [targetKey, setTargetKey] = useState('');
+  const [targetBars, setTargetBars] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -147,6 +153,27 @@ export default function VisitFormModal({ onHide, onSaved, visit = null, apiaryId
       .catch((fetchError) => { if (!cancelled) setError(hiveErrorOf(fetchError)); });
     return () => { cancelled = true; };
   }, [apiary]);
+
+  useEffect(() => {
+    if (!movesColony) return;
+    let cancelled = false;
+    fetchHives({ status: 'active' })
+      .then((found) => {
+        if (!cancelled) setTargets(found.filter((hive) => !hive.portable && hive.permissions?.move && freeCompartments(hive).length));
+      })
+      .catch((fetchError) => { if (!cancelled) setError(hiveErrorOf(fetchError)); });
+    return () => { cancelled = true; };
+  }, [movesColony]);
+
+  // Where the colony may go: hives in service with a free compartment, those of this apiary first
+  const destinations = useMemo(() => (targets ?? [])
+    .flatMap((hive) => freeCompartments(hive).map((compartment) => ({
+      key: `${hive.id}:${compartment}`, hive, compartment,
+      label: `${hiveLabel(hive)}${hive.max_colonies > 1 && hive.divider_bar ? ` · compartiment ${compartment}` : ''}`,
+    })))
+    .sort((a, b) => Number(b.hive.apiary?.id === apiary) - Number(a.hive.apiary?.id === apiary)), [targets, apiary]);
+  const destination = destinations.find((item) => item.key === targetKey) ?? destinations[0];
+  const destinationCount = destination ? countLabel(destination.hive.bar_family) : null;
 
   // The living colonies, then those of the visit that no longer live there
   const candidates = useMemo<Candidate[]>(() => {
@@ -188,6 +215,12 @@ export default function VisitFormModal({ onHide, onSaved, visit = null, apiaryId
       participants: participants.map((person) => person.guid),
       inspections: Object.values(inspections),
       ...weather,
+      ...(movesColony && destination ? {
+        transfer: {
+          hive: destination.hive.id, compartment: destination.compartment,
+          ...(targetBars === '' ? {} : { bars: countOf(targetBars) }),
+        },
+      } : {}),
     };
     try {
       onSaved(visit ? await updateVisit(visit.id, values) : await createVisit({ ...values, apiary }));
@@ -210,7 +243,7 @@ export default function VisitFormModal({ onHide, onSaved, visit = null, apiaryId
         : (visit ? 'Modifier la visite' : 'Nouvelle visite')}
       onSubmit={handleSubmit}
       footer={(
-        <Button type="submit" variant="success" disabled={saving || !apiary}>
+        <Button type="submit" variant="success" disabled={saving || !apiary || (movesColony && !destination)}>
           {saving ? <Spinner animation="border" size="sm" className="me-2" /> : <i className="bi bi-check-lg me-2" aria-hidden="true" />}
           Enregistrer
         </Button>
@@ -246,6 +279,38 @@ export default function VisitFormModal({ onHide, onSaved, visit = null, apiaryId
             onChange={(event) => setDuration(event.target.value)} />
         </Form.Group>
       </div>
+
+      {movesColony && visit?.follow_up_colony && (
+        <div className="border rounded px-2 py-2 mb-3">
+          <div className="obs-label mb-1 d-flex align-items-center">
+            Transvasement de {visit.follow_up_colony.label}
+            <HelpTip id="visit-transfer-help" doc="apiaries#planning" title="Transvasement">
+              Enregistrer la visite transvase la colonie du nucleus dans la ruche choisie, à la date de la
+              visite, avec ce qui a été vu d'elle dans le nucleus (barrettes comprises).
+            </HelpTip>
+          </div>
+          {targets === null && !error && <Spinner animation="border" size="sm" />}
+          {targets !== null && destinations.length === 0 && (
+            <p className="text-muted small mb-0">Aucune ruche en service n'a de place libre.</p>
+          )}
+          {destinations.length > 0 && (
+            <Form.Group className="mb-2" controlId="visit-transfer-hive">
+              <Form.Label>Vers la ruche</Form.Label>
+              <Form.Select value={destination?.key ?? ''} disabled={saving} onChange={(event) => setTargetKey(event.target.value)}>
+                {destinations.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
+              </Form.Select>
+            </Form.Group>
+          )}
+          {destinationCount && (
+            <Form.Group className="mb-0" controlId="visit-transfer-bars">
+              <Form.Label>{destinationCount}</Form.Label>
+              <Form.Control type="number" inputMode="numeric" min={0} value={targetBars} disabled={saving}
+                placeholder={visit.follow_up_colony.bars !== null ? String(visit.follow_up_colony.bars) : undefined}
+                onChange={(event) => setTargetBars(event.target.value)} />
+            </Form.Group>
+          )}
+        </div>
+      )}
 
       {!planning && (
         <>

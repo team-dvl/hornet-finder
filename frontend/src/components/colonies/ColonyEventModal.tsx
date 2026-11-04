@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, ButtonGroup, Form, Spinner } from 'react-bootstrap';
 import { HelpTip } from '../common';
 import { AppModal, Switch } from '../ui';
+import FollowUpProposals from '../visits/FollowUpProposals';
 import {
   colonyLabel, compartmentCapacity, countLabel, countOf, endColony, fetchColonies, freeCompartments, recordLaying,
   splitColony, swarmColony, transferColony, type Colony, type ColonyEnd,
@@ -104,6 +105,8 @@ export default function ColonyEventModal({ mode, colony, onHide, onDone }: Colon
   const [mergedInto, setMergedInto] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Done, with follow-up visits to propose before closing
+  const [result, setResult] = useState<Colony | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -166,7 +169,8 @@ export default function ColonyEventModal({ mode, colony, onHide, onDone }: Colon
       } else {
         next = await recordLaying(colony.id, on);
       }
-      onDone(next);
+      if (next.proposals?.length) setResult(next);
+      else onDone(next);
     } catch (submitError) {
       setError(hiveErrorOf(submitError));
       setSaving(false);
@@ -201,6 +205,10 @@ export default function ColonyEventModal({ mode, colony, onHide, onDone }: Colon
         disabled={saving} onChange={(event) => setBars(event.target.value)} />
     </Form.Group>
   );
+
+  if (result?.proposals?.length) {
+    return <FollowUpProposals proposals={result.proposals} onDone={() => onDone(result)} />;
+  }
 
   return (
     <AppModal

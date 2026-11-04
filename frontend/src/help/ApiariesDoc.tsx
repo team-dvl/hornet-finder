@@ -227,6 +227,29 @@ export default function ApiariesDoc() {
           visite saisie directement ; une visite faite ne redevient pas prévue. Une visite prévue ne
           change rien aux colonies. Pour l'annuler, supprimez-la.
         </p>
+        <p>
+          Certains événements appellent une visite quelques jours plus tard ; l'application la
+          propose aussitôt, à confirmer ou décaler (fermer la fenêtre n'en prévoit aucune) :
+        </p>
+        <ul>
+          <li>
+            une colonie mise dans un <strong>nucleus</strong> (transvasement, division, essaim
+            récolté, installation) : son <strong>transvasement</strong> 3 jours plus tard à 7 h 30.
+            Le jour venu, « Réaliser » demande la ruche de destination et y transvase la colonie en
+            enregistrant la visite ;
+          </li>
+          <li>
+            une colonie qui élève une reine (division, partie restée après un essaimage) : un
+            {' '}<strong>contrôle de ponte</strong> 25 jours plus tard à 11 h. Une reine d'élevage naît
+            12 à 16 jours après la division, se fait féconder 5 à 10 jours plus tard et pond 2 à 4
+            jours après : les premiers œufs vers 20 à 30 jours. Des œufs vus enregistrent la ponte.
+          </li>
+        </ul>
+        <p>
+          Une visite de suivi devenue sans objet est supprimée d'office, avec une trace dans le
+          journal d'audit : la colonie a quitté le nucleus autrement, sa ponte a été notée, ou elle a
+          disparu.
+        </p>
         <p className="mb-0">
           Un <strong>rappel</strong> (notification) part la veille à partir de 18 h vers l'auteur et les
           participants qui ont activé « Rappels de visites prévues » dans le module Notifications,

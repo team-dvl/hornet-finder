@@ -1,4 +1,5 @@
 import api from './api';
+import type { FollowUpProposal } from './visitsApi';
 import {
   newHiveId, type ApiarySummary, type BarFamily, type ColonyOrigin, type ColonySummary, type Hive, type HiveStatus,
 } from './hivesApi';
@@ -23,6 +24,8 @@ export interface ColonyHive {
 }
 
 export interface Colony extends ColonySummary {
+  /** After an event: the follow-up visits the server proposes (nucleus transfer, laying check) */
+  proposals?: FollowUpProposal[];
   end_cause: ColonyEnd | '';
   comments: string;
   created_at: string;

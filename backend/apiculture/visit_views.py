@@ -37,7 +37,8 @@ from . import colony_rules as rules
 from . import permissions as perms
 from . import planning
 from . import weather
-from .models import Inspection, Visit, VisitPhoto
+from .colony_views import transfer_colony
+from .models import Hive, Inspection, Visit, VisitPhoto
 from .serializers import InspectionSerializer, VisitSerializer
 from .views import HiveViewSet, _apiary_label
 
@@ -251,6 +252,7 @@ class VisitViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.Li
                 colony.laying_since = day
                 colony.save(update_fields=['laying_since', 'updated_at'])
                 tracked.refs = [audit.ref('apiary_visit', visit.pk), audit.ref('hive', colony.hive_id)]
+            planning.settle(request, colony, keep=visit)
 
     @extend_schema(
         request={'application/json': {'type': 'object', 'properties': {
@@ -282,6 +284,11 @@ class VisitViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.Li
             raise ValidationError({'apiary': "This field is required."})
         if not perms.can_record_visit(request, apiary):
             raise PermissionDenied("You cannot record a visit to this apiary.")
+        colony = serializer.validated_data.get('follow_up_colony')
+        if colony is not None and (colony.ended_on is not None or colony.hive is None
+                                   or colony.hive.apiary_id != apiary.pk
+                                   or not perms.can_tend_hive(request, colony.hive)):
+            raise ValidationError({'follow_up_colony': "Expected a living colony you tend, in this apiary."})
         participants = self._participants(request.data.get('participants', []))
         with transaction.atomic():
             visit = serializer.save(created_by=local_user(request), apiary_label=_apiary_label(apiary))
@@ -306,6 +313,7 @@ class VisitViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.Li
         before = [_inspection_summary(i) for i in visit.inspections.all()]
         completing = (visit.status == Visit.STATUS_PLANNED
                       and serializer.validated_data.get('status') == Visit.STATUS_DONE)
+        transfer = self._follow_up_transfer(request, visit) if completing else None
         moved = 'started_at' in serializer.validated_data and serializer.validated_data['started_at'] != visit.started_at
         code = 'apiary_visit.completed' if completing else 'apiary_visit.updated'
         with audit.track(request, code, visit) as tracked:
@@ -325,8 +333,42 @@ class VisitViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.Li
                 for inspection in visit.inspections.select_related('colony', 'colony__hive'):
                     if inspection.colony_id:
                         self._update_colony(request, visit, inspection)
+            if transfer is not None:
+                # The visit that follows a nucleus moves its colony, after what was seen of it there
+                colony, target, compartment, bars = transfer
+                colony.refresh_from_db()
+                transfer_colony(request, colony, target, compartment, bars,
+                                timezone.localtime(visit.started_at).date(), keep=visit)
             tracked.refs = _visit_refs(visit, visit.inspections.all())
         return self._fresh(visit)
+
+    def _follow_up_transfer(self, request, visit):
+        """
+        The move a visit following a nucleus makes when done: `transfer`
+        {hive, compartment, bars}, required while its colony is still in the
+        nucleus. None for any other visit.
+        """
+        colony = visit.follow_up_colony
+        if visit.follow_up != Visit.FOLLOW_UP_NUCLEUS or colony is None or colony.ended_on is not None:
+            return None
+        if not colony.hive.hive_type.portable:
+            return None
+        sent = request.data.get('transfer')
+        if not isinstance(sent, dict) or not sent.get('hive'):
+            raise ValidationError({'transfer': "Choose the hive the colony goes to."})
+        try:
+            target = Hive.objects.select_related('hive_type', 'apiary', 'owner_group').get(pk=uuid.UUID(str(sent['hive'])))
+        except (ValueError, Hive.DoesNotExist):
+            raise ValidationError({'transfer': "Unknown hive."})
+        if not perms.can_tend_hive(request, target) or target.status != Hive.STATUS_ACTIVE:
+            raise ValidationError({'transfer': "Expected a hive in service you tend."})
+        if not perms.can_tend_hive(request, colony.hive):
+            raise PermissionDenied("You cannot move this colony.")
+        try:
+            compartment = int(sent.get('compartment') or 1)
+        except (TypeError, ValueError):
+            raise ValidationError({'transfer': "Expected compartment 1 or 2."})
+        return colony, target, compartment, sent.get('bars')
 
     def destroy(self, request, *args, **kwargs):
         visit = self.get_object()

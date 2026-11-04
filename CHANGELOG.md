@@ -11,6 +11,12 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ## [Unreleased]
 
 ### Added
+- Apiaries: follow-up visits. A colony put in a nucleus gets its transfer proposed 3 days later at 7:30; a
+  colony raising a queen (a division, what stays after a swarm) a laying check 25 days later at 11:00 (first
+  eggs come about 20-30 days after a division). Each is confirmed or moved at once; on the day, "Réaliser"
+  of the transfer asks for the hive and moves the colony with the report. A follow-up with no reason left
+  (the colony left the nucleus another way, was seen laying, or ended) is deleted, with its reason in the
+  audit trail.
 - Apiaries: planned visits (fifth step of the beekeeping module). The Visits tab opens on "À venir": the
   planned visits, soonest first, late ones marked; "Prévoir" plans one (apiary, day and time, tomorrow 9 h by
   default, what to do, participants, notes), also from the apiary sheet, which shows the next one. On the

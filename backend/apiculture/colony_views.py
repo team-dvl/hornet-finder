@@ -21,6 +21,7 @@ from hornet_finder_api.authentication import HasAnyRole, JWTBearerAuthentication
 
 from . import colony_rules as rules
 from . import permissions as perms
+from . import planning
 from .models import Colony, ColonyOccupancy, Hive
 from .serializers import ColonySerializer
 from .views import _DAY_PARAM, _day
@@ -67,6 +68,28 @@ def _colony_refs(colony) -> list:
 _COLONY_ACTION = {'type': 'object'}
 
 
+def transfer_colony(request, colony, target, compartment, sent_bars, day, keep=None):
+    """
+    Move a living colony to another hive or compartment, audited (inside the
+    caller's transaction): its bars follow within a family of bars, else they
+    are counted again (`sent_bars`). Follow-ups it makes pointless go (`keep` stays).
+    """
+    if target.pk == colony.hive_id and compartment == colony.compartment:
+        raise ValidationError({'hive': "The colony already lives there."})
+    bars = (_count(sent_bars) if sent_bars not in (None, '')
+            else rules.bars_after_transfer(colony.hive, target, colony.bars))
+    previous = colony.hive
+    with audit.track(request, 'colony.transferred', colony, fields=['hive', 'compartment', 'bars']) as tracked:
+        rules.check_place(target, compartment, bars, exclude=[colony])
+        colony.bars = bars
+        rules.relocate(colony, target, compartment, day)
+        tracked.extra = {'on': day.isoformat()}
+        tracked.refs = [audit.ref('hive', previous.pk), audit.ref('hive', target.pk)]
+        if target.apiary_id:
+            tracked.refs.append(audit.ref('apiary', target.apiary_id))
+    planning.settle(request, colony, keep=keep)
+
+
 class ColonyViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.ListModelMixin,
                     mixins.DestroyModelMixin, viewsets.GenericViewSet):
     """
@@ -101,10 +124,16 @@ class ColonyViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.L
             raise NotFound()
         return colony
 
-    def _fresh(self, colony, status_code=status.HTTP_200_OK):
+    def _fresh(self, colony, status_code=status.HTTP_200_OK, follow=None, day=None):
+        """The colony as it is now; with `follow`, the follow-up visits to propose for those colonies."""
         colony = self.get_queryset().get(pk=colony.pk)
         context = {**self.get_serializer_context(), 'with_history': True}
-        return Response(ColonySerializer(colony, context=context).data, status=status_code)
+        data = ColonySerializer(colony, context=context).data
+        if follow is not None:
+            fresh = [Colony.objects.select_related('hive__hive_type', 'hive__apiary').filter(pk=c.pk).first()
+                     for c in follow if c is not None]
+            data['proposals'] = planning.proposals(fresh, day)
+        return Response(data, status=status_code)
 
     def _hive(self, hive_id, field='hive'):
         """A hive the requester tends, to put a colony in."""
@@ -197,7 +226,7 @@ class ColonyViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.L
                             created_by=local_user(request))
             rules.install(colony, hive, compartment, day)
             audit.record(request, 'colony.created', colony, changes=audit.snapshot(colony))
-        return self._fresh(colony, status.HTTP_201_CREATED)
+        return self._fresh(colony, status.HTTP_201_CREATED, follow=[colony], day=day)
 
     def partial_update(self, request, *args, **kwargs):
         colony = self.get_object()
@@ -293,7 +322,7 @@ class ColonyViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.L
                 'on': day.isoformat(), 'daughter': str(daughter.pk), 'hive': str(target.pk),
                 'compartment': compartment, 'bars': bars, 'queen': queen,
             }, refs=_colony_refs(parent) + [audit.ref('colony', daughter.pk), audit.ref('hive', target.pk)])
-        return self._fresh(parent)
+        return self._fresh(parent, follow=[parent, daughter], day=day)
 
     @extend_schema(
         request={'application/json': {'type': 'object', 'properties': {
@@ -321,6 +350,7 @@ class ColonyViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.L
         if caught is not None and not isinstance(caught, dict):
             raise ValidationError({'caught': "Expected the hive the swarm was put in."})
         hive, compartment, bars = swarmed.hive, swarmed.compartment, swarmed.bars
+        swarm = None
 
         with transaction.atomic():
             rules.end(swarmed, day, Colony.END_SWARMED)
@@ -343,7 +373,8 @@ class ColonyViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.L
                 changes['caught'] = str(swarm.pk)
                 refs += [audit.ref('colony', swarm.pk), audit.ref('hive', target.pk)]
             audit.record(request, 'colony.swarmed', swarmed, changes=changes, refs=refs)
-        return self._fresh(stayed)
+            planning.settle(request, swarmed)
+        return self._fresh(stayed, follow=[stayed, swarm if caught is not None else None], day=day)
 
     @extend_schema(
         request={'application/json': {'type': 'object', 'properties': {
@@ -366,18 +397,9 @@ class ColonyViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.L
         compartment = _compartment(request.data.get('compartment'))
         if target.pk == colony.hive_id and compartment == colony.compartment:
             raise ValidationError({'hive': "The colony already lives there."})
-        sent = request.data.get('bars')
-        bars = _count(sent) if sent not in (None, '') else rules.bars_after_transfer(colony.hive, target, colony.bars)
-        previous = colony.hive
-        with audit.track(request, 'colony.transferred', colony, fields=['hive', 'compartment', 'bars']) as tracked:
-            rules.check_place(target, compartment, bars, exclude=[colony])
-            colony.bars = bars
-            rules.relocate(colony, target, compartment, day)
-            tracked.extra = {'on': day.isoformat()}
-            tracked.refs = [audit.ref('hive', previous.pk), audit.ref('hive', target.pk)]
-            if target.apiary_id:
-                tracked.refs.append(audit.ref('apiary', target.apiary_id))
-        return self._fresh(colony)
+        with transaction.atomic():
+            transfer_colony(request, colony, target, compartment, request.data.get('bars'), day)
+        return self._fresh(colony, follow=[colony], day=day)
 
     @extend_schema(
         request={'application/json': {'type': 'object', 'properties': {
@@ -406,6 +428,7 @@ class ColonyViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.L
                          fields=['ended_on', 'end_cause', 'merged_into']) as tracked:
             rules.end(colony, day, cause, merged_into)
             tracked.refs = _colony_refs(colony) + ([audit.ref('colony', merged_into.pk)] if merged_into else [])
+            planning.settle(request, colony)
         return self._fresh(colony)
 
     @extend_schema(request={'application/json': {'type': 'object', 'properties': {'on': _DAY_PARAM}}},
@@ -424,4 +447,5 @@ class ColonyViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.L
             colony.laying_since = day
             colony.save(update_fields=['laying_since', 'updated_at'])
             tracked.refs = _colony_refs(colony)
+            planning.settle(request, colony)
         return self._fresh(colony)
