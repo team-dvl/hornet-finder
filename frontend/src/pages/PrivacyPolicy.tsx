@@ -93,8 +93,10 @@ export default function PrivacyPolicy() {
               Ces services reçoivent votre adresse IP et la zone de carte consultée. La recherche
               d'une adresse passe par Nominatim (OpenStreetMap) et ne reçoit que le texte cherché.
               Si vous ouvrez l'aide « Serveur injoignable », le service ipify est interrogé pour
-              afficher l'adresse IP publique de votre appareil. Nous n'envoyons à ces services
-              aucun identifiant de compte.
+              afficher l'adresse IP publique de votre appareil. Quand vous demandez la météo d'une
+              visite de rucher, c'est notre serveur, non votre appareil, qui interroge Open-Meteo :
+              il ne transmet que la date, l'heure et une position arrondie au kilomètre. Nous
+              n'envoyons à ces services aucun identifiant de compte.
             </p>
             <p>
               Nous ne vendons, ne louons ni ne partageons vos données personnelles à des fins 

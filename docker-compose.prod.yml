@@ -62,6 +62,8 @@ services:
       - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:contact@velutina.ovh}
       - PUSH_HISTORY_DAYS=${PUSH_HISTORY_DAYS:-90}
       - PUSH_DEVICE_IDLE_DAYS=${PUSH_DEVICE_IDLE_DAYS:-183}
+      # Weather of the visits from Open-Meteo (needs outbound HTTPS to *.open-meteo.com)
+      - WEATHER_ENABLED=${WEATHER_ENABLED:-True}
       - KC_INTERNAL_URL=http://hornet-finder-keycloak:8080/
       - KC_REALM=hornet-finder
       # OVH MX Plan: implicit TLS on 465, authenticated with a full mailbox

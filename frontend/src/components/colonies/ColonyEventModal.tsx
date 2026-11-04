@@ -7,7 +7,7 @@ import {
   splitColony, swarmColony, transferColony, type Colony, type ColonyEnd,
 } from '../../utils/coloniesApi';
 import {
-  apiaryLabel, fetchHives, hiveErrorOf, hiveLabel, today, type Hive,
+  fetchHives, hiveErrorOf, hiveLabel, today, type Hive,
 } from '../../utils/hivesApi';
 
 export type ColonyEventMode = 'split' | 'swarm' | 'transfer' | 'end' | 'laying';
@@ -63,11 +63,11 @@ function placesIn(hives: Hive[], colony: Colony, dividerMayBePut: boolean): Plac
       ? [(3 - colony.compartment) as 1 | 2].filter((c) => !hive.colonies.some((other) => other.compartment === c))
       : freeCompartments(hive);
     for (const compartment of free) {
-      const where = hive.apiary ? ` · ${apiaryLabel(hive.apiary)}` : '';
       const side = hive.max_colonies > 1 && (hive.divider_bar || same) ? ` · compartiment ${compartment}` : '';
       places.push({
         key: `${hive.id}:${compartment}`, hive, compartment,
-        label: same ? `Même ruche, compartiment ${compartment}` : `${hiveLabel(hive)}${side}${where}`,
+        // Named by the hive (name and number), never by the address of its apiary
+        label: same ? `Même ruche, compartiment ${compartment}` : `${hiveLabel(hive)}${side}`,
       });
     }
   }

@@ -177,6 +177,15 @@ export default function ApiariesDoc() {
           {' '}<strong>œufs vus</strong> dans une colonie qui élève une reine enregistrent sa
           ponte : la rupture de ponte se termine ce jour-là.
         </p>
+        <p>
+          <strong>Météo</strong> : température, vent, couverture nuageuse, pluie et temps général
+          (ensoleillé, couvert, averses, orageux…). Le bouton <em>Open-Meteo</em> les remplit pour
+          l'heure de la visite : ce sont les valeurs d'un modèle météo à environ 1 à 10 km près et à
+          l'heure près, pas une mesure au rucher ; corrigez-les si besoin, la visite indique alors
+          qu'elles ont été saisies. Seule une position arrondie au kilomètre part vers Open-Meteo,
+          envoyée par notre serveur. Données météo :{' '}
+          <a href="https://open-meteo.com" target="_blank" rel="noreferrer">Open-Meteo.com</a> (CC BY 4.0).
+        </p>
         <p className="mb-0">
           <strong>Participants</strong> : les membres de vos associations ; ils voient la visite et
           peuvent la compléter. Les personnes sans compte se nomment en texte libre, sans jamais

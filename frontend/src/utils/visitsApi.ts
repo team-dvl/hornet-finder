@@ -15,6 +15,18 @@ export type Activity = '' | 'low' | 'normal' | 'high';
 export type Hornets = '' | 'none' | 'few' | 'many';
 export type Feeding = '' | 'syrup' | 'candy' | 'other';
 export type FeedingUnit = '' | 'l' | 'kg';
+export type WeatherSummary = '' | 'clear' | 'mostly_clear' | 'partly_cloudy' | 'overcast' | 'fog' | 'drizzle'
+  | 'rain' | 'showers' | 'snow' | 'thunderstorm';
+
+/** The weather of a visit: typed, or filled from Open-Meteo (`source`) */
+export interface VisitWeather {
+  weather_temperature: string | null;
+  weather_precipitation: string | null;
+  weather_wind: string | null;
+  weather_cloud_cover: number | null;
+  weather_summary: WeatherSummary;
+  weather_source: '' | 'open-meteo';
+}
 
 export interface Inspection {
   id?: number;
@@ -48,7 +60,7 @@ export interface VisitPhoto {
   created_at: string;
 }
 
-export interface Visit {
+export interface Visit extends VisitWeather {
   id: string;
   apiary: { id: number; address: string; afsca_number: string } | null;
   /** How the apiary read: all that is left once it is deleted */
@@ -68,7 +80,7 @@ export interface Visit {
   permissions?: { edit: boolean };
 }
 
-export interface VisitValues {
+export interface VisitValues extends VisitWeather {
   apiary?: number;
   started_at: string;
   duration_minutes: number | null;
@@ -94,6 +106,11 @@ export const KIND_LABELS: Record<VisitKind, string> = {
   transfer: 'Transvasement',
   entrance_guard: 'Muselière',
   other: 'Autre',
+};
+
+export const WEATHER_LABELS: Record<Exclude<WeatherSummary, ''>, string> = {
+  clear: 'Ensoleillé', mostly_clear: 'Plutôt dégagé', partly_cloudy: 'Partiellement nuageux', overcast: 'Couvert',
+  fog: 'Brouillard', drizzle: 'Bruine', rain: 'Pluie', showers: 'Averses', snow: 'Neige', thunderstorm: 'Orageux',
 };
 
 export const TEMPER_LABELS: Record<Exclude<Temper, ''>, string> = {
@@ -214,4 +231,31 @@ export function inspectionSummary(inspection: Inspection): string[] {
   }
   if (inspection.bars !== null) parts.push(`${inspection.bars} ${inspection.bar_family === 'warre' ? 'éléments' : 'barrettes'}`);
   return parts.filter(Boolean);
+}
+
+export interface FetchedWeather {
+  temperature: number | null;
+  precipitation: number | null;
+  wind: number | null;
+  cloud_cover: number | null;
+  summary: WeatherSummary;
+  /** The hour the values are of (UTC, ISO) */
+  hour: string;
+}
+
+/** The weather at the apiary at the hour of the visit, from Open-Meteo (asked by the server). */
+export async function fetchWeather(apiary: number, at: string): Promise<FetchedWeather> {
+  return (await api.get('/visits/weather/', { params: { apiary, at } })).data;
+}
+
+/** The weather of a visit in one line: « 17 °C · Orageux · vent 12 km/h · nuages 40 % · 1,2 mm ». */
+export function weatherLine(visit: VisitWeather): string {
+  const number = (value: string | number) => Number(value).toLocaleString('fr-BE', { maximumFractionDigits: 1 });
+  return [
+    visit.weather_temperature !== null && `${number(visit.weather_temperature)} °C`,
+    visit.weather_summary && WEATHER_LABELS[visit.weather_summary],
+    visit.weather_wind !== null && `vent ${number(visit.weather_wind)} km/h`,
+    visit.weather_cloud_cover !== null && `nuages ${visit.weather_cloud_cover} %`,
+    visit.weather_precipitation !== null && `${number(visit.weather_precipitation)} mm`,
+  ].filter(Boolean).join(' · ');
 }

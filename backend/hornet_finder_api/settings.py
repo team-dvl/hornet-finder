@@ -295,4 +295,7 @@ PUSH_SYNC = False
 PUSH_HISTORY_DAYS = int(os.environ.get('PUSH_HISTORY_DAYS') or 90)
 PUSH_DEVICE_IDLE_DAYS = int(os.environ.get('PUSH_DEVICE_IDLE_DAYS') or 183)
 # Retention (scheduler): archived hornets and nests are deleted this long after they were reported (5 years)
+# Weather of the visits from Open-Meteo (apiculture/weather.py); off without outbound access
+WEATHER_ENABLED = os.environ.get('WEATHER_ENABLED', 'True').lower() == 'true'
+
 OBSERVATIONS_RETENTION_DAYS = int(os.environ.get('OBSERVATIONS_RETENTION_DAYS') or 1826)

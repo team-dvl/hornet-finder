@@ -269,6 +269,10 @@ class Visit(models.Model):
     KIND_OTHER = 'other'
     KINDS = [KIND_CONTROL, KIND_FEEDING, KIND_DIVISION, KIND_SWARM_CATCH, KIND_TRANSFER,
              KIND_ENTRANCE_GUARD, KIND_OTHER]
+    # The general weather, as the WMO codes of Open-Meteo group it (`weather.py`)
+    WEATHER_SUMMARIES = ['clear', 'mostly_clear', 'partly_cloudy', 'overcast', 'fog', 'drizzle', 'rain',
+                         'showers', 'snow', 'thunderstorm']
+    WEATHER_SOURCES = ['open-meteo']
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     # Kept as a label when the apiary is deleted afterwards
@@ -280,6 +284,14 @@ class Visit(models.Model):
     title = models.CharField(max_length=120, blank=True, default='')
     kinds = models.JSONField(default=list, blank=True)
     report = models.TextField(blank=True, default='')
+    # The weather during the visit: typed, or filled from Open-Meteo (`weather.py`)
+    weather_temperature = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)  # °C
+    weather_precipitation = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)  # mm in the hour
+    weather_wind = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)  # km/h at 10 m
+    weather_cloud_cover = models.PositiveSmallIntegerField(null=True, blank=True)  # %
+    weather_summary = models.CharField(max_length=16, blank=True, default='')
+    # 'open-meteo' when the values came from it unchanged, '' when typed
+    weather_source = models.CharField(max_length=16, blank=True, default='')
     participants = models.ManyToManyField('hornet.User', blank=True, related_name='visits')
     guest_names = models.CharField(max_length=255, blank=True, default='')
     created_by = models.ForeignKey('hornet.User', null=True, blank=True, on_delete=models.SET_NULL,
