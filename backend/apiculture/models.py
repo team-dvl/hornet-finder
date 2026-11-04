@@ -281,8 +281,13 @@ class Visit(models.Model):
     WEATHER_SUMMARIES = ['clear', 'mostly_clear', 'partly_cloudy', 'overcast', 'fog', 'drizzle', 'rain',
                          'showers', 'snow', 'thunderstorm']
     WEATHER_SOURCES = ['open-meteo']
+    # Planned, then done once it took place (never back): only done visits tell of the colonies
+    STATUS_PLANNED = 'planned'
+    STATUS_DONE = 'done'
+    STATUSES = [STATUS_PLANNED, STATUS_DONE]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    status = models.CharField(max_length=8, default=STATUS_DONE, db_index=True)
     # Kept as a label when the apiary is deleted afterwards
     apiary = models.ForeignKey('hornet.Apiary', null=True, blank=True, on_delete=models.SET_NULL,
                                related_name='visits')
@@ -304,6 +309,8 @@ class Visit(models.Model):
     guest_names = models.CharField(max_length=255, blank=True, default='')
     created_by = models.ForeignKey('hornet.User', null=True, blank=True, on_delete=models.SET_NULL,
                                    related_name='created_visits')
+    # When the reminder of a planned visit went out (`planning.py`); cleared when it moves
+    reminded_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

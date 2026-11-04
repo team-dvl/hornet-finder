@@ -10,8 +10,9 @@ tab always agree:
   the active ones near the requester's apiaries ("À traiter").
 
 A module with nothing that can wait for anyone has no entry. A new module
-whose users may have something to do adds its function to `COUNTERS`, and
-the frontend shows it (`utils/pending.ts`).
+whose users may have something to do adds its function to `COUNTERS` (another
+app in its `AppConfig.ready()`, as `apiculture` does for `apiaries`), and the
+frontend shows it (`utils/pending.ts`).
 """
 
 from django.contrib.gis.measure import D

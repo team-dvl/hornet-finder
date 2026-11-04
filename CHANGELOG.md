@@ -11,6 +11,14 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ## [Unreleased]
 
 ### Added
+- Apiaries: planned visits (fifth step of the beekeeping module). The Visits tab opens on "À venir": the
+  planned visits, soonest first, late ones marked; "Prévoir" plans one (apiary, day and time, tomorrow 9 h by
+  default, what to do, participants, notes), also from the apiary sheet, which shows the next one. On the
+  day, "Réaliser" in its sheet opens its report; done, it joins the journal and updates the colonies (a
+  planned visit leaves them alone, and a done one is never planned again). A push reminder ("Rappels de
+  visites prévues") goes to its author and participants the day before from 18 h, never between 21 h and
+  7 h, naming the apiary, never its address. The red count of the module counts the visits planned today
+  or late one takes part in, on its tile, its menu entry and the Visits tab.
 - Hives: a photo, set or replaced from the hive form and removed from the enlarged view; it heads the hive
   sheet and stands for the hive icon in the lists. It is seen by whoever sees the hive.
 - Apiaries: an optional name ("Verger", "Fond du jardin"), shown before the address in the lists and the
@@ -61,6 +69,7 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 - Administration: the hive types (bars, colonies held), for the platform admins.
 
 ### Fixed
+- Visits: the date and the duration of the visit form no longer overflow the form on a phone.
 - Photos: picking photos again adds them to those already chosen instead of replacing them (visits, nest
   reports and events, trap readings), up to the 10 per sending the server takes; each thumbnail has its own
   remove button. Every photo control of the app goes through the same picker, which downscales the

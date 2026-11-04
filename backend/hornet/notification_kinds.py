@@ -21,6 +21,8 @@ NEST_FOLLOWUP = 'nest_followup'
 # A message to one's own devices: never filtered
 TEST = 'test'
 
+# Other apps add their kinds to KINDS, and to CONCERNS when a kind is not for
+# everyone, in their `AppConfig.ready()` (see `apiculture/apps.py`)
 KINDS = {
     TRAP_READING: "Rappels de relevé",
     TRAP_REFILL: "Rappels d'attractif",
@@ -31,6 +33,9 @@ KINDS = {
     GROUP_MESSAGE: "Messages de mon groupe",
     PLATFORM_MESSAGE: "Messages de la plateforme",
 }
+
+# kind -> function(user) -> bool: who the Notifications module lists the kind to
+CONCERNS = {}
 
 PLATFORM_ADMINS = '/admins'
 HUNTER_COORDINATORS = '/hunters/admin'
@@ -67,6 +72,8 @@ def concerns(user, kind: str) -> bool:
         return is_nest_coordinator(user) or is_beekeeper(user)
     if kind == NEST_NEAR_APIARY:
         return is_beekeeper(user)
+    if kind in CONCERNS:
+        return CONCERNS[kind](user)
     return True
 
 

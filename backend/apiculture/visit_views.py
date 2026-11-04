@@ -35,6 +35,7 @@ from hornet_finder_api.authentication import HasAnyRole, JWTBearerAuthentication
 
 from . import colony_rules as rules
 from . import permissions as perms
+from . import planning
 from . import weather
 from .models import Inspection, Visit, VisitPhoto
 from .serializers import InspectionSerializer, VisitSerializer
@@ -118,11 +119,22 @@ class VisitViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.Li
         OpenApiParameter(name='apiary', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, required=False),
         OpenApiParameter(name='hive', type=OpenApiTypes.UUID, location=OpenApiParameter.QUERY, required=False),
         OpenApiParameter(name='colony', type=OpenApiTypes.UUID, location=OpenApiParameter.QUERY, required=False),
+        OpenApiParameter(name='status', type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, required=False,
+                         description="'done' (default, newest first), 'planned' (soonest first) or 'all'"),
+        OpenApiParameter(name='mine', type=OpenApiTypes.BOOL, location=OpenApiParameter.QUERY, required=False,
+                         description="Only the visits the requester created or takes part in"),
     ])
     def list(self, request, *args, **kwargs):
-        """The visits the requester may see, newest first, paginated."""
+        """The visits the requester may see, paginated: the journal, or the planned ones."""
         params = request.query_params
         ids = Visit.objects.filter(perms.readable_visits_q(request))
+        wanted = params.get('status', Visit.STATUS_DONE)
+        if wanted not in (*Visit.STATUSES, 'all'):
+            raise ValidationError({'status': "Expected 'done', 'planned' or 'all'."})
+        if wanted != 'all':
+            ids = ids.filter(status=wanted)
+        if params.get('mine') in ('1', 'true'):
+            ids = ids.filter(planning.involving_q(getattr(request.user, 'guid', None)))
         try:
             if params.get('apiary'):
                 ids = ids.filter(apiary_id=int(params['apiary']))
@@ -132,7 +144,8 @@ class VisitViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.Li
                 ids = ids.filter(inspections__colony_id=uuid.UUID(params['colony']))
         except ValueError:
             raise ValidationError({'detail': "Invalid filter."})
-        queryset = self.get_queryset().filter(pk__in=ids.values('pk')).order_by('-started_at')
+        order = 'started_at' if wanted == Visit.STATUS_PLANNED else '-started_at'
+        queryset = self.get_queryset().filter(pk__in=ids.values('pk')).order_by(order)
         page = self.paginate_queryset(queryset)
         return self.get_paginated_response(self.get_serializer(page, many=True).data)
 
@@ -210,14 +223,16 @@ class VisitViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.Li
                 inspection.compartment = inspection.colony.compartment
             inspection.save()
             kept.append(inspection.pk)
-            if inspection.colony_id:
+            # A planned visit tells nothing of the colonies yet
+            if inspection.colony_id and visit.status == Visit.STATUS_DONE:
                 self._update_colony(request, visit, inspection)
         visit.inspections.exclude(pk__in=kept).delete()
 
     @staticmethod
     def _latest_for(colony, visit) -> bool:
         """No later visit of the colony: this one says what it is now."""
-        return not Inspection.objects.filter(colony=colony, visit__started_at__gt=visit.started_at).exists()
+        return not Inspection.objects.filter(colony=colony, visit__status=Visit.STATUS_DONE,
+                                             visit__started_at__gt=visit.started_at).exists()
 
     def _update_colony(self, request, visit, inspection):
         colony = inspection.colony
@@ -249,7 +264,10 @@ class VisitViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.Li
         responses={201: VisitSerializer, 200: VisitSerializer},
     )
     def create(self, request, *args, **kwargs):
-        """A visit that took place. Sent again with the same `id`, it is not created twice."""
+        """
+        A visit that took place, or a planned one (`status: planned`). Sent again
+        with the same `id`, it is not created twice.
+        """
         client_id = request.data.get('id')
         if client_id:
             existing = self.get_queryset().filter(pk=client_id).first() if HiveViewSet._is_uuid(client_id) else None
@@ -270,7 +288,8 @@ class VisitViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.Li
             visit.participants.set(participants)
             self._apply(request, visit, self._inspections(visit, request.data.get('inspections', [])))
             inspections = list(visit.inspections.all())
-            audit.record(request, 'apiary_visit.created', visit, changes={
+            code = 'apiary_visit.planned' if visit.status == Visit.STATUS_PLANNED else 'apiary_visit.created'
+            audit.record(request, code, visit, changes={
                 **audit.snapshot(visit), 'participants': [str(user.pk) for user in participants],
                 'inspections': [_inspection_summary(i) for i in inspections],
             }, refs=_visit_refs(visit, inspections))
@@ -285,8 +304,13 @@ class VisitViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.Li
         participants = self._participants(request.data.get('participants'))
         validated = self._inspections(visit, request.data.get('inspections'))
         before = [_inspection_summary(i) for i in visit.inspections.all()]
-        with audit.track(request, 'apiary_visit.updated', visit) as tracked:
-            serializer.save()
+        completing = (visit.status == Visit.STATUS_PLANNED
+                      and serializer.validated_data.get('status') == Visit.STATUS_DONE)
+        moved = 'started_at' in serializer.validated_data and serializer.validated_data['started_at'] != visit.started_at
+        code = 'apiary_visit.completed' if completing else 'apiary_visit.updated'
+        with audit.track(request, code, visit) as tracked:
+            # A planned visit moved in time gets its reminder again
+            serializer.save(**({'reminded_at': None} if moved else {}))
             if participants is not None:
                 tracked.extra['participants'] = [[str(u.pk) for u in visit.participants.all()],
                                                  [str(u.pk) for u in participants]]
@@ -296,6 +320,11 @@ class VisitViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.Li
                 after = [_inspection_summary(i) for i in visit.inspections.all()]
                 if after != before:
                     tracked.extra['inspections'] = [before, after]
+            elif completing:
+                # Done now: what its inspections already say of the colonies applies
+                for inspection in visit.inspections.select_related('colony', 'colony__hive'):
+                    if inspection.colony_id:
+                        self._update_colony(request, visit, inspection)
             tracked.refs = _visit_refs(visit, visit.inspections.all())
         return self._fresh(visit)
 

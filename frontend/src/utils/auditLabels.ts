@@ -57,6 +57,8 @@ export const ACTION_LABELS: Record<string, string> = {
   'colony.laying': 'Ponte de la nouvelle reine constatée',
   'colony.deleted': 'Colonie supprimée',
   'apiary_visit.created': 'Visite de rucher enregistrée',
+  'apiary_visit.planned': 'Visite de rucher prévue',
+  'apiary_visit.completed': 'Visite prévue réalisée',
   'apiary_visit.updated': 'Visite de rucher modifiée',
   'apiary_visit.deleted': 'Visite de rucher supprimée',
   'apiary_visit.photo_added': 'Photos de visite ajoutées',
@@ -358,7 +360,7 @@ const PERSON_FIELDS = new Set(['owner', 'created_by', 'performed_by', 'generated
 /** Kinds of notifications the platform admins hold back or resume */
 const NOTIFICATION_KINDS: Record<string, string> = {
   trap_reading: 'Rappels de relevé', trap_refill: "Rappels d'attractif", trap_handover: 'Pièges transférés', nest_new: 'Tous les nouveaux nids',
-  nest_near_apiary: 'Nids près des ruchers', nest_followup: 'Suivi des signalements',
+  nest_near_apiary: 'Nids près des ruchers', nest_followup: 'Suivi des signalements', visit_reminder: 'Rappels de visites prévues',
   group_message: 'Messages de groupe', platform_message: 'Messages de la plateforme',
 };
 

@@ -23,6 +23,26 @@ interface VisitFormModalProps {
   visit?: Visit | null;
   /** New visit: the apiary it takes place in */
   apiaryId?: number | null;
+  /**
+   * `plan`: a visit to come (no weather, no colonies yet); `record`: one that
+   * took place. A planned visit opened in `record` is being done (« Réaliser »).
+   * Default: as the visit stands, `record` for a new one.
+   */
+  mode?: 'plan' | 'record';
+}
+
+/** Tomorrow at 9 h, as a `datetime-local` value: the default time of a planned visit. */
+function tomorrowMorning(): string {
+  const day = new Date();
+  day.setDate(day.getDate() + 1);
+  day.setHours(9, 0, 0, 0);
+  return toLocalInput(day.toISOString());
+}
+
+/** When a planned visit is done: its time, unless still ahead (then now). */
+function doneAt(visit: Visit): string {
+  const planned = new Date(visit.started_at);
+  return toLocalInput((planned > new Date() ? new Date() : planned).toISOString());
 }
 
 /** A colony that may be inspected: the living ones of the apiary, and those the visit already holds. */
@@ -42,12 +62,18 @@ const keyOf = (hive: string | null, colony: string | null) => colony ?? `hive:${
  * colony looked at what was seen. The count of bars is prefilled with the
  * colony's (that of its latest visit).
  */
-export default function VisitFormModal({ onHide, onSaved, visit = null, apiaryId = null }: VisitFormModalProps) {
+export default function VisitFormModal({ onHide, onSaved, visit = null, apiaryId = null, mode }: VisitFormModalProps) {
+  const planning = (mode ?? (visit?.status === 'planned' ? 'plan' : 'record')) === 'plan';
+  const completing = !planning && visit?.status === 'planned';
   const auth = useAuth();
   const { isAdmin, userGuid } = useUserPermissions();
   const [apiaries, setApiaries] = useState<ApiaryChoice[] | null>(null);
   const [apiary, setApiary] = useState<number | null>(visit?.apiary?.id ?? apiaryId);
-  const [startedAt, setStartedAt] = useState(visit ? toLocalInput(visit.started_at) : toLocalInput(new Date().toISOString()));
+  const [startedAt, setStartedAt] = useState(() => {
+    if (completing && visit) return doneAt(visit);
+    if (visit) return toLocalInput(visit.started_at);
+    return planning ? tomorrowMorning() : toLocalInput(new Date().toISOString());
+  });
   const [duration, setDuration] = useState(visit?.duration_minutes ? String(visit.duration_minutes) : '');
   const [title, setTitle] = useState(visit?.title ?? '');
   const [kinds, setKinds] = useState<VisitKind[]>(visit?.kinds ?? []);
@@ -152,6 +178,7 @@ export default function VisitFormModal({ onHide, onSaved, visit = null, apiaryId
     setSaving(true);
     setError(null);
     const values = {
+      status: planning ? 'planned' as const : 'done' as const,
       started_at: new Date(startedAt).toISOString(),
       duration_minutes: duration ? Number(duration) : null,
       title: title.trim(),
@@ -178,7 +205,9 @@ export default function VisitFormModal({ onHide, onSaved, visit = null, apiaryId
       onHide={onHide}
       locked
       icon={<i className="bi bi-journal-text hive-icon" aria-hidden="true" />}
-      title={visit ? 'Modifier la visite' : 'Nouvelle visite'}
+      title={completing ? 'Compte rendu de la visite' : planning
+        ? (visit ? 'Modifier la visite prévue' : 'Prévoir une visite')
+        : (visit ? 'Modifier la visite' : 'Nouvelle visite')}
       onSubmit={handleSubmit}
       footer={(
         <Button type="submit" variant="success" disabled={saving || !apiary}>
@@ -205,10 +234,11 @@ export default function VisitFormModal({ onHide, onSaved, visit = null, apiaryId
       )}
 
       <div className="d-flex gap-2">
-        <Form.Group className="mb-3 flex-grow-1" controlId="visit-started">
+        <Form.Group className="mb-3 flex-grow-1 min-w-0" controlId="visit-started">
           <Form.Label>Le</Form.Label>
           <Form.Control type="datetime-local" value={startedAt} required disabled={saving}
-            max={toLocalInput(new Date().toISOString())} onChange={(event) => setStartedAt(event.target.value)} />
+            max={planning ? undefined : toLocalInput(new Date().toISOString())}
+            onChange={(event) => setStartedAt(event.target.value)} />
         </Form.Group>
         <Form.Group className="mb-3 visit-duration-field flex-shrink-0" controlId="visit-duration">
           <Form.Label>Durée (min)</Form.Label>
@@ -217,6 +247,8 @@ export default function VisitFormModal({ onHide, onSaved, visit = null, apiaryId
         </Form.Group>
       </div>
 
+      {!planning && (
+        <>
       <div className="d-flex align-items-center mb-1">
         <span className="obs-label flex-grow-1 d-flex align-items-center">
           Météo
@@ -265,6 +297,8 @@ export default function VisitFormModal({ onHide, onSaved, visit = null, apiaryId
           ))}
         </Form.Select>
       </Form.Group>
+        </>
+      )}
 
       <Form.Group className="mb-3" controlId="visit-title">
         <Form.Label>Intitulé</Form.Label>
@@ -273,8 +307,16 @@ export default function VisitFormModal({ onHide, onSaved, visit = null, apiaryId
       </Form.Group>
 
       <div className="mb-3">
-        <div className="obs-label mb-1">Fait pendant la visite</div>
-        <div className="visit-chips" role="group" aria-label="Fait pendant la visite">
+        <div className="obs-label mb-1 d-flex align-items-center">
+          {planning ? 'À faire' : 'Fait pendant la visite'}
+          {planning && (
+            <HelpTip id="visit-plan-help" doc="apiaries#planning" title="Visite prévue">
+              Une visite prévue apparaît dans « À venir » et dans le nombre rouge du module le jour venu ;
+              un rappel part la veille dès 18 h. « Réaliser », dans sa fiche, en fait le compte rendu.
+            </HelpTip>
+          )}
+        </div>
+        <div className="visit-chips" role="group" aria-label={planning ? 'À faire' : 'Fait pendant la visite'}>
           {(Object.entries(KIND_LABELS) as [VisitKind, string][]).map(([kind, label]) => (
             <Button key={kind} variant={kinds.includes(kind) ? 'secondary' : 'outline-secondary'}
               aria-pressed={kinds.includes(kind)} disabled={saving} onClick={() => toggleKind(kind)}>
@@ -300,6 +342,8 @@ export default function VisitFormModal({ onHide, onSaved, visit = null, apiaryId
           onChange={(event) => setGuests(event.target.value)} />
       </Form.Group>
 
+      {!planning && (
+        <>
       <div className="obs-label mb-1">Colonies</div>
       {loadingColonies && <div className="mb-3"><Spinner animation="border" size="sm" /></div>}
       {!loadingColonies && candidates.length === 0 && <p className="text-muted small">Aucune colonie dans ce rucher.</p>}
@@ -321,12 +365,14 @@ export default function VisitFormModal({ onHide, onSaved, visit = null, apiaryId
           </div>
         );
       })}
+        </>
+      )}
 
       <div className="mt-3">
         <MarkdownEditor id="visit-report" rows={5} value={report} onChange={setReport} disabled={saving}
           label={(
             <span className="d-inline-flex align-items-center">
-              Compte rendu
+              {planning ? 'Notes' : 'Compte rendu'}
               <HelpTip id="visit-markdown-help" doc="apiaries#visits" title="Mise en forme">
                 Le texte accepte le Markdown : **gras**, _italique_, ### titre, - liste, 1. liste
                 numérotée, [lien](https://…). La barre d'outils l'écrit pour vous ; « Aperçu » montre

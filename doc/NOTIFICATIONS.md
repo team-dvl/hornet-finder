@@ -52,6 +52,17 @@ Les propriétaires de pièges reçoivent un rappel quand un relevé ou le renouv
 - **Clic** : la notification ouvre `/traps/due?trap=<id>` (ou `/traps/due` pour un récapitulatif) ; si l'application est déjà ouverte, le service worker la ramène au premier plan et la fait naviguer sans la recharger.
 - **Qui est compté** : seulement les propriétaires qui ont un appareil abonné et la sorte de rappel activée ; quelqu'un qui s'abonne plus tard reçoit ce qui est dû à ce moment-là. Les rappels ne sont pas inscrits au journal d'audit (action du système, répétée chaque jour).
 
+## Rappels des visites prévues
+
+Code : `backend/apiculture/planning.py` ; écran : module *Ruchers → Visites → À venir*. Sorte `visit_reminder` (« Rappels de visites prévues »), proposée aux apiculteurs et aux administrateurs de la plateforme.
+
+- Un seul rappel par visite prévue, vers son auteur et ses participants qui ont un appareil et la sorte activée : la veille à partir de 18 h (heure de Bruxelles), jamais entre 21 h et 7 h. Une visite prévue tard le soir pour le lendemain matin est rappelée à 7 h ; une visite prévue après 18 h la veille, au passage suivant (10 minutes au plus).
+- Déplacée dans le temps, une visite est rappelée de nouveau (`Visit.reminded_at` effacé). Une visite passée ou faite ne l'est plus.
+- L'écran verrouillé montre le nom du rucher (ou son numéro), jamais son adresse. Un toucher ouvre la fiche de la visite.
+- Suspendue par la plateforme, la sorte est sautée sans rien marquer : les rappels partent à la reprise si la visite est encore à venir.
+- `docker compose exec <service api> python manage.py send_visit_reminders --dry-run` affiche ce qui partirait maintenant (`--now` pour simuler une heure).
+- L'app `apiculture` ajoute la sorte (`notification_kinds.KINDS`, `CONCERNS`), son compteur (`pending.COUNTERS['apiaries']`) et sa tâche (`hornet/scheduled.py`, `JOBS`) dans son `AppConfig.ready()` : `hornet` n'en sait rien.
+
 ## Notifications des nids
 
 Code : `backend/hornet/nest_alerts.py` (envoi), `backend/hornet/nest_season.py` (fin de saison) ; écran : module *Nids*.
@@ -93,6 +104,7 @@ Un volet « Recevoir les rappels ? » s'ouvre une seule fois par appareil (`Push
 *Administration → Plateforme → Notifications* (`/admin/platform/notifications`, `backend/hornet/platform_views.py`) : un interrupteur par sorte de notification et un interrupteur général qui les bascule toutes (l'état reste celui de chaque sorte : « 3 sur 7 suspendues »). Suspendre coupe la sorte pour tout le monde, sans toucher aux préférences de chacun ni aux abonnements des appareils. L'état est en base (`PlatformSettings`, une ligne), parce que l'API et le service planifié sont deux processus ; `push.paused_kinds()` le relit à chaque usage.
 
 - **Rappels de pièges** : la sorte suspendue est sautée sans toucher à `TrapReminder` ; les rappels dus partent à la reprise, dans les heures d'envoi.
+- **Rappels de visites prévues** : rien n'est marqué pendant la pause ; les rappels partent à la reprise pour les visites encore à venir.
 - **Alertes de nids** : un événement dont une personne attend un message d'une sorte suspendue reste en attente (`alerted_at` vide) ; les autres personnes sont prévenues normalement, et `NestAlert` évite tout doublon à la reprise. Un événement de plus de `EXPIRY` (48 h) est abandonné, suspendu ou non : une pause plus longue perd ces alertes.
 - **Messages de groupe et de la plateforme** : refusés (503, code `paused`) tant que leur sorte est suspendue. Les avis de transfert d'un nid (« Suivi de mes signalements ») et d'un piège (« Pièges qui me sont transférés ») sont des actions de personne : ils ne sont pas gardés.
 - **Déjà en file** : `push._send_one` revérifie au moment de l'envoi ; la livraison prend le statut `1` (`STATUS_PAUSED`, « suspendu » dans *Notifications*) et l'appareil reste abonné. Ce qui est déjà chez le service de notification (TTL 24 h) n'est pas rappelé.

@@ -12,3 +12,6 @@ class ApicultureConfig(AppConfig):
         from .visit_views import can_read_visit_file
         MEDIA_RESOLVERS['visits/'] = can_read_visit_file
         MEDIA_RESOLVERS['hives/'] = can_read_hive_file
+        # The planned visits: their reminder kind, the counter of the module, the scheduled job
+        from .planning import register
+        register()
