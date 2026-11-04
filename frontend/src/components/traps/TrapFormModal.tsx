@@ -7,12 +7,11 @@ import {
   createTrap, updateTrap, fetchTrapTypes, selectTrapTypes, type Trap,
 } from '../../store/store';
 import CoordinateInput from '../common/CoordinateInput';
-import { HelpTip } from '../common';
+import { HelpTip, PhotoInput } from '../common';
 import { AppModal } from '../ui';
 import { OBJECT_ICONS } from '../../utils/icons';
 import { reverseGeocode } from '../../utils/geocoding';
 import AddressSearch from './AddressSearch';
-import PhotoInput from './PhotoInput';
 import TrapTypeSelect from './TrapTypeSelect';
 
 interface TrapFormModalProps {

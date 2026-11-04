@@ -58,6 +58,13 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 - Apiaries: "Hébergé chez", the person who welcomes an apiary on their land; never written in the audit trail.
 - Administration: the hive types (bars, colonies held), for the platform admins.
 
+### Fixed
+- Photos: picking photos again adds them to those already chosen instead of replacing them (visits, nest
+  reports and events, trap readings), up to the 10 per sending the server takes; each thumbnail has its own
+  remove button. Every photo control of the app goes through the same picker, which downscales the
+  pictures before sending, the profile photo included.
+
+
 ## [1.6.0] - 2026-11-01
 
 ### Added

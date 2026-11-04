@@ -4,8 +4,7 @@ import { useAppDispatch } from '../../store/hooks';
 import {
   recordNestEvent, type Nest, type NestActor, type NestBasis, type NestMeans, type NestOutcome, type NestType,
 } from '../../store/store';
-import { HelpTip } from '../common';
-import { PhotoInput } from '../traps';
+import { HelpTip, PhotoInput } from '../common';
 import { AppModal } from '../ui';
 import { dateInputToIso, toDateInputValue } from '../../utils/format';
 import {

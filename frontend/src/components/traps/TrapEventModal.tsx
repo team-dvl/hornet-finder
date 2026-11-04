@@ -4,10 +4,9 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   addTrapCatch, addTrapEvent, fetchSpecies, selectSpecies, type Trap, type TrapEventKind,
 } from '../../store/store';
-import { HelpTip } from '../common';
+import { HelpTip, PhotoInput } from '../common';
 import { AppModal } from '../ui';
 import { formatShortDateTime } from '../../utils/format';
-import PhotoInput from './PhotoInput';
 import SpeciesCard from './SpeciesCard';
 import { SPECIES_GRID_STYLE } from './speciesGrid';
 import SpeciesPicker from './SpeciesPicker';

@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { Alert, Button, Form, Spinner } from 'react-bootstrap';
-import { HelpTip } from '../common';
+import { HelpTip, PhotoInput } from '../common';
 import { AppModal, Switch } from '../ui';
 import { useAppDispatch } from '../../store/hooks';
 import { createTrapType, updateTrapType, type TrapType } from '../../store/store';
-import { PhotoInput } from '../traps';
 
 /** Reminder delays offered, in days: a native picker (the wheel on iOS) rather than a free number */
 const DAY_CHOICES = [1, 2, 3, 4, 5, 6, 7, 10, 14, 21, 28, 30, 45, 60, 90];
