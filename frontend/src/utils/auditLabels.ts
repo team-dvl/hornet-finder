@@ -46,6 +46,8 @@ export const ACTION_LABELS: Record<string, string> = {
   'hive.keeper_changed': 'Ruche confiée',
   'hive.deleted': 'Ruche supprimée',
   'hive.divider_changed': 'Cloison posée, déplacée ou retirée',
+  'hive.photo_set': 'Photo de ruche ajoutée ou remplacée',
+  'hive.photo_removed': 'Photo de ruche retirée',
   'colony.created': 'Colonie installée',
   'colony.updated': 'Colonie modifiée',
   'colony.split': 'Colonie divisée',

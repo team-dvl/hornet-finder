@@ -1947,3 +1947,11 @@ html[data-platform="material"] .form-switch .form-check-input:checked {
   background-color: var(--bs-danger);
   box-shadow: 0 0 0 2px var(--bs-body-bg);
 }
+
+/* The photo at the top of a hive sheet (components/hives/HiveSheet.tsx) */
+.hive-sheet-photo {
+  width: 100%;
+  height: 10rem;
+  object-fit: cover;
+  display: block;
+}

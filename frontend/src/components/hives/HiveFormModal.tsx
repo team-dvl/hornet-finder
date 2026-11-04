@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Alert, Button, Form, Spinner } from 'react-bootstrap';
-import { HelpTip } from '../common';
+import { HelpTip, PhotoInput } from '../common';
 import { AppModal } from '../ui';
 import ApiaryPicker from '../apiaries/ApiaryPicker';
 import { useUserPermissions } from '../../hooks/useUserPermissions';
 import {
-  createHive, fetchHiveTypes, fetchOwnerGroups, fetchPlaceableApiaries, hiveErrorOf, today, updateHive,
+  createHive, fetchHiveTypes, setHivePhoto, fetchOwnerGroups, fetchPlaceableApiaries, hiveErrorOf, today, updateHive,
   type Hive, type HiveType, type ApiaryChoice,
 } from '../../utils/hivesApi';
 
@@ -38,6 +38,9 @@ export default function HiveFormModal({ onHide, hive = null, apiaryId = null, on
   const [commissionedOn, setCommissionedOn] = useState(hive?.commissioned_on ?? '');
   const [comments, setComments] = useState(hive?.comments ?? '');
   const [apiary, setApiary] = useState<number | null>(apiaryId);
+  const [photo, setPhoto] = useState<File | null>(null);
+  // Saved, but its photo did not go through: the next try updates it, and closing reports it
+  const [savedHive, setSavedHive] = useState<Hive | null>(null);
   const [placedOn, setPlacedOn] = useState(today());
   const [ownerGroup, setOwnerGroup] = useState('');
   const [saving, setSaving] = useState(false);
@@ -75,28 +78,46 @@ export default function HiveFormModal({ onHide, hive = null, apiaryId = null, on
       commissioned_on: commissionedOn || null,
       comments: comments.trim(),
     };
+    let saved: Hive;
     try {
-      const saved = hive
-        ? await updateHive(hive.id, values)
+      const existing = savedHive ?? hive;
+      saved = existing
+        ? await updateHive(existing.id, values)
         : await createHive({
           ...values,
           apiary,
           ...(apiary ? { placed_on: placedOn } : {}),
           ...(ownerGroup ? { owner_group: ownerGroup } : {}),
         });
-      onSaved(saved);
-      onHide();
     } catch (submitError) {
       setError(hiveErrorOf(submitError));
       setSaving(false);
+      return;
     }
+    if (photo) {
+      try {
+        saved = await setHivePhoto(saved.id, photo);
+      } catch (photoError) {
+        setSavedHive(saved);
+        setError(`La ruche est enregistrée, mais pas sa photo : ${hiveErrorOf(photoError)}`);
+        setSaving(false);
+        return;
+      }
+    }
+    onSaved(saved);
+    onHide();
+  };
+
+  const close = () => {
+    if (savedHive) onSaved(savedHive);
+    onHide();
   };
 
 
   return (
     <AppModal
       show
-      onHide={onHide}
+      onHide={close}
       locked
       icon={<i className="bi bi-hexagon-half hive-icon" aria-hidden="true" />}
       title={isEdit ? 'Modifier la ruche' : 'Nouvelle ruche'}
@@ -210,6 +231,12 @@ export default function HiveFormModal({ onHide, hive = null, apiaryId = null, on
           disabled={saving}
         />
       </Form.Group>
+
+      <PhotoInput
+        label={hive?.photo_url ? 'Remplacer la photo' : 'Photo'}
+        onChange={(files) => setPhoto(files[0] ?? null)}
+        disabled={saving}
+      />
 
       <Form.Group className="mb-0" controlId="hive-comments">
         <Form.Label>Commentaire</Form.Label>

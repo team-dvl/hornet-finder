@@ -1,4 +1,5 @@
 import { Badge } from 'react-bootstrap';
+import { AuthImage } from '../common';
 import { colonyLabel } from '../../utils/coloniesApi';
 import { HIVE_STATUS_LABELS, apiaryLabel, hiveLabel, type Hive } from '../../utils/hivesApi';
 
@@ -18,7 +19,11 @@ export default function HiveListItem({ hive, onOpen, inApiary = false }: HiveLis
       onClick={() => onOpen(hive)}
       aria-label={`Fiche de la ruche ${hiveLabel(hive)}`}
     >
-      <i className="bi bi-hexagon-half hive-icon fs-4 flex-shrink-0" aria-hidden="true" />
+      {hive.photo_thumbnail_url ? (
+        <span className="manager-list-thumb flex-shrink-0 rounded">
+          <AuthImage src={hive.photo_thumbnail_url} className="rounded" />
+        </span>
+      ) : <i className="bi bi-hexagon-half hive-icon fs-4 flex-shrink-0" aria-hidden="true" />}
       <span className="d-block min-w-0 flex-grow-1">
         <span className="d-flex flex-wrap align-items-center gap-1">
           <strong className="text-truncate">{hiveLabel(hive)}</strong>

@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Alert, Badge, Spinner } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
+import { AuthImage } from '../common';
 import { ConfirmationModal } from '../modals';
 import { AppModal, FieldRow, IconButton, SheetActions } from '../ui';
 import { useHistoryAction } from '../../hooks/useHistoryAction';
 import { ACTION_ICONS } from '../../utils/icons';
 import { formatDate } from '../../utils/format';
 import {
-  HIVE_STATUS_LABELS, apiaryLabel, deleteHive, fetchHive, hiveErrorOf, hiveLabel, type Hive,
+  HIVE_STATUS_LABELS, apiaryLabel, deleteHive, fetchHive, hiveErrorOf, hiveLabel, removeHivePhoto, type Hive,
 } from '../../utils/hivesApi';
 import { ColonyFormModal, ColonySheet, DividerModal, HiveColonies } from '../colonies';
 import HiveFormModal from './HiveFormModal';
@@ -23,7 +24,7 @@ interface HiveSheetProps {
 }
 
 /** Dialog shown in place of the sheet (one dialog at a time) */
-type SubDialog = 'edit' | 'keeper' | 'delete' | 'divider' | PlaceMode
+type SubDialog = 'edit' | 'keeper' | 'delete' | 'divider' | 'photo' | PlaceMode
   | { colony: string } | { install: 1 | 2 };
 
 const period = (from: string, to: string | null) =>
@@ -74,6 +75,19 @@ export default function HiveSheet({ hive: listed, onHide, onChanged }: HiveSheet
     }
   };
 
+  const removePhoto = async () => {
+    setDeleting(true);
+    setError(null);
+    try {
+      changed(await removeHivePhoto(hive.id));
+    } catch (removeError) {
+      setError(hiveErrorOf(removeError));
+      setSub(null);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const can = hive.permissions ?? { edit: false, move: false, manage: false };
   const history = historyAction(`hive:${hive.id}`, `Ruche ${hiveLabel(hive)}`);
   const pastPlacements = hive.placements?.filter((stay) => stay.ended_on) ?? [];
@@ -93,6 +107,13 @@ export default function HiveSheet({ hive: listed, onHide, onChanged }: HiveSheet
         )}
       >
         {error && <Alert variant="danger" className="py-2">{error}</Alert>}
+
+        {hive.photo_url && (
+          <button type="button" className="btn p-0 border-0 w-100 mb-2" aria-label="Agrandir la photo"
+            onClick={() => setSub('photo')}>
+            <AuthImage src={hive.photo_thumbnail_url ?? hive.photo_url} alt="" className="hive-sheet-photo rounded" />
+          </button>
+        )}
 
         <FieldRow label="Type">{hive.hive_type_name}</FieldRow>
         <FieldRow label="Rucher">
@@ -188,6 +209,19 @@ export default function HiveSheet({ hive: listed, onHide, onChanged }: HiveSheet
           onSaved={(colony) => { coloniesChanged(); setSub({ colony: colony.id }); }}
         />
       )}
+      <AppModal
+        show={sub === 'photo'}
+        onHide={() => setSub(null)}
+        title="Photo"
+        size="lg"
+        bodyClassName="p-0 d-flex flex-column align-items-center bg-dark"
+        footer={can.edit ? (
+          <IconButton variant="outline-danger" icon={ACTION_ICONS.delete} label="Retirer la photo" showLabel="always"
+            disabled={deleting} onClick={() => void removePhoto()} />
+        ) : undefined}
+      >
+        {sub === 'photo' && hive.photo_url && <AuthImage src={hive.photo_url} alt={`Ruche ${hiveLabel(hive)}`} className="w-100" />}
+      </AppModal>
       <ConfirmationModal
         show={sub === 'delete'}
         onHide={() => { setSub(null); setError(null); }}
