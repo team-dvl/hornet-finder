@@ -11,6 +11,11 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 ## [Unreleased]
 
 ### Added
+- Visits: a calendar ("Calendrier", between "À venir" and "Journal"): the month with the planned, late and
+  done visits, or the list of the month; a tap on a visit opens it, a tap on a day plans a visit there at
+  9 h (records one on a past day), a long press drags a planned visit to another day (it keeps its hour).
+  Built on FullCalendar 6 (MIT), loaded only with the calendar (71 kB compressed). The visits API takes a
+  `from`/`to` range of days.
 - Apiaries: follow-up visits. A colony put in a nucleus gets its transfer proposed 3 days later at 7:30; a
   colony raising a queen (a division, what stays after a swarm) a laying check 25 days later at 11:00 (first
   eggs come about 20-30 days after a division). Each is confirmed or moved at once; on the day, "Réaliser"

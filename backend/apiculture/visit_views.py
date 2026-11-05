@@ -124,6 +124,10 @@ class VisitViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.Li
                          description="'done' (default, newest first), 'planned' (soonest first) or 'all'"),
         OpenApiParameter(name='mine', type=OpenApiTypes.BOOL, location=OpenApiParameter.QUERY, required=False,
                          description="Only the visits the requester created or takes part in"),
+        OpenApiParameter(name='from', type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY, required=False,
+                         description="From this local day (the calendar); soonest first"),
+        OpenApiParameter(name='to', type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY, required=False,
+                         description="Until this local day, included"),
     ])
     def list(self, request, *args, **kwargs):
         """The visits the requester may see, paginated: the journal, or the planned ones."""
@@ -145,7 +149,19 @@ class VisitViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.Li
                 ids = ids.filter(inspections__colony_id=uuid.UUID(params['colony']))
         except ValueError:
             raise ValidationError({'detail': "Invalid filter."})
-        order = 'started_at' if wanted == Visit.STATUS_PLANNED else '-started_at'
+        span = {}
+        for name in ('from', 'to'):
+            if params.get(name):
+                try:
+                    span[name] = datetime.date.fromisoformat(params[name])
+                except ValueError:
+                    raise ValidationError({name: "Expected a day, YYYY-MM-DD."})
+        if 'from' in span:
+            ids = ids.filter(started_at__gte=timezone.make_aware(datetime.datetime.combine(span['from'], datetime.time.min)))
+        if 'to' in span:
+            ids = ids.filter(started_at__lt=timezone.make_aware(
+                datetime.datetime.combine(span['to'] + datetime.timedelta(days=1), datetime.time.min)))
+        order = 'started_at' if wanted == Visit.STATUS_PLANNED or span else '-started_at'
         queryset = self.get_queryset().filter(pk__in=ids.values('pk')).order_by(order)
         page = self.paginate_queryset(queryset)
         return self.get_paginated_response(self.get_serializer(page, many=True).data)

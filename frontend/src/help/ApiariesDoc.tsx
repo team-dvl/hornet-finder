@@ -221,6 +221,13 @@ export default function ApiariesDoc() {
           des notes de préparation. Le <strong>Journal</strong> garde les visites faites.
         </p>
         <p>
+          Le <strong>Calendrier</strong> montre les visites du mois, prévues (couleur du thème), en
+          retard (rouge) et faites (gris) ; « Liste » les détaille jour par jour. Touchez une visite
+          pour ouvrir sa fiche, un jour pour y prévoir une visite à 9 h (un jour passé ouvre une
+          visite faite). Un appui long sur une visite prévue permet de la glisser à un autre jour :
+          elle garde son heure et sera rappelée de nouveau.
+        </p>
+        <p>
           Le jour venu, <strong>Réaliser</strong> dans la fiche de la visite ouvre son compte rendu, à
           l'heure prévue (ou maintenant si elle n'est pas encore passée) : la météo, les colonies vues,
           le compte rendu. Enregistrée, elle passe au journal et met à jour les colonies, comme une

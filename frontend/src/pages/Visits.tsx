@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { Alert, Badge, Button, ButtonGroup, Container, Spinner } from 'react-bootstrap';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
@@ -13,6 +13,9 @@ import { ACTION_ICONS } from '../utils/icons';
 import { apiaryLabel, hiveErrorOf } from '../utils/hivesApi';
 import { fetchVisits, type Visit } from '../utils/visitsApi';
 
+// FullCalendar stays out of the page until the calendar is shown
+const VisitCalendar = lazy(() => import('../components/visits/VisitCalendar'));
+
 /**
  * The visits of the apiaries, in two views: those to come (« À venir », the
  * planned ones, soonest first, late ones on top) and the journal (those that
@@ -24,7 +27,9 @@ export default function Visits() {
   const auth = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const apiaryId = Number(searchParams.get('apiary')) || undefined;
-  const view: 'agenda' | 'journal' = searchParams.get('view') === 'journal' ? 'journal' : 'agenda';
+  const requestedView = searchParams.get('view');
+  const view: 'agenda' | 'calendar' | 'journal' = requestedView === 'journal' || requestedView === 'calendar'
+    ? requestedView : 'agenda';
   const waiting = usePendingCounts().apiaries ?? 0;
 
   const setParam = useCallback((key: string, value: string | null) => {
@@ -44,7 +49,7 @@ export default function Visits() {
   const reload = () => { setPage(1); setVersion((value) => value + 1); refreshPending(); };
 
   useEffect(() => {
-    if (!auth.isAuthenticated) return;
+    if (!auth.isAuthenticated || view === 'calendar') return;
     let cancelled = false;
     fetchVisits({ ...(apiaryId ? { apiary: apiaryId } : {}), status: view === 'agenda' ? 'planned' : 'done', page })
       .then((found) => {
@@ -62,17 +67,19 @@ export default function Visits() {
   const [sheetId, setSheetId] = useState<string | null>(() => searchParams.get('visit'));
   const [adding, setAdding] = useState<'record' | 'plan' | null>(() => (
     searchParams.get('add') ? 'record' : searchParams.get('plan') ? 'plan' : null));
+  // The day tapped in the calendar: 9 h that day
+  const [addingAt, setAddingAt] = useState<string | undefined>(undefined);
   useEffect(() => {
     for (const key of ['visit', 'add', 'plan']) {
       if (searchParams.get(key)) setParam(key, null);
     }
   }, [searchParams, setParam]);
 
-  const showView = (next: 'agenda' | 'journal') => {
+  const showView = (next: 'agenda' | 'calendar' | 'journal') => {
     if (next === view) return;
     setVisits(null);
     setPage(1);
-    setParam('view', next === 'journal' ? 'journal' : null);
+    setParam('view', next === 'agenda' ? null : next);
   };
 
   const shown = visits?.find((visit) => visit.apiary?.id === apiaryId)?.apiary;
@@ -84,7 +91,7 @@ export default function Visits() {
         <PageHeader
           title="Visites"
           help="Les visites prévues de vos ruchers, et le journal de ce qui a été fait et vu à chaque visite."
-          actions={auth.isAuthenticated && (view === 'agenda'
+          actions={auth.isAuthenticated && (view !== 'journal'
             ? <IconButton variant="primary" icon="calendar-plus" label="Prévoir" onClick={() => setAdding('plan')} />
             : <IconButton variant="primary" icon={ACTION_ICONS.add} label="Ajouter" onClick={() => setAdding('record')} />
           )}
@@ -109,11 +116,26 @@ export default function Visits() {
                 À venir
                 {waiting > 0 && <Badge pill bg="danger" className="ms-1" aria-label={`${waiting} à faire`}>{waiting}</Badge>}
               </Button>
+              <Button variant={view === 'calendar' ? 'secondary' : 'outline-secondary'} role="tab"
+                aria-selected={view === 'calendar'} onClick={() => showView('calendar')}>
+                Calendrier
+              </Button>
               <Button variant={view === 'journal' ? 'secondary' : 'outline-secondary'} role="tab"
                 aria-selected={view === 'journal'} onClick={() => showView('journal')}>
                 Journal
               </Button>
             </ButtonGroup>
+
+            {view === 'calendar' && (
+              <Suspense fallback={<Spinner animation="border" role="status" />}>
+                <VisitCalendar
+                  apiaryId={apiaryId}
+                  version={version}
+                  onOpen={(id) => setSheetId(id)}
+                  onDay={(day, past) => { setAddingAt(`${day}T09:00`); setAdding(past ? 'record' : 'plan'); }}
+                />
+              </Suspense>
+            )}
 
             {apiaryId && (
               <Button
@@ -128,6 +150,8 @@ export default function Visits() {
               </Button>
             )}
 
+            {view !== 'calendar' && (
+              <>
             {error && <Alert variant="danger">{error}</Alert>}
             {!visits && !error && <Spinner animation="border" role="status" />}
             {visits?.length === 0 && (
@@ -151,6 +175,8 @@ export default function Visits() {
                 </Button>
               </div>
             )}
+              </>
+            )}
           </>
         )}
       </Container>
@@ -163,8 +189,9 @@ export default function Visits() {
         <VisitFormModal
           apiaryId={apiaryId ?? null}
           mode={adding}
-          onHide={() => setAdding(null)}
-          onSaved={(saved) => { setAdding(null); reload(); setSheetId(saved.id); }}
+          startAt={addingAt}
+          onHide={() => { setAdding(null); setAddingAt(undefined); }}
+          onSaved={(saved) => { setAdding(null); setAddingAt(undefined); reload(); setSheetId(saved.id); }}
         />
       )}
     </PageLayout>

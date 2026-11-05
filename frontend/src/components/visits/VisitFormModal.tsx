@@ -29,6 +29,8 @@ interface VisitFormModalProps {
    * Default: as the visit stands, `record` for a new one.
    */
   mode?: 'plan' | 'record';
+  /** New visit: its day and hour (`datetime-local`), e.g. the day tapped in the calendar */
+  startAt?: string;
 }
 
 /** Tomorrow at 9 h, as a `datetime-local` value: the default time of a planned visit. */
@@ -62,7 +64,7 @@ const keyOf = (hive: string | null, colony: string | null) => colony ?? `hive:${
  * colony looked at what was seen. The count of bars is prefilled with the
  * colony's (that of its latest visit).
  */
-export default function VisitFormModal({ onHide, onSaved, visit = null, apiaryId = null, mode }: VisitFormModalProps) {
+export default function VisitFormModal({ onHide, onSaved, visit = null, apiaryId = null, mode, startAt }: VisitFormModalProps) {
   const planning = (mode ?? (visit?.status === 'planned' ? 'plan' : 'record')) === 'plan';
   const completing = !planning && visit?.status === 'planned';
   const auth = useAuth();
@@ -72,6 +74,7 @@ export default function VisitFormModal({ onHide, onSaved, visit = null, apiaryId
   const [startedAt, setStartedAt] = useState(() => {
     if (completing && visit) return doneAt(visit);
     if (visit) return toLocalInput(visit.started_at);
+    if (startAt) return startAt;
     return planning ? tomorrowMorning() : toLocalInput(new Date().toISOString());
   });
   const [duration, setDuration] = useState(visit?.duration_minutes ? String(visit.duration_minutes) : '');

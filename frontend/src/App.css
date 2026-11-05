@@ -1958,3 +1958,68 @@ html[data-platform="material"] .form-switch .form-check-input:checked {
   object-fit: cover;
   display: block;
 }
+
+/* The visit calendar (components/visits/VisitCalendar.tsx, FullCalendar): the app's tokens, light and dark */
+.visit-calendar {
+  --fc-border-color: var(--bs-border-color);
+  --fc-page-bg-color: var(--bs-body-bg);
+  --fc-neutral-bg-color: var(--bs-tertiary-bg);
+  --fc-list-event-hover-bg-color: var(--bs-tertiary-bg);
+  --fc-today-bg-color: var(--bs-primary-bg-subtle);
+  --fc-button-bg-color: var(--bs-body-bg);
+  --fc-button-border-color: var(--bs-border-color);
+  --fc-button-text-color: var(--bs-body-color);
+  --fc-button-hover-bg-color: var(--bs-tertiary-bg);
+  --fc-button-hover-border-color: var(--bs-border-color);
+  --fc-button-active-bg-color: var(--bs-primary);
+  --fc-button-active-border-color: var(--bs-primary);
+  --fc-event-text-color: var(--on-primary);
+}
+
+.visit-calendar .fc .fc-toolbar {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.visit-calendar .fc .fc-toolbar-title {
+  font-size: 1.125rem;
+  text-transform: capitalize;
+}
+
+.visit-calendar .fc .fc-button {
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+}
+
+.visit-calendar .fc .fc-button-primary:not(:disabled).fc-button-active,
+.visit-calendar .fc .fc-button-primary:not(:disabled):active {
+  color: var(--on-primary);
+}
+
+.visit-calendar .fc .fc-daygrid-day-frame {
+  min-height: 3.5rem;
+  cursor: pointer;
+}
+
+.visit-calendar .fc .fc-col-header-cell-cushion,
+.visit-calendar .fc .fc-daygrid-day-number,
+.visit-calendar .fc .fc-list-day-text,
+.visit-calendar .fc .fc-list-day-side-text {
+  color: var(--bs-body-color);
+  text-decoration: none;
+}
+
+.visit-calendar .fc .fc-daygrid-event {
+  font-size: 0.75rem;
+  border: 0;
+}
+
+.visit-calendar .fc .visit-event-planned { background-color: var(--bs-primary); }
+.visit-calendar .fc .visit-event-late { background-color: var(--bs-danger); }
+.visit-calendar .fc .visit-event-done { background-color: var(--bs-secondary); }
+
+.visit-calendar .fc .fc-list-event .fc-list-event-dot { border-color: var(--bs-secondary); }
+.visit-calendar .fc .fc-list-event.visit-event-planned .fc-list-event-dot { border-color: var(--bs-primary); }
+.visit-calendar .fc .fc-list-event.visit-event-late .fc-list-event-dot { border-color: var(--bs-danger); }
+.visit-calendar .fc .fc-list-event { background-color: transparent; color: var(--bs-body-color); }
+.visit-calendar .fc .fc-list-event td { min-height: 2.75rem; padding-top: 0.75rem; padding-bottom: 0.75rem; }

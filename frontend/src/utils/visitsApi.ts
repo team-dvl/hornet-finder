@@ -192,6 +192,9 @@ export async function fetchVisits(params: {
   apiary?: number; colony?: string; hive?: string; page?: number;
   /** 'done' by default (the journal, newest first); 'planned' soonest first */
   status?: VisitStatus | 'all';
+  /** Local days, included (the calendar): soonest first */
+  from?: string; to?: string;
+  page_size?: number;
 } = {}): Promise<VisitPage> {
   return (await api.get('/visits/', { params })).data;
 }

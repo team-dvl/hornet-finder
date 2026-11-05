@@ -179,3 +179,18 @@ class CommandTests(PlanningTestCase):
         self.assertIn('1 notification(s) would be sent', out.getvalue())
         visit.refresh_from_db()
         self.assertIsNone(visit.reminded_at)
+
+
+class CalendarRangeTests(PlanningTestCase):
+    def test_a_month_lists_its_planned_and_done_visits_soonest_first(self):
+        done = self._created()
+        planned = self._planned(timezone.now() + datetime.timedelta(days=2))
+        later = self._planned(timezone.now() + datetime.timedelta(days=60))
+        today = timezone.localdate()
+        response = self._as(self.member).get('/api/visits/', {
+            'status': 'all', 'from': (today - datetime.timedelta(days=1)).isoformat(),
+            'to': (today + datetime.timedelta(days=30)).isoformat()})
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual([row['id'] for row in response.data['results']], [str(done.pk), str(planned.pk)])
+        self.assertNotIn(str(later.pk), [row['id'] for row in response.data['results']])
+        self.assertEqual(self._as(self.member).get('/api/visits/', {'from': 'soon'}).status_code, 400)
