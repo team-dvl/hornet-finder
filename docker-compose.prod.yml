@@ -16,7 +16,7 @@ services:
       - gencert
 
   nginx-certbot:
-    image: nginx:1.29.0
+    image: nginx:1.30.7
     container_name: hornet-finder-nginx-certbot
     ports:
       - "${BIND_IP:-0.0.0.0}:${PROXY_PORT:-80}:80"
@@ -115,6 +115,9 @@ services:
       - KC_BOOTSTRAP_ADMIN_USERNAME=admin
       - KC_BOOTSTRAP_ADMIN_PASSWORD=${KC_BOOTSTRAP_ADMIN_PASSWORD}
       - KC_HOSTNAME=${KC_HOSTNAME}
+      # Java4Shell (CVE-2026-114938) mitigation: no hardware Base64 decoder. Drop it
+      # once the Keycloak image ships a fixed OpenJDK.
+      - JAVA_OPTS_APPEND=-XX:-UseBASE64Intrinsics
     volumes:
       - ./auth/realm-export.json:/opt/keycloak/data/import/realm-export.json
     healthcheck:
@@ -136,7 +139,7 @@ services:
       - hornet-finder-keycloak-db
 
   nginx:
-    image: nginx:1.29.0
+    image: nginx:1.30.7
     container_name: hornet-finder-nginx-prod
     ports:
       - "${BIND_IP:-0.0.0.0}:${PROXY_PORT:-80}:80"
