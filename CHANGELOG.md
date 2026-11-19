@@ -10,6 +10,12 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-11-19
+
+### Security
+- nginx 1.29.0 → 1.30.7 (stable): fixes the five "nginx2root" flaws of 2026-11-18 (HTTP/2, HTTP/3, resolver and mail proxy memory corruption). This setup serves neither HTTP/2 nor HTTP/3 and has no mail proxy, so it was not exposed in practice; the image was also several security releases behind.
+- Keycloak: JVM flag `-XX:-UseBASE64Intrinsics` (`JAVA_OPTS_APPEND`) against Java4Shell (CVE-2026-114938, OpenJDK Base64 decoder), until a Keycloak image with a fixed OpenJDK is released. The server CPU has no AVX-512 VBMI, so the faulty code path was not active; the flag is a safeguard. Prod note `0029`.
+
 ## [1.6.0] - 2026-11-01
 
 ### Added
@@ -498,7 +504,8 @@ Write entries under `[Unreleased]` as the work is done, in the sections `Added`,
   algorithm-confusion flaws were not reachable; `PyJWKClient` redirect handling
   is fixed.
 
-[Unreleased]: https://github.com/team-dvl/hornet-finder/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/team-dvl/hornet-finder/compare/v1.6.1...HEAD
+[1.6.1]: https://github.com/team-dvl/hornet-finder/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/team-dvl/hornet-finder/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/team-dvl/hornet-finder/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/team-dvl/hornet-finder/compare/v1.4.0...v1.5.0
